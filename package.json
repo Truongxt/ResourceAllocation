@@ -1,0 +1,16 @@
+{
+  "name": "resource-allocation-optimization",
+  "version": "1.0.0",
+  "description": "Hệ thống quản lý luồng công việc đa dự án và tự động tối ưu hóa phân bổ nhân sự",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "build": "cd client && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
