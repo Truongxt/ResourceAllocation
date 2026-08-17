@@ -80,20 +80,20 @@
 
 ---
 
-## Module 5: Thuật toán Tối ưu hóa (Optimization Engine) ⬜
+## Module 5: Thuật toán Tối ưu hóa (Optimization Engine) ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 5.1 | Genetic Algorithm | Multi-objective GA cho phân bổ nhân sự | ⬜ | Core |
-| 5.2 | CSP Solver | Backtracking + AC-3 cho ràng buộc cứng | ⬜ | Core |
-| 5.3 | Fitness Function | Workload balance + skill match + cost | ⬜ | |
-| 5.4 | Constraint Validation | Kiểm tra capacity, skill, time constraints | ⬜ | |
-| 5.5 | Run Optimization UI | Giao diện chạy tối ưu hóa với parameters | ⬜ | |
-| 5.6 | Results Comparison | So sánh multiple solutions | ⬜ | |
-| 5.7 | Apply Solution | Áp dụng kết quả tối ưu hóa vào hệ thống | ⬜ | |
-| 5.8 | History | Lưu lịch sử các lần chạy tối ưu hóa | ⬜ | |
-| 5.9 | Convergence Chart | Biểu đồ hội tụ GA (fitness qua generations) | ⬜ | |
-| 5.10 | Performance Benchmark | Đo thời gian chạy vs kích thước bài toán | ⬜ | Thesis |
+| 5.1 | Genetic Algorithm | Multi-objective GA cho phân bổ nhân sự | ✅ | Tournament, Uniform Crossover, Random Mutation, Elitism |
+| 5.2 | CSP Solver | Backtracking + AC-3 cho ràng buộc cứng | ✅ | MRV + LCV heuristics, domain reduction |
+| 5.3 | Fitness Function | Workload balance + skill match + cost | ✅ | 4 objectives, configurable weights |
+| 5.4 | Constraint Validation | Kiểm tra capacity, skill, time constraints | ✅ | Hard constraints: capacity, skill, availability |
+| 5.5 | Run Optimization UI | Giao diện chạy tối ưu hóa với parameters | ✅ | Algorithm selector, param sliders, weight tuning |
+| 5.6 | Results Comparison | So sánh multiple solutions | ✅ | History list + detail view |
+| 5.7 | Apply Solution | Áp dụng kết quả tối ưu hóa vào hệ thống | ✅ | Apply assigns tasks to resources |
+| 5.8 | History | Lưu lịch sử các lần chạy tối ưu hóa | ✅ | OptimizationResult model |
+| 5.9 | Convergence Chart | Biểu đồ hội tụ GA (fitness qua generations) | ✅ | Bar chart in UI |
+| 5.10 | Performance Benchmark | Đo thời gian chạy vs kích thước bài toán | ✅ | executionTime + task/resource counts |
 
 ---
 
