@@ -16,6 +16,7 @@ const projectSchema = new mongoose.Schema(
     code: {
       type: String,
       unique: true,
+      sparse: true,
       uppercase: true,
       trim: true,
       maxlength: [10, 'Mã dự án không vượt quá 10 ký tự'],
@@ -65,7 +66,7 @@ const projectSchema = new mongoose.Schema(
           default: 'developer',
         },
         allocation: {
-          type: Number, // FTE percentage (0-100)
+          type: Number,
           default: 100,
           min: 0,
           max: 100,
@@ -89,14 +90,12 @@ const projectSchema = new mongoose.Schema(
   }
 );
 
-// Virtual: tasks count
 projectSchema.virtual('tasks', {
   ref: 'Task',
   localField: '_id',
   foreignField: 'project',
 });
 
-// Index for faster queries
 projectSchema.index({ status: 1 });
 projectSchema.index({ manager: 1 });
 projectSchema.index({ startDate: 1, endDate: 1 });

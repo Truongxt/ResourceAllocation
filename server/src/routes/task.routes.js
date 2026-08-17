@@ -1,41 +1,128 @@
 const express = require('express');
+const { body, param, query } = require('express-validator');
+const { validate } = require('../middleware/validate');
+const { protect } = require('../middleware/auth');
+const {
+  getTasks,
+  getTaskById,
+  createTask,
+  updateTask,
+  updateTaskStatus,
+  deleteTask,
+  getTaskSummary,
+} = require('../controllers/task.controller');
+
 const router = express.Router();
 
-// TODO: Implement task controllers
+const taskIdValidation = [
+  param('id').isMongoId().withMessage('ID công việc không hợp lệ'),
+];
 
-// GET /api/tasks - Lấy danh sách task
-router.get('/', (req, res) => {
-  res.json({ success: true, data: [], message: 'Get all tasks - TODO' });
-});
+const listValidation = [
+  query('project').optional().isMongoId().withMessage('ID dự án không hợp lệ'),
+  query('status')
+    .optional()
+    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .withMessage('Trạng thái không hợp lệ'),
+  query('priority')
+    .optional()
+    .isIn(['low', 'medium', 'high', 'critical'])
+    .withMessage('Độ ưu tiên không hợp lệ'),
+  query('assignee').optional().isMongoId().withMessage('ID nhân sự không hợp lệ'),
+];
 
-// GET /api/tasks/:id - Chi tiết task
-router.get('/:id', (req, res) => {
-  res.json({ success: true, message: 'Get task by ID - TODO' });
-});
+const createValidation = [
+  body('title')
+    .trim()
+    .notEmpty()
+    .withMessage('Tiêu đề công việc là bắt buộc')
+    .isLength({ max: 300 })
+    .withMessage('Tiêu đề không vượt quá 300 ký tự'),
+  body('project')
+    .notEmpty()
+    .withMessage('Dự án là bắt buộc')
+    .isMongoId()
+    .withMessage('ID dự án không hợp lệ'),
+  body('description')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 5000 })
+    .withMessage('Mô tả không vượt quá 5000 ký tự'),
+  body('status')
+    .optional()
+    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .withMessage('Trạng thái không hợp lệ'),
+  body('priority')
+    .optional()
+    .isIn(['low', 'medium', 'high', 'critical'])
+    .withMessage('Độ ưu tiên không hợp lệ'),
+  body('startDate').optional().isISO8601().withMessage('Ngày bắt đầu không hợp lệ'),
+  body('endDate').optional().isISO8601().withMessage('Ngày kết thúc không hợp lệ'),
+  body('estimatedHours')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Giờ ước tính phải >= 0'),
+  body('assignee').optional({ nullable: true }).isMongoId().withMessage('ID nhân sự không hợp lệ'),
+  body('dependencies').optional().isArray().withMessage('Dependencies phải là mảng'),
+  body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
+];
 
-// POST /api/tasks - Tạo task mới
-router.post('/', (req, res) => {
-  res.json({ success: true, message: 'Create task - TODO' });
-});
+const updateValidation = [
+  body('title')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Tiêu đề không được để trống')
+    .isLength({ max: 300 })
+    .withMessage('Tiêu đề không vượt quá 300 ký tự'),
+  body('description')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 5000 })
+    .withMessage('Mô tả không vượt quá 5000 ký tự'),
+  body('status')
+    .optional()
+    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .withMessage('Trạng thái không hợp lệ'),
+  body('priority')
+    .optional()
+    .isIn(['low', 'medium', 'high', 'critical'])
+    .withMessage('Độ ưu tiên không hợp lệ'),
+  body('startDate').optional().isISO8601().withMessage('Ngày bắt đầu không hợp lệ'),
+  body('endDate').optional().isISO8601().withMessage('Ngày kết thúc không hợp lệ'),
+  body('estimatedHours')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Giờ ước tính phải >= 0'),
+  body('actualHours')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Giờ thực tế phải >= 0'),
+  body('progress')
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Tiến độ phải từ 0 đến 100'),
+  body('assignee').optional({ nullable: true }).isMongoId().withMessage('ID nhân sự không hợp lệ'),
+  body('dependencies').optional().isArray().withMessage('Dependencies phải là mảng'),
+  body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
+];
 
-// PUT /api/tasks/:id - Cập nhật task
-router.put('/:id', (req, res) => {
-  res.json({ success: true, message: 'Update task - TODO' });
-});
+const statusValidation = [
+  body('status')
+    .notEmpty()
+    .withMessage('Trạng thái là bắt buộc')
+    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .withMessage('Trạng thái không hợp lệ'),
+];
 
-// DELETE /api/tasks/:id - Xóa task
-router.delete('/:id', (req, res) => {
-  res.json({ success: true, message: 'Delete task - TODO' });
-});
+router.use(protect);
 
-// PUT /api/tasks/:id/assign - Gán nhân sự cho task
-router.put('/:id/assign', (req, res) => {
-  res.json({ success: true, message: 'Assign resource to task - TODO' });
-});
-
-// PUT /api/tasks/:id/status - Thay đổi trạng thái task
-router.put('/:id/status', (req, res) => {
-  res.json({ success: true, message: 'Update task status - TODO' });
-});
+router.get('/stats/summary', getTaskSummary);
+router.get('/', listValidation, validate, getTasks);
+router.get('/:id', taskIdValidation, validate, getTaskById);
+router.post('/', createValidation, validate, createTask);
+router.put('/:id', taskIdValidation, updateValidation, validate, updateTask);
+router.patch('/:id/status', taskIdValidation, statusValidation, validate, updateTaskStatus);
+router.delete('/:id', taskIdValidation, validate, deleteTask);
 
 module.exports = router;

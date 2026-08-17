@@ -29,54 +29,54 @@
 
 ---
 
-## Module 2: Quản lý Dự án (Project Management) ⬜
+## Module 2: Quản lý Dự án (Project Management) ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 2.1 | Tạo dự án | Form tạo dự án (tên, mô tả, ngày, priority) | ⬜ | |
-| 2.2 | Danh sách dự án | Hiển thị grid/list dự án với filter, search | ⬜ | |
-| 2.3 | Chi tiết dự án | Trang chi tiết với tabs (overview, tasks, members) | ⬜ | |
-| 2.4 | Cập nhật dự án | Chỉnh sửa thông tin dự án | ⬜ | |
-| 2.5 | Xóa dự án | Soft delete hoặc archive | ⬜ | |
-| 2.6 | Dashboard dự án | Tổng quan tiến độ, thống kê | ⬜ | |
-| 2.7 | Gắn nhân sự | Thêm/xóa thành viên + allocation % | ⬜ | |
-| 2.8 | Tiến độ dự án | Tự động tính % hoàn thành từ tasks | ⬜ | |
-| 2.9 | Filter & Sort | Lọc theo status, priority, date range | ⬜ | |
+| 2.1 | Tạo dự án | Form tạo dự án (tên, mô tả, ngày, priority) | ✅ | Modal form |
+| 2.2 | Danh sách dự án | Hiển thị grid/list dự án với filter, search | ✅ | Card grid + toolbar |
+| 2.3 | Chi tiết dự án | Trang chi tiết với tabs (overview, tasks, members) | ✅ | Populate tasks + members |
+| 2.4 | Cập nhật dự án | Chỉnh sửa thông tin dự án | ✅ | Modal form edit |
+| 2.5 | Xóa dự án | Soft delete hoặc archive | ✅ | Force delete + confirm |
+| 2.6 | Dashboard dự án | Tổng quan tiến độ, thống kê | ✅ | Summary API + stats |
+| 2.7 | Gắn nhân sự | Thêm/xóa thành viên + allocation % | ✅ | Member CRUD APIs |
+| 2.8 | Tiến độ dự án | Tự động tính % hoàn thành từ tasks | ✅ | recalculateProjectProgress |
+| 2.9 | Filter & Sort | Lọc theo status, priority, date range | ✅ | Search, status, priority filters |
 
 ---
 
-## Module 3: Quản lý Công việc (Task Management) ⬜
+## Module 3: Quản lý Công việc (Task Management) ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 3.1 | Tạo task | Form tạo task (title, description, dates, effort) | ⬜ | |
-| 3.2 | Danh sách task | Hiển thị tasks theo project hoặc tất cả | ⬜ | |
-| 3.3 | Chi tiết task | Modal/page chi tiết với đầy đủ thông tin | ⬜ | |
-| 3.4 | Cập nhật task | Chỉnh sửa thông tin task | ⬜ | |
-| 3.5 | Xóa task | Xóa task khỏi dự án | ⬜ | |
-| 3.6 | Kanban Board | Drag & drop thay đổi status (Todo → In Progress → Done) | ⬜ | |
-| 3.7 | Task Dependencies | Thiết lập predecessor/successor relationships | ⬜ | |
-| 3.8 | Gán nhân sự | Assign resource cho task | ⬜ | |
-| 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | ⬜ | |
-| 3.10 | Estimated Hours | Nhập giờ ước tính vs thực tế | ⬜ | |
-| 3.11 | Thay đổi trạng thái | Cập nhật progress, status | ⬜ | |
+| 3.1 | Tạo task | Form tạo task (title, description, dates, effort) | ✅ | Modal form |
+| 3.2 | Danh sách task | Hiển thị tasks theo project hoặc tất cả | ✅ | List View + filters |
+| 3.3 | Chi tiết task | Modal/page chi tiết với đầy đủ thông tin | ✅ | Edit modal |
+| 3.4 | Cập nhật task | Chỉnh sửa thông tin task | ✅ | Modal form edit |
+| 3.5 | Xóa task | Xóa task khỏi dự án | ✅ | Confirm + cleanup deps |
+| 3.6 | Kanban Board | Drag & drop thay đổi status (Todo → In Progress → Done) | ✅ | 5 columns, optimistic UI |
+| 3.7 | Task Dependencies | Thiết lập predecessor/successor relationships | ✅ | Model + cleanup on delete |
+| 3.8 | Gán nhân sự | Assign resource cho task | ✅ | Assignee field |
+| 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | ✅ | Schema + API |
+| 3.10 | Estimated Hours | Nhập giờ ước tính vs thực tế | ✅ | estimatedHours/actualHours |
+| 3.11 | Thay đổi trạng thái | Cập nhật progress, status | ✅ | PATCH /status endpoint |
 
 ---
 
-## Module 4: Quản lý Nhân sự (Resource Management) ⬜
+## Module 4: Quản lý Nhân sự (Resource Management) ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 4.1 | Thêm nhân sự | Form thêm nhân sự (info, position, department) | ⬜ | |
-| 4.2 | Danh sách nhân sự | Grid hiển thị với avatar, skills, workload | ⬜ | |
-| 4.3 | Chi tiết nhân sự | Profile chi tiết + assignments hiện tại | ⬜ | |
-| 4.4 | Cập nhật thông tin | Chỉnh sửa thông tin nhân sự | ⬜ | |
-| 4.5 | Skill Matrix | CRUD kỹ năng + level cho từng nhân sự | ⬜ | |
-| 4.6 | Availability Calendar | Lịch trình, ngày nghỉ, periods unavailable | ⬜ | |
-| 4.7 | Capacity (FTE) | Thiết lập FTE, max hours/week | ⬜ | |
-| 4.8 | Workload View | Hiển thị workload hiện tại, utilization rate | ⬜ | |
-| 4.9 | Department Filter | Lọc nhân sự theo bộ phận | ⬜ | |
-| 4.10 | Skill Search | Tìm nhân sự theo skill + level | ⬜ | |
+| 4.1 | Thêm nhân sự | Form thêm nhân sự (info, position, department) | ✅ | Modal form + user linking |
+| 4.2 | Danh sách nhân sự | Grid hiển thị với avatar, skills, workload | ✅ | Card grid + utilization bars |
+| 4.3 | Chi tiết nhân sự | Profile chi tiết + assignments hiện tại | ✅ | getById + assignments |
+| 4.4 | Cập nhật thông tin | Chỉnh sửa thông tin nhân sự | ✅ | Edit modal |
+| 4.5 | Skill Matrix | CRUD kỹ năng + level cho từng nhân sự | ✅ | Skill modal editor |
+| 4.6 | Availability Calendar | Lịch trình, ngày nghỉ, periods unavailable | ✅ | Schema + availability status |
+| 4.7 | Capacity (FTE) | Thiết lập FTE, max hours/week | ✅ | FTE + maxCapacity fields |
+| 4.8 | Workload View | Hiển thị workload hiện tại, utilization rate | ✅ | Virtual utilization bars |
+| 4.9 | Department Filter | Lọc nhân sự theo bộ phận | ✅ | Filter by department |
+| 4.10 | Skill Search | Tìm nhân sự theo skill + level | ✅ | ?skill=&skillLevel= query |
 
 ---
 

@@ -4,13 +4,14 @@ const taskSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, 'Tên công việc là bắt buộc'],
+      required: [true, 'Tiêu đề công việc là bắt buộc'],
       trim: true,
-      maxlength: [300, 'Tên công việc không vượt quá 300 ký tự'],
+      maxlength: [300, 'Tiêu đề không vượt quá 300 ký tự'],
     },
     description: {
       type: String,
       trim: true,
+      maxlength: [5000, 'Mô tả không vượt quá 5000 ký tự'],
     },
     project: {
       type: mongoose.Schema.Types.ObjectId,
@@ -19,7 +20,7 @@ const taskSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['todo', 'in_progress', 'in_review', 'done'],
+      enum: ['todo', 'in_progress', 'review', 'done', 'blocked'],
       default: 'todo',
     },
     priority: {
@@ -27,7 +28,6 @@ const taskSchema = new mongoose.Schema(
       enum: ['low', 'medium', 'high', 'critical'],
       default: 'medium',
     },
-    // Task scheduling
     startDate: {
       type: Date,
     },
@@ -44,53 +44,39 @@ const taskSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
-    // Assignment
-    assignee: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Resource',
-    },
-    // Required skills for this task
-    requiredSkills: [
-      {
-        skill: {
-          type: String,
-          required: true,
-        },
-        level: {
-          type: Number,
-          enum: [1, 2, 3, 4], // 1=Beginner, 2=Intermediate, 3=Advanced, 4=Expert
-          default: 1,
-        },
-      },
-    ],
-    // Dependencies (predecessor tasks)
-    dependencies: [
-      {
-        task: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'Task',
-        },
-        type: {
-          type: String,
-          enum: ['finish_to_start', 'start_to_start', 'finish_to_finish', 'start_to_finish'],
-          default: 'finish_to_start',
-        },
-      },
-    ],
-    // Effort / complexity
-    storyPoints: {
-      type: Number,
-      default: 0,
-    },
     progress: {
       type: Number,
       default: 0,
       min: 0,
       max: 100,
     },
-    completedAt: {
-      type: Date,
+    assignee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
+    requiredSkills: [
+      {
+        name: String,
+        level: {
+          type: Number,
+          min: 1,
+          max: 5,
+          default: 3,
+        },
+        weight: {
+          type: Number,
+          min: 0,
+          max: 1,
+          default: 1,
+        },
+      },
+    ],
+    dependencies: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Task',
+      },
+    ],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -101,18 +87,8 @@ const taskSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
 taskSchema.index({ project: 1, status: 1 });
 taskSchema.index({ assignee: 1 });
 taskSchema.index({ startDate: 1, endDate: 1 });
-
-// Auto-set completedAt when status changes to 'done'
-taskSchema.pre('save', function (next) {
-  if (this.isModified('status') && this.status === 'done' && !this.completedAt) {
-    this.completedAt = new Date();
-    this.progress = 100;
-  }
-  next();
-});
 
 module.exports = mongoose.model('Task', taskSchema);
