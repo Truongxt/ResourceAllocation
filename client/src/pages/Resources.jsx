@@ -1,54 +1,82 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  HiOutlineCheckCircle,
-  HiOutlineExclamation,
-  HiOutlinePencil,
-  HiOutlinePlus,
-  HiOutlineRefresh,
-  HiOutlineSearch,
-  HiOutlineTrash,
-  HiOutlineUpload,
-  HiOutlineUser,
-  HiOutlineX,
-} from 'react-icons/hi';
+  Table,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Button,
+  Input,
+  Select,
+  Modal,
+  Form,
+  InputNumber,
+  Progress,
+  Tag,
+  Space,
+  Typography,
+  Popconfirm,
+  message,
+  Tooltip,
+  Tabs,
+  Avatar,
+  Switch,
+  Divider,
+} from 'antd';
+import {
+  PlusOutlined,
+  UploadOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  TeamOutlined,
+  UserOutlined,
+  WarningOutlined,
+  ApartmentOutlined,
+  ThunderboltOutlined,
+  MinusCircleOutlined,
+} from '@ant-design/icons';
 import resourceService from '../services/resourceService';
-import authService from '../services/authService';
-import './Resources.css';
+import departmentService from '../services/departmentService';
 
-const SKILL_LEVELS = { 1: 'Beginner', 2: 'Intermediate', 3: 'Advanced', 4: 'Expert' };
-const AVAILABILITY_LABELS = {
-  available: 'Sẵn sàng',
-  partially_available: 'Bận một phần',
-  unavailable: 'Không khả dụng',
-};
+const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
 
-const initialForm = {
-  user: '',
-  employeeId: '',
-  position: '',
-  department: '',
-  maxCapacity: 40,
-  fte: 1,
-  hourlyRate: 0,
-};
+const SKILL_LEVELS = [
+  { value: 1, label: 'Beginner (Cơ bản - Lv.1)' },
+  { value: 2, label: 'Intermediate (Trung cấp - Lv.2)' },
+  { value: 3, label: 'Advanced (Nâng cao - Lv.3)' },
+  { value: 4, label: 'Expert (Chuyên gia - Lv.4)' },
+];
 
-function getErrorMessage(err) {
-  return err.response?.data?.message || 'Đã xảy ra lỗi.';
-}
+const AVAILABILITY_OPTIONS = [
+  { value: 'available', label: 'Sẵn sàng', color: 'success' },
+  { value: 'partially_available', label: 'Bận một phần', color: 'warning' },
+  { value: 'unavailable', label: 'Không khả dụng', color: 'error' },
+];
 
 export default function Resources() {
   const [resources, setResources] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [notice, setNotice] = useState(null);
+  const [activeTab, setActiveTab] = useState('resources');
   const [filters, setFilters] = useState({ search: '', department: '', availability: '' });
-  const [modal, setModal] = useState(null);
-  const [form, setForm] = useState(initialForm);
-  const [skillForm, setSkillForm] = useState({ resourceId: '', skills: [] });
+
+  // Modals state
+  const [resourceModalOpen, setResourceModalOpen] = useState(false);
+  const [skillsModalOpen, setSkillsModalOpen] = useState(false);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
+  const [editingResource, setEditingResource] = useState(null);
+  const [editingDepartment, setEditingDepartment] = useState(null);
   const [csvContent, setCsvContent] = useState('');
 
-  // Load
+  const [resourceForm] = Form.useForm();
+  const [skillsForm] = Form.useForm();
+  const [departmentForm] = Form.useForm();
+
+  // Load resources & departments
   const loadResources = useCallback(async () => {
     setLoading(true);
     try {
@@ -56,428 +84,801 @@ export default function Resources() {
       const res = await resourceService.getAll(params);
       setResources(res.data.data.resources || []);
     } catch (err) {
-      setNotice({ type: 'error', text: getErrorMessage(err) });
+      message.error(err.response?.data?.message || 'Không thể tải danh sách nhân sự');
     } finally {
       setLoading(false);
     }
   }, [filters]);
 
-  const loadUsers = useCallback(async () => {
+  const loadDepartments = useCallback(async () => {
     try {
-      const res = await authService.getUsers();
-      setUsers(res.data.users || []);
-    } catch { /* ignore */ }
+      const res = await departmentService.getAll();
+      setDepartments(res.data.data.departments || []);
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Không thể tải danh sách phòng ban');
+    }
   }, []);
 
-  useEffect(() => { loadUsers(); }, [loadUsers]);
+  useEffect(() => {
+    loadDepartments();
+  }, [loadDepartments]);
 
   useEffect(() => {
     const t = setTimeout(loadResources, filters.search ? 300 : 0);
     return () => clearTimeout(t);
   }, [loadResources, filters.department, filters.availability]);
 
-  // Departments list for filter
-  const departments = useMemo(() => {
-    const set = new Set(resources.map((r) => r.department).filter(Boolean));
-    return Array.from(set);
-  }, [resources]);
+  const activeDepartments = useMemo(() => departments.filter((d) => d.isActive), [departments]);
 
-  // Stats
   const stats = useMemo(() => {
     const total = resources.length;
     const available = resources.filter((r) => r.availability === 'available').length;
     const overloaded = resources.filter((r) => r.isOverloaded).length;
-    const avgUtil = total > 0
-      ? Math.round(resources.reduce((s, r) => s + (r.utilizationRate || 0), 0) / total)
-      : 0;
+    const avgUtil =
+      total > 0 ? Math.round(resources.reduce((s, r) => s + (r.utilizationRate || 0), 0) / total) : 0;
     return { total, available, overloaded, avgUtil };
   }, [resources]);
 
-  // Handlers
-  const openCreate = () => {
-    setForm(initialForm);
-    setModal({ type: 'form', resource: null });
-  };
-
-  const openEdit = (resource) => {
-    setForm({
-      user: resource.user?._id || '',
-      employeeId: resource.employeeId || '',
-      position: resource.position || '',
-      department: resource.department || '',
-      maxCapacity: resource.maxCapacity || 40,
-      fte: resource.fte || 1,
-      hourlyRate: resource.hourlyRate || 0,
+  // Handlers for Resource
+  const openCreateResource = () => {
+    setEditingResource(null);
+    resourceForm.resetFields();
+    resourceForm.setFieldsValue({
+      newUserRole: 'member',
+      maxCapacity: 40,
+      fte: 1,
+      hourlyRate: 0,
+      department: activeDepartments[0]?.name || '',
     });
-    setModal({ type: 'form', resource });
+    setResourceModalOpen(true);
   };
 
-  const openSkills = (resource) => {
-    setSkillForm({
-      resourceId: resource._id,
-      skills: (resource.skills || []).map((s) => ({
+  const openEditResource = (res) => {
+    setEditingResource(res);
+    resourceForm.setFieldsValue({
+      employeeId: res.employeeId || '',
+      position: res.position || '',
+      department: res.department || '',
+      maxCapacity: res.maxCapacity || 40,
+      fte: res.fte || 1,
+      hourlyRate: res.hourlyRate || 0,
+    });
+    setResourceModalOpen(true);
+  };
+
+  const openSkillsModal = (res) => {
+    setEditingResource(res);
+    skillsForm.setFieldsValue({
+      skills: (res.skills || []).map((s) => ({
         name: s.name,
-        level: s.level,
+        level: s.level || 2,
         yearsOfExperience: s.yearsOfExperience || 0,
       })),
     });
-    setModal({ type: 'skills', resource });
+    setSkillsModalOpen(true);
   };
 
-  const closeModal = () => setModal(null);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleResourceSubmit = async (values) => {
     setSubmitting(true);
     try {
       const payload = {
-        ...form,
-        maxCapacity: Number(form.maxCapacity),
-        fte: Number(form.fte),
-        hourlyRate: Number(form.hourlyRate),
+        position: values.position,
+        department: values.department,
+        maxCapacity: Number(values.maxCapacity),
+        fte: Number(values.fte),
+        hourlyRate: Number(values.hourlyRate),
       };
-      if (!payload.employeeId) delete payload.employeeId;
 
-      if (modal.resource) {
-        await resourceService.update(modal.resource._id, payload);
-        setNotice({ type: 'success', text: 'Cập nhật nhân sự thành công.' });
+      if (editingResource) {
+        await resourceService.update(editingResource._id, payload);
+        message.success('Cập nhật nhân sự thành công');
       } else {
+        payload.newUser = {
+          name: values.newUserName,
+          email: values.newUserEmail,
+          password: values.newUserPassword,
+          role: values.newUserRole,
+        };
         await resourceService.create(payload);
-        setNotice({ type: 'success', text: 'Thêm nhân sự thành công.' });
+        message.success('Thêm nhân sự và tạo tài khoản thành công');
       }
-      setModal(null);
+      setResourceModalOpen(false);
       await loadResources();
+      await loadDepartments();
     } catch (err) {
-      setNotice({ type: 'error', text: getErrorMessage(err) });
+      message.error(err.response?.data?.message || 'Có lỗi xảy ra khi lưu nhân sự');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleSkillsSubmit = async (e) => {
-    e.preventDefault();
+  const handleSkillsSubmit = async (values) => {
+    if (!editingResource) return;
     setSubmitting(true);
     try {
-      await resourceService.updateSkills(skillForm.resourceId, skillForm.skills);
-      setNotice({ type: 'success', text: 'Cập nhật kỹ năng thành công.' });
-      setModal(null);
+      await resourceService.updateSkills(editingResource._id, values.skills || []);
+      message.success('Cập nhật Skill Matrix thành công');
+      setSkillsModalOpen(false);
       await loadResources();
     } catch (err) {
-      setNotice({ type: 'error', text: getErrorMessage(err) });
+      message.error(err.response?.data?.message || 'Không thể cập nhật kỹ năng');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const addSkill = () => {
-    setSkillForm((p) => ({ ...p, skills: [...p.skills, { name: '', level: 2, yearsOfExperience: 0 }] }));
-  };
-
-  const removeSkill = (idx) => {
-    setSkillForm((p) => ({ ...p, skills: p.skills.filter((_, i) => i !== idx) }));
-  };
-
-  const updateSkill = (idx, field, value) => {
-    setSkillForm((p) => ({
-      ...p,
-      skills: p.skills.map((s, i) => i === idx ? { ...s, [field]: value } : s),
-    }));
-  };
-
-  const handleDelete = async (resource) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa nhân sự "${resource.user?.name || resource.position}"?`)) return;
+  const handleDeleteResource = async (id) => {
     try {
-      await resourceService.remove(resource._id);
-      setNotice({ type: 'success', text: 'Xóa nhân sự thành công.' });
+      await resourceService.remove(id);
+      message.success('Xóa nhân sự thành công');
       await loadResources();
+      await loadDepartments();
     } catch (err) {
-      setNotice({ type: 'error', text: getErrorMessage(err) });
+      message.error(err.response?.data?.message || 'Không thể xóa nhân sự');
     }
   };
 
-  const handleImportCSV = async (e) => {
-    e.preventDefault();
-    if (!csvContent.trim()) return;
-
+  // Department Handlers
+  const handleDepartmentSubmit = async (values) => {
     setSubmitting(true);
-    let successCount = 0;
+    try {
+      const payload = { ...values };
+      if (!payload.code) delete payload.code;
+
+      if (editingDepartment) {
+        await departmentService.update(editingDepartment._id, payload);
+        message.success('Cập nhật phòng ban thành công');
+      } else {
+        await departmentService.create(payload);
+        message.success('Thêm phòng ban mới thành công');
+      }
+      departmentForm.resetFields();
+      setEditingDepartment(null);
+      await loadDepartments();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Không thể lưu phòng ban');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openEditDepartment = (dept) => {
+    setEditingDepartment(dept);
+    departmentForm.setFieldsValue({
+      name: dept.name,
+      code: dept.code,
+      managerName: dept.managerName,
+      description: dept.description,
+      isActive: dept.isActive !== false,
+    });
+  };
+
+  const handleDeleteDepartment = async (id) => {
+    try {
+      await departmentService.remove(id);
+      message.success('Xóa phòng ban thành công');
+      await loadDepartments();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Không thể xóa phòng ban');
+    }
+  };
+
+  const handleImportCSV = async () => {
+    if (!csvContent.trim()) {
+      message.warning('Vui lòng nhập dữ liệu CSV');
+      return;
+    }
+    setSubmitting(true);
+    let count = 0;
     const lines = csvContent.trim().split('\n');
-
-    // Available users without resource record
-    const linkedUserIds = new Set(resources.map((r) => r.user?._id));
-    const availableUsers = users.filter((u) => !linkedUserIds.has(u._id));
-    let userIdx = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      if (!line || (i === 0 && line.toLowerCase().includes('vị trí'))) continue;
-
+      if (!line || (i === 0 && line.toLowerCase().includes('email'))) continue;
       const parts = line.split(',').map((p) => p.trim().replace(/^["']|["']$/g, ''));
-      if (!parts[0]) continue;
-
-      const targetUser = availableUsers[userIdx] || users[0];
-      if (!targetUser) break;
+      if (!parts[0] || !parts[1] || !parts[3]) continue;
 
       try {
         await resourceService.create({
-          user: targetUser._id,
-          position: parts[0],
-          department: parts[1] || 'General',
-          fte: Number(parts[2]) || 1,
-          maxCapacity: Number(parts[3]) || 40,
-          hourlyRate: Number(parts[4]) || 0,
+          newUser: {
+            name: parts[0],
+            email: parts[1],
+            password: parts[2] || 'password123',
+            role: 'member',
+          },
+          position: parts[3],
+          department: parts[4] || '',
+          fte: Number(parts[5]) || 1,
+          maxCapacity: Number(parts[6]) || 40,
+          hourlyRate: Number(parts[7]) || 0,
         });
-        successCount++;
-        userIdx++;
+        count++;
       } catch {
-        /* skip error line */
+        /* skip error row */
       }
     }
 
-    setNotice({ type: 'success', text: `Đã nhập thành công ${successCount} nhân sự từ CSV.` });
+    message.success(`Đã nhập thành công ${count} nhân sự từ CSV`);
     setSubmitting(false);
-    setModal(null);
+    setCsvModalOpen(false);
     setCsvContent('');
     await loadResources();
+    await loadDepartments();
   };
 
-  const getUtilColor = (rate) => {
-    if (rate > 100) return 'var(--color-danger)';
-    if (rate > 80) return '#f59e0b';
-    return 'var(--color-success)';
-  };
+  const resourceColumns = [
+    {
+      title: 'Nhân sự',
+      key: 'name',
+      render: (_, record) => (
+        <Space orientation="horizontal" size="middle">
+          <Avatar
+            style={{ backgroundColor: '#6366f1' }}
+            icon={<UserOutlined />}
+            size="large"
+          >
+            {(record.user?.name || record.position || 'U')[0].toUpperCase()}
+          </Avatar>
+          <div>
+            <Text strong style={{ fontSize: 14 }}>{record.user?.name || 'Chưa gán user'}</Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>{record.position}</Text>
+          </div>
+        </Space>
+      ),
+    },
+    {
+      title: 'Phòng ban',
+      dataIndex: 'department',
+      key: 'department',
+      render: (dept) => dept ? <Tag color="blue">{dept}</Tag> : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'availability',
+      key: 'availability',
+      render: (avail) => {
+        const opt = AVAILABILITY_OPTIONS.find((a) => a.value === avail) || { label: avail, color: 'default' };
+        return <Tag color={opt.color}>{opt.label}</Tag>;
+      },
+    },
+    {
+      title: 'Công suất (Workload)',
+      key: 'workload',
+      width: 220,
+      render: (_, record) => {
+        const util = record.utilizationRate || 0;
+        const color = util > 100 ? '#ef4444' : util > 80 ? '#f59e0b' : '#10b981';
+        return (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {record.currentWorkload || 0}h / {record.capacity || record.maxCapacity * record.fte}h
+              </Text>
+              <Text strong style={{ color, fontSize: 12 }}>{util}%</Text>
+            </div>
+            <Progress percent={Math.min(util, 100)} showInfo={false} strokeColor={color} size="small" />
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Skill Matrix',
+      key: 'skills',
+      render: (_, record) => {
+        const skills = record.skills || [];
+        return (
+          <Space wrap size={[4, 4]}>
+            {skills.slice(0, 3).map((s, idx) => (
+              <Tag key={idx} color="purple" style={{ fontSize: 11 }}>
+                {s.name} (Lv.{s.level})
+              </Tag>
+            ))}
+            {skills.length > 3 && <Tag>+{skills.length - 3}</Tag>}
+            <Button
+              type="dashed"
+              size="small"
+              icon={<ThunderboltOutlined />}
+              onClick={() => openSkillsModal(record)}
+            >
+              Matrix ({skills.length})
+            </Button>
+          </Space>
+        );
+      },
+    },
+    {
+      title: 'FTE / Lương (h)',
+      key: 'rate',
+      render: (_, record) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          FTE: {record.fte || 1} • {record.hourlyRate ? `${record.hourlyRate.toLocaleString('vi-VN')} đ/h` : '—'}
+        </Text>
+      ),
+    },
+    {
+      title: 'Hành động',
+      key: 'actions',
+      width: 100,
+      render: (_, record) => (
+        <Space size="small">
+          <Tooltip title="Chỉnh sửa thông tin">
+            <Button type="text" icon={<EditOutlined />} onClick={() => openEditResource(record)} />
+          </Tooltip>
+          <Tooltip title="Xóa nhân sự">
+            <Popconfirm
+              title="Xác nhận xóa nhân sự?"
+              onConfirm={() => handleDeleteResource(record._id)}
+              okText="Xóa"
+              cancelText="Hủy"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="text" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
+
+  const departmentColumns = [
+    {
+      title: 'Tên phòng ban',
+      key: 'name',
+      render: (_, record) => (
+        <div>
+          <Text strong style={{ fontSize: 14 }}>{record.name}</Text>
+          {record.description && (
+            <Paragraph type="secondary" ellipsis={{ rows: 1 }} style={{ fontSize: 12, margin: '2px 0 0' }}>
+              {record.description}
+            </Paragraph>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: 'Mã phòng ban',
+      dataIndex: 'code',
+      key: 'code',
+      render: (code) => code ? <Tag color="cyan">{code}</Tag> : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Người quản lý',
+      dataIndex: 'managerName',
+      key: 'managerName',
+      render: (manager) => manager || <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Số nhân sự',
+      dataIndex: 'resourceCount',
+      key: 'resourceCount',
+      render: (count = 0) => <Tag color="blue">{count} nhân sự</Tag>,
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'isActive',
+      key: 'isActive',
+      render: (active) => (
+        <Tag color={active ? 'success' : 'default'}>{active ? 'Hoạt động' : 'Tạm ẩn'}</Tag>
+      ),
+    },
+    {
+      title: 'Hành động',
+      key: 'actions',
+      width: 100,
+      render: (_, record) => (
+        <Space size="small">
+          <Tooltip title="Chỉnh sửa">
+            <Button type="text" icon={<EditOutlined />} onClick={() => openEditDepartment(record)} />
+          </Tooltip>
+          <Tooltip title="Xóa phòng ban">
+            <Popconfirm
+              title="Xác nhận xóa phòng ban?"
+              description="Không thể xóa phòng ban nếu vẫn còn nhân sự."
+              onConfirm={() => handleDeleteDepartment(record._id)}
+              okText="Xóa"
+              cancelText="Hủy"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="text" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <div className="animate-fade-in">
-      <div className="page-header resources-header">
+    <div style={{ maxWidth: 1400 }}>
+      {/* Page Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <h1 className="page-title">Quản lý Nhân sự</h1>
-          <p className="page-description">Quản lý nhân sự, kỹ năng và tải công việc.</p>
+          <Title level={3} style={{ marginBottom: 4 }}>Quản lý Nhân sự & Phòng ban</Title>
+          <Text type="secondary">Quản lý đội ngũ nhân sự, ma trận kỹ năng và phân bổ phòng ban</Text>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <button className="btn btn-secondary" onClick={() => setModal({ type: 'import' })}>
-            <HiOutlineUpload /> Nhập CSV
-          </button>
-          <button className="btn btn-primary" onClick={openCreate} id="btn-create-resource">
-            <HiOutlinePlus /> Thêm nhân sự
-          </button>
-        </div>
+        {activeTab === 'resources' && (
+          <Space>
+            <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>
+              Nhập CSV
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateResource} id="btn-create-resource">
+              Thêm nhân sự
+            </Button>
+          </Space>
+        )}
       </div>
 
-      {notice && (
-        <div className={`alert alert-${notice.type} resources-alert`}>
-          {notice.type === 'success' ? <HiOutlineCheckCircle /> : <HiOutlineExclamation />}
-          <span>{notice.text}</span>
-          <button aria-label="Đóng" onClick={() => setNotice(null)}><HiOutlineX /></button>
-        </div>
-      )}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        type="card"
+        items={[
+          {
+            key: 'resources',
+            label: (
+              <span>
+                <TeamOutlined /> Nhân sự ({resources.length})
+              </span>
+            ),
+            children: (
+              <>
+                {/* Stats Cards */}
+                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                  <Col xs={12} sm={6}>
+                    <Card hoverable>
+                      <Statistic title="Tổng nhân sự" value={stats.total} prefix={<TeamOutlined style={{ color: '#6366f1' }} />} />
+                    </Card>
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <Card hoverable>
+                      <Statistic title="Sẵn sàng" value={stats.available} prefix={<UserOutlined style={{ color: '#10b981' }} />} />
+                    </Card>
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <Card hoverable>
+                      <Statistic title="Utilization TB" value={stats.avgUtil} suffix="%" />
+                    </Card>
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <Card hoverable>
+                      <Statistic
+                        title="Quá tải"
+                        value={stats.overloaded}
+                        valueStyle={{ color: stats.overloaded > 0 ? '#ef4444' : '#10b981' }}
+                        prefix={<WarningOutlined style={{ color: stats.overloaded > 0 ? '#ef4444' : '#10b981' }} />}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
 
-      {/* Stats */}
-      <div className="resource-stats">
-        <div className="resource-stat"><span>Tổng nhân sự</span><strong>{stats.total}</strong></div>
-        <div className="resource-stat"><span>Utilization TB</span><strong>{stats.avgUtil}%</strong></div>
-        <div className="resource-stat"><span>Quá tải</span><strong className="text-danger">{stats.overloaded}</strong></div>
-      </div>
+                {/* Filters */}
+                <Card style={{ marginBottom: 16 }} styles={{ body: { padding: '16px 20px' } }}>
+                  <Row gutter={[16, 16]} align="middle">
+                    <Col xs={24} md={10}>
+                      <Input
+                        prefix={<SearchOutlined />}
+                        placeholder="Tìm theo tên, vị trí nhân sự..."
+                        value={filters.search}
+                        onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
+                        allowClear
+                      />
+                    </Col>
+                    <Col xs={12} md={6}>
+                      <Select
+                        style={{ width: '100%' }}
+                        placeholder="Tất cả phòng ban"
+                        value={filters.department || undefined}
+                        onChange={(val) => setFilters((p) => ({ ...p, department: val || '' }))}
+                        allowClear
+                        options={activeDepartments.map((d) => ({ value: d.name, label: d.name }))}
+                      />
+                    </Col>
+                    <Col xs={12} md={6}>
+                      <Select
+                        style={{ width: '100%' }}
+                        placeholder="Tất cả trạng thái"
+                        value={filters.availability || undefined}
+                        onChange={(val) => setFilters((p) => ({ ...p, availability: val || '' }))}
+                        allowClear
+                        options={AVAILABILITY_OPTIONS}
+                      />
+                    </Col>
+                    <Col xs={24} md={2} style={{ textAlign: 'right' }}>
+                      <Button icon={<ReloadOutlined />} onClick={loadResources} title="Tải lại" />
+                    </Col>
+                  </Row>
+                </Card>
 
-      {/* Filters */}
-      <div className="resources-toolbar card">
-        <label className="resources-search">
-          <HiOutlineSearch />
-          <input value={filters.search} onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))} placeholder="Tìm theo tên, vị trí..." />
-        </label>
-        <select value={filters.department} onChange={(e) => setFilters((p) => ({ ...p, department: e.target.value }))}>
-          <option value="">Tất cả phòng ban</option>
-          {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <select value={filters.availability} onChange={(e) => setFilters((p) => ({ ...p, availability: e.target.value }))}>
-          <option value="">Tất cả trạng thái</option>
-          {Object.entries(AVAILABILITY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <button className="btn btn-secondary" onClick={loadResources} title="Tải lại"><HiOutlineRefresh /></button>
-      </div>
+                {/* Table */}
+                <Card styles={{ body: { padding: 0 } }}>
+                  <Table
+                    columns={resourceColumns}
+                    dataSource={resources}
+                    rowKey="_id"
+                    loading={loading}
+                    pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Tổng số ${total} nhân sự` }}
+                  />
+                </Card>
+              </>
+            ),
+          },
+          {
+            key: 'departments',
+            label: (
+              <span>
+                <ApartmentOutlined /> Phòng ban ({departments.length})
+              </span>
+            ),
+            children: (
+              <Row gutter={[24, 24]}>
+                {/* Department Form */}
+                <Col xs={24} lg={8}>
+                  <Card title={editingDepartment ? 'Cập nhật phòng ban' : 'Thêm phòng ban mới'}>
+                    <Form
+                      form={departmentForm}
+                      layout="vertical"
+                      onFinish={handleDepartmentSubmit}
+                      initialValues={{ isActive: true }}
+                    >
+                      <Form.Item
+                        name="name"
+                        label="Tên phòng ban"
+                        rules={[{ required: true, message: 'Vui lòng nhập tên phòng ban' }]}
+                      >
+                        <Input placeholder="Ví dụ: Engineering, Design, QA" />
+                      </Form.Item>
 
-      {/* Content */}
-      {loading ? (
-        <div className="empty-state"><p className="empty-state-text">Đang tải...</p></div>
-      ) : resources.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon"><HiOutlineUser /></div>
-          <h3 className="empty-state-title">Chưa có nhân sự</h3>
-          <p className="empty-state-text">Thêm nhân sự đầu tiên để bắt đầu quản lý nguồn lực.</p>
-          <button className="btn btn-primary" onClick={openCreate}><HiOutlinePlus /> Thêm nhân sự</button>
-        </div>
-      ) : (
-        <div className="resources-grid">
-          {resources.map((r) => {
-            const util = r.utilizationRate || 0;
-            const skills = r.skills || [];
+                      <Form.Item name="code" label="Mã phòng ban">
+                        <Input placeholder="Ví dụ: ENG, DES, QA" />
+                      </Form.Item>
 
-            return (
-              <article key={r._id} className="resource-card card">
-                <div className="resource-card-top">
-                  <div className="resource-avatar">
-                    {(r.user?.name || r.position || 'U')[0].toUpperCase()}
-                  </div>
-                  <div className="resource-info">
-                    <h3>{r.user?.name || 'Chưa gán tài khoản'}</h3>
-                    <span className="resource-position">{r.position}</span>
-                    <span className="resource-dept">{r.department || '—'}</span>
-                  </div>
-                  <div className="resource-card-actions">
-                    <button title="Chỉnh sửa thông tin" onClick={() => openEdit(r)}><HiOutlinePencil /></button>
-                    <button title="Xóa" className="danger-action" onClick={() => handleDelete(r)}><HiOutlineTrash /></button>
-                  </div>
-                </div>
+                      <Form.Item name="managerName" label="Trưởng phòng (Quản lý)">
+                        <Input placeholder="Ví dụ: Nguyễn Văn A" />
+                      </Form.Item>
 
-                {/* Utilization */}
-                <div className="resource-utilization">
-                  <div className="resource-util-header">
-                    <span>Workload: {r.currentWorkload || 0}h / {r.capacity || (r.maxCapacity * r.fte)}h</span>
-                    <strong style={{ color: getUtilColor(util) }}>{util}%</strong>
-                  </div>
-                  <div className="resource-util-bar">
-                    <div
-                      className="resource-util-fill"
-                      style={{ width: `${Math.min(util, 100)}%`, background: getUtilColor(util) }}
+                      <Form.Item name="description" label="Mô tả chức năng">
+                        <TextArea rows={3} placeholder="Phạm vi công việc của phòng ban..." />
+                      </Form.Item>
+
+                      <Form.Item name="isActive" label="Trạng thái hoạt động" valuePropName="checked">
+                        <Switch checkedChildren="Hoạt động" unCheckedChildren="Tạm ẩn" />
+                      </Form.Item>
+
+                      <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                        {editingDepartment && (
+                          <Button
+                            onClick={() => {
+                              setEditingDepartment(null);
+                              departmentForm.resetFields();
+                            }}
+                          >
+                            Hủy sửa
+                          </Button>
+                        )}
+                        <Button type="primary" htmlType="submit" loading={submitting}>
+                          {editingDepartment ? 'Lưu phòng ban' : 'Thêm phòng ban'}
+                        </Button>
+                      </Space>
+                    </Form>
+                  </Card>
+                </Col>
+
+                {/* Department List */}
+                <Col xs={24} lg={16}>
+                  <Card title="Danh sách phòng ban" styles={{ body: { padding: 0 } }}>
+                    <Table
+                      columns={departmentColumns}
+                      dataSource={departments}
+                      rowKey="_id"
+                      pagination={false}
                     />
-                  </div>
-                </div>
+                  </Card>
+                </Col>
+              </Row>
+            ),
+          },
+        ]}
+      />
 
-                {/* Skills Preview */}
-                <div className="resource-skills">
-                  {skills.slice(0, 3).map((s, i) => (
-                    <span key={i} className="resource-skill-tag">
-                      {s.name} <em>({s.level})</em>
-                    </span>
-                  ))}
-                  {skills.length > 3 && (
-                    <span className="resource-skill-more">+{skills.length - 3}</span>
-                  )}
-                  <button className="btn btn-secondary" style={{ fontSize: 'var(--font-size-xs)', padding: '2px 8px' }} onClick={() => openSkills(r)}>
-                    Skill Matrix ({skills.length})
-                  </button>
-                </div>
+      {/* Resource Modal */}
+      <Modal
+        title={editingResource ? 'Cập nhật nhân sự' : 'Thêm nhân sự mới'}
+        open={resourceModalOpen}
+        onCancel={() => setResourceModalOpen(false)}
+        footer={null}
+        width={640}
+        destroyOnClose
+      >
+        <Form form={resourceForm} layout="vertical" onFinish={handleResourceSubmit} style={{ marginTop: 16 }}>
+          {!editingResource && (
+            <Card title="Tài khoản đăng nhập" size="small" style={{ marginBottom: 16 }}>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="newUserName"
+                    label="Họ và tên"
+                    rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
+                  >
+                    <Input placeholder="Nguyễn Văn A" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="newUserEmail"
+                    label="Email đăng nhập"
+                    rules={[
+                      { required: true, message: 'Vui lòng nhập email' },
+                      { type: 'email', message: 'Email không hợp lệ' },
+                    ]}
+                  >
+                    <Input placeholder="user@rao.com" />
+                  </Form.Item>
+                </Col>
+              </Row>
 
-                {/* Meta */}
-                <div className="resource-meta">
-                  <span className={`badge avail-${r.availability}`}>
-                    {AVAILABILITY_LABELS[r.availability] || r.availability}
-                  </span>
-                  <span>FTE: {r.fte}</span>
-                  {r.hourlyRate > 0 && (
-                    <span>{r.hourlyRate.toLocaleString('vi-VN')} đ/h</span>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="newUserPassword"
+                    label="Mật khẩu khởi tạo"
+                    rules={[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự' }]}
+                  >
+                    <Input.Password placeholder="••••••••" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="newUserRole" label="Vai trò">
+                    <Select
+                      options={[
+                        { value: 'member', label: 'Thành viên (Member)' },
+                        { value: 'project_manager', label: 'Project Manager' },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </Card>
+          )}
 
-      {/* Resource Form Modal */}
-      {modal?.type === 'form' && (
-        <div className="modal-backdrop" onMouseDown={closeModal}>
-          <section className="resource-modal" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <header>
-              <div>
-                <h2>{modal.resource ? 'Cập nhật nhân sự' : 'Thêm nhân sự mới'}</h2>
-                <p>Thông tin cơ bản, vị trí và năng lực.</p>
-              </div>
-              <button className="modal-close" onClick={closeModal}><HiOutlineX /></button>
-            </header>
-            <form onSubmit={handleSubmit}>
-              <div className="resource-form-grid">
-                {!modal.resource && (
-                  <label className="form-group form-full">
-                    <span>Tài khoản liên kết <em>*</em></span>
-                    <select required value={form.user} onChange={(e) => setForm({ ...form, user: e.target.value })}>
-                      <option value="">-- Chọn tài khoản --</option>
-                      {users.map((u) => <option key={u._id} value={u._id}>{u.name} ({u.email})</option>)}
-                    </select>
-                  </label>
-                )}
-                <label className="form-group"><span>Mã nhân viên</span><input value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} placeholder="VD: NV001" /></label>
-                <label className="form-group"><span>Vị trí <em>*</em></span><input required value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="VD: Senior Developer" /></label>
-                <label className="form-group"><span>Phòng ban</span><input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="VD: Engineering" /></label>
-                <label className="form-group"><span>Max Capacity (h/tuần)</span><input type="number" min="0" value={form.maxCapacity} onChange={(e) => setForm({ ...form, maxCapacity: e.target.value })} /></label>
-                <label className="form-group"><span>FTE (0-1)</span><input type="number" min="0" max="1" step="0.1" value={form.fte} onChange={(e) => setForm({ ...form, fte: e.target.value })} /></label>
-                <label className="form-group"><span>Hourly Rate (VND)</span><input type="number" min="0" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} /></label>
-              </div>
-              <footer>
-                <button type="button" className="btn btn-secondary" onClick={closeModal}>Hủy</button>
-                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Đang lưu...' : modal.resource ? 'Lưu' : 'Thêm nhân sự'}</button>
-              </footer>
-            </form>
-          </section>
-        </div>
-      )}
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="position"
+                label="Vị trí chuyên môn"
+                rules={[{ required: true, message: 'Vui lòng nhập vị trí' }]}
+              >
+                <Input placeholder="VD: Senior React Developer" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="department"
+                label="Phòng ban"
+                rules={[{ required: true, message: 'Vui lòng chọn phòng ban' }]}
+              >
+                <Select
+                  placeholder="Chọn phòng ban"
+                  options={activeDepartments.map((d) => ({ value: d.name, label: d.name }))}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
-      {/* Skills Modal */}
-      {modal?.type === 'skills' && (
-        <div className="modal-backdrop" onMouseDown={closeModal}>
-          <section className="resource-modal skills-modal" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <header>
-              <div>
-                <h2>Skill Matrix — {modal.resource.user?.name}</h2>
-                <p>Quản lý kỹ năng và trình độ.</p>
-              </div>
-              <button className="modal-close" onClick={closeModal}><HiOutlineX /></button>
-            </header>
-            <form onSubmit={handleSkillsSubmit}>
-              <div className="skills-list">
-                {skillForm.skills.map((s, i) => (
-                  <div key={i} className="skill-row">
-                    <input value={s.name} onChange={(e) => updateSkill(i, 'name', e.target.value)} placeholder="Tên kỹ năng" required />
-                    <select value={s.level} onChange={(e) => updateSkill(i, 'level', Number(e.target.value))}>
-                      {Object.entries(SKILL_LEVELS).map(([k, v]) => <option key={k} value={k}>{v} (Lv.{k})</option>)}
-                    </select>
-                    <input type="number" min="0" value={s.yearsOfExperience || 0} onChange={(e) => updateSkill(i, 'yearsOfExperience', Number(e.target.value))} placeholder="Năm KN" style={{ width: 80 }} />
-                    <button type="button" className="btn-icon danger-action" onClick={() => removeSkill(i)}><HiOutlineTrash /></button>
-                  </div>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="maxCapacity" label="Capacity (h/tuần)">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="fte" label="FTE (0-1)">
+                <InputNumber min={0} max={1} step={0.1} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="hourlyRate" label="Lương/giờ (VND)">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <div style={{ textAlign: 'right', marginTop: 24 }}>
+            <Space>
+              <Button onClick={() => setResourceModalOpen(false)}>Hủy</Button>
+              <Button type="primary" htmlType="submit" loading={submitting}>
+                {editingResource ? 'Lưu thay đổi' : 'Thêm nhân sự'}
+              </Button>
+            </Space>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Skill Matrix Modal */}
+      <Modal
+        title={`Skill Matrix — ${editingResource?.user?.name || editingResource?.position}`}
+        open={skillsModalOpen}
+        onCancel={() => setSkillsModalOpen(false)}
+        footer={null}
+        width={600}
+        destroyOnClose
+      >
+        <Form form={skillsForm} layout="vertical" onFinish={handleSkillsSubmit} style={{ marginTop: 16 }}>
+          <Form.List name="skills">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...restField }) => (
+                  <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'name']}
+                      rules={[{ required: true, message: 'Nhập tên kỹ năng' }]}
+                      style={{ width: 180 }}
+                    >
+                      <Input placeholder="Tên kỹ năng (VD: React)" />
+                    </Form.Item>
+
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'level']}
+                      rules={[{ required: true }]}
+                      style={{ width: 190 }}
+                    >
+                      <Select options={SKILL_LEVELS} />
+                    </Form.Item>
+
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'yearsOfExperience']}
+                      style={{ width: 100 }}
+                    >
+                      <InputNumber min={0} placeholder="Năm KN" addonAfter="năm" />
+                    </Form.Item>
+
+                    <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ef4444' }} />
+                  </Space>
                 ))}
-              </div>
-              <button type="button" className="btn btn-secondary add-skill-btn" onClick={addSkill}><HiOutlinePlus /> Thêm kỹ năng</button>
-              <footer>
-                <button type="button" className="btn btn-secondary" onClick={closeModal}>Hủy</button>
-                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Đang lưu...' : 'Lưu kỹ năng'}</button>
-              </footer>
-            </form>
-          </section>
-        </div>
-      )}
+                <Form.Item>
+                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                    Thêm kỹ năng
+                  </Button>
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
+
+          <div style={{ textAlign: 'right', marginTop: 16 }}>
+            <Space>
+              <Button onClick={() => setSkillsModalOpen(false)}>Hủy</Button>
+              <Button type="primary" htmlType="submit" loading={submitting}>
+                Lưu Skill Matrix
+              </Button>
+            </Space>
+          </div>
+        </Form>
+      </Modal>
 
       {/* CSV Import Modal */}
-      {modal?.type === 'import' && (
-        <div className="modal-backdrop" onMouseDown={closeModal}>
-          <section className="resource-modal" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <header>
-              <div>
-                <h2>Nhập nhân sự từ CSV</h2>
-                <p>Định dạng: Vị trí, Phòng ban, FTE, Max Capacity, Lương theo giờ</p>
-              </div>
-              <button className="modal-close" onClick={closeModal} aria-label="Đóng"><HiOutlineX /></button>
-            </header>
-            <form onSubmit={handleImportCSV}>
-              <div style={{ padding: '0 var(--space-6) var(--space-4)' }}>
-                <textarea
-                  rows="8"
-                  value={csvContent}
-                  onChange={(e) => setCsvContent(e.target.value)}
-                  placeholder={`Vị trí, Phòng ban, FTE, Max Capacity, Lương theo giờ\nSenior React Dev, Frontend, 1, 40, 250000\nBackend Lead, Backend, 1, 40, 300000\nQA Engineer, Quality, 1, 40, 180000`}
-                  style={{ width: '100%', fontFamily: 'monospace', fontSize: 'var(--font-size-xs)' }}
-                  required
-                />
-              </div>
-              <footer>
-                <button type="button" className="btn btn-secondary" onClick={closeModal}>Hủy</button>
-                <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Đang nhập...' : 'Bắt đầu nhập'}
-                </button>
-              </footer>
-            </form>
-          </section>
-        </div>
-      )}
+      <Modal
+        title="Nhập nhân sự từ file CSV"
+        open={csvModalOpen}
+        onCancel={() => setCsvModalOpen(false)}
+        onOk={handleImportCSV}
+        confirmLoading={submitting}
+        okText="Bắt đầu nhập"
+        cancelText="Hủy"
+        width={600}
+      >
+        <Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 12 }}>
+          Định dạng: <code>Họ tên, Email, Mật khẩu, Vị trí, Phòng ban, FTE, Max Capacity, Lương theo giờ</code>
+        </Paragraph>
+        <TextArea
+          rows={8}
+          value={csvContent}
+          onChange={(e) => setCsvContent(e.target.value)}
+          placeholder={`Nguyễn Văn A, vana@rao.com, password123, Senior React Dev, Engineering, 1, 40, 250000\nTrần Thị B, thib@rao.com, password123, QA Engineer, QA, 1, 40, 180000`}
+          style={{ fontFamily: 'monospace', fontSize: 12 }}
+        />
+      </Modal>
     </div>
   );
 }

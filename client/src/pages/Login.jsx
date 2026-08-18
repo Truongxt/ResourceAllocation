@@ -1,167 +1,118 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { Form, Input, Button, Card, Typography, Alert, Divider } from 'antd';
+import { LockOutlined, MailOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
-import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
-import './Auth.css';
+
+const { Title, Text, Paragraph } = Typography;
 
 export default function Login() {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+  const { login, error, clearError } = useAuth();
+  const [loading, setLoading] = useState(false);
 
-  const from = location.state?.from?.pathname || '/';
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setErrorMsg('');
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setErrorMsg('');
-
-    const result = await login(formData);
-    
-    if (result.success) {
-      navigate(from, { replace: true });
-    } else {
-      setErrorMsg(result.message);
-    }
-    
-    setIsSubmitting(false);
+  const onFinish = async (values) => {
+    setLoading(true);
+    clearError();
+    const result = await login(values);
+    setLoading(false);
+    if (result.success) navigate('/');
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-container animate-scale-in">
-        {/* Left - Branding */}
-        <div className="auth-branding">
-          <div className="auth-branding-content">
-            <div className="auth-logo">
-              <span className="auth-logo-icon">R</span>
-              <span className="auth-logo-text">RAO</span>
-            </div>
-            <h1 className="auth-branding-title">
-              Resource Allocation<br />Optimization
-            </h1>
-            <p className="auth-branding-desc">
-              Hệ thống quản lý luồng công việc đa dự án và tối ưu hóa phân bổ nhân sự 
-              với thuật toán Genetic Algorithm & CSP.
-            </p>
-            <div className="auth-branding-features">
-              <div className="auth-feature">
-                <span className="auth-feature-icon">📊</span>
-                <span>Gantt Chart & Resource Histogram</span>
-              </div>
-              <div className="auth-feature">
-                <span className="auth-feature-icon">🧬</span>
-                <span>Genetic Algorithm tối ưu hóa</span>
-              </div>
-              <div className="auth-feature">
-                <span className="auth-feature-icon">👥</span>
-                <span>Skill Matrix & Workload Balancing</span>
-              </div>
-            </div>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
+      padding: 24,
+    }}>
+      {/* Decorative background orbs */}
+      <div style={{
+        position: 'fixed', top: '15%', left: '10%', width: 300, height: 300,
+        borderRadius: '50%', background: 'rgba(99,102,241,0.08)', filter: 'blur(80px)', pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'fixed', bottom: '10%', right: '15%', width: 250, height: 250,
+        borderRadius: '50%', background: 'rgba(20,184,166,0.06)', filter: 'blur(80px)', pointerEvents: 'none',
+      }} />
+
+      <Card
+        style={{
+          width: '100%',
+          maxWidth: 440,
+          borderRadius: 16,
+          border: '1px solid rgba(148,163,184,0.1)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        }}
+        styles={{ body: { padding: '40px 36px' } }}
+      >
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: 16, margin: '0 auto 16px',
+            background: 'linear-gradient(135deg, #6366f1, #14b8a6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <ThunderboltOutlined style={{ fontSize: 28, color: '#fff' }} />
           </div>
+          <Title level={3} style={{ marginBottom: 4 }}>Đăng nhập hệ thống</Title>
+          <Text type="secondary">Resource Allocation Optimization</Text>
         </div>
 
-        {/* Right - Login Form */}
-        <div className="auth-form-section">
-          <div className="auth-form-wrapper">
-            <h2 className="auth-form-title">Đăng nhập</h2>
-            <p className="auth-form-subtitle">
-              Chào mừng bạn trở lại! Vui lòng đăng nhập để tiếp tục.
-            </p>
+        {error && (
+          <Alert
+            message={error}
+            type="error"
+            showIcon
+            closable
+            onClose={clearError}
+            style={{ marginBottom: 20 }}
+          />
+        )}
 
-            {errorMsg && (
-              <div className="auth-error" id="login-error">
-                <span>⚠️</span>
-                {errorMsg}
-              </div>
-            )}
+        <Form layout="vertical" onFinish={onFinish} size="large" requiredMark={false}>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: 'Vui lòng nhập email' },
+              { type: 'email', message: 'Email không hợp lệ' },
+            ]}
+          >
+            <Input prefix={<MailOutlined />} placeholder="admin@rao.com" autoFocus />
+          </Form.Item>
 
-            <form onSubmit={handleSubmit} className="auth-form" id="login-form">
-              <div className="auth-input-group">
-                <label htmlFor="login-email" className="auth-label">Email</label>
-                <div className="auth-input-wrapper">
-                  <HiOutlineMail className="auth-input-icon" />
-                  <input
-                    type="email"
-                    id="login-email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="you@example.com"
-                    className="auth-input"
-                    required
-                    autoComplete="email"
-                    autoFocus
-                  />
-                </div>
-              </div>
+          <Form.Item
+            name="password"
+            label="Mật khẩu"
+            rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="••••••••" />
+          </Form.Item>
 
-              <div className="auth-input-group">
-                <label htmlFor="login-password" className="auth-label">Mật khẩu</label>
-                <div className="auth-input-wrapper">
-                  <HiOutlineLockClosed className="auth-input-icon" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="login-password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Nhập mật khẩu"
-                    className="auth-input"
-                    required
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    className="auth-toggle-password"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                  >
-                    {showPassword ? <HiOutlineEyeOff /> : <HiOutlineEye />}
-                  </button>
-                </div>
-              </div>
+          <Form.Item style={{ marginBottom: 16 }}>
+            <Button type="primary" htmlType="submit" loading={loading} block
+              style={{ height: 44, fontWeight: 600, borderRadius: 10 }}
+            >
+              Đăng nhập
+            </Button>
+          </Form.Item>
+        </Form>
 
-              <button
-                type="submit"
-                className="auth-submit-btn"
-                id="login-submit"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }}></div>
-                    Đang đăng nhập...
-                  </>
-                ) : (
-                  'Đăng nhập'
-                )}
-              </button>
-            </form>
+        <Divider plain>
+          <Text type="secondary" style={{ fontSize: 13 }}>Chưa có tài khoản?</Text>
+        </Divider>
 
-            <p className="auth-switch">
-              Chưa có tài khoản?{' '}
-              <Link to="/register" className="auth-switch-link">
-                Đăng ký ngay
-              </Link>
-            </p>
-          </div>
+        <div style={{ textAlign: 'center' }}>
+          <Link to="/register">
+            <Button type="default" style={{ borderRadius: 10 }}>
+              Tạo tài khoản mới
+            </Button>
+          </Link>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -10,6 +10,7 @@ const resourceSchema = new mongoose.Schema(
     employeeId: {
       type: String,
       unique: true,
+      sparse: true,
       trim: true,
     },
     position: {

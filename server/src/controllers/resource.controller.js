@@ -1,5 +1,30 @@
 const Resource = require('../models/Resource');
 const Task = require('../models/Task');
+const User = require('../models/User');
+const Department = require('../models/Department');
+
+const EMPLOYEE_ID_PREFIX = 'NV';
+const EMPLOYEE_ID_LENGTH = 4;
+
+const generateEmployeeId = async () => {
+  const latest = await Resource.findOne({
+    employeeId: new RegExp(`^${EMPLOYEE_ID_PREFIX}\\d+$`),
+  })
+    .sort({ employeeId: -1 })
+    .select('employeeId');
+
+  const latestNumber = latest?.employeeId
+    ? parseInt(latest.employeeId.replace(EMPLOYEE_ID_PREFIX, ''), 10)
+    : 0;
+
+  const nextNumber = Number.isNaN(latestNumber) ? 1 : latestNumber + 1;
+  return `${EMPLOYEE_ID_PREFIX}${String(nextNumber).padStart(EMPLOYEE_ID_LENGTH, '0')}`;
+};
+
+const validateDepartment = async (departmentName) => {
+  if (!departmentName) return null;
+  return Department.findOne({ name: departmentName, isActive: true }).select('_id name');
+};
 
 /**
  * @desc    Lấy danh sách nhân sự (filter, search, pagination)
@@ -101,19 +126,60 @@ const getResourceById = async (req, res, next) => {
  * @access  Private (Admin, PM)
  */
 const createResource = async (req, res, next) => {
+  let createdUser = null;
+  let resourceCreated = false;
+
   try {
-    // Check if resource already exists for this user
-    if (req.body.user) {
-      const existing = await Resource.findOne({ user: req.body.user });
-      if (existing) {
-        return res.status(400).json({
-          success: false,
-          message: 'Nhân sự đã tồn tại cho tài khoản này',
-        });
-      }
+    const { user, newUser, ...resourceData } = req.body;
+    let linkedUserId = user;
+
+    const department = await validateDepartment(resourceData.department);
+    if (!department) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phòng ban không hợp lệ hoặc chưa được tạo',
+      });
     }
 
-    const resource = await Resource.create(req.body);
+    if (!linkedUserId && newUser) {
+      const existingUser = await User.findOne({ email: newUser.email });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email đã được sử dụng',
+        });
+      }
+
+      createdUser = await User.create({
+        name: newUser.name,
+        email: newUser.email,
+        password: newUser.password,
+        role: newUser.role || 'member',
+        department: resourceData.department,
+      });
+      linkedUserId = createdUser._id;
+    }
+
+    const linkedUser = await User.findById(linkedUserId);
+    if (!linkedUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tài khoản liên kết',
+      });
+    }
+
+    const existing = await Resource.findOne({ user: linkedUserId });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nhân sự đã tồn tại cho tài khoản này',
+      });
+    }
+
+    delete resourceData.employeeId;
+    resourceData.employeeId = await generateEmployeeId();
+    const resource = await Resource.create({ ...resourceData, user: linkedUserId });
+    resourceCreated = true;
 
     const populated = await Resource.findById(resource._id)
       .populate('user', 'name email avatar role');
@@ -124,6 +190,9 @@ const createResource = async (req, res, next) => {
       message: 'Thêm nhân sự thành công',
     });
   } catch (error) {
+    if (createdUser?._id && !resourceCreated) {
+      await User.findByIdAndDelete(createdUser._id).catch(() => null);
+    }
     next(error);
   }
 };
@@ -145,6 +214,17 @@ const updateResource = async (req, res, next) => {
 
     const updateData = { ...req.body };
     delete updateData.user; // Cannot change user link
+    delete updateData.employeeId; // Employee code is system-generated
+
+    if (updateData.department !== undefined) {
+      const department = await validateDepartment(updateData.department);
+      if (!department) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phòng ban không hợp lệ hoặc chưa được tạo',
+        });
+      }
+    }
 
     const updated = await Resource.findByIdAndUpdate(req.params.id, updateData, {
       new: true,

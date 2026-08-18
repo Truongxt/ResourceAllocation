@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Layout } from 'antd';
 import { useAuth } from './context/AuthContext';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -15,32 +16,42 @@ import GanttChart from './pages/GanttChart';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 
-/**
- * Layout wrapper cho authenticated pages
- */
+const { Content } = Layout;
+
 function AppLayout({ children }) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="app-layout">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
-      <div className={`app-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        <Header />
-        <main className="app-content">
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      <Layout
+        style={{
+          marginLeft: collapsed ? 72 : 240,
+          transition: 'margin-left 0.2s ease',
+          minHeight: '100vh',
+          background: 'var(--bg-primary, #0f172a)',
+        }}
+      >
+        <Header collapsed={collapsed} />
+        <Content
+          style={{
+            marginTop: 80,
+            marginBottom: 24,
+            marginLeft: 24,
+            marginRight: 24,
+            minHeight: 'calc(100vh - 104px)',
+          }}
+        >
           {children}
-        </main>
-      </div>
-    </div>
+        </Content>
+      </Layout>
+    </Layout>
   );
 }
 
 export default function App() {
   const { isAuthenticated, loading } = useAuth();
 
-  // Show loading screen while checking auth
   if (loading) {
     return (
       <div style={{
@@ -48,92 +59,27 @@ export default function App() {
         alignItems: 'center',
         justifyContent: 'center',
         height: '100vh',
-        background: 'var(--bg-primary)',
+        background: 'var(--bg-primary, #0f172a)',
       }}>
-        <div className="spinner"></div>
+        <div className="spinner" />
       </div>
     );
   }
 
   return (
     <Routes>
-      {/* Public routes */}
-      <Route
-        path="/login"
-        element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
-      />
-      <Route
-        path="/register"
-        element={isAuthenticated ? <Navigate to="/" replace /> : <Register />}
-      />
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <Register />} />
 
-      {/* Protected routes - wrapped in AppLayout */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <AppLayout><Dashboard /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/projects"
-        element={
-          <ProtectedRoute>
-            <AppLayout><Projects /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/tasks"
-        element={
-          <ProtectedRoute>
-            <AppLayout><Tasks /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/resources"
-        element={
-          <ProtectedRoute>
-            <AppLayout><Resources /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/optimization"
-        element={
-          <ProtectedRoute>
-            <AppLayout><Optimization /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/gantt"
-        element={
-          <ProtectedRoute>
-            <AppLayout><GanttChart /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/reports"
-        element={
-          <ProtectedRoute>
-            <AppLayout><Reports /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <ProtectedRoute>
-            <AppLayout><Settings /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+      <Route path="/projects" element={<ProtectedRoute><AppLayout><Projects /></AppLayout></ProtectedRoute>} />
+      <Route path="/tasks" element={<ProtectedRoute><AppLayout><Tasks /></AppLayout></ProtectedRoute>} />
+      <Route path="/resources" element={<ProtectedRoute><AppLayout><Resources /></AppLayout></ProtectedRoute>} />
+      <Route path="/optimization" element={<ProtectedRoute><AppLayout><Optimization /></AppLayout></ProtectedRoute>} />
+      <Route path="/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute><AppLayout><Reports /></AppLayout></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
 
-      {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

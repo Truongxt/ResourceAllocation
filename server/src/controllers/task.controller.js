@@ -1,5 +1,6 @@
 const Task = require('../models/Task');
 const Project = require('../models/Project');
+const { sendNotification } = require('../services/socket.service');
 
 /**
  * Helper: Tính lại progress dự án dựa trên tasks
@@ -122,6 +123,20 @@ const createTask = async (req, res, next) => {
       .populate('assignee', 'name email avatar department')
       .populate('dependencies', 'title status');
 
+    // Real-time Notification if assigned to someone else
+    if (populated.assignee && populated.assignee._id.toString() !== req.user._id.toString()) {
+      sendNotification({
+        recipient: populated.assignee._id,
+        actor: req.user._id,
+        type: 'task_assigned',
+        title: 'Công việc mới được phân công',
+        message: `Bạn đã được gán công việc "${populated.title}" trong dự án ${project.name}`,
+        entityType: 'task',
+        entityId: populated._id,
+        link: '/tasks',
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: { task: populated },
@@ -167,6 +182,24 @@ const updateTask = async (req, res, next) => {
     // Recalculate project progress
     await recalculateProjectProgress(task.project);
 
+    // Real-time Notification if newly assigned
+    if (
+      updatedTask.assignee &&
+      (!task.assignee || task.assignee.toString() !== updatedTask.assignee._id.toString()) &&
+      updatedTask.assignee._id.toString() !== req.user._id.toString()
+    ) {
+      sendNotification({
+        recipient: updatedTask.assignee._id,
+        actor: req.user._id,
+        type: 'task_assigned',
+        title: 'Phân công công việc',
+        message: `Bạn được phân công công việc "${updatedTask.title}"`,
+        entityType: 'task',
+        entityId: updatedTask._id,
+        link: '/tasks',
+      });
+    }
+
     res.json({
       success: true,
       data: { task: updatedTask },
@@ -206,6 +239,23 @@ const updateTaskStatus = async (req, res, next) => {
       .populate('assignee', 'name email avatar department');
 
     await recalculateProjectProgress(task.project);
+
+    // Notify assignee if status changed by someone else
+    if (
+      updatedTask.assignee &&
+      updatedTask.assignee._id.toString() !== req.user._id.toString()
+    ) {
+      sendNotification({
+        recipient: updatedTask.assignee._id,
+        actor: req.user._id,
+        type: 'task_status_changed',
+        title: 'Cập nhật trạng thái công việc',
+        message: `Công việc "${updatedTask.title}" đã chuyển sang trạng thái: ${status}`,
+        entityType: 'task',
+        entityId: updatedTask._id,
+        link: '/tasks',
+      });
+    }
 
     res.json({
       success: true,

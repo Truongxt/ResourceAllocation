@@ -1,17 +1,38 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  HiOutlineChartBar,
-  HiOutlineDocumentReport,
-  HiOutlineDownload,
-  HiOutlineExclamation,
-  HiOutlineRefresh,
-  HiOutlineUserGroup,
-} from 'react-icons/hi';
+  Row,
+  Col,
+  Card,
+  Tabs,
+  Table,
+  Statistic,
+  Progress,
+  Tag,
+  Button,
+  Space,
+  Typography,
+  Spin,
+  Empty,
+} from 'antd';
+import {
+  DownloadOutlined,
+  PrinterOutlined,
+  ReloadOutlined,
+  TeamOutlined,
+  PieChartOutlined,
+  ProjectOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
 import analyticsService from '../services/analyticsService';
 import './Reports.css';
 
-const BURNOUT_LABELS = { high: 'Cao', medium: 'Trung bình', low: 'Thấp' };
-const BURNOUT_COLORS = { high: 'var(--color-danger)', medium: '#f59e0b', low: 'var(--color-success)' };
+const { Title, Text } = Typography;
+
+const BURNOUT_MAP = {
+  high: { label: 'Cao (Nguy cơ)', color: 'error' },
+  medium: { label: 'Trung bình', color: 'warning' },
+  low: { label: 'Thấp (An toàn)', color: 'success' },
+};
 
 export default function Reports() {
   const [utilData, setUtilData] = useState(null);
@@ -28,21 +49,25 @@ export default function Reports() {
       ]);
       setUtilData(utilRes.data.data);
       setTaskData(taskRes.data.data);
-    } catch { /* ignore */ } finally {
+    } catch {
+      /* ignore */
+    } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const exportCSV = (type) => {
     let csv = '';
     if (type === 'utilization' && utilData?.resources) {
       csv = 'Tên,Phòng ban,Vị trí,Capacity,Workload,Utilization(%),Burnout Risk,Số task\n';
       for (const r of utilData.resources) {
-        csv += `"${r.name}","${r.department}","${r.position}",${r.capacity},${r.workload},${r.utilization},${BURNOUT_LABELS[r.burnoutRisk]},${r.taskCount}\n`;
+        csv += `"${r.name}","${r.department}","${r.position}",${r.capacity},${r.workload},${r.utilization},${BURNOUT_MAP[r.burnoutRisk]?.label || r.burnoutRisk},${r.taskCount}\n`;
       }
-    } else if (type === 'tasks' && taskData?.byProject) {
+    } else if (type === 'projects' && taskData?.byProject) {
       csv = 'Dự án,Tổng tasks,Hoàn thành,Tổng giờ,% Completion\n';
       for (const p of taskData.byProject) {
         csv += `"${p.projectName}",${p.count},${p.done},${p.totalHours},${Math.round(p.completion)}%\n`;
@@ -59,242 +84,254 @@ export default function Reports() {
     URL.revokeObjectURL(url);
   };
 
-  const exportPrint = () => {
-    window.print();
-  };
+  const resourceColumns = [
+    {
+      title: 'Nhân sự',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name, record) => (
+        <div>
+          <Text strong>{name}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>{record.position}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Phòng ban',
+      dataIndex: 'department',
+      key: 'department',
+      render: (dept) => (dept ? <Tag color="blue">{dept}</Tag> : '—'),
+    },
+    {
+      title: 'Capacity / Workload',
+      key: 'capacity',
+      render: (_, r) => (
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          {r.workload || 0}h / <strong>{r.capacity || 40}h</strong>
+        </Text>
+      ),
+    },
+    {
+      title: 'Mức sử dụng (Utilization)',
+      dataIndex: 'utilization',
+      key: 'utilization',
+      width: 220,
+      render: (util) => {
+        const color = util > 100 ? '#ef4444' : util > 80 ? '#f59e0b' : '#10b981';
+        return (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+              <Text strong style={{ color, fontSize: 12 }}>{util}%</Text>
+            </div>
+            <Progress percent={Math.min(util, 100)} showInfo={false} strokeColor={color} size="small" />
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Nguy cơ Burnout',
+      dataIndex: 'burnoutRisk',
+      key: 'burnoutRisk',
+      render: (risk) => {
+        const item = BURNOUT_MAP[risk] || { label: risk, color: 'default' };
+        return <Tag color={item.color}>{item.label}</Tag>;
+      },
+    },
+    {
+      title: 'Tasks đảm nhiệm',
+      dataIndex: 'taskCount',
+      key: 'taskCount',
+      render: (count) => <Tag color="purple">{count || 0} tasks</Tag>,
+    },
+  ];
+
+  const projectColumns = [
+    {
+      title: 'Dự án',
+      dataIndex: 'projectName',
+      key: 'name',
+      render: (name) => <Text strong>{name}</Text>,
+    },
+    {
+      title: 'Số công việc',
+      dataIndex: 'count',
+      key: 'count',
+    },
+    {
+      title: 'Đã hoàn thành',
+      dataIndex: 'done',
+      key: 'done',
+      render: (done, r) => `${done} / ${r.count}`,
+    },
+    {
+      title: 'Tổng giờ công',
+      dataIndex: 'totalHours',
+      key: 'totalHours',
+      render: (h) => `${h || 0}h`,
+    },
+    {
+      title: 'Tiến độ hoàn thành',
+      dataIndex: 'completion',
+      key: 'completion',
+      width: 200,
+      render: (comp = 0) => (
+        <Progress percent={Math.round(comp)} size="small" status={comp === 100 ? 'success' : 'active'} />
+      ),
+    },
+  ];
 
   return (
-    <div className="animate-fade-in reports-page">
-      <div className="page-header reports-header">
+    <div style={{ maxWidth: 1400 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <h1 className="page-title">Báo cáo & Thống kê</h1>
-          <p className="page-description">Resource Histogram, Burnout Risk, Team Analytics</p>
+          <Title level={3} style={{ marginBottom: 4 }}>Báo cáo & Thống kê Nguồn lực</Title>
+          <Text type="secondary">
+            Phân tích Resource Histogram, Nguy cơ kiệt sức (Burnout Risk) và Báo cáo tiến độ đa dự án
+          </Text>
         </div>
-        <div className="reports-actions">
-          <button className="btn btn-secondary" onClick={() => exportCSV(activeTab)} title="Xuất CSV"><HiOutlineDownload /> CSV</button>
-          <button className="btn btn-secondary" onClick={exportPrint} title="In"><HiOutlineDocumentReport /> In</button>
-          <button className="btn btn-secondary" onClick={load}><HiOutlineRefresh /></button>
-        </div>
+        <Space>
+          <Button icon={<DownloadOutlined />} onClick={() => exportCSV(activeTab)}>
+            Xuất CSV
+          </Button>
+          <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
+            In / PDF
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={load} title="Tải lại" />
+        </Space>
       </div>
 
-      {/* Summary Cards */}
-      {utilData?.summary && (
-        <div className="reports-summary">
-          <div className="report-stat">
-            <span>Tổng nhân sự</span>
-            <strong>{utilData.summary.totalResources}</strong>
-          </div>
-          <div className="report-stat">
-            <span>Utilization TB</span>
-            <strong style={{ color: utilData.summary.avgUtilization > 100 ? 'var(--color-danger)' : 'var(--color-primary-400)' }}>
-              {utilData.summary.avgUtilization}%
-            </strong>
-          </div>
-          <div className="report-stat">
-            <span>Quá tải</span>
-            <strong style={{ color: utilData.summary.overloaded > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-              {utilData.summary.overloaded}
-            </strong>
-          </div>
-          <div className="report-stat">
-            <span>Burnout Risk Cao</span>
-            <strong style={{ color: utilData.summary.highBurnout > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-              {utilData.summary.highBurnout}
-            </strong>
-          </div>
-        </div>
-      )}
+      <Spin spinning={loading}>
+        {/* Summary Stats */}
+        {utilData?.summary && (
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            <Col xs={12} sm={6}>
+              <Card hoverable>
+                <Statistic
+                  title="Tổng nhân sự"
+                  value={utilData.summary.totalResources}
+                  prefix={<TeamOutlined style={{ color: '#6366f1' }} />}
+                />
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card hoverable>
+                <Statistic
+                  title="Utilization Trung bình"
+                  value={utilData.summary.avgUtilization}
+                  suffix="%"
+                  valueStyle={{
+                    color: utilData.summary.avgUtilization > 100 ? '#ef4444' : '#10b981',
+                  }}
+                />
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card hoverable>
+                <Statistic
+                  title="Nhân sự quá tải"
+                  value={utilData.summary.overloaded}
+                  valueStyle={{
+                    color: utilData.summary.overloaded > 0 ? '#ef4444' : '#10b981',
+                  }}
+                  prefix={<WarningOutlined style={{ color: utilData.summary.overloaded > 0 ? '#ef4444' : '#10b981' }} />}
+                />
+              </Card>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Card hoverable>
+                <Statistic
+                  title="Nguy cơ Burnout cao"
+                  value={utilData.summary.highBurnoutRisk || 0}
+                  valueStyle={{
+                    color: (utilData.summary.highBurnoutRisk || 0) > 0 ? '#ef4444' : '#10b981',
+                  }}
+                />
+              </Card>
+            </Col>
+          </Row>
+        )}
 
-      {/* Tabs */}
-      <div className="reports-tabs">
-        <button className={activeTab === 'utilization' ? 'active' : ''} onClick={() => setActiveTab('utilization')}>
-          <HiOutlineChartBar /> Resource Histogram
-        </button>
-        <button className={activeTab === 'department' ? 'active' : ''} onClick={() => setActiveTab('department')}>
-          <HiOutlineUserGroup /> Team Analytics
-        </button>
-        <button className={activeTab === 'tasks' ? 'active' : ''} onClick={() => setActiveTab('tasks')}>
-          <HiOutlineDocumentReport /> Báo cáo Dự án
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="card"><p className="empty-state-text">Đang tải...</p></div>
-      ) : (
-        <>
-          {/* Utilization Tab */}
-          {activeTab === 'utilization' && utilData?.resources && (
-            <div className="card">
-              <h3 className="card-title" style={{ marginBottom: 'var(--space-4)' }}>
-                📊 Resource Histogram — Utilization & Burnout Risk
-              </h3>
-
-              {/* Overallocation Alerts */}
-              {utilData.resources.filter((r) => r.isOverloaded).length > 0 && (
-                <div className="report-alert alert-danger">
-                  <HiOutlineExclamation />
-                  <span>
-                    <strong>{utilData.resources.filter((r) => r.isOverloaded).length} nhân sự</strong> đang bị quá tải!
-                    {' '}Cân nhắc chạy <em>Tối ưu hóa</em> để cân bằng lại workload.
-                  </span>
-                </div>
-              )}
-
-              {/* Histogram */}
-              <div className="report-histogram">
-                {utilData.resources.map((r) => (
-                  <div key={r._id} className={`histogram-row ${r.isOverloaded ? 'overloaded' : ''}`}>
-                    <div className="histogram-name">
-                      <span>{r.name}</span>
-                      <em>{r.department}</em>
-                    </div>
-                    <div className="histogram-bar-wrap">
-                      <div
-                        className="histogram-bar"
-                        style={{
-                          width: `${Math.min(r.utilization, 150)}%`,
-                          maxWidth: '100%',
-                          background: r.isOverloaded ? 'var(--color-danger)' : r.utilization > 80 ? '#f59e0b' : 'var(--color-success)',
-                        }}
-                      />
-                      {/* 100% line */}
-                      <div className="histogram-limit" />
-                    </div>
-                    <span className={`histogram-pct ${r.isOverloaded ? 'text-danger' : ''}`}>{r.utilization}%</span>
-                    <span className="histogram-detail">{r.workload}/{r.capacity}h</span>
-                    <span className="histogram-tasks">{r.taskCount} tasks</span>
-                    <span className="histogram-burnout" style={{ color: BURNOUT_COLORS[r.burnoutRisk] }}>
-                      {r.burnoutRisk === 'high' ? '🔴' : r.burnoutRisk === 'medium' ? '🟡' : '🟢'} {BURNOUT_LABELS[r.burnoutRisk]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Department Tab */}
-          {activeTab === 'department' && utilData?.departments && (
-            <div className="card">
-              <h3 className="card-title" style={{ marginBottom: 'var(--space-4)' }}>
-                👥 Team Analytics — Thống kê theo phòng ban
-              </h3>
-              <div className="department-grid">
-                {utilData.departments.map((dept) => (
-                  <div key={dept.name} className="department-card">
-                    <h4>{dept.name}</h4>
-                    <div className="department-stats">
-                      <div><span>Nhân sự</span><strong>{dept.count}</strong></div>
-                      <div><span>Capacity</span><strong>{Math.round(dept.totalCapacity)}h</strong></div>
-                      <div><span>Workload</span><strong>{Math.round(dept.totalWorkload)}h</strong></div>
-                      <div><span>Utilization</span><strong style={{ color: dept.utilization > 100 ? 'var(--color-danger)' : 'var(--color-primary-400)' }}>{dept.utilization}%</strong></div>
-                    </div>
-                    <div className="department-bar">
-                      <div style={{
-                        width: `${Math.min(dept.utilization, 100)}%`,
-                        background: dept.utilization > 100 ? 'var(--color-danger)' : dept.utilization > 80 ? '#f59e0b' : 'var(--color-success)',
-                      }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tasks Tab */}
-          {activeTab === 'tasks' && taskData && (
-            <div className="card">
-              <h3 className="card-title" style={{ marginBottom: 'var(--space-4)' }}>
-                📋 Báo cáo Dự án
-              </h3>
-
-              {/* Hours efficiency */}
-              <div className="report-hours-row">
-                <div className="report-hours-item">
-                  <span>Giờ ước tính</span>
-                  <strong>{taskData.hours?.estimated || 0}h</strong>
-                </div>
-                <div className="report-hours-item">
-                  <span>Giờ thực tế</span>
-                  <strong>{taskData.hours?.actual || 0}h</strong>
-                </div>
-                <div className="report-hours-item">
-                  <span>Hiệu suất</span>
-                  <strong style={{ color: (taskData.hours?.efficiency || 0) > 100 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                    {taskData.hours?.efficiency || 0}%
-                  </strong>
-                </div>
-              </div>
-
-              {/* By Project Table */}
-              {taskData.byProject && taskData.byProject.length > 0 && (
-                <div className="report-table-wrap">
-                  <table className="report-table">
-                    <thead>
-                      <tr>
-                        <th>Dự án</th>
-                        <th>Tổng tasks</th>
-                        <th>Hoàn thành</th>
-                        <th>Tổng giờ</th>
-                        <th>Tiến độ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {taskData.byProject.map((p) => (
-                        <tr key={p._id || 'none'}>
-                          <td><strong>{p.projectCode ? `${p.projectCode} — ` : ''}{p.projectName}</strong></td>
-                          <td>{p.count}</td>
-                          <td>{p.done}</td>
-                          <td>{p.totalHours || 0}h</td>
-                          <td>
-                            <div className="report-progress-wrap">
-                              <div className="report-progress-bar">
-                                <div style={{ width: `${Math.round(p.completion)}%`, background: p.completion >= 100 ? 'var(--color-success)' : 'var(--color-primary-500)' }} />
-                              </div>
-                              <span>{Math.round(p.completion)}%</span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* By Status / Priority charts */}
-              <div className="report-charts-row">
-                <div className="report-chart-card">
-                  <h4>Theo trạng thái</h4>
-                  {(taskData.byStatus || []).map((s) => {
-                    const colors = { todo: '#94a3b8', in_progress: '#6366f1', review: '#f59e0b', done: '#10b981', blocked: '#ef4444' };
-                    const labels = { todo: 'Cần làm', in_progress: 'Đang làm', review: 'Đánh giá', done: 'Hoàn thành', blocked: 'Bị chặn' };
-                    return (
-                      <div key={s._id} className="mini-bar-row">
-                        <span style={{ color: colors[s._id] }}>{labels[s._id] || s._id}</span>
-                        <div className="mini-bar"><div style={{ width: `${s.count * 10}%`, maxWidth: '100%', background: colors[s._id] }} /></div>
-                        <strong>{s.count}</strong>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="report-chart-card">
-                  <h4>Theo ưu tiên</h4>
-                  {(taskData.byPriority || []).map((p) => {
-                    const colors = { low: '#10b981', medium: '#6366f1', high: '#f59e0b', critical: '#ef4444' };
-                    const labels = { low: 'Thấp', medium: 'Trung bình', high: 'Cao', critical: 'Nghiêm trọng' };
-                    return (
-                      <div key={p._id} className="mini-bar-row">
-                        <span style={{ color: colors[p._id] }}>{labels[p._id] || p._id}</span>
-                        <div className="mini-bar"><div style={{ width: `${p.count * 10}%`, maxWidth: '100%', background: colors[p._id] }} /></div>
-                        <strong>{p.count}</strong>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          type="card"
+          items={[
+            {
+              key: 'utilization',
+              label: (
+                <span>
+                  <TeamOutlined /> Resource Histogram ({utilData?.resources?.length || 0})
+                </span>
+              ),
+              children: (
+                <Card styles={{ body: { padding: 0 } }}>
+                  <Table
+                    columns={resourceColumns}
+                    dataSource={utilData?.resources || []}
+                    rowKey="id"
+                    pagination={{ pageSize: 10 }}
+                  />
+                </Card>
+              ),
+            },
+            {
+              key: 'departments',
+              label: (
+                <span>
+                  <PieChartOutlined /> Phân bổ theo Phòng ban ({utilData?.byDepartment?.length || 0})
+                </span>
+              ),
+              children: (
+                <Row gutter={[16, 16]}>
+                  {(utilData?.byDepartment || []).map((dept) => (
+                    <Col xs={24} sm={12} lg={8} key={dept.name}>
+                      <Card title={dept.name} hoverable>
+                        <Space direction="vertical" style={{ width: '100%' }} size="small">
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Text type="secondary">Nhân sự:</Text>
+                            <Text strong>{dept.count} người</Text>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Text type="secondary">Utilization TB:</Text>
+                            <Text strong style={{ color: dept.avgUtil > 100 ? '#ef4444' : '#10b981' }}>
+                              {dept.avgUtil}%
+                            </Text>
+                          </div>
+                          <Progress
+                            percent={Math.min(dept.avgUtil, 100)}
+                            strokeColor={dept.avgUtil > 100 ? '#ef4444' : '#6366f1'}
+                            size="small"
+                          />
+                        </Space>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              ),
+            },
+            {
+              key: 'projects',
+              label: (
+                <span>
+                  <ProjectOutlined /> Báo cáo Dự án ({taskData?.byProject?.length || 0})
+                </span>
+              ),
+              children: (
+                <Card styles={{ body: { padding: 0 } }}>
+                  <Table
+                    columns={projectColumns}
+                    dataSource={taskData?.byProject || []}
+                    rowKey="projectId"
+                    pagination={{ pageSize: 10 }}
+                  />
+                </Card>
+              ),
+            },
+          ]}
+        />
+      </Spin>
     </div>
   );
 }

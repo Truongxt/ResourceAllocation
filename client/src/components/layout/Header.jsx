@@ -1,16 +1,25 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { Layout, Badge, Dropdown, Avatar, Switch, List, Typography, Button, Space, Tooltip, Empty } from 'antd';
 import {
-  HiOutlineBell,
-  HiOutlineSearch,
-  HiOutlineUser,
-  HiOutlineLogout,
-  HiOutlineCog,
-  HiOutlineSun,
-  HiOutlineMoon,
-} from 'react-icons/hi';
-import './Header.css';
+  BellOutlined,
+  UserOutlined,
+  LogoutOutlined,
+  SettingOutlined,
+  SunOutlined,
+  MoonOutlined,
+  CheckOutlined,
+  FileTextOutlined,
+  ThunderboltOutlined,
+  ProjectOutlined,
+  CloseOutlined,
+} from '@ant-design/icons';
+import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { useSocket } from '../../context/SocketContext';
+
+const { Header: AntHeader } = Layout;
+const { Text, Title } = Typography;
 
 const pageTitles = {
   '/': 'Dashboard',
@@ -29,124 +38,273 @@ const ROLE_LABELS = {
   member: 'Thành viên',
 };
 
-export default function Header() {
+function formatTimeAgo(dateString) {
+  if (!dateString) return '';
+  const now = new Date();
+  const past = new Date(dateString);
+  const diffSec = Math.floor((now - past) / 1000);
+  if (diffSec < 60) return 'Vừa xong';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
+  return `${Math.floor(diffSec / 86400)} ngày trước`;
+}
+
+function getNotifIcon(type) {
+  if (type?.includes('task')) return <FileTextOutlined style={{ color: '#4f46e5' }} />;
+  if (type?.includes('optimization')) return <ThunderboltOutlined style={{ color: '#f59e0b' }} />;
+  if (type?.includes('project')) return <ProjectOutlined style={{ color: '#059669' }} />;
+  return <BellOutlined style={{ color: '#64748b' }} />;
+}
+
+export default function Header({ collapsed }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem('rao_theme') || 'dark');
-  const menuRef = useRef(null);
+  const { isDark, toggleTheme } = useTheme();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    toastNotification,
+    dismissToast,
+  } = useSocket();
 
   const currentTitle = pageTitles[location.pathname] || 'RAO';
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('rao_theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setShowUserMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  return (
-    <header className="header">
-      <div className="header-left">
-        <h2 className="header-title">{currentTitle}</h2>
-      </div>
+  const handleNotifClick = (notif) => {
+    if (!notif.readAt) markAsRead(notif._id);
+    if (notif.link) navigate(notif.link);
+  };
 
-      <div className="header-right">
-        {/* Search */}
-        <div className="header-search">
-          <HiOutlineSearch className="header-search-icon" />
-          <input
+  const userMenuItems = [
+    {
+      key: 'info',
+      label: (
+        <div style={{ padding: '6px 4px' }}>
+          <Text strong style={{ display: 'block', fontSize: 14 }}>{user?.name}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>{user?.email}</Text>
+        </div>
+      ),
+      disabled: true,
+    },
+    { type: 'divider' },
+    {
+      key: 'settings',
+      icon: <SettingOutlined />,
+      label: 'Cài đặt tài khoản',
+      onClick: () => navigate('/settings'),
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Đăng xuất',
+      danger: true,
+      onClick: handleLogout,
+    },
+  ];
+
+  const notifContent = (
+    <div
+      style={{
+        width: 360,
+        background: isDark ? '#1e293b' : '#ffffff',
+        border: isDark ? '1px solid rgba(148,163,184,0.2)' : '1px solid #cbd5e1',
+        borderRadius: 12,
+        boxShadow: isDark ? '0 10px 25px rgba(0,0,0,0.5)' : '0 10px 25px rgba(0,0,0,0.12)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '14px 16px',
+          borderBottom: isDark ? '1px solid rgba(148,163,184,0.15)' : '1px solid #e2e8f0',
+          background: isDark ? '#0f172a' : '#f8fafc',
+        }}
+      >
+        <Space>
+          <Text strong style={{ fontSize: 14 }}>Thông báo</Text>
+          {unreadCount > 0 && (
+            <Badge count={`${unreadCount} mới`} style={{ backgroundColor: '#4f46e5' }} />
+          )}
+        </Space>
+        {unreadCount > 0 && (
+          <Button type="link" size="small" icon={<CheckOutlined />} onClick={markAllAsRead}>
+            Đọc tất cả
+          </Button>
+        )}
+      </div>
+      <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+        {notifications.length === 0 ? (
+          <Empty description="Không có thông báo mới" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '28px 0' }} />
+        ) : (
+          <List
+            dataSource={notifications}
+            renderItem={(n) => (
+              <List.Item
+                onClick={() => handleNotifClick(n)}
+                style={{
+                  cursor: 'pointer',
+                  padding: '12px 16px',
+                  background: n.readAt ? 'transparent' : (isDark ? 'rgba(99, 102, 241, 0.08)' : 'rgba(79, 70, 229, 0.05)'),
+                  borderBottom: isDark ? '1px solid rgba(148,163,184,0.08)' : '1px solid #f1f5f9',
+                }}
+              >
+                <List.Item.Meta
+                  avatar={getNotifIcon(n.type)}
+                  title={<Text strong style={{ fontSize: 13 }}>{n.title}</Text>}
+                  description={
+                    <>
+                      <Text style={{ fontSize: 12, color: isDark ? '#cbd5e1' : '#475569' }}>{n.message}</Text>
+                      <br />
+                      <Text type="secondary" style={{ fontSize: 11 }}>{formatTimeAgo(n.createdAt)}</Text>
+                    </>
+                  }
+                />
+                {!n.readAt && (
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: '#4f46e5',
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+              </List.Item>
+            )}
+          />
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <AntHeader
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          left: collapsed ? 72 : 240,
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 28px',
+          backdropFilter: 'blur(16px)',
+          background: isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.95)',
+          borderBottom: isDark ? '1px solid rgba(148,163,184,0.15)' : '1px solid #e2e8f0',
+          boxShadow: isDark ? 'none' : '0 1px 4px rgba(0, 0, 0, 0.04)',
+          transition: 'left 0.2s ease',
+        }}
+      >
+        <Title level={4} style={{ margin: 0, fontWeight: 700 }}>
+          {currentTitle}
+        </Title>
+
+        <Space size="large">
+          {/* Theme Toggle */}
+          <Tooltip title={isDark ? 'Chuyển sang Giao diện Sáng' : 'Chuyển sang Giao diện Tối'}>
+            <Switch
+              checked={isDark}
+              onChange={toggleTheme}
+              checkedChildren={<MoonOutlined />}
+              unCheckedChildren={<SunOutlined />}
+            />
+          </Tooltip>
+
+          {/* Notification Bell */}
+          <Dropdown
+            dropdownRender={() => notifContent}
+            trigger={['click']}
+            placement="bottomRight"
+          >
+            <Badge count={unreadCount} size="small" offset={[-2, 4]}>
+              <Button
+                type="text"
+                icon={<BellOutlined style={{ fontSize: 18, color: isDark ? '#cbd5e1' : '#334155' }} />}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              />
+            </Badge>
+          </Dropdown>
+
+          {/* User Menu */}
+          <Dropdown menu={{ items: userMenuItems }} trigger={['click']} placement="bottomRight">
+            <Space style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 8 }}>
+              <Avatar
+                icon={<UserOutlined />}
+                style={{ background: 'linear-gradient(135deg, #4f46e5, #0d9488)', fontWeight: 600 }}
+              />
+              <div style={{ lineHeight: 1.25 }}>
+                <Text strong style={{ fontSize: 13, display: 'block' }}>
+                  {user?.name || 'User'}
+                </Text>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 500 }}>
+                  {ROLE_LABELS[user?.role] || user?.role || 'Member'}
+                </Text>
+              </div>
+            </Space>
+          </Dropdown>
+        </Space>
+      </AntHeader>
+
+      {/* Real-time Toast Notification */}
+      {toastNotification && (
+        <div
+          onClick={() => {
+            handleNotifClick(toastNotification);
+            dismissToast();
+          }}
+          style={{
+            position: 'fixed',
+            top: 80,
+            right: 24,
+            zIndex: 1000,
+            background: isDark ? '#1e293b' : '#ffffff',
+            border: '1px solid #4f46e5',
+            borderRadius: 12,
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 12,
+            width: 360,
+            maxWidth: 'calc(100vw - 32px)',
+            cursor: 'pointer',
+            boxShadow: isDark
+              ? '0 10px 25px rgba(0,0,0,0.5), 0 0 20px rgba(99,102,241,0.2)'
+              : '0 10px 25px rgba(0,0,0,0.12), 0 0 20px rgba(79,70,229,0.1)',
+            animation: 'slideInDown 0.3s ease-out',
+            backdropFilter: 'blur(16px)',
+          }}
+        >
+          <div style={{ fontSize: 22, marginTop: 2 }}>{getNotifIcon(toastNotification.type)}</div>
+          <div style={{ flex: 1 }}>
+            <Text strong style={{ display: 'block', fontSize: 13 }}>{toastNotification.title}</Text>
+            <Text style={{ fontSize: 12, color: isDark ? '#cbd5e1' : '#475569' }}>
+              {toastNotification.message}
+            </Text>
+          </div>
+          <Button
             type="text"
-            placeholder="Tìm kiếm..."
-            className="header-search-input"
-            id="global-search"
+            size="small"
+            icon={<CloseOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              dismissToast();
+            }}
           />
         </div>
-
-        {/* Theme Toggle */}
-        <button
-          className="header-icon-btn"
-          onClick={toggleTheme}
-          id="theme-toggle-btn"
-          title={theme === 'dark' ? 'Chuyển sang Giao diện Sáng' : 'Chuyển sang Giao diện Tối'}
-        >
-          {theme === 'dark' ? <HiOutlineSun /> : <HiOutlineMoon />}
-        </button>
-
-        {/* Notifications */}
-        <button className="header-icon-btn" id="notifications-btn" title="Thông báo">
-          <HiOutlineBell />
-          <span className="header-notification-badge">3</span>
-        </button>
-
-        {/* User Menu */}
-        <div className="header-user-container" ref={menuRef}>
-          <button
-            className="header-user"
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            id="user-menu-btn"
-          >
-            <div className="header-avatar">
-              <HiOutlineUser />
-            </div>
-            <div className="header-user-info">
-              <span className="header-user-name">{user?.name || 'User'}</span>
-              <span className="header-user-role">
-                {ROLE_LABELS[user?.role] || user?.role || 'Member'}
-              </span>
-            </div>
-          </button>
-
-          {/* Dropdown Menu */}
-          {showUserMenu && (
-            <div className="header-dropdown animate-scale-in" id="user-dropdown">
-              <div className="header-dropdown-header">
-                <div className="header-dropdown-avatar">
-                  <HiOutlineUser />
-                </div>
-                <div>
-                  <div className="header-dropdown-name">{user?.name}</div>
-                  <div className="header-dropdown-email">{user?.email}</div>
-                </div>
-              </div>
-              <div className="header-dropdown-divider"></div>
-              <button
-                className="header-dropdown-item"
-                onClick={() => { setShowUserMenu(false); navigate('/settings'); }}
-                id="btn-settings"
-              >
-                <HiOutlineCog /> Cài đặt tài khoản
-              </button>
-              <button
-                className="header-dropdown-item header-dropdown-item-danger"
-                onClick={handleLogout}
-                id="btn-logout"
-              >
-                <HiOutlineLogout /> Đăng xuất
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
+      )}
+    </>
   );
 }

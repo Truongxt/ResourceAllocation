@@ -3,6 +3,7 @@ const Resource = require('../models/Resource');
 const OptimizationResult = require('../models/OptimizationResult');
 const GeneticAlgorithm = require('../algorithms/genetic/GeneticAlgorithm');
 const CSPSolver = require('../algorithms/csp/CSPSolver');
+const { sendNotification } = require('../services/socket.service');
 
 /**
  * Helper: Load tasks & resources for optimization
@@ -318,6 +319,17 @@ const applyResult = async (req, res, next) => {
     result.appliedAt = new Date();
     result.appliedBy = req.user._id;
     await result.save();
+
+    // Send real-time notification to the user
+    sendNotification({
+      recipient: req.user._id,
+      type: 'optimization_applied',
+      title: 'Đã áp dụng phân bổ tối ưu',
+      message: `Đã tự động gán nhân sự cho ${appliedCount} công việc theo phương án tối ưu hóa`,
+      entityType: 'optimization',
+      entityId: result._id,
+      link: '/tasks',
+    });
 
     res.json({
       success: true,

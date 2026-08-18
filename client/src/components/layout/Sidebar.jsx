@@ -1,73 +1,123 @@
-import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Layout, Menu } from 'antd';
 import {
-  HiOutlineViewGrid,
-  HiOutlineFolder,
-  HiOutlineClipboardList,
-  HiOutlineUserGroup,
-  HiOutlineLightningBolt,
-  HiOutlineChartBar,
-  HiOutlineDocumentReport,
-  HiOutlineChevronLeft,
-  HiOutlineChevronRight,
-} from 'react-icons/hi';
-import './Sidebar.css';
+  DashboardOutlined,
+  ProjectOutlined,
+  UnorderedListOutlined,
+  TeamOutlined,
+  ThunderboltOutlined,
+  BarChartOutlined,
+  FileTextOutlined,
+} from '@ant-design/icons';
+import { useTheme } from '../../context/ThemeContext';
 
-const navItems = [
-  { path: '/', label: 'Dashboard', icon: HiOutlineViewGrid },
-  { path: '/projects', label: 'Dự án', icon: HiOutlineFolder },
-  { path: '/tasks', label: 'Công việc', icon: HiOutlineClipboardList },
-  { path: '/resources', label: 'Nhân sự', icon: HiOutlineUserGroup },
-  { path: '/optimization', label: 'Tối ưu hóa', icon: HiOutlineLightningBolt },
-  { path: '/gantt', label: 'Gantt Chart', icon: HiOutlineChartBar },
-  { path: '/reports', label: 'Báo cáo', icon: HiOutlineDocumentReport },
+const { Sider } = Layout;
+
+const menuItems = [
+  { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
+  { key: '/projects', icon: <ProjectOutlined />, label: 'Dự án' },
+  { key: '/tasks', icon: <UnorderedListOutlined />, label: 'Công việc' },
+  { key: '/resources', icon: <TeamOutlined />, label: 'Nhân sự' },
+  { key: '/optimization', icon: <ThunderboltOutlined />, label: 'Tối ưu hóa' },
+  { key: '/gantt', icon: <BarChartOutlined />, label: 'Gantt Chart' },
+  { key: '/reports', icon: <FileTextOutlined />, label: 'Báo cáo' },
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isDark } = useTheme();
+
   return (
-    <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
+    <Sider
+      collapsible
+      collapsed={collapsed}
+      onCollapse={onToggle}
+      width={240}
+      collapsedWidth={72}
+      style={{
+        position: 'fixed',
+        height: '100vh',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        zIndex: 200,
+        background: isDark ? '#0f172a' : '#ffffff',
+        borderRight: isDark ? '1px solid rgba(148,163,184,0.15)' : '1px solid #e2e8f0',
+        boxShadow: isDark ? 'none' : '2px 0 8px rgba(0, 0, 0, 0.04)',
+      }}
+      theme={isDark ? 'dark' : 'light'}
+    >
       {/* Logo */}
-      <div className="sidebar-logo">
-        <div className="sidebar-logo-icon">
-          <span>R</span>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          gap: 10,
+          padding: collapsed ? '16px 0' : '16px 20px',
+          height: 64,
+          borderBottom: isDark ? '1px solid rgba(148,163,184,0.1)' : '1px solid #e2e8f0',
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            minWidth: 36,
+            borderRadius: 10,
+            background: 'linear-gradient(135deg, #4f46e5, #0d9488)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 800,
+            fontSize: 18,
+            color: '#ffffff',
+            boxShadow: '0 2px 6px rgba(79, 70, 229, 0.3)',
+          }}
+        >
+          R
         </div>
         {!collapsed && (
-          <div className="sidebar-logo-text">
-            <span className="sidebar-logo-name">RAO</span>
-            <span className="sidebar-logo-tagline">Resource Optimization</span>
+          <div style={{ overflow: 'hidden' }}>
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: 16,
+                color: isDark ? '#f8fafc' : '#0f172a',
+                lineHeight: 1.2,
+                letterSpacing: 0.5,
+              }}
+            >
+              RAO
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: isDark ? '#94a3b8' : '#64748b',
+                whiteSpace: 'nowrap',
+                fontWeight: 500,
+              }}
+            >
+              Resource Optimization
+            </div>
           </div>
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="sidebar-nav">
-        <ul className="sidebar-nav-list">
-          {navItems.map((item) => (
-            <li key={item.path}>
-              <NavLink
-                to={item.path}
-                end={item.path === '/'}
-                className={({ isActive }) =>
-                  `sidebar-nav-link ${isActive ? 'active' : ''}`
-                }
-                title={collapsed ? item.label : undefined}
-              >
-                <item.icon className="sidebar-nav-icon" />
-                {!collapsed && <span className="sidebar-nav-label">{item.label}</span>}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      {/* Collapse Toggle */}
-      <button className="sidebar-toggle" onClick={onToggle}>
-        {collapsed ? (
-          <HiOutlineChevronRight className="sidebar-toggle-icon" />
-        ) : (
-          <HiOutlineChevronLeft className="sidebar-toggle-icon" />
-        )}
-      </button>
-    </aside>
+      <Menu
+        theme={isDark ? 'dark' : 'light'}
+        mode="inline"
+        selectedKeys={[location.pathname]}
+        items={menuItems}
+        onClick={({ key }) => navigate(key)}
+        style={{
+          border: 'none',
+          marginTop: 10,
+          background: 'transparent',
+          fontWeight: 500,
+        }}
+      />
+    </Sider>
   );
 }

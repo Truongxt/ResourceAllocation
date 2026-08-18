@@ -1,229 +1,135 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Form, Input, Button, Card, Typography, Alert, Select, Divider } from 'antd';
+import { LockOutlined, MailOutlined, UserOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
-import {
-  HiOutlineMail,
-  HiOutlineLockClosed,
-  HiOutlineUser,
-  HiOutlineEye,
-  HiOutlineEyeOff,
-} from 'react-icons/hi';
-import './Auth.css';
+
+const { Title, Text } = Typography;
+
+const roleOptions = [
+  { value: 'member', label: 'Thành viên (Member)' },
+  { value: 'project_manager', label: 'Project Manager' },
+  { value: 'admin', label: 'Quản trị viên (Admin)' },
+];
 
 export default function Register() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    role: 'project_manager',
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  const { register } = useAuth();
   const navigate = useNavigate();
+  const { register, error, clearError } = useAuth();
+  const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setErrorMsg('');
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrorMsg('');
-
-    // Validate confirm password
-    if (formData.password !== formData.confirmPassword) {
-      setErrorMsg('Mật khẩu xác nhận không khớp');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setErrorMsg('Mật khẩu phải có ít nhất 6 ký tự');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    const result = await register({
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-      role: formData.role,
-    });
-
-    if (result.success) {
-      navigate('/', { replace: true });
-    } else {
-      setErrorMsg(result.message);
-    }
-
-    setIsSubmitting(false);
+  const onFinish = async (values) => {
+    setLoading(true);
+    clearError();
+    const result = await register(values);
+    setLoading(false);
+    if (result.success) navigate('/');
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-container animate-scale-in">
-        {/* Left - Branding */}
-        <div className="auth-branding">
-          <div className="auth-branding-content">
-            <div className="auth-logo">
-              <span className="auth-logo-icon">R</span>
-              <span className="auth-logo-text">RAO</span>
-            </div>
-            <h1 className="auth-branding-title">
-              Resource Allocation<br />Optimization
-            </h1>
-            <p className="auth-branding-desc">
-              Tạo tài khoản để bắt đầu quản lý dự án, phân bổ nhân sự 
-              và tối ưu hóa hiệu suất làm việc.
-            </p>
-            <div className="auth-branding-features">
-              <div className="auth-feature">
-                <span className="auth-feature-icon">🚀</span>
-                <span>Tối đa hóa hiệu suất nhân sự</span>
-              </div>
-              <div className="auth-feature">
-                <span className="auth-feature-icon">⚡</span>
-                <span>Giảm thiểu burnout & xung đột</span>
-              </div>
-              <div className="auth-feature">
-                <span className="auth-feature-icon">📈</span>
-                <span>Báo cáo & Analytics chi tiết</span>
-              </div>
-            </div>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
+      padding: 24,
+    }}>
+      <div style={{
+        position: 'fixed', top: '15%', right: '10%', width: 300, height: 300,
+        borderRadius: '50%', background: 'rgba(20,184,166,0.08)', filter: 'blur(80px)', pointerEvents: 'none',
+      }} />
+
+      <Card
+        style={{
+          width: '100%',
+          maxWidth: 480,
+          borderRadius: 16,
+          border: '1px solid rgba(148,163,184,0.1)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        }}
+        styles={{ body: { padding: '40px 36px' } }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: 16, margin: '0 auto 16px',
+            background: 'linear-gradient(135deg, #6366f1, #14b8a6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <ThunderboltOutlined style={{ fontSize: 28, color: '#fff' }} />
           </div>
+          <Title level={3} style={{ marginBottom: 4 }}>Tạo tài khoản</Title>
+          <Text type="secondary">Đăng ký tham gia hệ thống RAO</Text>
         </div>
 
-        {/* Right - Register Form */}
-        <div className="auth-form-section">
-          <div className="auth-form-wrapper">
-            <h2 className="auth-form-title">Tạo tài khoản</h2>
-            <p className="auth-form-subtitle">
-              Điền thông tin bên dưới để tạo tài khoản mới.
-            </p>
+        {error && (
+          <Alert message={error} type="error" showIcon closable onClose={clearError} style={{ marginBottom: 20 }} />
+        )}
 
-            {errorMsg && (
-              <div className="auth-error" id="register-error">
-                <span>⚠️</span>
-                {errorMsg}
-              </div>
-            )}
+        <Form layout="vertical" onFinish={onFinish} size="large" requiredMark={false}
+          initialValues={{ role: 'member' }}
+        >
+          <Form.Item name="name" label="Họ và tên"
+            rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
+          >
+            <Input prefix={<UserOutlined />} placeholder="Nguyễn Văn A" autoFocus />
+          </Form.Item>
 
-            <form onSubmit={handleSubmit} className="auth-form" id="register-form">
-              <div className="auth-input-group">
-                <label htmlFor="register-name" className="auth-label">Họ và tên</label>
-                <div className="auth-input-wrapper">
-                  <HiOutlineUser className="auth-input-icon" />
-                  <input
-                    type="text"
-                    id="register-name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    placeholder="Nguyễn Văn A"
-                    className="auth-input"
-                    required
-                    autoFocus
-                  />
-                </div>
-              </div>
+          <Form.Item name="email" label="Email"
+            rules={[
+              { required: true, message: 'Vui lòng nhập email' },
+              { type: 'email', message: 'Email không hợp lệ' },
+            ]}
+          >
+            <Input prefix={<MailOutlined />} placeholder="email@rao.com" />
+          </Form.Item>
 
-              <div className="auth-input-group">
-                <label htmlFor="register-email" className="auth-label">Email</label>
-                <div className="auth-input-wrapper">
-                  <HiOutlineMail className="auth-input-icon" />
-                  <input
-                    type="email"
-                    id="register-email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="you@example.com"
-                    className="auth-input"
-                    required
-                    autoComplete="email"
-                  />
-                </div>
-              </div>
+          <Form.Item name="password" label="Mật khẩu"
+            rules={[
+              { required: true, message: 'Vui lòng nhập mật khẩu' },
+              { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự' },
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="Tối thiểu 6 ký tự" />
+          </Form.Item>
 
-              <div className="auth-input-group">
-                <label htmlFor="register-password" className="auth-label">Mật khẩu</label>
-                <div className="auth-input-wrapper">
-                  <HiOutlineLockClosed className="auth-input-icon" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="register-password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Ít nhất 6 ký tự"
-                    className="auth-input"
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    className="auth-toggle-password"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                  >
-                    {showPassword ? <HiOutlineEyeOff /> : <HiOutlineEye />}
-                  </button>
-                </div>
-              </div>
+          <Form.Item name="confirmPassword" label="Xác nhận mật khẩu"
+            dependencies={['password']}
+            rules={[
+              { required: true, message: 'Vui lòng xác nhận mật khẩu' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('password') === value) return Promise.resolve();
+                  return Promise.reject(new Error('Mật khẩu xác nhận không khớp'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="Nhập lại mật khẩu" />
+          </Form.Item>
 
-              <div className="auth-input-group">
-                <label htmlFor="register-confirm-password" className="auth-label">
-                  Xác nhận mật khẩu
-                </label>
-                <div className="auth-input-wrapper">
-                  <HiOutlineLockClosed className="auth-input-icon" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="register-confirm-password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    placeholder="Nhập lại mật khẩu"
-                    className="auth-input"
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                  />
-                </div>
-              </div>
+          <Form.Item name="role" label="Vai trò trong hệ thống">
+            <Select options={roleOptions} />
+          </Form.Item>
 
-              <button
-                type="submit"
-                className="auth-submit-btn"
-                id="register-submit"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }}></div>
-                    Đang tạo tài khoản...
-                  </>
-                ) : (
-                  'Tạo tài khoản'
-                )}
-              </button>
-            </form>
+          <Form.Item style={{ marginBottom: 16 }}>
+            <Button type="primary" htmlType="submit" loading={loading} block
+              style={{ height: 44, fontWeight: 600, borderRadius: 10 }}
+            >
+              Tạo tài khoản
+            </Button>
+          </Form.Item>
+        </Form>
 
-            <p className="auth-switch">
-              Đã có tài khoản?{' '}
-              <Link to="/login" className="auth-switch-link">
-                Đăng nhập
-              </Link>
-            </p>
-          </div>
+        <Divider plain>
+          <Text type="secondary" style={{ fontSize: 13 }}>Đã có tài khoản?</Text>
+        </Divider>
+
+        <div style={{ textAlign: 'center' }}>
+          <Link to="/login">
+            <Button type="default" style={{ borderRadius: 10 }}>Đăng nhập</Button>
+          </Link>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

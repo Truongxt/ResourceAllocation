@@ -1,29 +1,53 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  HiOutlineCheckCircle,
-  HiOutlineClock,
-  HiOutlineExclamation,
-  HiOutlineLightningBolt,
-  HiOutlinePlay,
-  HiOutlineRefresh,
-  HiOutlineScale,
-  HiOutlineTrendingUp,
-  HiOutlineX,
-} from 'react-icons/hi';
+  Row,
+  Col,
+  Card,
+  Tabs,
+  Slider,
+  Select,
+  InputNumber,
+  Button,
+  Table,
+  Statistic,
+  Progress,
+  Tag,
+  Space,
+  Typography,
+  Popconfirm,
+  message,
+  Tooltip,
+  Alert,
+  Spin,
+  Empty,
+  Divider,
+} from 'antd';
+import {
+  PlayCircleOutlined,
+  ThunderboltOutlined,
+  HistoryOutlined,
+  DiffOutlined,
+  CheckOutlined,
+  ReloadOutlined,
+  EyeOutlined,
+  SlidersOutlined,
+  WarningOutlined,
+  CheckCircleOutlined,
+} from '@ant-design/icons';
 import optimizationService from '../services/optimizationService';
 import projectService from '../services/projectService';
 import analyticsService from '../services/analyticsService';
-import './Optimization.css';
+
+const { Title, Text, Paragraph } = Typography;
 
 const ALGO_OPTIONS = [
-  { key: 'genetic', label: 'Genetic Algorithm', icon: '🧬', desc: 'Multi-objective optimization, tìm giải pháp tối ưu nhất' },
-  { key: 'csp', label: 'CSP Solver', icon: '🔗', desc: 'Backtracking + AC-3, đảm bảo thoả mãn ràng buộc cứng' },
-  { key: 'hybrid', label: 'Hybrid (CSP → GA)', icon: '⚡', desc: 'Kết hợp CSP lọc feasible + GA tối ưu hóa' },
+  { value: 'genetic', label: '🧬 Genetic Algorithm', desc: 'Multi-objective GA, tìm giải pháp tối ưu toàn diện' },
+  { value: 'csp', label: '🔗 CSP Solver', desc: 'Backtracking + AC-3, đảm bảo thoả mãn ràng buộc cứng' },
+  { value: 'hybrid', label: '⚡ Hybrid (CSP → GA)', desc: 'Kết hợp CSP lọc miền giá trị + GA tối ưu hóa' },
 ];
 
-const STATUS_LABELS = { running: 'Đang chạy', completed: 'Hoàn thành', failed: 'Thất bại' };
-
 function formatTime(ms) {
+  if (!ms) return '0ms';
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
 }
@@ -37,34 +61,40 @@ export default function Optimization() {
     maxGenerations: 500,
     crossoverRate: 0.8,
     mutationRate: 0.1,
-    workloadWeight: 0.30,
+    workloadWeight: 0.3,
     skillWeight: 0.35,
     costWeight: 0.15,
-    overallocationWeight: 0.20,
+    overallocationWeight: 0.2,
   });
   const [running, setRunning] = useState(false);
   const [currentResult, setCurrentResult] = useState(null);
   const [comparisonData, setComparisonData] = useState(null);
   const [comparisonLoading, setComparisonLoading] = useState(false);
   const [history, setHistory] = useState([]);
-  const [notice, setNotice] = useState(null);
-  const [viewTab, setViewTab] = useState('result'); // 'result' | 'compare' | 'history'
+  const [activeTab, setActiveTab] = useState('result');
 
   const loadProjects = useCallback(async () => {
     try {
       const res = await projectService.getAll({ limit: 100 });
       setProjects(res.data.data.projects || []);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const loadHistory = useCallback(async () => {
     try {
       const res = await optimizationService.getHistory();
       setHistory(res.data.data.results || []);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
-  useEffect(() => { loadProjects(); loadHistory(); }, [loadProjects, loadHistory]);
+  useEffect(() => {
+    loadProjects();
+    loadHistory();
+  }, [loadProjects, loadHistory]);
 
   const loadComparison = useCallback(async (resultId) => {
     if (!resultId) return;
@@ -81,7 +111,6 @@ export default function Optimization() {
 
   const handleRun = async () => {
     setRunning(true);
-    setNotice(null);
     setCurrentResult(null);
     setComparisonData(null);
 
@@ -97,18 +126,18 @@ export default function Optimization() {
 
       const result = res.data.data.result;
       setCurrentResult(result);
-      setViewTab('result');
+      setActiveTab('result');
 
       if (result.status === 'completed') {
-        setNotice({ type: 'success', text: `Tối ưu hóa hoàn thành trong ${formatTime(result.executionTime)}!` });
+        message.success(`Tối ưu hóa hoàn thành trong ${formatTime(result.executionTime)}!`);
         loadComparison(result._id);
       } else {
-        setNotice({ type: 'error', text: result.errorMessage || 'Không tìm thấy giải pháp.' });
+        message.error(result.errorMessage || 'Không tìm thấy giải pháp khả thi.');
       }
 
       await loadHistory();
     } catch (err) {
-      setNotice({ type: 'error', text: err.response?.data?.message || 'Lỗi khi chạy tối ưu hóa.' });
+      message.error(err.response?.data?.message || 'Có lỗi xảy ra khi chạy tối ưu hóa.');
     } finally {
       setRunning(false);
     }
@@ -117,13 +146,13 @@ export default function Optimization() {
   const handleApply = async (resultId) => {
     try {
       const res = await optimizationService.applyResult(resultId);
-      setNotice({ type: 'success', text: res.data.message });
+      message.success(res.data.message || 'Đã áp dụng kết quả phân bổ thành công');
       await loadHistory();
       if (currentResult?._id === resultId) {
         setCurrentResult((prev) => ({ ...prev, isApplied: true }));
       }
     } catch (err) {
-      setNotice({ type: 'error', text: err.response?.data?.message || 'Lỗi khi áp dụng.' });
+      message.error(err.response?.data?.message || 'Không thể áp dụng kết quả.');
     }
   };
 
@@ -132,385 +161,508 @@ export default function Optimization() {
       const res = await optimizationService.getById(id);
       const resData = res.data.data.result;
       setCurrentResult(resData);
-      setViewTab('result');
+      setActiveTab('result');
       if (resData.status === 'completed') {
         loadComparison(resData._id);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
-  return (
-    <div className="animate-fade-in">
-      <div className="page-header">
-        <h1 className="page-title">Tối ưu hóa Phân bổ Nhân sự</h1>
-        <p className="page-description">Sử dụng thuật toán GA và CSP để tự động tìm phương án phân bổ tối ưu.</p>
-      </div>
-
-      {notice && (
-        <div className={`alert alert-${notice.type}`} style={{ marginBottom: 'var(--space-4)' }}>
-          {notice.type === 'success' ? <HiOutlineCheckCircle /> : <HiOutlineExclamation />}
-          <span>{notice.text}</span>
-          <button onClick={() => setNotice(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}><HiOutlineX /></button>
-        </div>
-      )}
-
-      <div className="opt-layout">
-        {/* Left: Config Panel */}
-        <div className="opt-config card">
-          <h3 className="card-title">Cấu hình thuật toán</h3>
-
-          {/* Algorithm selection */}
-          <div className="opt-algo-select">
-            {ALGO_OPTIONS.map((opt) => (
-              <button
-                key={opt.key}
-                className={`opt-algo-btn ${algorithm === opt.key ? 'active' : ''}`}
-                onClick={() => setAlgorithm(opt.key)}
-              >
-                <span className="opt-algo-icon">{opt.icon}</span>
-                <span className="opt-algo-label">{opt.label}</span>
-                <span className="opt-algo-desc">{opt.desc}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Project filter */}
-          <label className="form-group" style={{ marginTop: 'var(--space-4)' }}>
-            <span>Lọc theo dự án (tuỳ chọn)</span>
-            <select value={params.projectId} onChange={(e) => setParams((p) => ({ ...p, projectId: e.target.value }))}>
-              <option value="">Tất cả dự án</option>
-              {projects.map((p) => <option key={p._id} value={p._id}>{p.code ? `${p.code} - ` : ''}{p.name}</option>)}
-            </select>
-          </label>
-
-          {/* GA Parameters */}
-          {algorithm !== 'csp' && (
-            <div className="opt-params">
-              <h4>Tham số GA</h4>
-              <div className="opt-params-grid">
-                <label><span>Population Size</span><input type="number" min="10" max="500" value={params.populationSize} onChange={(e) => setParams((p) => ({ ...p, populationSize: Number(e.target.value) }))} /></label>
-                <label><span>Max Generations</span><input type="number" min="50" max="2000" value={params.maxGenerations} onChange={(e) => setParams((p) => ({ ...p, maxGenerations: Number(e.target.value) }))} /></label>
-                <label><span>Crossover Rate</span><input type="number" min="0.1" max="1" step="0.05" value={params.crossoverRate} onChange={(e) => setParams((p) => ({ ...p, crossoverRate: Number(e.target.value) }))} /></label>
-                <label><span>Mutation Rate</span><input type="number" min="0.01" max="0.5" step="0.01" value={params.mutationRate} onChange={(e) => setParams((p) => ({ ...p, mutationRate: Number(e.target.value) }))} /></label>
-              </div>
-
-              <h4>Trọng số Fitness</h4>
-              <div className="opt-weights">
-                <label><span>Cân bằng workload</span><input type="range" min="0" max="1" step="0.05" value={params.workloadWeight} onChange={(e) => setParams((p) => ({ ...p, workloadWeight: Number(e.target.value) }))} /><em>{params.workloadWeight}</em></label>
-                <label><span>Skill match</span><input type="range" min="0" max="1" step="0.05" value={params.skillWeight} onChange={(e) => setParams((p) => ({ ...p, skillWeight: Number(e.target.value) }))} /><em>{params.skillWeight}</em></label>
-                <label><span>Chi phí</span><input type="range" min="0" max="1" step="0.05" value={params.costWeight} onChange={(e) => setParams((p) => ({ ...p, costWeight: Number(e.target.value) }))} /><em>{params.costWeight}</em></label>
-                <label><span>Tránh quá tải</span><input type="range" min="0" max="1" step="0.05" value={params.overallocationWeight} onChange={(e) => setParams((p) => ({ ...p, overallocationWeight: Number(e.target.value) }))} /><em>{params.overallocationWeight}</em></label>
-              </div>
-            </div>
+  const assignmentColumns = [
+    {
+      title: 'Công việc (Task)',
+      key: 'task',
+      render: (_, record) => (
+        <div>
+          <Text strong>{record.taskTitle || 'Task'}</Text>
+          {record.estimatedHours && (
+            <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+              ({record.estimatedHours}h)
+            </Text>
           )}
-
-          <button
-            className="btn btn-accent opt-run-btn"
-            onClick={handleRun}
-            disabled={running}
-            id="btn-run-optimizer"
-          >
-            {running ? (
-              <><div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> Đang tối ưu hóa...</>
-            ) : (
-              <><HiOutlinePlay /> Chạy {ALGO_OPTIONS.find((o) => o.key === algorithm)?.label}</>
-            )}
-          </button>
         </div>
+      ),
+    },
+    {
+      title: 'Nhân sự được gán',
+      key: 'resource',
+      render: (_, record) => (
+        <Space>
+          <Tag color="purple">{record.resourceName || 'Resource'}</Tag>
+          {record.department && <Text type="secondary" style={{ fontSize: 12 }}>{record.department}</Text>}
+        </Space>
+      ),
+    },
+    {
+      title: 'Độ khớp kỹ năng (Skill Match)',
+      key: 'skillMatch',
+      width: 200,
+      render: (_, record) => {
+        const score = record.skillMatchScore || (record.matchedSkills ? Math.min(record.matchedSkills.length * 25, 100) : 85);
+        return <Progress percent={score} size="small" status={score >= 80 ? 'success' : 'normal'} />;
+      },
+    },
+  ];
 
-        {/* Right: Results */}
-        <div className="opt-results">
-          <div className="opt-tabs">
-            <button className={`opt-tab ${viewTab === 'result' ? 'active' : ''}`} onClick={() => setViewTab('result')}>
-              <HiOutlineLightningBolt /> Kết quả
-            </button>
-            <button
-              className={`opt-tab ${viewTab === 'compare' ? 'active' : ''}`}
-              onClick={() => {
-                setViewTab('compare');
-                if (currentResult?._id && !comparisonData) loadComparison(currentResult._id);
-              }}
-              disabled={!currentResult || currentResult.status !== 'completed'}
+  const historyColumns = [
+    {
+      title: 'Thuật toán',
+      dataIndex: 'algorithm',
+      key: 'algorithm',
+      render: (algo) => {
+        const icon = algo === 'genetic' ? '🧬' : algo === 'csp' ? '🔗' : '⚡';
+        return <Tag color="blue">{icon} {algo?.toUpperCase()}</Tag>;
+      },
+    },
+    {
+      title: 'Fitness',
+      dataIndex: 'fitness',
+      key: 'fitness',
+      render: (fitness) => <Text strong style={{ color: '#6366f1' }}>{fitness || '—'}</Text>,
+    },
+    {
+      title: 'Quy mô',
+      key: 'scale',
+      render: (_, record) => (
+        <Text type="secondary">{record.taskCount} Tasks / {record.resourceCount} Nhân sự</Text>
+      ),
+    },
+    {
+      title: 'Thời gian chạy',
+      dataIndex: 'executionTime',
+      key: 'executionTime',
+      render: (time) => formatTime(time || 0),
+    },
+    {
+      title: 'Trạng thái',
+      key: 'status',
+      render: (_, record) => (
+        <Space>
+          <Tag color={record.status === 'completed' ? 'success' : 'error'}>
+            {record.status === 'completed' ? 'Hoàn thành' : 'Thất bại'}
+          </Tag>
+          {record.isApplied && <Tag color="cyan">Đã áp dụng</Tag>}
+        </Space>
+      ),
+    },
+    {
+      title: 'Hành động',
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => viewResult(record._id)}>
+            Xem
+          </Button>
+          {record.status === 'completed' && !record.isApplied && (
+            <Popconfirm
+              title="Áp dụng phương án này?"
+              description="Hệ thống sẽ cập nhật người thực hiện cho tất cả công việc liên quan."
+              onConfirm={() => handleApply(record._id)}
+              okText="Áp dụng"
+              cancelText="Hủy"
             >
-              <HiOutlineScale /> So sánh Trước / Sau
-            </button>
-            <button className={`opt-tab ${viewTab === 'history' ? 'active' : ''}`} onClick={() => setViewTab('history')}>
-              <HiOutlineClock /> Lịch sử ({history.length})
-            </button>
-          </div>
-
-          {viewTab === 'result' ? (
-            currentResult ? (
-              <div className="opt-result-detail card">
-                {/* Metrics */}
-                <div className="opt-metrics-row">
-                  <div className="opt-metric">
-                    <span>Fitness</span>
-                    <strong style={{ color: 'var(--color-primary-400)' }}>{currentResult.fitness || '—'}</strong>
-                  </div>
-                  <div className="opt-metric">
-                    <span>Thời gian</span>
-                    <strong>{formatTime(currentResult.executionTime || 0)}</strong>
-                  </div>
-                  <div className="opt-metric">
-                    <span>Generations</span>
-                    <strong>{currentResult.generations || currentResult.iterations || '—'}</strong>
-                  </div>
-                  <div className="opt-metric">
-                    <span>Tasks</span>
-                    <strong>{currentResult.taskCount}</strong>
-                  </div>
-                  <div className="opt-metric">
-                    <span>Resources</span>
-                    <strong>{currentResult.resourceCount}</strong>
-                  </div>
-                </div>
-
-                {/* GA Metrics */}
-                {currentResult.metrics && (
-                  <div className="opt-ga-metrics">
-                    <div className="opt-ga-metric">
-                      <span>Skill Match TB</span>
-                      <strong>{currentResult.metrics.averageSkillMatch}%</strong>
-                    </div>
-                    <div className="opt-ga-metric">
-                      <span>Workload Variance</span>
-                      <strong>{currentResult.metrics.workloadVariance}</strong>
-                    </div>
-                    <div className="opt-ga-metric">
-                      <span>Quá tải</span>
-                      <strong className={currentResult.metrics.overallocatedResources > 0 ? 'text-danger' : ''}>
-                        {currentResult.metrics.overallocatedResources}
-                      </strong>
-                    </div>
-                    <div className="opt-ga-metric">
-                      <span>Tổng chi phí</span>
-                      <strong>{(currentResult.metrics.totalCost || 0).toLocaleString('vi-VN')} VND</strong>
-                    </div>
-                  </div>
-                )}
-
-                {/* Convergence Chart */}
-                {currentResult.convergenceHistory && currentResult.convergenceHistory.length > 1 && (
-                  <div className="opt-convergence">
-                    <h4>Convergence (Fitness qua Generations)</h4>
-                    <div className="opt-convergence-chart">
-                      {currentResult.convergenceHistory.map((point, i) => (
-                        <div key={i} className="opt-conv-bar-wrap">
-                          <div
-                            className="opt-conv-bar"
-                            style={{ height: `${Math.max(point.fitness * 100, 2)}%` }}
-                            title={`Gen ${point.generation}: ${point.fitness}`}
-                          />
-                          <span className="opt-conv-label">{point.generation}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Assignments table */}
-                {currentResult.assignments && currentResult.assignments.length > 0 && (
-                  <div className="opt-assignments">
-                    <h4>Kết quả phân bổ ({currentResult.assignments.length} công việc)</h4>
-                    <div className="opt-assign-table-wrap">
-                      <table className="opt-assign-table">
-                        <thead>
-                          <tr>
-                            <th>Công việc</th>
-                            <th>Nhân sự</th>
-                            <th>Skill Match</th>
-                            <th>Giờ</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {currentResult.assignments.map((a, i) => (
-                            <tr key={i}>
-                              <td>{a.taskTitle}</td>
-                              <td>{a.resourceName}</td>
-                              <td>
-                                <span className={`badge ${(a.skillMatch || 0) >= 80 ? 'badge-success' : (a.skillMatch || 0) >= 50 ? 'badge-warning' : 'badge-danger'}`}>
-                                  {a.skillMatch || '—'}%
-                                </span>
-                              </td>
-                              <td>{a.estimatedHours}h</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Resource utilization */}
-                {currentResult.metrics?.resourceUtilization && (
-                  <div className="opt-utilization">
-                    <h4>Phân bổ nhân sự đề xuất</h4>
-                    {currentResult.metrics.resourceUtilization.map((r, i) => (
-                      <div key={i} className="opt-util-row">
-                        <span className="opt-util-name">{r.name}</span>
-                        <div className="opt-util-bar-wrap">
-                          <div
-                            className="opt-util-bar"
-                            style={{
-                              width: `${Math.min(r.utilization, 100)}%`,
-                              background: r.isOverloaded ? 'var(--color-danger)' : r.utilization > 80 ? '#f59e0b' : 'var(--color-success)',
-                            }}
-                          />
-                        </div>
-                        <span className={`opt-util-pct ${r.isOverloaded ? 'text-danger' : ''}`}>{r.utilization}%</span>
-                        <span className="opt-util-detail">{r.workload}/{r.capacity}h</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Action buttons */}
-                <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
-                  {currentResult.status === 'completed' && !currentResult.isApplied && (
-                    <button className="btn btn-primary opt-apply-btn" onClick={() => handleApply(currentResult._id)}>
-                      <HiOutlineCheckCircle /> Áp dụng kết quả phân bổ
-                    </button>
-                  )}
-                  {currentResult.isApplied && (
-                    <div className="opt-applied-badge">✅ Đã áp dụng vào hệ thống</div>
-                  )}
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => { setViewTab('compare'); loadComparison(currentResult._id); }}
-                    style={{ marginTop: currentResult.isApplied ? 'var(--space-2)' : '0' }}
-                  >
-                    <HiOutlineScale /> So sánh Trước / Sau
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="empty-state card">
-                <div className="empty-state-icon"><HiOutlineLightningBolt /></div>
-                <h3 className="empty-state-title">Sẵn sàng tối ưu hóa</h3>
-                <p className="empty-state-text">Chọn thuật toán, điều chỉnh tham số rồi nhấn "Chạy" để bắt đầu.</p>
-              </div>
-            )
-          ) : viewTab === 'compare' ? (
-            /* Before / After Comparison Tab */
-            <div className="opt-compare card">
-              <div className="card-header" style={{ marginBottom: 'var(--space-4)' }}>
-                <h3 className="card-title">⚖️ So sánh Trước & Sau Tối ưu hóa</h3>
-                <span className="badge badge-primary">Giải pháp: {currentResult?.algorithm?.toUpperCase()}</span>
-              </div>
-
-              {comparisonLoading ? (
-                <p className="empty-state-text">Đang phân tích dữ liệu so sánh...</p>
-              ) : comparisonData ? (
-                <div className="opt-compare-content">
-                  {/* Summary Improvements */}
-                  <div className="opt-compare-stats">
-                    <div className="compare-stat-card">
-                      <span>Độ phù hợp kỹ năng</span>
-                      <strong>{comparisonData.improvement?.skillMatch || 0}%</strong>
-                      <small className="text-success"><HiOutlineTrendingUp /> Tối đa hóa năng lực</small>
-                    </div>
-                    <div className="compare-stat-card">
-                      <span>Độ lệch Workload</span>
-                      <strong>{comparisonData.improvement?.workloadVariance || 0}</strong>
-                      <small className="text-success">Cân bằng khối lượng</small>
-                    </div>
-                    <div className="compare-stat-card">
-                      <span>Fitness Score</span>
-                      <strong style={{ color: 'var(--color-primary-400)' }}>{comparisonData.improvement?.fitness || 0}</strong>
-                      <small>Điểm tối ưu tổng thể</small>
-                    </div>
-                  </div>
-
-                  {/* Side-by-side Resource Breakdown */}
-                  <h4 style={{ margin: 'var(--space-5) 0 var(--space-3)', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-                    So sánh phân bổ từng nhân sự
-                  </h4>
-                  <div className="opt-compare-table-wrap">
-                    <table className="opt-compare-table">
-                      <thead>
-                        <tr>
-                          <th>Nhân sự</th>
-                          <th>Hiện tại (Trước)</th>
-                          <th>Đề xuất (Sau)</th>
-                          <th>Thay đổi</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {comparisonData.optimized?.map((optR, idx) => {
-                          const curR = comparisonData.current?.find((c) => c.name === optR.name) || { workload: 0, utilization: 0, capacity: optR.capacity };
-                          const diff = Math.round((optR.workload - curR.workload) * 10) / 10;
-                          return (
-                            <tr key={idx}>
-                              <td><strong>{optR.name}</strong></td>
-                              <td>
-                                <div className="compare-bar-cell">
-                                  <span>{curR.workload}/{curR.capacity}h ({curR.utilization}%)</span>
-                                  <div className="compare-mini-bar">
-                                    <div style={{ width: `${Math.min(curR.utilization, 100)}%`, background: curR.utilization > 100 ? 'var(--color-danger)' : '#6366f1' }} />
-                                  </div>
-                                </div>
-                              </td>
-                              <td>
-                                <div className="compare-bar-cell">
-                                  <span>{optR.workload}/{optR.capacity}h ({optR.utilization}%)</span>
-                                  <div className="compare-mini-bar">
-                                    <div style={{ width: `${Math.min(optR.utilization, 100)}%`, background: optR.utilization > 100 ? 'var(--color-danger)' : 'var(--color-success)' }} />
-                                  </div>
-                                </div>
-                              </td>
-                              <td>
-                                <span className={diff > 0 ? 'text-warning' : diff < 0 ? 'text-success' : ''}>
-                                  {diff > 0 ? `+${diff}h` : `${diff}h`}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                <p className="empty-state-text">Không có dữ liệu so sánh.</p>
-              )}
-            </div>
-          ) : (
-            /* History Tab */
-            <div className="opt-history card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-                <h4>Lịch sử tối ưu hóa</h4>
-                <button className="btn btn-secondary" onClick={loadHistory}><HiOutlineRefresh /></button>
-              </div>
-              {history.length === 0 ? (
-                <p className="empty-state-text">Chưa có lần chạy nào.</p>
-              ) : (
-                <div className="opt-history-list">
-                  {history.map((h) => (
-                    <button key={h._id} className="opt-history-item" onClick={() => viewResult(h._id)}>
-                      <div className="opt-history-algo">
-                        {h.algorithm === 'genetic' ? '🧬' : h.algorithm === 'csp' ? '🔗' : '⚡'} {h.algorithm.toUpperCase()}
-                      </div>
-                      <div className="opt-history-info">
-                        <span>Fitness: {h.fitness || '—'}</span>
-                        <span>{h.taskCount} tasks / {h.resourceCount} resources</span>
-                        <span>{formatTime(h.executionTime || 0)}</span>
-                      </div>
-                      <div className={`opt-history-status status-${h.status}`}>
-                        {STATUS_LABELS[h.status]}
-                      </div>
-                      <div className="opt-history-date">
-                        {new Date(h.createdAt).toLocaleString('vi-VN')}
-                      </div>
-                      {h.isApplied && <span className="opt-history-applied">✅</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+              <Button size="small" type="primary" icon={<CheckOutlined />}>
+                Áp dụng
+              </Button>
+            </Popconfirm>
           )}
-        </div>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div style={{ maxWidth: 1400 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <Title level={3} style={{ marginBottom: 4 }}>Tối ưu hóa Phân bổ Nguồn lực</Title>
+        <Text type="secondary">
+          Áp dụng thuật toán Genetic Algorithm (GA) & CSP Solver để tự động phân bổ nhân sự cân bằng workload, tối đa skill match và hạn chế burnout
+        </Text>
       </div>
+
+      <Row gutter={[24, 24]}>
+        {/* Left: Optimizer Config */}
+        <Col xs={24} lg={8}>
+          <Card title={<span><SlidersOutlined /> Cấu hình Thuật toán</span>} styles={{ body: { padding: '20px' } }}>
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>Chọn thuật toán tối ưu</Text>
+              <Select
+                style={{ width: '100%' }}
+                value={algorithm}
+                onChange={setAlgorithm}
+                options={ALGO_OPTIONS}
+                size="large"
+              />
+              <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
+                {ALGO_OPTIONS.find((o) => o.value === algorithm)?.desc}
+              </Text>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>Lọc theo dự án (Tùy chọn)</Text>
+              <Select
+                style={{ width: '100%' }}
+                placeholder="Tất cả dự án"
+                value={params.projectId || undefined}
+                onChange={(val) => setParams((p) => ({ ...p, projectId: val || '' }))}
+                allowClear
+                options={projects.map((p) => ({ value: p._id, label: `${p.code ? p.code + ' - ' : ''}${p.name}` }))}
+              />
+            </div>
+
+            {algorithm !== 'csp' && (
+              <>
+                <Divider style={{ margin: '16px 0' }}>Tham số thuật toán GA</Divider>
+                <Row gutter={12} style={{ marginBottom: 12 }}>
+                  <Col span={12}>
+                    <Text style={{ fontSize: 12 }}>Population Size</Text>
+                    <InputNumber
+                      min={10}
+                      max={500}
+                      value={params.populationSize}
+                      onChange={(val) => setParams((p) => ({ ...p, populationSize: val }))}
+                      style={{ width: '100%' }}
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <Text style={{ fontSize: 12 }}>Max Generations</Text>
+                    <InputNumber
+                      min={50}
+                      max={2000}
+                      value={params.maxGenerations}
+                      onChange={(val) => setParams((p) => ({ ...p, maxGenerations: val }))}
+                      style={{ width: '100%' }}
+                    />
+                  </Col>
+                </Row>
+
+                <Row gutter={12} style={{ marginBottom: 16 }}>
+                  <Col span={12}>
+                    <Text style={{ fontSize: 12 }}>Crossover Rate</Text>
+                    <InputNumber
+                      min={0.1}
+                      max={1}
+                      step={0.05}
+                      value={params.crossoverRate}
+                      onChange={(val) => setParams((p) => ({ ...p, crossoverRate: val }))}
+                      style={{ width: '100%' }}
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <Text style={{ fontSize: 12 }}>Mutation Rate</Text>
+                    <InputNumber
+                      min={0.01}
+                      max={0.5}
+                      step={0.01}
+                      value={params.mutationRate}
+                      onChange={(val) => setParams((p) => ({ ...p, mutationRate: val }))}
+                      style={{ width: '100%' }}
+                    />
+                  </Col>
+                </Row>
+
+                <Divider style={{ margin: '16px 0' }}>Trọng số Fitness</Divider>
+
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12 }}>Cân bằng tải (Workload)</Text>
+                    <Text strong style={{ fontSize: 12 }}>{params.workloadWeight}</Text>
+                  </div>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={params.workloadWeight}
+                    onChange={(val) => setParams((p) => ({ ...p, workloadWeight: val }))}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12 }}>Khớp kỹ năng (Skill Match)</Text>
+                    <Text strong style={{ fontSize: 12 }}>{params.skillWeight}</Text>
+                  </div>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={params.skillWeight}
+                    onChange={(val) => setParams((p) => ({ ...p, skillWeight: val }))}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12 }}>Tránh quá tải (Overload Penalty)</Text>
+                    <Text strong style={{ fontSize: 12 }}>{params.overallocationWeight}</Text>
+                  </div>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={params.overallocationWeight}
+                    onChange={(val) => setParams((p) => ({ ...p, overallocationWeight: val }))}
+                  />
+                </div>
+              </>
+            )}
+
+            <Button
+              type="primary"
+              icon={<PlayCircleOutlined />}
+              onClick={handleRun}
+              loading={running}
+              block
+              size="large"
+              style={{ marginTop: 16, height: 44, borderRadius: 8 }}
+            >
+              {running ? 'Đang chạy thuật toán...' : `Bắt đầu Tối ưu hóa`}
+            </Button>
+          </Card>
+        </Col>
+
+        {/* Right: Output & Results */}
+        <Col xs={24} lg={16}>
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            type="card"
+            items={[
+              {
+                key: 'result',
+                label: (
+                  <span>
+                    <ThunderboltOutlined /> Kết quả tối ưu
+                  </span>
+                ),
+                children: currentResult ? (
+                  <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                    {/* Metrics Row */}
+                    <Row gutter={[16, 16]}>
+                      <Col span={6}>
+                        <Card hoverable styles={{ body: { padding: '16px' } }}>
+                          <Statistic
+                            title="Fitness Score"
+                            value={currentResult.fitness || '—'}
+                            valueStyle={{ color: '#6366f1', fontWeight: 700 }}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={6}>
+                        <Card hoverable styles={{ body: { padding: '16px' } }}>
+                          <Statistic title="Thời gian chạy" value={formatTime(currentResult.executionTime || 0)} />
+                        </Card>
+                      </Col>
+                      <Col span={6}>
+                        <Card hoverable styles={{ body: { padding: '16px' } }}>
+                          <Statistic title="Số thế hệ (Gen)" value={currentResult.generations || currentResult.iterations || '—'} />
+                        </Card>
+                      </Col>
+                      <Col span={6}>
+                        <Card hoverable styles={{ body: { padding: '16px' } }}>
+                          <Statistic
+                            title="Quá tải (Overload)"
+                            value={currentResult.metrics?.overallocatedResources || 0}
+                            valueStyle={{ color: (currentResult.metrics?.overallocatedResources || 0) > 0 ? '#ef4444' : '#10b981' }}
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+
+                    {/* Convergence History Mini Visualizer */}
+                    {currentResult.convergenceHistory && currentResult.convergenceHistory.length > 1 && (
+                      <Card title="📈 Quá trình hội tụ (Convergence over Generations)" size="small">
+                        <div style={{ display: 'flex', alignItems: 'flex-end', height: 80, gap: 3, padding: '10px 0' }}>
+                          {currentResult.convergenceHistory.slice(-40).map((point, idx) => {
+                            const heightPct = Math.max(10, Math.min(100, (point.bestFitness || point.fitness || 0) * 100));
+                            return (
+                              <Tooltip key={idx} title={`Gen ${point.generation}: Fitness ${(point.bestFitness || point.fitness || 0).toFixed(4)}`}>
+                                <div
+                                  style={{
+                                    flex: 1,
+                                    height: `${heightPct}%`,
+                                    background: 'linear-gradient(to top, #6366f1, #14b8a6)',
+                                    borderRadius: '2px 2px 0 0',
+                                    opacity: 0.85,
+                                  }}
+                                />
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
+                      </Card>
+                    )}
+
+                    {/* Action Bar */}
+                    <Card styles={{ body: { padding: '16px 20px' } }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <Text strong>Phương án phân bổ tối ưu</Text>
+                          <br />
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            Đã tìm thấy gán việc cho {currentResult.assignments?.length || 0} công việc
+                          </Text>
+                        </div>
+                        {!currentResult.isApplied ? (
+                          <Popconfirm
+                            title="Xác nhận áp dụng phương án phân bổ?"
+                            description="Hệ thống sẽ cập nhật người thực hiện công việc vào database."
+                            onConfirm={() => handleApply(currentResult._id)}
+                            okText="Đồng ý"
+                            cancelText="Hủy"
+                          >
+                            <Button type="primary" icon={<CheckOutlined />} size="large">
+                              Áp dụng phương án này
+                            </Button>
+                          </Popconfirm>
+                        ) : (
+                          <Tag color="success" style={{ padding: '6px 12px', fontSize: 13 }}>
+                            <CheckCircleOutlined /> Đã áp dụng vào hệ thống
+                          </Tag>
+                        )}
+                      </div>
+                    </Card>
+
+                    {/* Assignments Table */}
+                    <Card title="Chi tiết Phân công (Task Assignments)" styles={{ body: { padding: 0 } }}>
+                      <Table
+                        columns={assignmentColumns}
+                        dataSource={currentResult.assignments || []}
+                        rowKey={(r, idx) => r.taskId || r.task || idx}
+                        pagination={{ pageSize: 8 }}
+                      />
+                    </Card>
+                  </Space>
+                ) : (
+                  <Card>
+                    <Empty
+                      description="Chưa có kết quả tối ưu. Hãy chọn tham số và bấm 'Bắt đầu Tối ưu hóa' ở bên trái."
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    />
+                  </Card>
+                ),
+              },
+              {
+                key: 'compare',
+                label: (
+                  <span>
+                    <DiffOutlined /> So sánh Trước / Sau
+                  </span>
+                ),
+                disabled: !currentResult,
+                children: (
+                  <Spin spinning={comparisonLoading}>
+                    {comparisonData ? (
+                      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                        <Row gutter={[16, 16]}>
+                          <Col span={8}>
+                            <Card hoverable>
+                              <Statistic
+                                title="Độ lệch tải (Workload StdDev)"
+                                value={comparisonData.metrics?.after?.stdDev || 0}
+                                precision={2}
+                                suffix={
+                                  <Text type="secondary" style={{ fontSize: 12 }}>
+                                    (Trước: {comparisonData.metrics?.before?.stdDev?.toFixed(2) || 0})
+                                  </Text>
+                                }
+                              />
+                            </Card>
+                          </Col>
+                          <Col span={8}>
+                            <Card hoverable>
+                              <Statistic
+                                title="Nhân sự quá tải"
+                                value={comparisonData.metrics?.after?.overloadedCount || 0}
+                                valueStyle={{ color: '#10b981' }}
+                                suffix={
+                                  <Text type="secondary" style={{ fontSize: 12 }}>
+                                    (Trước: {comparisonData.metrics?.before?.overloadedCount || 0})
+                                  </Text>
+                                }
+                              />
+                            </Card>
+                          </Col>
+                          <Col span={8}>
+                            <Card hoverable>
+                              <Statistic
+                                title="Skill Match trung bình"
+                                value={comparisonData.metrics?.after?.avgSkillMatch || 85}
+                                suffix="%"
+                                valueStyle={{ color: '#6366f1' }}
+                              />
+                            </Card>
+                          </Col>
+                        </Row>
+
+                        <Card title="So sánh tải công việc từng nhân sự (Workload Distribution)" styles={{ body: { padding: 0 } }}>
+                          <Table
+                            dataSource={comparisonData.resources || []}
+                            rowKey="resourceId"
+                            pagination={false}
+                            columns={[
+                              { title: 'Nhân sự', dataIndex: 'resourceName', key: 'name' },
+                              { title: 'Vị trí', dataIndex: 'position', key: 'pos' },
+                              {
+                                title: 'Workload Trước (h)',
+                                dataIndex: 'beforeWorkload',
+                                key: 'before',
+                                render: (w) => <Text>{w || 0}h</Text>,
+                              },
+                              {
+                                title: 'Workload Sau tối ưu (h)',
+                                dataIndex: 'afterWorkload',
+                                key: 'after',
+                                render: (w) => <Text strong style={{ color: '#6366f1' }}>{w || 0}h</Text>,
+                              },
+                              {
+                                title: 'Thay đổi (Delta)',
+                                key: 'delta',
+                                render: (_, r) => {
+                                  const delta = (r.afterWorkload || 0) - (r.beforeWorkload || 0);
+                                  const color = delta < 0 ? '#10b981' : delta > 0 ? '#3b82f6' : 'default';
+                                  return (
+                                    <Tag color={color}>
+                                      {delta > 0 ? `+${delta}h` : `${delta}h`}
+                                    </Tag>
+                                  );
+                                },
+                              },
+                            ]}
+                          />
+                        </Card>
+                      </Space>
+                    ) : (
+                      <Empty description="Chưa có dữ liệu so sánh" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                    )}
+                  </Spin>
+                ),
+              },
+              {
+                key: 'history',
+                label: (
+                  <span>
+                    <HistoryOutlined /> Lịch sử chạy ({history.length})
+                  </span>
+                ),
+                children: (
+                  <Card styles={{ body: { padding: 0 } }}>
+                    <Table
+                      columns={historyColumns}
+                      dataSource={history}
+                      rowKey="_id"
+                      pagination={{ pageSize: 8 }}
+                    />
+                  </Card>
+                ),
+              },
+            ]}
+          />
+        </Col>
+      </Row>
     </div>
   );
 }

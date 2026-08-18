@@ -7,8 +7,10 @@ const authRoutes = require('./src/routes/auth.routes');
 const projectRoutes = require('./src/routes/project.routes');
 const taskRoutes = require('./src/routes/task.routes');
 const resourceRoutes = require('./src/routes/resource.routes');
+const departmentRoutes = require('./src/routes/department.routes');
 const optimizationRoutes = require('./src/routes/optimization.routes');
 const analyticsRoutes = require('./src/routes/analytics.routes');
+const notificationRoutes = require('./src/routes/notification.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./src/middleware/error');
@@ -26,8 +28,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/resources', resourceRoutes);
+app.use('/api/departments', departmentRoutes);
 app.use('/api/optimization', optimizationRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

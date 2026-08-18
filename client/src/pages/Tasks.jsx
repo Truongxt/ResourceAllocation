@@ -1,64 +1,79 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  HiOutlineCheckCircle,
-  HiOutlineClock,
-  HiOutlineExclamation,
-  HiOutlineFilter,
-  HiOutlinePencil,
-  HiOutlinePlus,
-  HiOutlineRefresh,
-  HiOutlineSearch,
-  HiOutlineTrash,
-  HiOutlineViewBoards,
-  HiOutlineViewList,
-  HiOutlineX,
-} from 'react-icons/hi';
+  Table,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Button,
+  Input,
+  Select,
+  Modal,
+  Form,
+  InputNumber,
+  DatePicker,
+  Progress,
+  Tag,
+  Space,
+  Typography,
+  Popconfirm,
+  message,
+  Tooltip,
+  Segmented,
+  Avatar,
+  Empty,
+} from 'antd';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  AppstoreOutlined,
+  UnorderedListOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
+  SyncOutlined,
+  CloseCircleOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
 import taskService from '../services/taskService';
 import projectService from '../services/projectService';
+import resourceService from '../services/resourceService';
 import './Tasks.css';
 
+const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
+
 const STATUS_COLS = [
-  { key: 'todo', label: 'Cần làm', color: 'var(--text-tertiary)', icon: '📋' },
-  { key: 'in_progress', label: 'Đang làm', color: 'var(--color-primary-400)', icon: '🔄' },
-  { key: 'review', label: 'Đánh giá', color: '#f59e0b', icon: '👀' },
-  { key: 'done', label: 'Hoàn thành', color: 'var(--color-success)', icon: '✅' },
-  { key: 'blocked', label: 'Bị chặn', color: 'var(--color-danger)', icon: '🚫' },
+  { key: 'todo', label: 'Cần làm', color: '#94a3b8', badgeColor: 'default' },
+  { key: 'in_progress', label: 'Đang làm', color: '#3b82f6', badgeColor: 'processing' },
+  { key: 'review', label: 'Đánh giá', color: '#f59e0b', badgeColor: 'warning' },
+  { key: 'done', label: 'Hoàn thành', color: '#10b981', badgeColor: 'success' },
+  { key: 'blocked', label: 'Bị chặn', color: '#ef4444', badgeColor: 'error' },
 ];
 
-const PRIORITY_LABELS = { low: 'Thấp', medium: 'TB', high: 'Cao', critical: 'Khẩn' };
-
-const initialForm = {
-  title: '',
-  description: '',
-  project: '',
-  status: 'todo',
-  priority: 'medium',
-  startDate: '',
-  endDate: '',
-  estimatedHours: '',
-  actualHours: '',
-  assignee: '',
-};
-
-function getErrorMessage(err) {
-  return err.response?.data?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.';
-}
-
-const formatDate = (d) => (d ? new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(new Date(d)) : '');
+const PRIORITY_OPTIONS = [
+  { value: 'low', label: 'Thấp', color: 'default' },
+  { value: 'medium', label: 'Trung bình', color: 'blue' },
+  { value: 'high', label: 'Cao', color: 'warning' },
+  { value: 'critical', label: 'Khẩn cấp', color: 'red' },
+];
 
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [notice, setNotice] = useState(null);
   const [view, setView] = useState('kanban');
   const [filters, setFilters] = useState({ search: '', project: '', priority: '' });
-  const [modal, setModal] = useState(null); // { type: 'form', task?: object }
-  const [form, setForm] = useState(initialForm);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
   const [draggedTaskId, setDraggedTaskId] = useState(null);
+  const [form] = Form.useForm();
 
-  // --- Load Data ---
   const loadTasks = useCallback(async () => {
     setLoading(true);
     try {
@@ -66,7 +81,7 @@ export default function Tasks() {
       const res = await taskService.getAll(params);
       setTasks(res.data.data.tasks || []);
     } catch (err) {
-      setNotice({ type: 'error', text: getErrorMessage(err) });
+      message.error(err.response?.data?.message || 'Không thể tải danh sách công việc');
     } finally {
       setLoading(false);
     }
@@ -76,91 +91,139 @@ export default function Tasks() {
     try {
       const res = await projectService.getAll({ limit: 100 });
       setProjects(res.data.data.projects || []);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const loadResources = useCallback(async () => {
+    try {
+      const res = await resourceService.getAll({ limit: 100 });
+      setResources(res.data.data.resources || []);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+    loadResources();
+  }, [loadProjects, loadResources]);
 
   useEffect(() => {
     const timer = setTimeout(loadTasks, filters.search ? 350 : 0);
     return () => clearTimeout(timer);
   }, [loadTasks]);
 
-  // --- Kanban grouped ---
+  const stats = useMemo(
+    () => ({
+      total: tasks.length,
+      done: tasks.filter((t) => t.status === 'done').length,
+      inProgress: tasks.filter((t) => t.status === 'in_progress' || t.status === 'review').length,
+      blocked: tasks.filter((t) => t.status === 'blocked').length,
+    }),
+    [tasks]
+  );
+
   const kanbanCols = useMemo(() => {
     const grouped = {};
-    STATUS_COLS.forEach((col) => { grouped[col.key] = []; });
+    STATUS_COLS.forEach((col) => {
+      grouped[col.key] = [];
+    });
     tasks.forEach((t) => {
       if (grouped[t.status]) grouped[t.status].push(t);
     });
     return grouped;
   }, [tasks]);
 
-  // --- Handlers ---
   const openCreate = () => {
-    setForm(initialForm);
-    setModal({ type: 'form', task: null });
+    setEditingTask(null);
+    form.resetFields();
+    form.setFieldsValue({
+      status: 'todo',
+      priority: 'medium',
+      progress: 0,
+      estimatedHours: 8,
+      assignee: undefined,
+      requiredSkills: '',
+    });
+    setModalOpen(true);
   };
 
   const openEdit = (task) => {
-    setForm({
+    setEditingTask(task);
+    const assigneeId = task.assignee?._id || (typeof task.assignee === 'string' ? task.assignee : undefined);
+    form.setFieldsValue({
       title: task.title || '',
       description: task.description || '',
       project: task.project?._id || task.project || '',
       status: task.status || 'todo',
       priority: task.priority || 'medium',
-      startDate: task.startDate ? task.startDate.slice(0, 10) : '',
-      endDate: task.endDate ? task.endDate.slice(0, 10) : '',
-      estimatedHours: task.estimatedHours || '',
-      actualHours: task.actualHours || '',
-      assignee: task.assignee?._id || task.assignee || '',
+      progress: task.progress || 0,
+      assignee: assigneeId,
+      requiredSkills: (task.requiredSkills || []).map((s) => (typeof s === 'string' ? s : s.name)).filter(Boolean).join(', '),
+      dateRange:
+        task.startDate && task.endDate ? [dayjs(task.startDate), dayjs(task.endDate)] : undefined,
+      estimatedHours: task.estimatedHours || 8,
+      actualHours: task.actualHours || 0,
     });
-    setModal({ type: 'form', task });
+    setModalOpen(true);
   };
 
-  const closeModal = () => { if (!submitting) setModal(null); };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleFormSubmit = async (values) => {
     setSubmitting(true);
-    const payload = { ...form };
-    if (!payload.assignee) delete payload.assignee;
-    if (!payload.estimatedHours) delete payload.estimatedHours;
-    else payload.estimatedHours = Number(payload.estimatedHours);
-    if (!payload.actualHours) delete payload.actualHours;
-    else payload.actualHours = Number(payload.actualHours);
+    const payload = {
+      title: values.title,
+      description: values.description,
+      project: values.project,
+      status: values.status,
+      priority: values.priority,
+      progress: values.progress || 0,
+      estimatedHours: Number(values.estimatedHours) || 0,
+      actualHours: Number(values.actualHours) || 0,
+      assignee: values.assignee || null,
+      requiredSkills: values.requiredSkills
+        ? values.requiredSkills
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .map((name) => ({ name, minLevel: 2 }))
+        : [],
+    };
+
+    if (values.dateRange && values.dateRange.length === 2) {
+      payload.startDate = values.dateRange[0].toISOString();
+      payload.endDate = values.dateRange[1].toISOString();
+    }
 
     try {
-      if (modal.task) {
-        await taskService.update(modal.task._id, payload);
-        setNotice({ type: 'success', text: 'Cập nhật công việc thành công.' });
+      if (editingTask) {
+        await taskService.update(editingTask._id, payload);
+        message.success('Cập nhật công việc thành công');
       } else {
         await taskService.create(payload);
-        setNotice({ type: 'success', text: 'Tạo công việc thành công.' });
+        message.success('Tạo công việc thành công');
       }
-      setModal(null);
+      setModalOpen(false);
       await loadTasks();
     } catch (err) {
-      setNotice({ type: 'error', text: getErrorMessage(err) });
+      message.error(err.response?.data?.message || 'Có lỗi xảy ra khi lưu công việc');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (task) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa công việc "${task.title}"?`)) return;
+  const handleDelete = async (id) => {
     try {
-      await taskService.remove(task._id);
-      setNotice({ type: 'success', text: 'Xóa công việc thành công.' });
+      await taskService.remove(id);
+      message.success('Xóa công việc thành công');
       await loadTasks();
     } catch (err) {
-      setNotice({ type: 'error', text: getErrorMessage(err) });
+      message.error(err.response?.data?.message || 'Không thể xóa công việc');
     }
   };
 
-  // --- Drag & Drop ---
+  // Drag & Drop handlers for Kanban
   const handleDragStart = (e, taskId) => {
     setDraggedTaskId(taskId);
     e.dataTransfer.effectAllowed = 'move';
@@ -175,261 +238,406 @@ export default function Tasks() {
     e.preventDefault();
     if (!draggedTaskId) return;
     const task = tasks.find((t) => t._id === draggedTaskId);
-    if (!task || task.status === newStatus) { setDraggedTaskId(null); return; }
+    if (!task || task.status === newStatus) {
+      setDraggedTaskId(null);
+      return;
+    }
 
-    // Optimistic update
-    setTasks((prev) => prev.map((t) => t._id === draggedTaskId ? { ...t, status: newStatus } : t));
+    setTasks((prev) =>
+      prev.map((t) => (t._id === draggedTaskId ? { ...t, status: newStatus } : t))
+    );
     setDraggedTaskId(null);
 
     try {
       await taskService.updateStatus(draggedTaskId, newStatus);
     } catch (err) {
-      setNotice({ type: 'error', text: getErrorMessage(err) });
-      await loadTasks(); // Revert
+      message.error('Không thể cập nhật trạng thái công việc');
+      await loadTasks();
     }
   };
 
-  // --- Task Stats ---
-  const stats = useMemo(() => ({
-    total: tasks.length,
-    done: tasks.filter((t) => t.status === 'done').length,
-    inProgress: tasks.filter((t) => t.status === 'in_progress').length,
-    blocked: tasks.filter((t) => t.status === 'blocked').length,
-  }), [tasks]);
+  const tableColumns = [
+    {
+      title: 'Công việc',
+      dataIndex: 'title',
+      key: 'title',
+      render: (text, record) => (
+        <div>
+          <Text strong style={{ fontSize: 14 }}>{text}</Text>
+          {record.project && (
+            <Tag color="purple" style={{ marginLeft: 8 }}>
+              {record.project.code || record.project.name}
+            </Tag>
+          )}
+          {record.description && (
+            <Paragraph type="secondary" ellipsis={{ rows: 1 }} style={{ fontSize: 12, margin: '2px 0 0' }}>
+              {record.description}
+            </Paragraph>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      width: 130,
+      render: (status) => {
+        const col = STATUS_COLS.find((c) => c.key === status) || { label: status, badgeColor: 'default' };
+        return <Tag color={col.badgeColor}>{col.label}</Tag>;
+      },
+    },
+    {
+      title: 'Ưu tiên',
+      dataIndex: 'priority',
+      key: 'priority',
+      width: 110,
+      render: (priority) => {
+        const opt = PRIORITY_OPTIONS.find((p) => p.value === priority) || { label: priority, color: 'default' };
+        return <Tag color={opt.color}>{opt.label}</Tag>;
+      },
+    },
+    {
+      title: 'Người thực hiện',
+      dataIndex: 'assignee',
+      key: 'assignee',
+      width: 180,
+      render: (assignee) => (
+        <Space>
+          <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
+          <Text style={{ fontSize: 13, fontWeight: 500 }}>{assignee?.name || 'Chưa gán'}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Tiến độ',
+      dataIndex: 'progress',
+      key: 'progress',
+      width: 140,
+      render: (progress = 0) => (
+        <Progress percent={progress} size="small" status={progress === 100 ? 'success' : 'active'} />
+      ),
+    },
+    {
+      title: 'Giờ ước tính / thực tế',
+      key: 'hours',
+      width: 160,
+      render: (_, record) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {record.estimatedHours || 0}h / <strong>{record.actualHours || 0}h</strong>
+        </Text>
+      ),
+    },
+    {
+      title: 'Hành động',
+      key: 'actions',
+      width: 100,
+      render: (_, record) => (
+        <Space size="small">
+          <Tooltip title="Chỉnh sửa">
+            <Button type="text" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+          </Tooltip>
+          <Tooltip title="Xóa">
+            <Popconfirm
+              title="Xác nhận xóa công việc?"
+              onConfirm={() => handleDelete(record._id)}
+              okText="Xóa"
+              cancelText="Hủy"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="text" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <div className="animate-fade-in">
-      <div className="page-header tasks-header">
+    <div style={{ maxWidth: 1400 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <h1 className="page-title">Quản lý Công việc</h1>
-          <p className="page-description">Tạo, theo dõi và quản lý các công việc trong dự án.</p>
+          <Title level={3} style={{ marginBottom: 4 }}>Quản lý Công việc</Title>
+          <Text type="secondary">Tạo, phân công, theo dõi và quản lý công việc theo bảng Kanban hoặc danh sách</Text>
         </div>
-        <div className="tasks-header-actions">
-          <div className="view-toggle">
-            <button
-              className={`view-toggle-btn ${view === 'kanban' ? 'active' : ''}`}
-              onClick={() => setView('kanban')}
-              title="Kanban Board"
-            ><HiOutlineViewBoards /></button>
-            <button
-              className={`view-toggle-btn ${view === 'list' ? 'active' : ''}`}
-              onClick={() => setView('list')}
-              title="Danh sách"
-            ><HiOutlineViewList /></button>
-          </div>
-          <button className="btn btn-primary" onClick={openCreate} id="btn-create-task">
-            <HiOutlinePlus /> Tạo công việc
-          </button>
-        </div>
+        <Space>
+          <Segmented
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'kanban', icon: <AppstoreOutlined />, label: 'Kanban' },
+              { value: 'list', icon: <UnorderedListOutlined />, label: 'Danh sách' },
+            ]}
+          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} id="btn-create-task">
+            Tạo công việc
+          </Button>
+        </Space>
       </div>
 
-      {notice && (
-        <div className={`alert alert-${notice.type} tasks-alert`}>
-          {notice.type === 'success' ? <HiOutlineCheckCircle /> : <HiOutlineExclamation />}
-          <span>{notice.text}</span>
-          <button aria-label="Đóng" onClick={() => setNotice(null)}><HiOutlineX /></button>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="task-stats">
-        <div className="task-stat"><span>Tổng</span><strong>{stats.total}</strong></div>
-        <div className="task-stat"><span>Đang làm</span><strong>{stats.inProgress}</strong></div>
-        <div className="task-stat"><span>Hoàn thành</span><strong>{stats.done}</strong></div>
-        <div className="task-stat"><span>Bị chặn</span><strong className="text-danger">{stats.blocked}</strong></div>
-      </div>
+      {/* Stats Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={6}>
+          <Card hoverable>
+            <Statistic title="Tổng công việc" value={stats.total} prefix={<ClockCircleOutlined style={{ color: '#4f46e5' }} />} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card hoverable>
+            <Statistic title="Đang thực hiện" value={stats.inProgress} prefix={<SyncOutlined spin style={{ color: '#2563eb' }} />} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card hoverable>
+            <Statistic title="Hoàn thành" value={stats.done} prefix={<CheckCircleOutlined style={{ color: '#059669' }} />} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card hoverable>
+            <Statistic
+              title="Bị chặn (Blocked)"
+              value={stats.blocked}
+              valueStyle={{ color: stats.blocked > 0 ? '#dc2626' : undefined }}
+              prefix={<CloseCircleOutlined style={{ color: stats.blocked > 0 ? '#dc2626' : '#94a3b8' }} />}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Filters */}
-      <div className="tasks-toolbar card">
-        <label className="tasks-search">
-          <HiOutlineSearch />
-          <input
-            value={filters.search}
-            onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
-            placeholder="Tìm theo tiêu đề..."
+      <Card style={{ marginBottom: 16 }} styles={{ body: { padding: '16px 20px' } }}>
+        <Row gutter={[16, 16]} align="middle">
+          <Col xs={24} md={10}>
+            <Input
+              prefix={<SearchOutlined />}
+              placeholder="Tìm theo tiêu đề công việc..."
+              value={filters.search}
+              onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
+              allowClear
+            />
+          </Col>
+          <Col xs={12} md={6}>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="Tất cả dự án"
+              value={filters.project || undefined}
+              onChange={(val) => setFilters((p) => ({ ...p, project: val || '' }))}
+              allowClear
+              options={projects.map((p) => ({ value: p._id, label: `${p.code ? p.code + ' - ' : ''}${p.name}` }))}
+            />
+          </Col>
+          <Col xs={12} md={6}>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="Mức ưu tiên"
+              value={filters.priority || undefined}
+              onChange={(val) => setFilters((p) => ({ ...p, priority: val || '' }))}
+              allowClear
+              options={PRIORITY_OPTIONS}
+            />
+          </Col>
+          <Col xs={24} md={2} style={{ textAlign: 'right' }}>
+            <Button icon={<ReloadOutlined />} onClick={loadTasks} title="Tải lại" />
+          </Col>
+        </Row>
+      </Card>
+
+      {/* View Content */}
+      {view === 'list' ? (
+        <Card styles={{ body: { padding: 0 } }}>
+          <Table
+            columns={tableColumns}
+            dataSource={tasks}
+            rowKey="_id"
+            loading={loading}
+            pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Tổng số ${total} công việc` }}
           />
-        </label>
-        <HiOutlineFilter className="filter-icon" />
-        <select value={filters.project} onChange={(e) => setFilters((p) => ({ ...p, project: e.target.value }))}>
-          <option value="">Tất cả dự án</option>
-          {projects.map((p) => <option key={p._id} value={p._id}>{p.code ? `${p.code} - ` : ''}{p.name}</option>)}
-        </select>
-        <select value={filters.priority} onChange={(e) => setFilters((p) => ({ ...p, priority: e.target.value }))}>
-          <option value="">Tất cả ưu tiên</option>
-          <option value="low">Thấp</option>
-          <option value="medium">Trung bình</option>
-          <option value="high">Cao</option>
-          <option value="critical">Khẩn cấp</option>
-        </select>
-        <button className="btn btn-secondary" onClick={loadTasks} title="Tải lại"><HiOutlineRefresh /></button>
-      </div>
-
-      {/* Content */}
-      {loading ? (
-        <div className="empty-state"><p className="empty-state-text">Đang tải...</p></div>
-      ) : tasks.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon"><HiOutlineClock /></div>
-          <h3 className="empty-state-title">Chưa có công việc nào</h3>
-          <p className="empty-state-text">Tạo công việc đầu tiên để bắt đầu theo dõi tiến độ.</p>
-          <button className="btn btn-primary" onClick={openCreate}><HiOutlinePlus /> Tạo công việc</button>
-        </div>
-      ) : view === 'kanban' ? (
-        /* Kanban View */
-        <div className="kanban-board">
-          {STATUS_COLS.map((col) => (
-            <div
-              key={col.key}
-              className="kanban-column"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, col.key)}
-            >
-              <div className="kanban-column-header" style={{ '--col-color': col.color }}>
-                <span className="kanban-column-icon">{col.icon}</span>
-                <span className="kanban-column-title">{col.label}</span>
-                <span className="kanban-column-count">{kanbanCols[col.key]?.length || 0}</span>
-              </div>
-              <div className="kanban-column-body">
-                {(kanbanCols[col.key] || []).map((task) => (
-                  <div
-                    key={task._id}
-                    className={`kanban-card priority-${task.priority}`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, task._id)}
-                  >
-                    <div className="kanban-card-top">
-                      <span className={`badge priority-${task.priority}`}>{PRIORITY_LABELS[task.priority]}</span>
-                      <div className="kanban-card-actions">
-                        <button onClick={() => openEdit(task)} title="Sửa"><HiOutlinePencil /></button>
-                        <button className="danger-action" onClick={() => handleDelete(task)} title="Xóa"><HiOutlineTrash /></button>
-                      </div>
-                    </div>
-                    <h4 className="kanban-card-title">{task.title}</h4>
-                    {task.project && (
-                      <span className="kanban-card-project">{task.project.code || task.project.name}</span>
-                    )}
-                    <div className="kanban-card-meta">
-                      {task.assignee && <span className="kanban-card-assignee">{task.assignee.name}</span>}
-                      {task.endDate && <span className="kanban-card-date">{formatDate(task.endDate)}</span>}
-                    </div>
-                    {task.estimatedHours > 0 && (
-                      <div className="kanban-card-hours">
-                        <HiOutlineClock /> {task.actualHours || 0}/{task.estimatedHours}h
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        </Card>
       ) : (
-        /* List View */
-        <div className="task-table-wrapper card">
-          <table className="task-table">
-            <thead>
-              <tr>
-                <th>Công việc</th>
-                <th>Dự án</th>
-                <th>Trạng thái</th>
-                <th>Ưu tiên</th>
-                <th>Phân công</th>
-                <th>Ngày</th>
-                <th>Giờ</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map((task) => (
-                <tr key={task._id}>
-                  <td className="task-title-cell">{task.title}</td>
-                  <td><span className="badge">{task.project?.code || task.project?.name || '—'}</span></td>
-                  <td><span className={`badge status-${task.status}`}>{STATUS_COLS.find((c) => c.key === task.status)?.label}</span></td>
-                  <td><span className={`badge priority-${task.priority}`}>{PRIORITY_LABELS[task.priority]}</span></td>
-                  <td>{task.assignee?.name || '—'}</td>
-                  <td className="task-dates">{formatDate(task.startDate)} — {formatDate(task.endDate)}</td>
-                  <td>{task.actualHours || 0}/{task.estimatedHours || 0}h</td>
-                  <td className="task-actions-cell">
-                    <button onClick={() => openEdit(task)} title="Sửa"><HiOutlinePencil /></button>
-                    <button className="danger-action" onClick={() => handleDelete(task)} title="Xóa"><HiOutlineTrash /></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        /* Kanban View */
+        <div className="kanban-board-antd">
+          {STATUS_COLS.map((col) => {
+            const colTasks = kanbanCols[col.key] || [];
+            return (
+              <div
+                key={col.key}
+                className="kanban-column-antd"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, col.key)}
+              >
+                <div className="kanban-column-header-antd" style={{ borderTop: `3px solid ${col.color}` }}>
+                  <Space>
+                    <Text strong>{col.label}</Text>
+                    <Tag>{colTasks.length}</Tag>
+                  </Space>
+                </div>
+
+                <div className="kanban-column-body-antd">
+                  {colTasks.length === 0 ? (
+                    <div className="kanban-empty-antd">
+                      <Text type="secondary" style={{ fontSize: 12 }}>Kéo thả công việc vào đây</Text>
+                    </div>
+                  ) : (
+                    colTasks.map((task) => (
+                      <Card
+                        key={task._id}
+                        size="small"
+                        hoverable
+                        className="kanban-task-card"
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, task._id)}
+                        style={{ marginBottom: 10, cursor: 'grab' }}
+                        styles={{ body: { padding: '12px' } }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                          <Text strong style={{ fontSize: 13, flex: 1 }}>{task.title}</Text>
+                          <Space size={2}>
+                            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEdit(task)} />
+                          </Space>
+                        </div>
+
+                        {task.project && (
+                          <div style={{ marginBottom: 8 }}>
+                            <Tag color="purple" style={{ fontSize: 11 }}>
+                              {task.project.code || task.project.name}
+                            </Tag>
+                          </div>
+                        )}
+
+                        <div style={{ marginBottom: 8 }}>
+                          <Progress percent={task.progress || 0} size="small" />
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Space size={6}>
+                            <Avatar size={20} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
+                            <Text style={{ fontSize: 12, fontWeight: 500 }}>
+                              {task.assignee?.name ? task.assignee.name.split(' ').slice(-1)[0] : 'Chưa gán'}
+                            </Text>
+                          </Space>
+                          <Text type="secondary" style={{ fontSize: 11 }}>
+                            ⏱️ {task.estimatedHours || 0}h
+                          </Text>
+                        </div>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Modal */}
-      {modal?.type === 'form' && (
-        <div className="modal-backdrop" onMouseDown={closeModal}>
-          <section className="task-modal" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <header>
-              <div>
-                <h2>{modal.task ? 'Cập nhật Công việc' : 'Tạo Công việc mới'}</h2>
-                <p>Điền thông tin chi tiết cho công việc.</p>
-              </div>
-              <button className="modal-close" onClick={closeModal} aria-label="Đóng"><HiOutlineX /></button>
-            </header>
-            <form onSubmit={handleSubmit}>
-              <div className="task-form-grid">
-                <label className="form-group form-full">
-                  <span>Tiêu đề <em>*</em></span>
-                  <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="VD: Thiết kế giao diện Dashboard" />
-                </label>
-                <label className="form-group">
-                  <span>Dự án <em>*</em></span>
-                  <select required value={form.project} onChange={(e) => setForm({ ...form, project: e.target.value })} disabled={!!modal.task}>
-                    <option value="">-- Chọn dự án --</option>
-                    {projects.map((p) => <option key={p._id} value={p._id}>{p.code ? `${p.code} - ` : ''}{p.name}</option>)}
-                  </select>
-                </label>
-                <label className="form-group">
-                  <span>Trạng thái</span>
-                  <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                    {STATUS_COLS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-                  </select>
-                </label>
-                <label className="form-group">
-                  <span>Ưu tiên</span>
-                  <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-                    <option value="low">Thấp</option>
-                    <option value="medium">Trung bình</option>
-                    <option value="high">Cao</option>
-                    <option value="critical">Khẩn cấp</option>
-                  </select>
-                </label>
-                <label className="form-group">
-                  <span>Ngày bắt đầu</span>
-                  <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
-                </label>
-                <label className="form-group">
-                  <span>Ngày kết thúc</span>
-                  <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
-                </label>
-                <label className="form-group">
-                  <span>Giờ ước tính</span>
-                  <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={(e) => setForm({ ...form, estimatedHours: e.target.value })} placeholder="0" />
-                </label>
-                {modal.task && (
-                  <label className="form-group">
-                    <span>Giờ thực tế</span>
-                    <input type="number" min="0" step="0.5" value={form.actualHours} onChange={(e) => setForm({ ...form, actualHours: e.target.value })} placeholder="0" />
-                  </label>
-                )}
-                <label className="form-group form-full">
-                  <span>Mô tả</span>
-                  <textarea rows="3" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Mô tả chi tiết công việc..." />
-                </label>
-              </div>
-              <footer>
-                <button type="button" className="btn btn-secondary" onClick={closeModal}>Hủy</button>
-                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Đang lưu...' : modal.task ? 'Lưu thay đổi' : 'Tạo công việc'}</button>
-              </footer>
-            </form>
-          </section>
-        </div>
-      )}
+      {/* Task Modal */}
+      <Modal
+        title={editingTask ? 'Cập nhật công việc' : 'Tạo công việc mới'}
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        footer={null}
+        width={680}
+        destroyOnClose
+      >
+        <Form form={form} layout="vertical" onFinish={handleFormSubmit} style={{ marginTop: 16 }}>
+          <Form.Item
+            name="title"
+            label="Tiêu đề công việc"
+            rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}
+          >
+            <Input placeholder="Ví dụ: Thiết kế cơ sở dữ liệu cho Module Auth" />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="project"
+                label="Dự án"
+                rules={[{ required: true, message: 'Vui lòng chọn dự án' }]}
+              >
+                <Select
+                  placeholder="Chọn dự án"
+                  options={projects.map((p) => ({ value: p._id, label: `${p.code ? p.code + ' - ' : ''}${p.name}` }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
+                <Select options={STATUS_COLS.map((c) => ({ value: c.key, label: c.label }))} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="assignee" label="Người thực hiện (Assignee)">
+                <Select
+                  placeholder="-- Chưa gán người thực hiện --"
+                  allowClear
+                  options={resources.map((r) => ({
+                    value: r.user?._id || r.userId || r._id,
+                    label: (
+                      <Space>
+                        <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
+                        <span>{r.user?.name || r.userName || r.position}</span>
+                        <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>{r.position}</Tag>
+                      </Space>
+                    ),
+                  }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="priority" label="Mức ưu tiên" rules={[{ required: true }]}>
+                <Select options={PRIORITY_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item name="description" label="Mô tả chi tiết">
+            <TextArea rows={3} placeholder="Mô tả yêu cầu và kết quả đầu ra của công việc..." />
+          </Form.Item>
+
+          <Form.Item
+            name="requiredSkills"
+            label="Kỹ năng yêu cầu (Required Skills)"
+            extra="Nhập các kỹ năng phân cách bằng dấu phẩy (VD: React, Node.js, MongoDB)"
+          >
+            <Input placeholder="React, Node.js, SQL" />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="progress" label="Tiến độ hoàn thành (%)">
+                <InputNumber min={0} max={100} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="estimatedHours" label="Giờ ước tính (h)">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="actualHours" label="Giờ thực tế (h)">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item name="dateRange" label="Thời gian thực hiện">
+            <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+          </Form.Item>
+
+          <div style={{ textAlign: 'right', marginTop: 24 }}>
+            <Space>
+              <Button onClick={() => setModalOpen(false)}>Hủy</Button>
+              <Button type="primary" htmlType="submit" loading={submitting}>
+                {editingTask ? 'Lưu thay đổi' : 'Tạo công việc'}
+              </Button>
+            </Space>
+          </div>
+        </Form>
+      </Modal>
     </div>
   );
 }

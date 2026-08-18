@@ -142,7 +142,7 @@
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 9.1 | Real-time Notifications | Socket.IO notifications | ⬜ | Optional |
+| 9.1 | Real-time Notifications | Socket.IO notifications | ✅ | WebSocket server, Notification Center, Toast alerts |
 | 9.2 | Dark/Light Theme Toggle | Chuyển đổi theme Sáng/Tối | ✅ | Header toggle + CSS data-theme |
 | 9.3 | Multi-language | Hỗ trợ Tiếng Việt + English | ⬜ | Optional |
 | 9.4 | Import Data | Import dự án/nhân sự từ CSV | ✅ | Modal nhập CSV trong Projects & Resources |
@@ -163,8 +163,9 @@
 | 6. Gantt Chart | 8 | 8 | 100% |
 | 7. Analytics | 7 | 7 | 100% |
 | 8. Reports | 5 | 5 | 100% |
-| 9. Bonus | 6 | 2 | 33% |
-| **Tổng** | **73** | **69** | **95%** |
+| 9. Bonus | 6 | 3 | 50% |
+| **Tổng** | **73** | **70** | **96%** |
+
 
 
 
