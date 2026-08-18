@@ -1,3 +1,4 @@
+const path = require('path');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const User = require('../models/User');
@@ -6,9 +7,11 @@ const Task = require('../models/Task');
 const Resource = require('../models/Resource');
 const Department = require('../models/Department');
 
-dotenv.config();
+// .env nằm ở thư mục gốc dự án, không phải trong server/
+dotenv.config({ path: path.join(__dirname, '..', '..', '..', '.env') });
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/resource_allocation';
+// Phải trùng tên biến với src/config/db.js, nếu không seeder sẽ ghi vào DB mặc định
+const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/resource_allocation';
 
 async function seedData() {
   try {
