@@ -38,11 +38,11 @@
 |---|----------|-------|-----------|---------|
 | 2.1 | Tạo dự án | Form tạo dự án (tên, mô tả, ngày, priority) | ✅ | Modal form |
 | 2.2 | Danh sách dự án | Hiển thị grid/list dự án với filter, search | ✅ | Card grid + toolbar |
-| 2.3 | Chi tiết dự án | Trang chi tiết với tabs (overview, tasks, members) | ⬜ | **Chỉ có backend.** `GET /projects/:id` trả về tasks + members đã populate, nhưng client không có route `/projects/:id` — `Projects.jsx` chỉ có modal form |
+| 2.3 | Chi tiết dự án | Trang chi tiết với tabs (overview, tasks, members) | ✅ | Route `/projects/:id`, 3 tab + 4 thẻ thống kê; mở bằng cách bấm tên dự án ở danh sách |
 | 2.4 | Cập nhật dự án | Chỉnh sửa thông tin dự án | ✅ | Modal form edit |
 | 2.5 | Xóa dự án | Xóa kèm cảnh báo nếu còn task | ✅ | Chặn nếu còn task, cần `?force=true` |
 | 2.6 | Dashboard dự án | Tổng quan tiến độ, thống kê | ✅ | `GET /projects/stats/summary` + trang Dashboard |
-| 2.7 | Gắn nhân sự | Thêm/xóa thành viên + allocation % | ⬜ | **Chỉ có backend.** 3 API + `projectService.addMember/updateMember/removeMember` đã sẵn sàng nhưng **không có UI nào gọi tới** |
+| 2.7 | Gắn nhân sự | Thêm/xóa thành viên + allocation % | ✅ | Tab Thành viên: thêm/sửa/xóa, chọn vai trò và allocation. Nút quản lý chỉ hiện với Admin/PM |
 | 2.8 | Tiến độ dự án | Tự động tính % hoàn thành từ tasks | ✅ | `recalculateProjectProgress` chạy khi tạo/sửa/xóa task |
 | 2.9 | Filter & Sort | Lọc theo status, priority, date range, search | ✅ | Hỗ trợ cả `manager`, `startDate`, `endDate` |
 
@@ -181,7 +181,7 @@ tô màu theo status, đánh dấu cuối tuần và ngày hôm nay.
 | Module | Tổng | ✅ Hoàn thành | 🔨 Một phần | ⬜ Chưa có |
 |--------|------|--------------|-------------|-----------|
 | 1. Auth | 7 | 6 | 1 | 0 |
-| 2. Projects | 9 | 7 | 0 | 2 |
+| 2. Projects | 9 | 9 | 0 | 0 |
 | 3. Tasks | 11 | 9 | 1 | 1 |
 | 4. Resources | 10 | 9 | 1 | 0 |
 | 5. Optimization | 10 | 7 | 3 | 0 |
@@ -190,9 +190,9 @@ tô màu theo status, đánh dấu cuối tuần và ngày hôm nay.
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 4 | 0 | 2 |
-| **Tổng** | **77** | **60 (77.9%)** | **6 (7.8%)** | **11 (14.3%)** |
+| **Tổng** | **77** | **62 (80.5%)** | **6 (7.8%)** | **9 (11.7%)** |
 
-Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 81.8%**.
+Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 84.4%**.
 
 ---
 
@@ -200,14 +200,24 @@ Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 81.8%*
 
 Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 
-1. **Trang chi tiết dự án + UI quản lý thành viên** (2.3, 2.7) — backend đã sẵn sàng hoàn toàn, chỉ thiếu UI.
-2. **Gantt nâng cao** (6.2, 6.3, 6.5, 6.6, 6.7) — 5 tính năng, khối lượng lớn nhất.
-3. **UI thiết lập Task Dependencies** (3.7) — schema và API đã có.
+1. **Gantt nâng cao** (6.2, 6.3, 6.5, 6.6, 6.7) — 5 tính năng, khối lượng lớn nhất.
+2. **UI thiết lập Task Dependencies** (3.7) — schema và API đã có.
+3. **UI chọn level/weight cho từng kỹ năng yêu cầu** (3.9) — hiện cố định level 2.
 4. **UI lịch nghỉ / unavailablePeriods** (4.6) — CSP solver đã dùng dữ liệu này để lọc.
 5. **Ràng buộc Dependency trong CSP** (5.4 / H4).
 6. **Hybrid thực sự nối CSP → GA** (5.6 / ALGORITHMS.md mục 3).
 7. **Trend chart theo thời gian** (7.7).
 8. Đa ngôn ngữ (10.3), email notification (10.6).
+
+### Nợ kỹ thuật đã biết
+
+- Toàn bộ `/api/tasks` và `PUT /api/resources/:id/skills` chỉ kiểm tra đăng nhập, không kiểm role —
+  Member xóa được task bất kỳ và sửa skill của bất kỳ nhân sự nào.
+- `GET /api/auth/users` giới hạn Admin, nên UI cần danh sách người dùng phải lấy gián tiếp
+  qua `GET /api/resources` (đây là cách trang chi tiết dự án đang làm).
+- Seeder chỉ xóa 5 collection (User, Project, Task, Resource, Department); `notifications`,
+  `activitylogs` và `optimizationresults` tồn đọng qua các lần seed và trỏ tới bản ghi đã xóa.
+- Chưa có bộ kiểm thử tự động nào trong repo.
 
 ## Lỗi đã sửa
 

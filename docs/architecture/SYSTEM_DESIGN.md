@@ -66,9 +66,9 @@ src/
 ├── components/          # Presentation Layer
 │   ├── common/         # ProtectedRoute
 │   └── layout/         # Sidebar, Header (+ CSS)
-├── pages/              # Page Layer — 10 route-level components (+ CSS mỗi trang)
-│                       #   Login, Register, Dashboard, Projects, Tasks,
-│                       #   Resources, Optimization, GanttChart, Reports,
+├── pages/              # Page Layer — 12 route-level components (+ CSS mỗi trang)
+│                       #   Login, Register, Dashboard, Projects, ProjectDetail,
+│                       #   Tasks, Resources, Optimization, GanttChart, Reports,
 │                       #   Settings, ActivityLogs
 ├── context/            # State Management — AuthContext, SocketContext, ThemeContext
 ├── services/           # Data Access Layer — 10 service module dùng chung instance Axios
