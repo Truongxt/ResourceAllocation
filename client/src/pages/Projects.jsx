@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Table,
   Card,
@@ -42,6 +43,7 @@ const formatMoney = (value) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
 
 export default function Projects() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [filters, setFilters] = useState({ search: '', status: '', priority: '' });
   const [loading, setLoading] = useState(true);
@@ -199,7 +201,13 @@ export default function Projects() {
       key: 'name',
       render: (text, record) => (
         <div>
-          <Text strong style={{ fontSize: 14 }}>{text}</Text>
+          <Button
+            type="link"
+            style={{ padding: 0, height: 'auto', fontSize: 14, fontWeight: 600 }}
+            onClick={() => navigate(`/projects/${record._id}`)}
+          >
+            {text}
+          </Button>
           {record.code && (
             <Tag color="purple" style={{ marginLeft: 8 }}>{record.code}</Tag>
           )}
