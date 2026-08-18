@@ -243,9 +243,9 @@ export default function Reports() {
               <Card hoverable>
                 <Statistic
                   title="Nguy cơ Burnout cao"
-                  value={utilData.summary.highBurnoutRisk || 0}
+                  value={utilData.summary.highBurnout || 0}
                   valueStyle={{
-                    color: (utilData.summary.highBurnoutRisk || 0) > 0 ? '#ef4444' : '#10b981',
+                    color: (utilData.summary.highBurnout || 0) > 0 ? '#ef4444' : '#10b981',
                   }}
                 />
               </Card>

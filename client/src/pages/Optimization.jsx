@@ -200,7 +200,11 @@ export default function Optimization() {
       key: 'skillMatch',
       width: 200,
       render: (_, record) => {
-        const score = record.skillMatchScore || (record.matchedSkills ? Math.min(record.matchedSkills.length * 25, 100) : 85);
+        // CSP không tính điểm khớp kỹ năng nên assignments của nó không có field này
+        if (typeof record.skillMatch !== 'number') {
+          return <Text type="secondary">—</Text>;
+        }
+        const score = record.skillMatch;
         return <Progress percent={score} size="small" status={score >= 80 ? 'success' : 'normal'} />;
       },
     },

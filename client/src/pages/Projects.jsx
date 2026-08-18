@@ -33,24 +33,10 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import projectService from '../services/projectService';
+import { PROJECT_STATUSES as STATUS_OPTIONS, PRIORITY_OPTIONS } from '../constants';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
-
-const STATUS_OPTIONS = [
-  { value: 'planning', label: 'Lập kế hoạch', color: 'blue' },
-  { value: 'in_progress', label: 'Đang thực hiện', color: 'processing' },
-  { value: 'on_hold', label: 'Tạm dừng', color: 'warning' },
-  { value: 'completed', label: 'Hoàn thành', color: 'success' },
-  { value: 'cancelled', label: 'Đã hủy', color: 'error' },
-];
-
-const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Thấp', color: 'default' },
-  { value: 'medium', label: 'Trung bình', color: 'blue' },
-  { value: 'high', label: 'Cao', color: 'warning' },
-  { value: 'critical', label: 'Khẩn cấp', color: 'red' },
-];
 
 const formatMoney = (value) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);

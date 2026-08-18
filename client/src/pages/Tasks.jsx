@@ -41,25 +41,11 @@ import dayjs from 'dayjs';
 import taskService from '../services/taskService';
 import projectService from '../services/projectService';
 import resourceService from '../services/resourceService';
+import { TASK_STATUSES as STATUS_COLS, PRIORITY_OPTIONS } from '../constants';
 import './Tasks.css';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
-
-const STATUS_COLS = [
-  { key: 'todo', label: 'Cần làm', color: '#94a3b8', badgeColor: 'default' },
-  { key: 'in_progress', label: 'Đang làm', color: '#3b82f6', badgeColor: 'processing' },
-  { key: 'review', label: 'Đánh giá', color: '#f59e0b', badgeColor: 'warning' },
-  { key: 'done', label: 'Hoàn thành', color: '#10b981', badgeColor: 'success' },
-  { key: 'blocked', label: 'Bị chặn', color: '#ef4444', badgeColor: 'error' },
-];
-
-const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Thấp', color: 'default' },
-  { value: 'medium', label: 'Trung bình', color: 'blue' },
-  { value: 'high', label: 'Cao', color: 'warning' },
-  { value: 'critical', label: 'Khẩn cấp', color: 'red' },
-];
 
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
@@ -187,7 +173,7 @@ export default function Tasks() {
             .split(',')
             .map((s) => s.trim())
             .filter(Boolean)
-            .map((name) => ({ name, minLevel: 2 }))
+            .map((name) => ({ name, level: 2 }))
         : [],
     };
 

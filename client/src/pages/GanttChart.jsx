@@ -26,6 +26,7 @@ import {
 } from '@ant-design/icons';
 import taskService from '../services/taskService';
 import projectService from '../services/projectService';
+import { TASK_STATUS_COLORS as STATUS_COLORS, TASK_STATUS_LABELS as STATUS_LABELS } from '../constants';
 import './GanttChart.css';
 
 const { Title, Text } = Typography;
@@ -35,22 +36,6 @@ const ZOOM_LEVELS = [
   { key: 'week', label: 'Tuần', dayWidth: 20, format: 'Wk' },
   { key: 'month', label: 'Tháng', dayWidth: 8, format: 'MMM' },
 ];
-
-const STATUS_COLORS = {
-  todo: '#94a3b8',
-  in_progress: '#3b82f6',
-  review: '#f59e0b',
-  done: '#10b981',
-  blocked: '#ef4444',
-};
-
-const STATUS_LABELS = {
-  todo: 'Cần làm',
-  in_progress: 'Đang làm',
-  review: 'Đánh giá',
-  done: 'Hoàn thành',
-  blocked: 'Bị chặn',
-};
 
 function addDays(date, days) {
   const d = new Date(date);
@@ -72,8 +57,6 @@ export default function GanttChart() {
   const [loading, setLoading] = useState(true);
   const [zoomKey, setZoomKey] = useState('week');
   const [filters, setFilters] = useState({ project: '', search: '' });
-  const [viewMode, setViewMode] = useState('task');
-  const [tooltip, setTooltip] = useState(null);
 
   const zoom = ZOOM_LEVELS.find((z) => z.key === zoomKey) || ZOOM_LEVELS[1];
 
