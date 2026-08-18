@@ -1,5 +1,6 @@
 const Project = require('../models/Project');
 const Task = require('../models/Task');
+const { logActivity } = require('../services/activityLog.service');
 
 const buildProjectQuery = (query) => {
   const filter = {};
@@ -154,6 +155,16 @@ const createProject = async (req, res, next) => {
       .populate('manager', 'name email role avatar department')
       .populate('members.user', 'name email role avatar department');
 
+    logActivity({
+      req,
+      action: 'CREATE_PROJECT',
+      entityType: 'project',
+      entityId: project._id,
+      entityTitle: project.name,
+      description: `Tạo mới dự án "${project.name}" (Mã: ${project.code || 'N/A'})`,
+      details: { status: project.status, priority: project.priority, budget: project.budget },
+    });
+
     res.status(201).json({
       success: true,
       data: { project: populatedProject },
@@ -185,6 +196,16 @@ const updateProject = async (req, res, next) => {
     })
       .populate('manager', 'name email role avatar department')
       .populate('members.user', 'name email role avatar department');
+
+    logActivity({
+      req,
+      action: 'UPDATE_PROJECT',
+      entityType: 'project',
+      entityId: updatedProject._id,
+      entityTitle: updatedProject.name,
+      description: `Cập nhật thông tin dự án "${updatedProject.name}"`,
+      details: { status: updatedProject.status, priority: updatedProject.priority },
+    });
 
     res.json({
       success: true,
@@ -220,6 +241,15 @@ const deleteProject = async (req, res, next) => {
     }
 
     await project.deleteOne();
+
+    logActivity({
+      req,
+      action: 'DELETE_PROJECT',
+      entityType: 'project',
+      entityId: req.params.id,
+      entityTitle: project.name,
+      description: `Xóa dự án "${project.name}" (kèm ${taskCount} tasks liên quan)`,
+    });
 
     res.json({
       success: true,

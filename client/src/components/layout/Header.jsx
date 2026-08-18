@@ -29,6 +29,7 @@ const pageTitles = {
   '/optimization': 'Tối ưu hóa Phân bổ',
   '/gantt': 'Gantt Chart',
   '/reports': 'Báo cáo',
+  '/activity-logs': 'Nhật ký Hoạt động',
   '/settings': 'Cài đặt tài khoản',
 };
 

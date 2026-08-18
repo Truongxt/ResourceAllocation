@@ -15,6 +15,7 @@ import Optimization from './pages/Optimization';
 import GanttChart from './pages/GanttChart';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import ActivityLogs from './pages/ActivityLogs';
 
 const { Content } = Layout;
 
@@ -78,6 +79,7 @@ export default function App() {
       <Route path="/optimization" element={<ProtectedRoute><AppLayout><Optimization /></AppLayout></ProtectedRoute>} />
       <Route path="/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><AppLayout><Reports /></AppLayout></ProtectedRoute>} />
+      <Route path="/activity-logs" element={<ProtectedRoute><AppLayout><ActivityLogs /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />

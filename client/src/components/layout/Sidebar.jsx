@@ -8,6 +8,7 @@ import {
   ThunderboltOutlined,
   BarChartOutlined,
   FileTextOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -21,6 +22,7 @@ const menuItems = [
   { key: '/optimization', icon: <ThunderboltOutlined />, label: 'Tối ưu hóa' },
   { key: '/gantt', icon: <BarChartOutlined />, label: 'Gantt Chart' },
   { key: '/reports', icon: <FileTextOutlined />, label: 'Báo cáo' },
+  { key: '/activity-logs', icon: <HistoryOutlined />, label: 'Nhật ký hoạt động' },
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {

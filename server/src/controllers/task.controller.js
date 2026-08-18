@@ -1,6 +1,7 @@
 const Task = require('../models/Task');
 const Project = require('../models/Project');
 const { sendNotification } = require('../services/socket.service');
+const { logActivity } = require('../services/activityLog.service');
 
 /**
  * Helper: Tính lại progress dự án dựa trên tasks
@@ -137,6 +138,16 @@ const createTask = async (req, res, next) => {
       });
     }
 
+    logActivity({
+      req,
+      action: 'CREATE_TASK',
+      entityType: 'task',
+      entityId: populated._id,
+      entityTitle: populated.title,
+      description: `Tạo công việc "${populated.title}" trong dự án ${project.name}`,
+      details: { status: populated.status, priority: populated.priority, assignee: populated.assignee?.name },
+    });
+
     res.status(201).json({
       success: true,
       data: { task: populated },
@@ -200,6 +211,16 @@ const updateTask = async (req, res, next) => {
       });
     }
 
+    logActivity({
+      req,
+      action: 'UPDATE_TASK',
+      entityType: 'task',
+      entityId: updatedTask._id,
+      entityTitle: updatedTask.title,
+      description: `Cập nhật thông tin công việc "${updatedTask.title}"`,
+      details: { status: updatedTask.status, progress: updatedTask.progress, assignee: updatedTask.assignee?.name },
+    });
+
     res.json({
       success: true,
       data: { task: updatedTask },
@@ -257,6 +278,16 @@ const updateTaskStatus = async (req, res, next) => {
       });
     }
 
+    logActivity({
+      req,
+      action: 'UPDATE_TASK_STATUS',
+      entityType: 'task',
+      entityId: updatedTask._id,
+      entityTitle: updatedTask.title,
+      description: `Đổi trạng thái công việc "${updatedTask.title}" sang "${status}"`,
+      details: { oldStatus: task.status, newStatus: status },
+    });
+
     res.json({
       success: true,
       data: { task: updatedTask },
@@ -294,6 +325,15 @@ const deleteTask = async (req, res, next) => {
 
     // Recalculate project progress
     await recalculateProjectProgress(projectId);
+
+    logActivity({
+      req,
+      action: 'DELETE_TASK',
+      entityType: 'task',
+      entityId: req.params.id,
+      entityTitle: task.title,
+      description: `Xóa công việc "${task.title}"`,
+    });
 
     res.json({
       success: true,

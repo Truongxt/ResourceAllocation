@@ -146,7 +146,7 @@
 | 9.2 | Dark/Light Theme Toggle | Chuyển đổi theme Sáng/Tối | ✅ | Header toggle + CSS data-theme |
 | 9.3 | Multi-language | Hỗ trợ Tiếng Việt + English | ⬜ | Optional |
 | 9.4 | Import Data | Import dự án/nhân sự từ CSV | ✅ | Modal nhập CSV trong Projects & Resources |
-| 9.5 | Activity Log | Nhật ký hoạt động hệ thống | ⬜ | Optional |
+| 9.5 | Activity Log | Nhật ký hoạt động hệ thống | ✅ | ActivityLog model, service, controller, and ActivityLogs page |
 | 9.6 | Email Notifications | Gửi email khi được assign task | ⬜ | Optional |
 
 ---
@@ -163,8 +163,8 @@
 | 6. Gantt Chart | 8 | 8 | 100% |
 | 7. Analytics | 7 | 7 | 100% |
 | 8. Reports | 5 | 5 | 100% |
-| 9. Bonus | 6 | 3 | 50% |
-| **Tổng** | **73** | **70** | **96%** |
+| 9. Bonus | 6 | 4 | 67% |
+| **Tổng** | **73** | **71** | **97.3%** |
 
 
 

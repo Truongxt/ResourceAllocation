@@ -4,6 +4,7 @@ const OptimizationResult = require('../models/OptimizationResult');
 const GeneticAlgorithm = require('../algorithms/genetic/GeneticAlgorithm');
 const CSPSolver = require('../algorithms/csp/CSPSolver');
 const { sendNotification } = require('../services/socket.service');
+const { logActivity } = require('../services/activityLog.service');
 
 /**
  * Helper: Load tasks & resources for optimization
@@ -320,21 +321,32 @@ const applyResult = async (req, res, next) => {
     result.appliedBy = req.user._id;
     await result.save();
 
-    // Send real-time notification to the user
+    // Gửi thông báo realtime đến tất cả user trong hệ thống
     sendNotification({
-      recipient: req.user._id,
+      recipient: null,
+      actor: req.user._id,
       type: 'optimization_applied',
-      title: 'Đã áp dụng phân bổ tối ưu',
-      message: `Đã tự động gán nhân sự cho ${appliedCount} công việc theo phương án tối ưu hóa`,
+      title: 'Đã áp dụng phân bổ nhân sự',
+      message: `Phương án tối ưu hóa (${result.algorithm.toUpperCase()}) đã được áp dụng cho ${appliedCount} công việc.`,
       entityType: 'optimization',
       entityId: result._id,
       link: '/tasks',
     });
 
+    logActivity({
+      req,
+      action: 'APPLY_OPTIMIZATION',
+      entityType: 'optimization',
+      entityId: result._id,
+      entityTitle: `${result.algorithm.toUpperCase()} Optimization`,
+      description: `Áp dụng phương án phân bổ ${result.algorithm.toUpperCase()} cho ${appliedCount} công việc`,
+      details: { algorithm: result.algorithm, fitness: result.fitness, appliedCount },
+    });
+
     res.json({
       success: true,
-      message: `Đã áp dụng phân bổ cho ${appliedCount}/${result.assignments.length} công việc`,
-      data: { appliedCount },
+      data: { result, appliedCount },
+      message: `Đã áp dụng kết quả tối ưu hóa thành công cho ${appliedCount} công việc`,
     });
   } catch (error) {
     next(error);

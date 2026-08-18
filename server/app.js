@@ -11,6 +11,7 @@ const departmentRoutes = require('./src/routes/department.routes');
 const optimizationRoutes = require('./src/routes/optimization.routes');
 const analyticsRoutes = require('./src/routes/analytics.routes');
 const notificationRoutes = require('./src/routes/notification.routes');
+const activityLogRoutes = require('./src/routes/activityLog.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./src/middleware/error');
@@ -32,6 +33,7 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/optimization', optimizationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/activity-logs', activityLogRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
