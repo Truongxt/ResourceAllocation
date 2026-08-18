@@ -365,9 +365,11 @@ Trả về **nguyên document `OptimizationResult`**, không phải object rút 
 }
 ```
 
-> ⚠️ **Hiện trạng CSP**: `runCSPSolver` không ghi `fitness` và `metrics` (CSPSolver không tính hai giá
-> trị này), nên kết quả CSP trong lịch sử luôn hiển thị `fitness: 0` và `metrics` rỗng.
-> Chỉ `assignments`, `constraintReport`, `iterations`, `executionTime` là có dữ liệu.
+> Cả ba thuật toán đều trả `fitness` và `metrics` theo **cùng một thang đo** (module dùng chung
+> `src/algorithms/scoring.js`), nên so sánh trực tiếp được trong lịch sử. Riêng CSP không có
+> `convergenceHistory`/`generations` mà có `iterations`.
+>
+> Các bản ghi CSP tạo **trước** thay đổi này vẫn còn `fitness: 0` và `metrics` rỗng trong DB.
 
 ### POST `/api/optimization/:id/apply`
 Ghi `assignee` cho từng task theo `assignments`, dùng `resource.user` (User ID) làm giá trị.
@@ -413,13 +415,33 @@ Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
 {
   "success": true,
   "data": {
-    "current":   [ { "name": "...", "workload": 20, "capacity": 40, "utilization": 50 } ],
+    "metrics": {
+      "before": { "stdDev": 28.28, "overloadedCount": 1, "avgUtilization": 50 },
+      "after":  { "stdDev": 14.24, "overloadedCount": 0, "avgUtilization": 50, "avgSkillMatch": 100 }
+    },
+    "resources": [
+      { "resourceId": "...", "resourceName": "Trần Văn Nam", "position": "Senior Fullstack Developer",
+        "capacity": 40,
+        "beforeWorkload": 60, "beforeUtilization": 150,
+        "afterWorkload": 32,  "afterUtilization": 80 }
+    ],
+    "current":   [ { "name": "...", "workload": 60, "capacity": 40, "utilization": 150 } ],
     "optimized": [ { "name": "...", "workload": 32, "capacity": 40, "utilization": 80 } ],
-    "improvement": { "fitness": 0.87, "skillMatch": 92, "workloadVariance": 2.3 }
+    "improvement": { "fitness": 0.87, "skillMatch": 100, "workloadVariance": 14.24 }
   }
 }
 ```
-Chỉ nhận `id` của kết quả `status === 'completed'`, ngược lại trả 404.
+
+- Chỉ nhận `id` của kết quả `status === 'completed'`, ngược lại trả 404.
+- **`before`** được tính từ **task đang mở** (`todo`/`in_progress`/`review`) gộp theo `assignee`,
+  cùng cách với `GET /analytics/utilization` — không đọc `Resource.currentWorkload` (field đó chỉ
+  làm mới khi admin gọi `recalculate-workload` nên thường đã cũ). Nếu một nhân sự không có task
+  nào đang mở thì mới lấy `currentWorkload` làm giá trị dự phòng.
+- **`after`** lấy từ `metrics.resourceUtilization` của kết quả tối ưu hóa, ghép theo **resource ID**
+  (không ghép theo tên để tránh sai khi trùng tên).
+- `metrics.after.stdDev` chính là `metrics.workloadVariance` của kết quả — giá trị này vốn đã là
+  độ lệch chuẩn σ.
+- `current` / `optimized` giữ lại từ phiên bản trước để tương thích ngược.
 
 ---
 

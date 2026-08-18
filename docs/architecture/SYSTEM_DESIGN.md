@@ -261,15 +261,22 @@ tức đường dẫn tính từ thư mục `server/` khi chạy `npm run dev:se
 | `PORT` | 5000 | Server port |
 | `NODE_ENV` | development | Bật stack trace trong response lỗi khi = `development` |
 | `MONGODB_URI` | mongodb://localhost:27017/resource_allocation | Chuỗi kết nối MongoDB |
-| `JWT_SECRET` | ⚠️ xem cảnh báo | Khóa ký JWT |
+| `JWT_SECRET` | khóa dev tạm (xem dưới) | Khóa ký JWT |
 | `JWT_EXPIRE` | 7d | Thời hạn token |
 | `CLIENT_URL` | http://localhost:5173 | Origin được phép cho CORS của Socket.IO |
 | `VITE_API_URL` | /api | Base URL client gọi API |
 
-> ⚠️ **Bắt buộc đặt `JWT_SECRET`.** Nếu thiếu, `auth.controller.js` ký token bằng
-> `'default_jwt_secret_key_rao_2026'` còn `middleware/auth.js` và `server.js` lại verify bằng
-> `'default_secret'` — đăng nhập sẽ thành công nhưng **mọi request protected đều trả 401**
-> và socket không kết nối được.
+**`JWT_SECRET`** được đọc qua một nguồn duy nhất là [`src/config/jwt.js`](../../server/src/config/jwt.js).
+Nơi ký token (`auth.controller.js`), nơi verify (`middleware/auth.js`) và handshake Socket.IO
+(`server.js`) đều gọi cùng hàm `getJwtSecret()`, nên không thể lệch khóa giữa các nơi.
+
+| Môi trường | Thiếu `JWT_SECRET` |
+|------------|--------------------|
+| `NODE_ENV` ≠ production | Ghi cảnh báo một lần rồi dùng khóa dev tạm — hệ thống vẫn chạy được |
+| `NODE_ENV=production` | `assertJwtConfig()` chạy ngay đầu `startServer()` → **server thoát với exit code 1** trước khi listen |
+
+Kiểm tra cấu hình đặt trước cả bước kết nối DB, để lỗi lộ ra lúc khởi động thay vì
+biến thành 401 khó chẩn đoán ở request đầu tiên.
 
 > ⚠️ **`VITE_API_URL`**: để trống thì client dùng `/api` và đi qua proxy khai báo trong
 > `vite.config.js` (trỏ tới `http://localhost:5000`). File `.env.example` hiện đặt sẵn

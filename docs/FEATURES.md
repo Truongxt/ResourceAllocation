@@ -60,7 +60,7 @@
 | 3.6 | Kanban Board | Drag & drop thay đổi status | ✅ | 5 cột, optimistic UI, gọi `PATCH /:id/status` |
 | 3.7 | Task Dependencies | Thiết lập predecessor/successor | ⬜ | **Chỉ có schema + API.** Không có UI thiết lập trong `Tasks.jsx`; chỉ hiển thị khi Gantt populate |
 | 3.8 | Gán nhân sự | Assign resource cho task | ✅ | Chọn từ danh sách Resource, lưu `resource.user` vào `assignee` |
-| 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | 🔨 | Schema + API đúng, nhưng **UI gửi sai tên field** (`minLevel` thay vì `level`) nên `level` luôn nhận mặc định 3. Không nhập được `weight` |
+| 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | 🔨 | Schema + API đúng, `level` gửi lên đã được lưu đúng. Còn thiếu: UI chưa cho chọn `level`/`weight` cho từng kỹ năng (đang cố định level 2) |
 | 3.10 | Estimated Hours | Nhập giờ ước tính vs thực tế | ✅ | `estimatedHours` / `actualHours` |
 | 3.11 | Thay đổi trạng thái | Cập nhật progress, status | ✅ | `PATCH /:id/status`, tự set progress 0/100 |
 
@@ -88,7 +88,7 @@
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
 | 5.1 | Genetic Algorithm | Multi-objective GA cho phân bổ nhân sự | ✅ | Tournament (k=5), Uniform Crossover, Random Mutation, Elitism 5% |
-| 5.2 | CSP Solver | Backtracking + MRV + LCV | 🔨 | Chạy được, nhưng **bước "AC-3" chỉ là bộ lọc unary theo capacity**, không phải arc consistency |
+| 5.2 | CSP Solver | Backtracking + MRV + LCV | 🔨 | Chạy được, đã có `fitness`/`metrics` cùng thang đo với GA. Còn lại: **bước "AC-3" chỉ là bộ lọc unary theo capacity**, không phải arc consistency |
 | 5.3 | Fitness Function | Workload balance + skill match + cost + overallocation | ✅ | 4 mục tiêu, trọng số cấu hình được |
 | 5.4 | Constraint Validation | Kiểm tra capacity, skill, availability | 🔨 | H1/H2/H3 có. **H2 dùng ngưỡng tổng hợp ≥ 0.5** chứ không bắt buộc từng kỹ năng. **Ràng buộc Dependency (H4) chưa implement** |
 | 5.5 | Run Optimization UI | Giao diện chạy tối ưu hóa với parameters | ✅ | Chọn thuật toán, slider tham số, tinh chỉnh trọng số |
@@ -101,7 +101,8 @@
 > ⚠️ **Hybrid không hoạt động như thiết kế**: CSP và GA chạy độc lập trên cùng dữ liệu gốc.
 > GA không nhận miền giá trị đã lọc từ CSP. Xem [ALGORITHMS.md](./ALGORITHMS.md) mục 3.
 >
-> ⚠️ **Kết quả CSP luôn có `fitness: 0`** vì `runCSPSolver` không tính/ghi `fitness` và `metrics`.
+> CSP dùng chung `src/algorithms/scoring.js` với GA nên có đủ `fitness` và `metrics` trên cùng thang đo.
+> Các bản ghi CSP tạo trước thay đổi này vẫn còn `fitness: 0` trong DB.
 
 ---
 
@@ -130,8 +131,8 @@ tô màu theo status, đánh dấu cuối tuần và ngày hôm nay.
 | 7.1 | Resource Histogram | Biểu đồ phân bổ theo nhân sự | ✅ | Thanh histogram + vạch 100% capacity |
 | 7.2 | Overallocation Alert | Phát hiện & cảnh báo quá tải | ✅ | Alert box + badge quá tải |
 | 7.3 | Utilization Dashboard | Dashboard utilization từng nhân sự | ✅ | Thẻ Dashboard + tab Reports |
-| 7.4 | Burnout Risk Index | Chỉ số rủi ro burnout (Thấp/TB/Cao) | 🔨 | API tính đúng (`>120%` cao, `>90%` trung bình), cột trong bảng chạy được, nhưng **thẻ tổng "Nguy cơ Burnout cao" luôn hiển thị 0** do đọc sai tên field |
-| 7.5 | Before/After Compare | So sánh trước/sau tối ưu hóa | 🔨 | Tab đã dựng và API đã có, nhưng **client đọc sai cấu trúc response** nên tab luôn rỗng |
+| 7.4 | Burnout Risk Index | Chỉ số rủi ro burnout (Thấp/TB/Cao) | ✅ | API tính `>120%` cao, `>90%` trung bình; cột trong bảng và thẻ tổng đều hiển thị đúng |
+| 7.5 | Before/After Compare | So sánh trước/sau tối ưu hóa | ✅ | StdDev tải, số nhân sự quá tải, skill match, và bảng delta workload từng người |
 | 7.6 | Team Analytics | Thống kê theo team/department | ✅ | Thẻ phòng ban + capacity & workload |
 | 7.7 | Trend Charts | Biểu đồ xu hướng workload theo thời gian | ⬜ | **Chưa có chuỗi thời gian.** Hiện chỉ có phân bố task theo status/priority và tỉ lệ giờ ước tính/thực tế |
 
@@ -185,13 +186,13 @@ tô màu theo status, đánh dấu cuối tuần và ngày hôm nay.
 | 4. Resources | 10 | 9 | 1 | 0 |
 | 5. Optimization | 10 | 7 | 3 | 0 |
 | 6. Gantt Chart | 8 | 3 | 0 | 5 |
-| 7. Analytics | 7 | 4 | 2 | 1 |
+| 7. Analytics | 7 | 6 | 0 | 1 |
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 4 | 0 | 2 |
-| **Tổng** | **77** | **58 (75.3%)** | **8 (10.4%)** | **11 (14.3%)** |
+| **Tổng** | **77** | **60 (77.9%)** | **6 (7.8%)** | **11 (14.3%)** |
 
-Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 80.5%**.
+Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 81.8%**.
 
 ---
 
@@ -208,15 +209,19 @@ Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 7. **Trend chart theo thời gian** (7.7).
 8. Đa ngôn ngữ (10.3), email notification (10.6).
 
-## Lỗi đã biết cần sửa
+## Lỗi đã sửa
 
-| Vị trí | Lỗi | Hệ quả |
-|--------|-----|--------|
-| `Optimization.jsx` tab So sánh | Đọc `metrics.after.stdDev`, `resources[].beforeWorkload`; API trả `{current, optimized, improvement}` | Tab Trước/Sau luôn rỗng (7.5) |
-| `Optimization.jsx` cột Skill Match | Đọc `record.skillMatchScore`; DB lưu `skillMatch` | Luôn hiển thị 85% cứng |
-| `Reports.jsx` | Đọc `summary.highBurnoutRisk`; API trả `summary.highBurnout` | Thẻ burnout luôn 0 (7.4) |
-| `Tasks.jsx:190` | Gửi `{name, minLevel}`; schema là `level` | `requiredSkills.level` luôn = 3 (3.9) |
-| `optimization.controller.js` nhánh CSP | Không ghi `fitness`/`metrics` | Lịch sử CSP hiển thị fitness 0 |
-| `auth.controller.js` vs `middleware/auth.js` | Fallback JWT secret khác nhau khi thiếu `JWT_SECRET` | Login OK nhưng mọi request protected trả 401 |
-| `utils/seeder.js` | Đọc `MONGO_URI` (đúng: `MONGODB_URI`), `dotenv.config()` không trỏ `../.env` | Seed luôn ghi vào DB mặc định, bỏ qua cấu hình |
-| `constants/index.js` | Không được import ở đâu; `TASK_STATUS.IN_REVIEW='in_review'` sai (server dùng `review`), thiếu `blocked` | Dead code lạc hậu |
+Toàn bộ 8 lỗi phát hiện trong đợt rà soát đã được xử lý và kiểm chứng bằng chạy thật:
+
+| Vị trí | Lỗi | Cách sửa |
+|--------|-----|----------|
+| `Reports.jsx` | Đọc `summary.highBurnoutRisk`; API trả `summary.highBurnout` | Đổi sang đúng tên field |
+| `Tasks.jsx` | Gửi `{name, minLevel}`; schema là `level` → `level` luôn = 3 | Gửi `level`, giá trị được lưu đúng |
+| `Optimization.jsx` cột Skill Match | Đọc `record.skillMatchScore`; DB lưu `skillMatch` → luôn 85% | Đọc `skillMatch`; hiện `—` khi thuật toán không cung cấp |
+| `Optimization.jsx` tab So sánh | Đọc `metrics.before/after` và `resources[]`; API trả shape khác | Mở rộng API trả đúng cấu trúc, ghép theo resource ID, giữ shape cũ để tương thích |
+| CSP không có `fitness`/`metrics` | `runCSPSolver` không ghi hai field này | Tách `src/algorithms/scoring.js` dùng chung cho GA và CSP |
+| JWT secret | `auth.controller` và `middleware/auth` dùng fallback khác nhau | Gom về `src/config/jwt.js`; `NODE_ENV=production` mà thiếu `JWT_SECRET` thì chặn ngay |
+| `utils/seeder.js` | Đọc `MONGO_URI`, `dotenv.config()` phụ thuộc cwd | Đổi sang `MONGODB_URI` + đường dẫn tuyệt đối tới `.env` gốc |
+| `constants/index.js` | Dead code, enum lạc hậu (`in_review`, thiếu `blocked`) | Sửa khớp server và đưa vào dùng ở Tasks / Projects / GanttChart |
+
+Ghi chú: các bản ghi `OptimizationResult` của CSP tạo **trước** thay đổi này vẫn còn `fitness: 0` trong DB.

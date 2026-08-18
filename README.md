@@ -41,8 +41,8 @@ npm run dev
 
 Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017`.
 
-> ⚠️ `JWT_SECRET` là bắt buộc. Nếu bỏ trống, đăng nhập vẫn thành công nhưng mọi request
-> cần xác thực sẽ trả 401 (fallback secret giữa nơi ký và nơi verify token không giống nhau).
+> `JWT_SECRET` bỏ trống ở môi trường dev thì hệ thống vẫn chạy (ghi cảnh báo và dùng khóa tạm),
+> nhưng với `NODE_ENV=production` server sẽ **từ chối khởi động**. Hãy đặt giá trị thật trước khi triển khai.
 
 ### Tài khoản mẫu sau khi seed
 
