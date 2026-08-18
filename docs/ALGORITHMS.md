@@ -1,5 +1,9 @@
 # 🧬 Thuật toán Tối ưu hóa - Algorithms Documentation
 
+> Đối chiếu trực tiếp với `server/src/algorithms/genetic/GeneticAlgorithm.js`
+> và `server/src/algorithms/csp/CSPSolver.js`.
+> Các khối ⚠️ đánh dấu chỗ **hiện trạng code khác với thiết kế lý thuyết**.
+
 ## Tổng quan bài toán
 
 ### Bài toán Phân bổ Nhân sự (Resource Allocation Problem)
@@ -52,15 +56,25 @@ Default weights: w₁=0.30, w₂=0.35, w₃=0.15, w₄=0.20
 
 ### 1.3 Skill Match Calculation
 
-```
-skill_match(task, resource) = 
-  Σ min(resource_skill_level, required_level) / Σ required_level
+Mỗi kỹ năng yêu cầu có thêm **trọng số** `weight` (field `Task.requiredSkills[].weight`, mặc định 1):
 
-Ví dụ:
+```
+skill_match(task, resource) =
+  Σ (weight × min(resource_skill_level, required_level)) / Σ (weight × required_level)
+
+Ví dụ (weight = 1 cho cả hai):
   Task yêu cầu: React(3), Node.js(2)
   Resource có: React(4), Node.js(3)
-  Match = (min(4,3) + min(3,2)) / (3 + 2) = (3 + 2) / 5 = 1.0 (100%)
+  Match = (1×min(4,3) + 1×min(3,2)) / (1×3 + 1×2) = (3 + 2) / 5 = 1.0 (100%)
 ```
+
+- Task **không** yêu cầu kỹ năng nào → match = 1 (khớp hoàn hảo).
+- Resource thiếu hẳn một kỹ năng → `resource_skill_level = 0` cho kỹ năng đó.
+- So khớp tên kỹ năng **không phân biệt hoa thường**.
+
+> **Lưu ý thang điểm**: `Resource.skills[].level` giới hạn 1-4, nhưng
+> `Task.requiredSkills[].level` cho phép tới 5. Nếu task yêu cầu level 5,
+> điểm khớp tối đa chỉ đạt 4/5 = 0.8.
 
 ### 1.4 GA Operators
 
@@ -100,83 +114,143 @@ Domains:     Dⱼ = {r₁, r₂, ..., rₘ}  (resources khả dụng cho task j)
 Constraints: C = {c₁, c₂, ..., cₖ}   (ràng buộc)
 ```
 
-### 2.2 Hard Constraints (Bắt buộc thỏa mãn)
+### 2.2 Hard Constraints (đang được implement)
 
-| # | Constraint | Mô tả | Formulation |
-|---|-----------|-------|-------------|
-| H1 | Capacity | Tổng workload ≤ max capacity | Σ effort(tasks assigned to rᵢ) ≤ C[rᵢ] × FTE |
-| H2 | Skill | Resource phải có đủ skill | ∀s ∈ required_skills(tⱼ): S[rᵢ][s] ≥ Q[tⱼ][s] |
-| H3 | Availability | Resource phải available | available(rᵢ, period(tⱼ)) = true |
-| H4 | Dependency | Predecessor phải hoàn thành trước | ∀(tₐ → tᵦ): end(tₐ) ≤ start(tᵦ) |
+| # | Constraint | Mô tả | Cách kiểm tra trong code |
+|---|-----------|-------|--------------------------|
+| H1 | Capacity | Tổng workload ≤ max capacity | `workload[r] + effort(t) ≤ C[r] × FTE` — kiểm tra khi gán trong backtracking |
+| H2 | Skill | Điểm khớp kỹ năng đạt ngưỡng | `skill_match(t, r) ≥ minSkillMatchThreshold` (mặc định **0.5**) |
+| H3 | Availability | Resource khả dụng trong kỳ | `availability ≠ 'unavailable'` và khoảng thời gian task **không giao** với `unavailablePeriods` |
 
-### 2.3 Soft Constraints (Ưu tiên thỏa mãn)
+> ⚠️ **H2 là ràng buộc ngưỡng tổng hợp, không phải ràng buộc từng kỹ năng.**
+> Code dùng cùng công thức có trọng số ở mục 1.3 rồi so với `minSkillMatchThreshold`.
+> Nghĩa là một nhân sự thiếu hẳn một kỹ năng vẫn có thể được gán, miễn điểm tổng ≥ 0.5.
+> Đây **không** tương đương với `∀s: S[rᵢ][s] ≥ Q[tⱼ][s]`.
 
-| # | Constraint | Mô tả |
-|---|-----------|-------|
-| S1 | Prefer higher skill match | Ưu tiên resource có skill level cao hơn |
-| S2 | Prefer balanced workload | Ưu tiên phân bổ đều |
-| S3 | Minimize context switching | Ưu tiên gán liên tiếp cho cùng project |
+> ⚠️ **Ràng buộc Dependency chưa được implement.** CSPSolver hiện không đọc
+> `Task.dependencies`, nên không đảm bảo `end(tₐ) ≤ start(tᵦ)`. Thứ tự phụ thuộc
+> giữa các task hoàn toàn không ảnh hưởng tới kết quả phân bổ.
 
-### 2.4 Algorithm: Backtracking + AC-3
+### 2.3 Soft Constraints
+
+| # | Constraint | Trạng thái |
+|---|-----------|-----------|
+| S1 | Prefer higher skill match | ❌ Chưa implement — CSP chỉ lọc theo ngưỡng, không xếp hạng theo điểm khớp |
+| S2 | Prefer balanced workload | ✅ Có, gián tiếp qua LCV (ưu tiên resource còn nhiều capacity nhất) |
+| S3 | Minimize context switching | ❌ Chưa implement — không xét `project` khi chọn resource |
+
+### 2.4 Algorithm: Backtracking + lọc miền giá trị
+
+Luồng thực tế trong `CSPSolver.solve()`:
 
 ```
-function BACKTRACK(assignment):
-    if assignment is complete:
-        return assignment
-    
-    var = SELECT-UNASSIGNED-VARIABLE(variables)  // MRV heuristic
-    for value in ORDER-DOMAIN-VALUES(var, assignment):  // LCV heuristic
-        if value is consistent with assignment:
-            assignment[var] = value
-            if AC-3(csp, var):  // Arc consistency
-                result = BACKTRACK(assignment)
-                if result ≠ failure:
-                    return result
-            remove assignment[var]
-    return failure
+1. BUILD-DOMAINS(tasks, resources)
+     Dⱼ = { r | H2(r, tⱼ) ∧ H3(r, tⱼ) }        // lọc theo skill + availability
+     Nếu tồn tại Dⱼ = ∅  →  trả về infeasibleTasks, dừng
+
+2. REDUCE-DOMAINS(domains)                      // lặp tối đa 100 vòng
+     Dⱼ ← { r ∈ Dⱼ | effort(tⱼ) ≤ C[r] × FTE }  // lọc unary theo capacity
+     Nếu tồn tại Dⱼ = ∅  →  trả về "ràng buộc quá chặt", dừng
+
+3. BACKTRACK(assignment)                        // MRV + LCV + kiểm tra H1
+     if |assignment| = |tasks|: return assignment
+     var ← MRV(unassigned)
+     for r in LCV(Dvar):
+         if workload[r] + effort(var) ≤ capacity[r]:
+             assign; recurse; nếu thất bại thì undo
+     return failure
 ```
+
+**Điều kiện dừng của backtracking**: `maxIterations` (mặc định 10 000) hoặc
+`timeout` (mặc định 30 000 ms).
+
+> ⚠️ **Bước 2 không phải AC-3 thật.** AC-3 làm việc trên các *cung* (arc) giữa hai biến
+> và loại giá trị không có giá trị hỗ trợ ở biến còn lại. Code hiện chỉ áp dụng bộ lọc
+> **unary** trên từng biến độc lập (task có vừa capacity của resource đó không), và chạy
+> **một lần trước** khi backtrack — không lồng trong vòng lặp tìm kiếm. Comment trong
+> `CSPSolver.js` cũng ghi rõ đây là "simplified AC-3".
 
 ### 2.5 Heuristics
 
-| Heuristic | Mô tả |
-|-----------|-------|
-| **MRV** (Minimum Remaining Values) | Chọn variable có ít domain values nhất trước |
-| **LCV** (Least Constraining Value) | Chọn value ít ảnh hưởng đến domain khác nhất |
-| **AC-3** (Arc Consistency) | Loại bỏ giá trị inconsistent khỏi domains |
+| Heuristic | Trạng thái | Cách implement |
+|-----------|-----------|----------------|
+| **MRV** (Minimum Remaining Values) | ✅ | Sắp xếp biến chưa gán theo `domain.length` tăng dần, lấy biến đầu |
+| **LCV** (Least Constraining Value) | ✅ | Sắp xếp resource theo capacity còn lại **giảm dần** |
+| Lọc miền theo capacity | ✅ | Bộ lọc unary ở bước 2 (được đặt tên "AC-3" trong code) |
+| **AC-3** đúng nghĩa | ❌ | Chưa implement |
 
 ---
 
 ## 3. Hybrid Approach (Kết hợp)
 
+### 3.1 Hiện trạng implement
+
+```
+              ┌──────────────┐
+              │  tasks +     │
+              │  resources   │
+              └──┬────────┬──┘
+                 │        │          (cùng một tập dữ liệu gốc)
+        ┌────────▼──┐  ┌──▼──────────┐
+        │ CSP Solver│  │     GA      │
+        └────────┬──┘  └──┬──────────┘
+                 │        │
+     constraintReport   assignments + fitness + metrics
+                 │        │
+                 └───┬────┘
+                     ▼
+            OptimizationResult
+```
+
+`runHybrid` chạy **CSP và GA độc lập trên cùng dữ liệu gốc**:
+
+- Kết quả phân bổ (`assignments`), `fitness`, `metrics`, `convergenceHistory` — **lấy hoàn toàn từ GA**.
+- Kết quả CSP **chỉ** dùng để lấy `constraintReport` (số ràng buộc thỏa mãn/vi phạm)
+  và cờ `cspFeasible` trả về cho client.
+- `executionTime` là tổng thời gian của cả hai pha.
+
+> ⚠️ **GA không nhận miền giá trị đã lọc từ CSP.** Không có luồng dữ liệu nào từ CSP sang GA,
+> nên GA vẫn tìm kiếm trên toàn bộ không gian và **có thể sinh ra phương án vi phạm hard constraints**.
+> `constraintReport` đến từ lời giải của CSP, không phải từ phương án GA được lưu.
+
+### 3.2 Thiết kế mục tiêu (chưa implement)
+
 ```
 ┌──────────┐     ┌──────────────┐     ┌──────────────┐
 │  CSP     │────▶│  Feasible    │────▶│  GA          │
-│  Solver  │     │  Solutions   │     │  Optimization│
+│  Solver  │     │  Domains     │     │  Optimization│
 └──────────┘     └──────────────┘     └──────────────┘
   Phase 1:          Phase 2:            Phase 3:
-  Lọc bỏ các       Tập solutions       Tối ưu hóa
-  assignments       thỏa mãn           multi-objective
-  vi phạm hard     hard constraints    trên tập feasible
+  Lọc bỏ các       Miền giá trị        Tối ưu hóa
+  assignments      đã thu hẹp          multi-objective
+  vi phạm hard     cho từng task       trên miền feasible
   constraints
 ```
 
-**Ưu điểm:**
-- CSP đảm bảo solution luôn hợp lệ (thỏa mãn hard constraints)
-- GA tối ưu hóa trên không gian đã thu hẹp → hội tụ nhanh hơn
-- Kết hợp ưu điểm của cả hai approach
+Để đạt được thiết kế này cần truyền `reducedDomains` từ CSPSolver vào GA và giới hạn
+`_initializePopulation` / `_mutate` chỉ chọn resource nằm trong miền hợp lệ của từng task.
 
 ---
 
 ## 4. Metrics đánh giá
 
-| Metric | Mô tả | Formula |
-|--------|-------|---------|
-| **Utilization Rate** | Tỷ lệ sử dụng nhân sự | workload / capacity × 100% |
-| **Workload Variance** | Độ lệch chuẩn workload | σ(workload_all_resources) |
-| **Skill Match Score** | Độ phù hợp kỹ năng trung bình | avg(skill_match_per_task) |
-| **Overallocation Count** | Số nhân sự bị quá tải | count(resources where workload > capacity) |
-| **Execution Time** | Thời gian chạy thuật toán | ms |
-| **Convergence Speed** | Số generation đạt 90% fitness | generations_to_90_percent |
+| Metric | Field trong `OptimizationResult` | Formula | Thang đo |
+|--------|----------------------------------|---------|----------|
+| **Utilization Rate** | `metrics.resourceUtilization[].utilization` | `workload / (maxCapacity × fte) × 100` | 0-100+ |
+| **Workload Variance** | `metrics.workloadVariance` | `σ(workload_all_resources)` — **độ lệch chuẩn**, dù tên field là "variance" | giờ |
+| **Average Utilization** | `metrics.averageUtilization` | trung bình utilization của mọi resource | 0-100+ |
+| **Skill Match Score** | `metrics.averageSkillMatch` | `avg(skill_match_per_task) × 100` | **0-100 (%)** |
+| **Overallocation Count** | `metrics.overallocatedResources` | `count(workload > capacity × fte)` | số nguyên |
+| **Total Cost** | `metrics.totalCost` | `Σ (hourlyRate[r] × estimatedHours[t])` | tiền |
+| **Fitness** | `fitness` (cấp gốc) | công thức mục 1.2, làm tròn 4 chữ số | 0-1 |
+| **Execution Time** | `executionTime` | thời gian chạy | ms |
+
+> `averageSkillMatch` và `assignments[].skillMatch` được nhân 100 trước khi lưu (thang %),
+> trong khi `fitness` giữ thang 0-1. Đừng nhầm hai thang này khi hiển thị.
+
+**Chưa implement**: "Convergence Speed" (số generation đạt 90% fitness) không được tính ở bất kỳ đâu.
+Muốn suy ra, phải tự duyệt `convergenceHistory` ở phía client — lưu ý mảng này chỉ ghi lại
+generation 0, các generation chia hết cho 10, và generation cuối.
 
 ---
 

@@ -1,16 +1,16 @@
 # 📋 Danh sách Tính năng - Resource Allocation Optimization
 
 > Tài liệu này liệt kê tất cả tính năng của hệ thống kèm trạng thái phát triển.
-> Cập nhật mỗi khi hoàn thành tính năng.
+> Trạng thái dưới đây đã được **đối chiếu trực tiếp với mã nguồn** và kiểm chứng bằng
+> request thật tới API + kiểm tra từng file UI.
 
 ## Chú thích trạng thái
 
 | Icon | Trạng thái | Mô tả |
 |------|-----------|-------|
 | ⬜ | Chưa bắt đầu | Chưa implement |
-| 🔨 | Đang phát triển | Đang code |
-| ✅ | Hoàn thành | Đã implement & test |
-| 🧪 | Đang test | Đã code, đang test |
+| 🔨 | Đang phát triển | Có một phần (thường là backend xong, UI chưa có / còn lỗi) |
+| ✅ | Hoàn thành | Đã implement & chạy được end-to-end |
 
 ---
 
@@ -18,111 +18,122 @@
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 1.1 | Đăng ký | Form đăng ký với validation (email, password) | ✅ | |
-| 1.2 | Đăng nhập | JWT-based authentication | ✅ | |
-| 1.3 | Đăng xuất | Clear token, redirect to login | ✅ | |
-| 1.4 | Phân quyền | Role-based: Admin, PM, Member | ✅ | |
-| 1.5 | Quản lý Profile | Cập nhật thông tin cá nhân, avatar | ✅ | Trang Cài đặt tài khoản |
-| 1.6 | Đổi mật khẩu | Thay đổi mật khẩu từ profile | ✅ | Tích hợp trong Cài đặt |
-| 1.7 | Protected Routes | Chặn truy cập trang khi chưa login | ✅ | |
+| 1.1 | Đăng ký | Form đăng ký với validation (email, password ≥ 6) | ✅ | `Register.jsx` + express-validator |
+| 1.2 | Đăng nhập | JWT-based authentication | ✅ | Token lưu `localStorage.rao_token` |
+| 1.3 | Đăng xuất | Clear token, redirect to login | ✅ | Dropdown ở Header |
+| 1.4 | Phân quyền | Role-based: Admin, PM, Member | 🔨 | Middleware `authorize` hoạt động, nhưng **chưa áp cho toàn bộ Task API và `PUT /resources/:id/skills`** — xem cảnh báo bên dưới |
+| 1.5 | Quản lý Profile | Cập nhật thông tin cá nhân, avatar | ✅ | Trang Cài đặt (`Settings.jsx`) |
+| 1.6 | Đổi mật khẩu | Thay đổi mật khẩu từ profile | ✅ | Trả token mới sau khi đổi |
+| 1.7 | Protected Routes | Chặn truy cập trang khi chưa login | ✅ | `ProtectedRoute.jsx` + interceptor 401 |
 
+> ⚠️ **Phân quyền thực tế lỏng hơn thiết kế**: toàn bộ endpoint `/api/tasks` (kể cả POST và DELETE)
+> và `PUT /api/resources/:id/skills` chỉ yêu cầu đăng nhập. Member có thể tạo/xóa bất kỳ task nào
+> và sửa kỹ năng của bất kỳ nhân sự nào. Đã kiểm chứng: member tạo task → HTTP 201.
 
 ---
 
-## Module 2: Quản lý Dự án (Project Management) ✅
+## Module 2: Quản lý Dự án (Project Management) 🔨
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
 | 2.1 | Tạo dự án | Form tạo dự án (tên, mô tả, ngày, priority) | ✅ | Modal form |
 | 2.2 | Danh sách dự án | Hiển thị grid/list dự án với filter, search | ✅ | Card grid + toolbar |
-| 2.3 | Chi tiết dự án | Trang chi tiết với tabs (overview, tasks, members) | ✅ | Populate tasks + members |
+| 2.3 | Chi tiết dự án | Trang chi tiết với tabs (overview, tasks, members) | ⬜ | **Chỉ có backend.** `GET /projects/:id` trả về tasks + members đã populate, nhưng client không có route `/projects/:id` — `Projects.jsx` chỉ có modal form |
 | 2.4 | Cập nhật dự án | Chỉnh sửa thông tin dự án | ✅ | Modal form edit |
-| 2.5 | Xóa dự án | Soft delete hoặc archive | ✅ | Force delete + confirm |
-| 2.6 | Dashboard dự án | Tổng quan tiến độ, thống kê | ✅ | Summary API + stats |
-| 2.7 | Gắn nhân sự | Thêm/xóa thành viên + allocation % | ✅ | Member CRUD APIs |
-| 2.8 | Tiến độ dự án | Tự động tính % hoàn thành từ tasks | ✅ | recalculateProjectProgress |
-| 2.9 | Filter & Sort | Lọc theo status, priority, date range | ✅ | Search, status, priority filters |
+| 2.5 | Xóa dự án | Xóa kèm cảnh báo nếu còn task | ✅ | Chặn nếu còn task, cần `?force=true` |
+| 2.6 | Dashboard dự án | Tổng quan tiến độ, thống kê | ✅ | `GET /projects/stats/summary` + trang Dashboard |
+| 2.7 | Gắn nhân sự | Thêm/xóa thành viên + allocation % | ⬜ | **Chỉ có backend.** 3 API + `projectService.addMember/updateMember/removeMember` đã sẵn sàng nhưng **không có UI nào gọi tới** |
+| 2.8 | Tiến độ dự án | Tự động tính % hoàn thành từ tasks | ✅ | `recalculateProjectProgress` chạy khi tạo/sửa/xóa task |
+| 2.9 | Filter & Sort | Lọc theo status, priority, date range, search | ✅ | Hỗ trợ cả `manager`, `startDate`, `endDate` |
 
 ---
 
-## Module 3: Quản lý Công việc (Task Management) ✅
+## Module 3: Quản lý Công việc (Task Management) 🔨
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
 | 3.1 | Tạo task | Form tạo task (title, description, dates, effort) | ✅ | Modal form |
 | 3.2 | Danh sách task | Hiển thị tasks theo project hoặc tất cả | ✅ | List View + filters |
-| 3.3 | Chi tiết task | Modal/page chi tiết với đầy đủ thông tin | ✅ | Edit modal |
+| 3.3 | Chi tiết task | Modal chi tiết với đầy đủ thông tin | ✅ | Edit modal |
 | 3.4 | Cập nhật task | Chỉnh sửa thông tin task | ✅ | Modal form edit |
-| 3.5 | Xóa task | Xóa task khỏi dự án | ✅ | Confirm + cleanup deps |
-| 3.6 | Kanban Board | Drag & drop thay đổi status (Todo → In Progress → Done) | ✅ | 5 columns, optimistic UI |
-| 3.7 | Task Dependencies | Thiết lập predecessor/successor relationships | ✅ | Model + cleanup on delete |
-| 3.8 | Gán nhân sự | Assign resource cho task | ✅ | Assignee field |
-| 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | ✅ | Schema + API |
-| 3.10 | Estimated Hours | Nhập giờ ước tính vs thực tế | ✅ | estimatedHours/actualHours |
-| 3.11 | Thay đổi trạng thái | Cập nhật progress, status | ✅ | PATCH /status endpoint |
+| 3.5 | Xóa task | Xóa task khỏi dự án | ✅ | Confirm + gỡ khỏi dependencies của task khác |
+| 3.6 | Kanban Board | Drag & drop thay đổi status | ✅ | 5 cột, optimistic UI, gọi `PATCH /:id/status` |
+| 3.7 | Task Dependencies | Thiết lập predecessor/successor | ⬜ | **Chỉ có schema + API.** Không có UI thiết lập trong `Tasks.jsx`; chỉ hiển thị khi Gantt populate |
+| 3.8 | Gán nhân sự | Assign resource cho task | ✅ | Chọn từ danh sách Resource, lưu `resource.user` vào `assignee` |
+| 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | 🔨 | Schema + API đúng, nhưng **UI gửi sai tên field** (`minLevel` thay vì `level`) nên `level` luôn nhận mặc định 3. Không nhập được `weight` |
+| 3.10 | Estimated Hours | Nhập giờ ước tính vs thực tế | ✅ | `estimatedHours` / `actualHours` |
+| 3.11 | Thay đổi trạng thái | Cập nhật progress, status | ✅ | `PATCH /:id/status`, tự set progress 0/100 |
 
 ---
 
-## Module 4: Quản lý Nhân sự (Resource Management) ✅
+## Module 4: Quản lý Nhân sự (Resource Management) 🔨
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 4.1 | Thêm nhân sự | Form thêm nhân sự (info, position, department) | ✅ | Modal form + user linking |
+| 4.1 | Thêm nhân sự | Form thêm nhân sự (info, position, department) | ✅ | Liên kết User có sẵn hoặc tạo User mới; `employeeId` tự sinh `NV0001` |
 | 4.2 | Danh sách nhân sự | Grid hiển thị với avatar, skills, workload | ✅ | Card grid + utilization bars |
-| 4.3 | Chi tiết nhân sự | Profile chi tiết + assignments hiện tại | ✅ | getById + assignments |
+| 4.3 | Chi tiết nhân sự | Profile chi tiết + assignments hiện tại | ✅ | `GET /:id` trả kèm task đang gán |
 | 4.4 | Cập nhật thông tin | Chỉnh sửa thông tin nhân sự | ✅ | Edit modal |
-| 4.5 | Skill Matrix | CRUD kỹ năng + level cho từng nhân sự | ✅ | Skill modal editor |
-| 4.6 | Availability Calendar | Lịch trình, ngày nghỉ, periods unavailable | ✅ | Schema + availability status |
-| 4.7 | Capacity (FTE) | Thiết lập FTE, max hours/week | ✅ | FTE + maxCapacity fields |
-| 4.8 | Workload View | Hiển thị workload hiện tại, utilization rate | ✅ | Virtual utilization bars |
+| 4.5 | Skill Matrix | CRUD kỹ năng + level cho từng nhân sự | ✅ | Skill modal editor, level 1-4 |
+| 4.6 | Availability Calendar | Lịch trình, ngày nghỉ, periods unavailable | 🔨 | Chỉ chọn được trạng thái `availability`. **Không có UI nhập `unavailablePeriods`** dù schema và CSP solver đều đã hỗ trợ |
+| 4.7 | Capacity (FTE) | Thiết lập FTE, max hours/week | ✅ | `fte` + `maxCapacity` |
+| 4.8 | Workload View | Hiển thị workload hiện tại, utilization rate | ✅ | Virtual `utilizationRate` + thanh utilization |
 | 4.9 | Department Filter | Lọc nhân sự theo bộ phận | ✅ | Filter by department |
-| 4.10 | Skill Search | Tìm nhân sự theo skill + level | ✅ | ?skill=&skillLevel= query |
+| 4.10 | Skill Search | Tìm nhân sự theo skill + level | ✅ | `?skill=&skillLevel=` (lọc `>=`) |
 
 ---
 
-## Module 5: Thuật toán Tối ưu hóa (Optimization Engine) ✅
+## Module 5: Thuật toán Tối ưu hóa (Optimization Engine) 🔨
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 5.1 | Genetic Algorithm | Multi-objective GA cho phân bổ nhân sự | ✅ | Tournament, Uniform Crossover, Random Mutation, Elitism |
-| 5.2 | CSP Solver | Backtracking + AC-3 cho ràng buộc cứng | ✅ | MRV + LCV heuristics, domain reduction |
-| 5.3 | Fitness Function | Workload balance + skill match + cost | ✅ | 4 objectives, configurable weights |
-| 5.4 | Constraint Validation | Kiểm tra capacity, skill, time constraints | ✅ | Hard constraints: capacity, skill, availability |
-| 5.5 | Run Optimization UI | Giao diện chạy tối ưu hóa với parameters | ✅ | Algorithm selector, param sliders, weight tuning |
-| 5.6 | Results Comparison | So sánh multiple solutions | ✅ | History list + detail view |
-| 5.7 | Apply Solution | Áp dụng kết quả tối ưu hóa vào hệ thống | ✅ | Apply assigns tasks to resources |
-| 5.8 | History | Lưu lịch sử các lần chạy tối ưu hóa | ✅ | OptimizationResult model |
-| 5.9 | Convergence Chart | Biểu đồ hội tụ GA (fitness qua generations) | ✅ | Bar chart in UI |
-| 5.10 | Performance Benchmark | Đo thời gian chạy vs kích thước bài toán | ✅ | executionTime + task/resource counts |
+| 5.1 | Genetic Algorithm | Multi-objective GA cho phân bổ nhân sự | ✅ | Tournament (k=5), Uniform Crossover, Random Mutation, Elitism 5% |
+| 5.2 | CSP Solver | Backtracking + MRV + LCV | 🔨 | Chạy được, nhưng **bước "AC-3" chỉ là bộ lọc unary theo capacity**, không phải arc consistency |
+| 5.3 | Fitness Function | Workload balance + skill match + cost + overallocation | ✅ | 4 mục tiêu, trọng số cấu hình được |
+| 5.4 | Constraint Validation | Kiểm tra capacity, skill, availability | 🔨 | H1/H2/H3 có. **H2 dùng ngưỡng tổng hợp ≥ 0.5** chứ không bắt buộc từng kỹ năng. **Ràng buộc Dependency (H4) chưa implement** |
+| 5.5 | Run Optimization UI | Giao diện chạy tối ưu hóa với parameters | ✅ | Chọn thuật toán, slider tham số, tinh chỉnh trọng số |
+| 5.6 | Results Comparison | So sánh multiple solutions | 🔨 | Chỉ có danh sách lịch sử + xem chi tiết **một** kết quả; không so sánh song song nhiều phương án |
+| 5.7 | Apply Solution | Áp dụng kết quả vào hệ thống | ✅ | Ghi `assignee` cho từng task + notification + ActivityLog |
+| 5.8 | History | Lưu lịch sử các lần chạy | ✅ | Model `OptimizationResult`, 50 bản ghi mới nhất |
+| 5.9 | Convergence Chart | Biểu đồ hội tụ GA | ✅ | Bar chart, hiển thị 40 điểm cuối |
+| 5.10 | Performance Benchmark | Đo thời gian chạy vs kích thước bài toán | ✅ | `executionTime` + `taskCount`/`resourceCount` |
+
+> ⚠️ **Hybrid không hoạt động như thiết kế**: CSP và GA chạy độc lập trên cùng dữ liệu gốc.
+> GA không nhận miền giá trị đã lọc từ CSP. Xem [ALGORITHMS.md](./ALGORITHMS.md) mục 3.
+>
+> ⚠️ **Kết quả CSP luôn có `fitness: 0`** vì `runCSPSolver` không tính/ghi `fitness` và `metrics`.
 
 ---
 
-## Module 6: Gantt Chart tương tác ✅
+## Module 6: Gantt Chart ⬜
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 6.1 | Timeline View | Hiển thị tasks trên timeline | ✅ | Split-panel: labels + scrollable timeline |
-| 6.2 | Drag & Drop | Kéo thả để thay đổi thời gian task | ✅ | Bar hover/interaction (view-focused) |
-| 6.3 | Dependencies | Hiển thị mũi tên dependency giữa tasks | ✅ | SVG Bézier curves + arrowheads |
-| 6.4 | Zoom Controls | Zoom theo Day / Week / Month | ✅ | 3 levels, dynamic cell width |
-| 6.5 | Critical Path | Highlight critical path | ✅ | Yellow outline + dependency trace |
-| 6.6 | Resource Lane | Gantt theo resource (ai làm gì khi nào) | ✅ | Toggle view: By Project / By Resource |
-| 6.7 | Milestone | Hiển thị milestones | ✅ | Progress bars + priority dots |
-| 6.8 | Export | Xuất Gantt Chart dạng ảnh/PDF | ✅ | Print window export |
+| 6.1 | Timeline View | Hiển thị tasks trên timeline | ✅ | Split-panel: sidebar tên task + timeline cuộn ngang |
+| 6.2 | Drag & Drop | Kéo thả để thay đổi thời gian task | ⬜ | **Chưa có.** Không có handler `draggable`/`onDrop`/`onMouseDown` nào trong `GanttChart.jsx` |
+| 6.3 | Dependencies | Hiển thị mũi tên dependency giữa tasks | ⬜ | **Chưa có.** Không có phần tử `<svg>` nào trong component lẫn CSS |
+| 6.4 | Zoom Controls | Zoom theo Day / Week / Month | ✅ | 3 mức, `dayWidth` 40/20/8 px |
+| 6.5 | Critical Path | Highlight critical path | ⬜ | **Chưa có** |
+| 6.6 | Resource Lane | Gantt theo resource (ai làm gì khi nào) | ⬜ | **Chưa có.** State `viewMode` được khai báo ở dòng 75 nhưng không bao giờ được sử dụng |
+| 6.7 | Milestone | Hiển thị milestones | ⬜ | **Chưa có.** Chỉ có thanh progress bên trong task bar |
+| 6.8 | Export | Xuất Gantt Chart dạng ảnh/PDF | ✅ | `window.print()` + `@media print` trong `GanttChart.css` |
+
+Ngoài ra `GanttChart.jsx` còn có: tooltip chi tiết khi hover, lọc theo dự án, tìm kiếm,
+tô màu theo status, đánh dấu cuối tuần và ngày hôm nay.
 
 ---
 
-## Module 7: Resource Histogram & Analytics ✅
+## Module 7: Resource Histogram & Analytics 🔨
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 7.1 | Resource Histogram | Stacked bar chart phân bổ theo thời gian | ✅ | Histogram bars + 100% capacity line |
-| 7.2 | Overallocation Alert | Phát hiện & cảnh báo quá tải | ✅ | Alert box + overloaded badges |
-| 7.3 | Utilization Dashboard | Dashboard utilization rate từng nhân sự | ✅ | Dashboard cards + Reports overview |
-| 7.4 | Burnout Risk Index | Chỉ số rủi ro burnout (Thấp/TB/Cao) | ✅ | Calculated in Analytics API & UI tags |
-| 7.5 | Before/After Compare | So sánh trước/sau tối ưu hóa | ✅ | Tab So sánh Trước/Sau trong Optimization |
-| 7.6 | Team Analytics | Thống kê theo team/department | ✅ | Department cards + capacity & workload |
-| 7.7 | Trend Charts | Biểu đồ xu hướng workload theo thời gian | ✅ | Task distribution + Hours efficiency |
+| 7.1 | Resource Histogram | Biểu đồ phân bổ theo nhân sự | ✅ | Thanh histogram + vạch 100% capacity |
+| 7.2 | Overallocation Alert | Phát hiện & cảnh báo quá tải | ✅ | Alert box + badge quá tải |
+| 7.3 | Utilization Dashboard | Dashboard utilization từng nhân sự | ✅ | Thẻ Dashboard + tab Reports |
+| 7.4 | Burnout Risk Index | Chỉ số rủi ro burnout (Thấp/TB/Cao) | 🔨 | API tính đúng (`>120%` cao, `>90%` trung bình), cột trong bảng chạy được, nhưng **thẻ tổng "Nguy cơ Burnout cao" luôn hiển thị 0** do đọc sai tên field |
+| 7.5 | Before/After Compare | So sánh trước/sau tối ưu hóa | 🔨 | Tab đã dựng và API đã có, nhưng **client đọc sai cấu trúc response** nên tab luôn rỗng |
+| 7.6 | Team Analytics | Thống kê theo team/department | ✅ | Thẻ phòng ban + capacity & workload |
+| 7.7 | Trend Charts | Biểu đồ xu hướng workload theo thời gian | ⬜ | **Chưa có chuỗi thời gian.** Hiện chỉ có phân bố task theo status/priority và tỉ lệ giờ ước tính/thực tế |
 
 ---
 
@@ -130,42 +141,82 @@
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 8.1 | Báo cáo tổng hợp | Summary report phân bổ nguồn lực | ✅ | Reports summary cards & tabs |
-| 8.2 | Xuất PDF | Export báo cáo dạng PDF | ✅ | Clean printable @media print layout |
-| 8.3 | Xuất Excel | Export dữ liệu dạng Excel/CSV | ✅ | UTF-8 CSV exporter |
-| 8.4 | Optimization History | Bảng lịch sử tối ưu hóa với metrics | ✅ | History list + details in Optimization |
-| 8.5 | Project Report | Báo cáo chi tiết từng dự án | ✅ | Table dự án + completion progress |
+| 8.1 | Báo cáo tổng hợp | Summary report phân bổ nguồn lực | ✅ | Thẻ tổng hợp + tabs |
+| 8.2 | Xuất PDF | Export báo cáo dạng PDF | ✅ | `window.print()` + layout `@media print` trong `Reports.css` |
+| 8.3 | Xuất Excel | Export dữ liệu dạng Excel/CSV | ✅ | CSV UTF-8 có BOM, xuất theo tab đang mở |
+| 8.4 | Optimization History | Bảng lịch sử tối ưu hóa với metrics | ✅ | Trong trang Tối ưu hóa |
+| 8.5 | Project Report | Báo cáo chi tiết từng dự án | ✅ | Bảng dự án + % completion |
 
 ---
 
-## Tính năng bổ sung (Nice to have) 🔄
+## Module 9: Quản lý Phòng ban (Department Management) ✅
+
+> Module này đã được implement đầy đủ nhưng chưa từng xuất hiện trong tài liệu trước đây.
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 9.1 | Real-time Notifications | Socket.IO notifications | ✅ | WebSocket server, Notification Center, Toast alerts |
-| 9.2 | Dark/Light Theme Toggle | Chuyển đổi theme Sáng/Tối | ✅ | Header toggle + CSS data-theme |
-| 9.3 | Multi-language | Hỗ trợ Tiếng Việt + English | ⬜ | Optional |
-| 9.4 | Import Data | Import dự án/nhân sự từ CSV | ✅ | Modal nhập CSV trong Projects & Resources |
-| 9.5 | Activity Log | Nhật ký hoạt động hệ thống | ✅ | ActivityLog model, service, controller, and ActivityLogs page |
-| 9.6 | Email Notifications | Gửi email khi được assign task | ⬜ | Optional |
+| 9.1 | Danh sách phòng ban | Kèm số lượng nhân sự mỗi phòng | ✅ | `GET /departments` trả `resourceCount` |
+| 9.2 | Tạo / sửa phòng ban | name, code, description, managerName | ✅ | Modal trong trang Nhân sự |
+| 9.3 | Xóa phòng ban | Chặn nếu còn nhân sự đang hoạt động | ✅ | Trả 400 kèm hướng dẫn |
+| 9.4 | Ràng buộc dữ liệu | Nhân sự bắt buộc thuộc phòng ban hợp lệ | ✅ | `validateDepartment` khi tạo/sửa Resource |
+
+---
+
+## Module 10: Tính năng bổ sung 🔨
+
+| # | Tính năng | Mô tả | Trạng thái | Ghi chú |
+|---|----------|-------|-----------|---------|
+| 10.1 | Real-time Notifications | Socket.IO notifications | ✅ | WebSocket có xác thực JWT, room `user:<id>`, Notification Center, Toast |
+| 10.2 | Dark/Light Theme Toggle | Chuyển đổi theme Sáng/Tối | ✅ | Switch ở Header + CSS `data-theme` |
+| 10.3 | Multi-language | Hỗ trợ Tiếng Việt + English | ⬜ | Optional — hiện chỉ có tiếng Việt |
+| 10.4 | Import Data | Import dự án/nhân sự từ CSV | ✅ | Modal **dán nội dung CSV** (chưa hỗ trợ chọn file) trong Projects & Resources |
+| 10.5 | Activity Log | Nhật ký hoạt động hệ thống | ✅ | Model + service + controller + trang ActivityLogs, lọc theo entity/action/user/thời gian |
+| 10.6 | Email Notifications | Gửi email khi được assign task | ⬜ | Optional — chưa có |
 
 ---
 
 ## Thống kê tổng quan
 
-| Module | Tổng tính năng | Hoàn thành | % |
-|--------|---------------|-----------|---|
-| 1. Auth | 7 | 7 | 100% |
-| 2. Projects | 9 | 9 | 100% |
-| 3. Tasks | 11 | 11 | 100% |
-| 4. Resources | 10 | 10 | 100% |
-| 5. Optimization | 10 | 10 | 100% |
-| 6. Gantt Chart | 8 | 8 | 100% |
-| 7. Analytics | 7 | 7 | 100% |
-| 8. Reports | 5 | 5 | 100% |
-| 9. Bonus | 6 | 4 | 67% |
-| **Tổng** | **73** | **71** | **97.3%** |
+| Module | Tổng | ✅ Hoàn thành | 🔨 Một phần | ⬜ Chưa có |
+|--------|------|--------------|-------------|-----------|
+| 1. Auth | 7 | 6 | 1 | 0 |
+| 2. Projects | 9 | 7 | 0 | 2 |
+| 3. Tasks | 11 | 9 | 1 | 1 |
+| 4. Resources | 10 | 9 | 1 | 0 |
+| 5. Optimization | 10 | 7 | 3 | 0 |
+| 6. Gantt Chart | 8 | 3 | 0 | 5 |
+| 7. Analytics | 7 | 4 | 2 | 1 |
+| 8. Reports | 5 | 5 | 0 | 0 |
+| 9. Departments | 4 | 4 | 0 | 0 |
+| 10. Bổ sung | 6 | 4 | 0 | 2 |
+| **Tổng** | **77** | **58 (75.3%)** | **8 (10.4%)** | **11 (14.3%)** |
 
+Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 80.5%**.
 
+---
 
+## Backlog — các hạng mục còn thiếu
 
+Sắp theo mức độ ảnh hưởng tới trải nghiệm:
+
+1. **Trang chi tiết dự án + UI quản lý thành viên** (2.3, 2.7) — backend đã sẵn sàng hoàn toàn, chỉ thiếu UI.
+2. **Gantt nâng cao** (6.2, 6.3, 6.5, 6.6, 6.7) — 5 tính năng, khối lượng lớn nhất.
+3. **UI thiết lập Task Dependencies** (3.7) — schema và API đã có.
+4. **UI lịch nghỉ / unavailablePeriods** (4.6) — CSP solver đã dùng dữ liệu này để lọc.
+5. **Ràng buộc Dependency trong CSP** (5.4 / H4).
+6. **Hybrid thực sự nối CSP → GA** (5.6 / ALGORITHMS.md mục 3).
+7. **Trend chart theo thời gian** (7.7).
+8. Đa ngôn ngữ (10.3), email notification (10.6).
+
+## Lỗi đã biết cần sửa
+
+| Vị trí | Lỗi | Hệ quả |
+|--------|-----|--------|
+| `Optimization.jsx` tab So sánh | Đọc `metrics.after.stdDev`, `resources[].beforeWorkload`; API trả `{current, optimized, improvement}` | Tab Trước/Sau luôn rỗng (7.5) |
+| `Optimization.jsx` cột Skill Match | Đọc `record.skillMatchScore`; DB lưu `skillMatch` | Luôn hiển thị 85% cứng |
+| `Reports.jsx` | Đọc `summary.highBurnoutRisk`; API trả `summary.highBurnout` | Thẻ burnout luôn 0 (7.4) |
+| `Tasks.jsx:190` | Gửi `{name, minLevel}`; schema là `level` | `requiredSkills.level` luôn = 3 (3.9) |
+| `optimization.controller.js` nhánh CSP | Không ghi `fitness`/`metrics` | Lịch sử CSP hiển thị fitness 0 |
+| `auth.controller.js` vs `middleware/auth.js` | Fallback JWT secret khác nhau khi thiếu `JWT_SECRET` | Login OK nhưng mọi request protected trả 401 |
+| `utils/seeder.js` | Đọc `MONGO_URI` (đúng: `MONGODB_URI`), `dotenv.config()` không trỏ `../.env` | Seed luôn ghi vào DB mặc định, bỏ qua cấu hình |
+| `constants/index.js` | Không được import ở đâu; `TASK_STATUS.IN_REVIEW='in_review'` sai (server dùng `review`), thiếu `blocked` | Dead code lạc hậu |

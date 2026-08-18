@@ -10,36 +10,47 @@ Hệ thống **Resource Allocation Optimization (RAO)** là Web Application hỗ
 
 ## Đối tượng sử dụng
 
-| Vai trò | Mô tả | Quyền hạn |
-|---------|-------|-----------|
-| **Admin** | Quản trị hệ thống | Full access |
-| **Project Manager** | Quản lý dự án | Quản lý dự án, task, xem báo cáo, chạy tối ưu hóa |
-| **Member** | Thành viên dự án | Xem task được gán, cập nhật tiến độ |
+| Vai trò | Mô tả | Quyền riêng (thực tế trong code) |
+|---------|-------|----------------------------------|
+| **Admin** | Quản trị hệ thống | Toàn quyền. Riêng: xem danh sách tài khoản, xóa nhân sự, xóa phòng ban, tính lại workload, xóa nhật ký hoạt động |
+| **Project Manager** | Quản lý dự án | Tạo/sửa/xóa dự án, quản lý thành viên dự án, thêm/sửa nhân sự, tạo/sửa phòng ban, áp dụng kết quả tối ưu hóa |
+| **Member** | Thành viên dự án | Xem toàn bộ dữ liệu, chạy tối ưu hóa, và **CRUD toàn bộ task** + **sửa skill matrix** của bất kỳ nhân sự nào |
+
+> ⚠️ **Phân quyền hiện chưa siết đúng thiết kế.** Toàn bộ `/api/tasks` và
+> `PUT /api/resources/:id/skills` chỉ kiểm tra đã đăng nhập, không kiểm tra role.
+> Chi tiết từng endpoint: xem [API.md](./API.md).
 
 ## Kiến trúc hệ thống
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     Client (React + Vite)                │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐ │
-│  │Dashboard │ │ Projects │ │  Tasks   │ │ Resources  │ │
-│  └──────────┘ └──────────┘ └──────────┘ └────────────┘ │
+┌──────────────────────────────────────────────────────────┐
+│           Client (React 18 + Vite + Ant Design)           │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────────┐ │
+│  │Dashboard │ │ Projects │ │  Tasks   │ │  Resources  │ │
+│  └──────────┘ └──────────┘ └──────────┘ └─────────────┘ │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────────┐ │
+│  │  Gantt   │ │ Reports  │ │Optimize  │ │  Settings   │ │
+│  └──────────┘ └──────────┘ └──────────┘ └─────────────┘ │
+│  ┌──────────────┐ ┌───────────────────────────────────┐ │
+│  │ActivityLogs  │ │ Login / Register                  │ │
+│  └──────────────┘ └───────────────────────────────────┘ │
+└──────────┬──────────────────────────────┬───────────────┘
+           │ REST API (Axios + JWT)       │ WebSocket
+┌──────────┴──────────────────────────────┴───────────────┐
+│              Server (Node.js + Express + Socket.IO)       │
 │  ┌──────────┐ ┌──────────┐ ┌──────────────────────────┐ │
-│  │  Gantt   │ │ Reports  │ │    Optimization UI       │ │
+│  │  Routes  │ │   Auth   │ │      Controllers         │ │
+│  │ (9 nhóm) │ │  (JWT)   │ │                          │ │
 │  └──────────┘ └──────────┘ └──────────────────────────┘ │
-└─────────────────────┬───────────────────────────────────┘
-                      │ REST API (Axios)
-┌─────────────────────┴───────────────────────────────────┐
-│                 Server (Node.js + Express)                │
-│  ┌──────────┐ ┌──────────┐ ┌──────────────────────────┐ │
-│  │  Routes  │ │  Auth    │ │     Controllers          │ │
-│  └──────────┘ └──────────┘ └──────────────────────────┘ │
-│  ┌──────────────────────────────────────────────────────┐ │
-│  │              Algorithm Engine                        │ │
-│  │  ┌──────────────────┐  ┌──────────────────────────┐ │ │
-│  │  │ Genetic Algorithm│  │      CSP Solver          │ │ │
-│  │  └──────────────────┘  └──────────────────────────┘ │ │
-│  └──────────────────────────────────────────────────────┘ │
+│  ┌──────────────────────────────────────────────────────┐│
+│  │              Algorithm Engine                         ││
+│  │  ┌──────────────────┐  ┌──────────────────────────┐  ││
+│  │  │ Genetic Algorithm│  │      CSP Solver          │  ││
+│  │  └──────────────────┘  └──────────────────────────┘  ││
+│  └──────────────────────────────────────────────────────┘│
+│  ┌──────────────────────────────────────────────────────┐│
+│  │  Services: socket · notification · activityLog       ││
+│  └──────────────────────────────────────────────────────┘│
 └─────────────────────┬───────────────────────────────────┘
                       │ Mongoose ODM
 ┌─────────────────────┴───────────────────────────────────┐
@@ -47,6 +58,12 @@ Hệ thống **Resource Allocation Optimization (RAO)** là Web Application hỗ
 │  ┌────────┐ ┌──────────┐ ┌──────┐ ┌──────────────────┐  │
 │  │ Users  │ │ Projects │ │Tasks │ │    Resources     │  │
 │  └────────┘ └──────────┘ └──────┘ └──────────────────┘  │
+│  ┌────────────┐ ┌───────────────┐ ┌──────────────────┐  │
+│  │Departments │ │ Notifications │ │  ActivityLogs    │  │
+│  └────────────┘ └───────────────┘ └──────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │            OptimizationResults                    │   │
+│  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -56,23 +73,25 @@ Hệ thống **Resource Allocation Optimization (RAO)** là Web Application hỗ
 ResourceAllocation/
 ├── client/                    # Frontend
 │   ├── src/
-│   │   ├── components/        # UI Components
-│   │   ├── pages/             # Page Components
-│   │   ├── context/           # React Context
-│   │   ├── services/          # API Services
-│   │   ├── constants/         # Constants
-│   │   └── styles/            # CSS
-│   └── ...
+│   │   ├── components/        # common/ (ProtectedRoute), layout/ (Sidebar, Header)
+│   │   ├── pages/             # 11 page components + CSS riêng
+│   │   ├── context/           # AuthContext, SocketContext, ThemeContext
+│   │   ├── services/          # 10 API service module (Axios)
+│   │   ├── constants/         # Constants (hiện chưa được import ở đâu)
+│   │   └── styles/            # index.css + antdTheme.js
+│   └── vite.config.js         # Dev server port 5173 + proxy /api → :5000
 ├── server/                    # Backend
-│   ├── src/
-│   │   ├── algorithms/        # GA + CSP
-│   │   ├── config/            # DB Config
-│   │   ├── controllers/       # Route Handlers
-│   │   ├── middleware/        # Auth, Error
-│   │   ├── models/            # Mongoose Models
-│   │   ├── routes/            # API Routes
-│   │   └── services/          # Business Logic
-│   └── ...
+│   ├── server.js              # HTTP server + Socket.IO + start
+│   ├── app.js                 # Express app + mount routes
+│   └── src/
+│       ├── algorithms/        # genetic/ + csp/
+│       ├── config/            # db.js
+│       ├── controllers/       # 9 controllers
+│       ├── middleware/        # auth, error, validate
+│       ├── models/            # 8 Mongoose models
+│       ├── routes/            # 9 route files (kèm validation inline)
+│       ├── services/          # socket, notification, activityLog
+│       └── utils/             # seeder.js
 └── docs/                      # Documentation
 ```
 

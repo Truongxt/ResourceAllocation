@@ -2,25 +2,81 @@
 
 > Tài liệu mô tả tất cả API endpoints của hệ thống RAO.
 > Base URL: `http://localhost:5000/api`
+>
+> Tài liệu này đã được đối chiếu trực tiếp với mã nguồn (`server/src/routes/`, `server/src/controllers/`)
+> và kiểm chứng bằng request thật. Tổng cộng **51 endpoints**.
 
 ## Chú thích
 
 - 🔓 Public - Không cần authentication
-- 🔒 Protected - Cần JWT token
-- 👑 Admin only - Chỉ admin
-- 📋 PM+ - Project Manager trở lên
+- 🔒 Protected - Cần JWT token (bất kỳ user nào đã đăng nhập)
+- 👑 Admin only - Chỉ role `admin`
+- 📋 PM+ - `admin` hoặc `project_manager`
+
+---
+
+## Định dạng Response chung
+
+Mọi response thành công đều bọc dữ liệu trong `data` **dưới một key có tên**, không trả mảng/object trần:
+
+```json
+// Chi tiết một bản ghi
+{ "success": true, "data": { "project": { ... } }, "message": "..." }
+
+// Danh sách (có phân trang)
+{
+  "success": true,
+  "count": 20,              // số bản ghi trong trang hiện tại
+  "total": 25,              // tổng số bản ghi khớp filter (NẰM NGOÀI pagination)
+  "pagination": { "page": 1, "limit": 20, "pages": 2 },
+  "data": { "projects": [ ... ] }
+}
+```
+
+**Lưu ý:** `total` nằm ở cấp gốc, không nằm trong `pagination`. Key bên trong `data` thay đổi
+theo tài nguyên: `projects`, `tasks`, `resources`, `departments`, `users`, `logs`,
+`notifications`, `results`, `result`, `project`, `task`, `resource`, `notification`, `department`.
+
+### Response lỗi
+
+```json
+{
+  "success": false,
+  "message": "Mô tả lỗi",
+  "errors": [ { "field": "email", "message": "Email không hợp lệ" } ],
+  "stack": "... (chỉ ở NODE_ENV=development)"
+}
+```
+
+`errors[]` chỉ xuất hiện với lỗi validation (express-validator). `message` khi đó là thông báo lỗi **đầu tiên**.
+
+### Tham số phân trang
+
+Các endpoint danh sách nhận `?page=&limit=&sort=`:
+
+| Endpoint | `limit` mặc định | `limit` tối đa |
+|----------|------------------|----------------|
+| `GET /projects` | 20 | 100 |
+| `GET /tasks` | 50 | 100 |
+| `GET /resources` | 50 | 100 |
+| `GET /activity-logs` | 20 | 100 |
+| `GET /notifications` | 20 | 100 |
+
+`sort` mặc định `-createdAt`. `GET /optimization/history` **không phân trang** (cố định 50 bản ghi mới nhất).
+`GET /departments` không phân trang.
 
 ---
 
 ## 1. Authentication (`/api/auth`)
 
-| Method | Endpoint | Mô tả | Auth | Status |
-|--------|----------|-------|------|--------|
-| POST | `/register` | Đăng ký tài khoản | 🔓 | ⬜ TODO |
-| POST | `/login` | Đăng nhập | 🔓 | ⬜ TODO |
-| GET | `/me` | Lấy thông tin user hiện tại | 🔒 | ⬜ TODO |
-| PUT | `/profile` | Cập nhật profile | 🔒 | ⬜ TODO |
-| PUT | `/password` | Đổi mật khẩu | 🔒 | ⬜ TODO |
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| POST | `/register` | Đăng ký tài khoản | 🔓 |
+| POST | `/login` | Đăng nhập | 🔓 |
+| GET | `/me` | Lấy thông tin user hiện tại | 🔒 |
+| PUT | `/profile` | Cập nhật profile (name, department, avatar) | 🔒 |
+| PUT | `/password` | Đổi mật khẩu | 🔒 |
+| GET | `/users` | Danh sách tất cả tài khoản | 👑 |
 
 ### POST `/api/auth/register`
 ```json
@@ -29,7 +85,7 @@
   "name": "Nguyễn Văn A",
   "email": "nguyenvana@example.com",
   "password": "password123",
-  "role": "member"
+  "role": "member"            // optional: 'admin' | 'project_manager' | 'member'
 }
 
 // Response 201
@@ -45,10 +101,7 @@
 ### POST `/api/auth/login`
 ```json
 // Request Body
-{
-  "email": "nguyenvana@example.com",
-  "password": "password123"
-}
+{ "email": "nguyenvana@example.com", "password": "password123" }
 
 // Response 200
 {
@@ -60,53 +113,70 @@
 }
 ```
 
+### PUT `/api/auth/password`
+Trả về **token mới** sau khi đổi mật khẩu: `{ "success": true, "data": { "token": "..." } }`
+
 ---
 
 ## 2. Projects (`/api/projects`)
 
-| Method | Endpoint | Mô tả | Auth | Status |
-|--------|----------|-------|------|--------|
-| GET | `/` | Danh sách dự án | 🔒 | ⬜ TODO |
-| GET | `/:id` | Chi tiết dự án | 🔒 | ⬜ TODO |
-| POST | `/` | Tạo dự án | 📋 PM+ | ⬜ TODO |
-| PUT | `/:id` | Cập nhật dự án | 📋 PM+ | ⬜ TODO |
-| DELETE | `/:id` | Xóa dự án | 👑 Admin | ⬜ TODO |
-| POST | `/:id/members` | Thêm thành viên | 📋 PM+ | ⬜ TODO |
-| DELETE | `/:id/members/:userId` | Xóa thành viên | 📋 PM+ | ⬜ TODO |
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/stats/summary` | Thống kê dự án (theo status, priority, tổng ngân sách) | 🔒 |
+| GET | `/` | Danh sách dự án | 🔒 |
+| GET | `/:id` | Chi tiết dự án (kèm tasks + members, tự tính lại progress) | 🔒 |
+| POST | `/` | Tạo dự án | 📋 PM+ |
+| PUT | `/:id` | Cập nhật dự án | 📋 PM+ |
+| DELETE | `/:id` | Xóa dự án | 📋 PM+ |
+| POST | `/:id/members` | Thêm thành viên | 📋 PM+ |
+| PUT | `/:id/members/:userId` | Cập nhật vai trò / allocation của thành viên | 📋 PM+ |
+| DELETE | `/:id/members/:userId` | Xóa thành viên | 📋 PM+ |
+
+**Query filter cho `GET /`**: `status`, `priority`, `manager`, `search` (tìm trong name/code/description),
+`startDate`, `endDate` (lọc theo `startDate` của dự án), `page`, `limit`, `sort`.
 
 ### POST `/api/projects`
 ```json
-// Request Body
+// Request Body — startDate & endDate BẮT BUỘC
 {
   "name": "Website Redesign",
   "description": "Thiết kế lại giao diện website",
-  "code": "WRD",
+  "code": "WRD",                    // optional, tối đa 10 ký tự, tự uppercase, unique
   "priority": "high",
   "startDate": "2026-08-01",
   "endDate": "2026-12-31",
-  "budget": 50000
+  "budget": 50000,
+  "manager": "user_id"              // optional — mặc định là user đang đăng nhập
 }
 
 // Response 201
-{
-  "success": true,
-  "data": { /* project object */ }
-}
+{ "success": true, "data": { "project": { ... } }, "message": "Tạo dự án thành công" }
 ```
+
+### DELETE `/api/projects/:id`
+Nếu dự án còn task, API trả **400** kèm hướng dẫn. Thêm `?force=true` để xóa dự án **và toàn bộ task** của nó.
+
+### Danh sách dự án có thêm `taskStats`
+Mỗi phần tử trong `GET /` được bổ sung `taskStats: { totalTasks, completedTasks }`.
 
 ---
 
 ## 3. Tasks (`/api/tasks`)
 
-| Method | Endpoint | Mô tả | Auth | Status |
-|--------|----------|-------|------|--------|
-| GET | `/` | Danh sách tasks | 🔒 | ⬜ TODO |
-| GET | `/:id` | Chi tiết task | 🔒 | ⬜ TODO |
-| POST | `/` | Tạo task | 📋 PM+ | ⬜ TODO |
-| PUT | `/:id` | Cập nhật task | 🔒 | ⬜ TODO |
-| DELETE | `/:id` | Xóa task | 📋 PM+ | ⬜ TODO |
-| PUT | `/:id/assign` | Gán nhân sự | 📋 PM+ | ⬜ TODO |
-| PUT | `/:id/status` | Thay đổi status | 🔒 | ⬜ TODO |
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/stats/summary` | Thống kê task (status, priority, tổng giờ) | 🔒 |
+| GET | `/` | Danh sách tasks | 🔒 |
+| GET | `/:id` | Chi tiết task | 🔒 |
+| POST | `/` | Tạo task | 🔒 |
+| PUT | `/:id` | Cập nhật task (bao gồm gán `assignee`) | 🔒 |
+| PATCH | `/:id/status` | Đổi nhanh status (dùng cho Kanban drag & drop) | 🔒 |
+| DELETE | `/:id` | Xóa task | 🔒 |
+
+> ⚠️ Toàn bộ endpoint task chỉ yêu cầu đăng nhập — **không** giới hạn PM+.
+> Member cũng có thể tạo/sửa/xóa bất kỳ task nào.
+
+**Query filter cho `GET /`**: `project`, `status`, `priority`, `assignee`, `search` (title/description), `page`, `limit`, `sort`.
 
 ### POST `/api/tasks`
 ```json
@@ -114,117 +184,304 @@
 {
   "title": "Thiết kế UI Dashboard",
   "description": "Thiết kế giao diện trang Dashboard",
-  "project": "project_id_here",
+  "project": "project_id_here",       // BẮT BUỘC
   "priority": "high",
+  "status": "todo",                   // 'todo'|'in_progress'|'review'|'done'|'blocked'
   "startDate": "2026-08-05",
   "endDate": "2026-08-15",
   "estimatedHours": 40,
+  "assignee": "user_id",              // ObjectId của User (KHÔNG phải Resource)
+  "dependencies": ["task_id_1"],      // mảng ObjectId phẳng
   "requiredSkills": [
-    { "skill": "Figma", "level": 3 },
-    { "skill": "React", "level": 2 }
+    { "name": "Figma", "level": 3, "weight": 1 },
+    { "name": "React", "level": 2, "weight": 0.5 }
   ]
 }
 ```
+
+**Lưu ý quan trọng về `requiredSkills`**: field tên là `name` (không phải `skill`), kèm `level`
+(1-5, mặc định 3) và `weight` (0-1, mặc định 1). Gửi sai tên field sẽ bị Mongoose loại bỏ âm thầm.
+
+### Hành vi tự động
+- Tạo/sửa/xóa task đều **tính lại `progress` của dự án** (trung bình progress các task, task `done` tính 100).
+- `PUT /:id` khi đổi status sang `done` → `progress` tự set 100.
+- `PATCH /:id/status`: `done` → progress 100; `todo` → progress 0.
+- Không cho phép đổi `project` của task qua `PUT`.
+- Xóa task sẽ gỡ nó khỏi `dependencies` của mọi task khác.
+- Gán `assignee` cho người khác sẽ tạo **notification real-time** qua Socket.IO.
 
 ---
 
 ## 4. Resources (`/api/resources`)
 
-| Method | Endpoint | Mô tả | Auth | Status |
-|--------|----------|-------|------|--------|
-| GET | `/` | Danh sách nhân sự | 🔒 | ⬜ TODO |
-| GET | `/:id` | Chi tiết nhân sự | 🔒 | ⬜ TODO |
-| POST | `/` | Thêm nhân sự | 📋 PM+ | ⬜ TODO |
-| PUT | `/:id` | Cập nhật nhân sự | 📋 PM+ | ⬜ TODO |
-| DELETE | `/:id` | Xóa nhân sự | 👑 Admin | ⬜ TODO |
-| GET | `/:id/skills` | Lấy skill matrix | 🔒 | ⬜ TODO |
-| PUT | `/:id/skills` | Cập nhật skills | 📋 PM+ | ⬜ TODO |
-| GET | `/:id/workload` | Lấy workload | 🔒 | ⬜ TODO |
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/stats/summary` | Thống kê nhân sự (availability, department, utilization) | 🔒 |
+| POST | `/recalculate-workload` | Tính lại workload + availability cho toàn bộ nhân sự | 👑 |
+| GET | `/` | Danh sách nhân sự | 🔒 |
+| GET | `/:id` | Chi tiết nhân sự + danh sách task đang được gán | 🔒 |
+| POST | `/` | Thêm nhân sự | 📋 PM+ |
+| PUT | `/:id` | Cập nhật nhân sự | 📋 PM+ |
+| PUT | `/:id/skills` | Cập nhật skill matrix | 🔒 |
+| DELETE | `/:id` | Xóa nhân sự | 👑 |
+
+> ⚠️ `PUT /:id/skills` chỉ yêu cầu đăng nhập — Member cũng sửa được kỹ năng của bất kỳ nhân sự nào.
+
+**Query filter cho `GET /`**: `department`, `availability`, `skill` (regex theo tên kỹ năng),
+`skillLevel` (1-4, lọc `>=`), `isActive`, `search` (position/department/employeeId), `page`, `limit`, `sort`.
+
+### POST `/api/resources`
+Cho phép **liên kết tài khoản có sẵn** hoặc **tạo tài khoản mới cùng lúc**:
+
+```json
+// Cách 1 — liên kết User đã tồn tại
+{ "user": "user_id", "position": "Backend Developer", "department": "Engineering" }
+
+// Cách 2 — tạo User mới kèm theo
+{
+  "newUser": { "name": "Trần B", "email": "b@rao.com", "password": "123456", "role": "member" },
+  "position": "Backend Developer",
+  "department": "Engineering",
+  "maxCapacity": 40,
+  "fte": 1,
+  "hourlyRate": 25,
+  "skills": [{ "name": "Node.js", "level": 3, "yearsOfExperience": 2 }]
+}
+```
+
+- `position` và `department` **bắt buộc**. `department` phải trùng tên một Department đang `isActive`,
+  nếu không API trả 400 `"Phòng ban không hợp lệ hoặc chưa được tạo"`.
+- `employeeId` **do hệ thống tự sinh** (`NV0001`, `NV0002`...). Giá trị client gửi lên bị bỏ qua.
+- Nếu tạo User mới thất bại ở bước tạo Resource, User vừa tạo sẽ được rollback.
+
+### GET `/api/resources/:id`
+```json
+{ "success": true, "data": { "resource": { ... }, "assignments": [ /* task todo/in_progress/review */ ] } }
+```
 
 ---
 
-## 5. Optimization (`/api/optimization`)
+## 5. Departments (`/api/departments`)
 
-| Method | Endpoint | Mô tả | Auth | Status |
-|--------|----------|-------|------|--------|
-| POST | `/run` | Chạy tối ưu hóa | 📋 PM+ | ⬜ TODO |
-| GET | `/history` | Lịch sử tối ưu hóa | 🔒 | ⬜ TODO |
-| GET | `/:id/result` | Kết quả tối ưu hóa | 🔒 | ⬜ TODO |
-| POST | `/:id/apply` | Áp dụng kết quả | 📋 PM+ | ⬜ TODO |
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/` | Danh sách phòng ban (kèm `resourceCount`) | 🔒 |
+| POST | `/` | Tạo phòng ban | 📋 PM+ |
+| PUT | `/:id` | Cập nhật phòng ban | 📋 PM+ |
+| DELETE | `/:id` | Xóa phòng ban | 👑 |
 
-### POST `/api/optimization/run`
+**Query filter**: `isActive` (boolean), `search` (theo `name`).
+
 ```json
-// Request Body
-{
-  "algorithm": "genetic",
-  "projectIds": ["project_id_1", "project_id_2"],
-  "parameters": {
-    "populationSize": 100,
-    "maxGenerations": 500,
-    "crossoverRate": 0.8,
-    "mutationRate": 0.1
-  },
-  "weights": {
-    "workloadBalance": 0.3,
-    "skillMatch": 0.35,
-    "cost": 0.15,
-    "overallocation": 0.2
-  }
-}
+// POST body
+{ "name": "Engineering", "code": "ENG", "description": "...", "managerName": "...", "isActive": true }
+```
 
-// Response 200
+`name` unique & bắt buộc; `code` unique (sparse), tối đa 12 ký tự, tự uppercase.
+**Không xóa được** phòng ban đang có nhân sự `isActive` → trả 400.
+
+---
+
+## 6. Optimization (`/api/optimization`)
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| POST | `/run/genetic` | Chạy Genetic Algorithm | 🔒 |
+| POST | `/run/csp` | Chạy CSP Solver | 🔒 |
+| POST | `/run/hybrid` | Chạy Hybrid (CSP + GA) | 🔒 |
+| GET | `/history` | Lịch sử tối ưu hóa (50 bản ghi mới nhất) | 🔒 |
+| GET | `/:id` | Chi tiết một kết quả | 🔒 |
+| POST | `/:id/apply` | Áp dụng kết quả vào hệ thống | 📋 PM+ |
+
+> Không có endpoint `POST /run` gộp — mỗi thuật toán một đường dẫn riêng.
+> Chi tiết kết quả là `GET /:id`, **không phải** `GET /:id/result`.
+
+### POST `/api/optimization/run/genetic`
+Body **phẳng** (không lồng `parameters`/`weights`), và chỉ nhận **một** `projectId`:
+
+```json
+{
+  "projectId": "project_id",     // optional — bỏ trống = tối ưu toàn hệ thống
+  "populationSize": 100,
+  "maxGenerations": 500,
+  "crossoverRate": 0.8,
+  "mutationRate": 0.1,
+  "workloadWeight": 0.30,
+  "skillWeight": 0.35,
+  "costWeight": 0.15,
+  "overallocationWeight": 0.20
+}
+```
+
+Chỉ những task ở trạng thái `todo` / `in_progress` / `review` được đưa vào tối ưu hóa.
+Nếu không có task hoặc không có nhân sự → **400**.
+
+### POST `/api/optimization/run/csp`
+```json
+{ "projectId": "...", "maxIterations": 10000, "timeout": 30000, "minSkillMatchThreshold": 0.5 }
+```
+
+### POST `/api/optimization/run/hybrid`
+Nhận cùng bộ tham số như GA (`projectId` + các tham số GA).
+Response có thêm `cspFeasible` ở cấp `data`.
+
+### Response của cả 3 endpoint run
+
+Trả về **nguyên document `OptimizationResult`**, không phải object rút gọn:
+
+```json
 {
   "success": true,
   "data": {
-    "resultId": "...",
-    "assignments": [...],
-    "metrics": {
-      "totalFitness": 0.87,
-      "workloadVariance": 2.3,
-      "averageSkillMatch": 0.92,
-      "executionTimeMs": 1500
+    "result": {
+      "_id": "...",
+      "algorithm": "genetic",
+      "status": "completed",              // 'running' | 'completed' | 'failed'
+      "fitness": 0.8734,                  // ở CẤP GỐC, không phải metrics.totalFitness
+      "executionTime": 1500,              // ms — không phải executionTimeMs
+      "generations": 120,
+      "taskCount": 12,
+      "resourceCount": 3,
+      "assignments": [
+        { "task": "...", "taskTitle": "...", "resource": "...",
+          "resourceName": "...", "skillMatch": 100, "estimatedHours": 40 }
+      ],
+      "metrics": {
+        "workloadVariance": 2.3,
+        "averageSkillMatch": 92,          // THANG 0-100 (%), không phải 0-1
+        "totalCost": 12500,
+        "overallocatedResources": 0,      // không phải overallocatedCount
+        "averageUtilization": 78,
+        "resourceUtilization": [
+          { "resource": "...", "name": "...", "workload": 32,
+            "capacity": 40, "utilization": 80, "isOverloaded": false }
+        ]
+      },
+      "convergenceHistory": [ { "generation": 0, "fitness": 0.74 } ],  // mảng OBJECT
+      "constraintReport": { "satisfied": 3, "violated": 0 },
+      "isApplied": false, "appliedAt": null, "appliedBy": null
     }
   }
 }
 ```
 
+> ⚠️ **Hiện trạng CSP**: `runCSPSolver` không ghi `fitness` và `metrics` (CSPSolver không tính hai giá
+> trị này), nên kết quả CSP trong lịch sử luôn hiển thị `fitness: 0` và `metrics` rỗng.
+> Chỉ `assignments`, `constraintReport`, `iterations`, `executionTime` là có dữ liệu.
+
+### POST `/api/optimization/:id/apply`
+Ghi `assignee` cho từng task theo `assignments`, dùng `resource.user` (User ID) làm giá trị.
+Chỉ áp dụng được kết quả `status === 'completed'` và chưa từng `isApplied`.
+Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
+
+```json
+{ "success": true, "data": { "result": {...}, "appliedCount": 12 }, "message": "..." }
+```
+
 ---
 
-## 6. Health Check
+## 7. Analytics (`/api/analytics`)
 
 | Method | Endpoint | Mô tả | Auth |
 |--------|----------|-------|------|
-| GET | `/health` | Kiểm tra server status | 🔓 |
+| GET | `/dashboard` | Tổng quan dashboard (projects/tasks/resources + hoạt động gần đây) | 🔒 |
+| GET | `/utilization` | Utilization từng nhân sự + theo phòng ban + burnout risk | 🔒 |
+| GET | `/tasks` | Phân bố task theo status/priority/project + tỉ lệ giờ | 🔒 |
+| GET | `/optimization-comparison/:id` | So sánh trạng thái hiện tại vs kết quả tối ưu hóa | 🔒 |
 
----
-
-## Error Response Format
-
-```json
-{
-  "success": false,
-  "message": "Mô tả lỗi",
-  "stack": "... (chỉ hiển thị ở development mode)"
-}
-```
-
-## Pagination
-
-Các endpoints trả về danh sách hỗ trợ pagination:
-
-```
-GET /api/projects?page=1&limit=10&sort=-createdAt
-```
-
+### GET `/api/analytics/utilization`
 ```json
 {
   "success": true,
-  "data": [...],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 25,
-    "pages": 3
+  "data": {
+    "resources": [
+      { "_id": "...", "name": "...", "department": "...", "position": "...",
+        "capacity": 40, "workload": 32, "utilization": 80, "taskCount": 3,
+        "availability": "available", "isOverloaded": false,
+        "burnoutRisk": "low",        // >120% = 'high', >90% = 'medium', còn lại 'low'
+        "skillCount": 5 }
+    ],
+    "departments": [ { "name": "...", "totalCapacity": 120, "totalWorkload": 90, "count": 3, "utilization": 75 } ],
+    "summary": { "totalResources": 3, "overloaded": 0, "highBurnout": 0, "avgUtilization": 62 }
   }
 }
 ```
+> Field là `summary.highBurnout` (không phải `highBurnoutRisk`).
+
+### GET `/api/analytics/optimization-comparison/:id`
+```json
+{
+  "success": true,
+  "data": {
+    "current":   [ { "name": "...", "workload": 20, "capacity": 40, "utilization": 50 } ],
+    "optimized": [ { "name": "...", "workload": 32, "capacity": 40, "utilization": 80 } ],
+    "improvement": { "fitness": 0.87, "skillMatch": 92, "workloadVariance": 2.3 }
+  }
+}
+```
+Chỉ nhận `id` của kết quả `status === 'completed'`, ngược lại trả 404.
+
+---
+
+## 8. Notifications (`/api/notifications`)
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/` | Thông báo của user hiện tại | 🔒 |
+| PATCH | `/read-all` | Đánh dấu tất cả đã đọc | 🔒 |
+| PATCH | `/:id/read` | Đánh dấu một thông báo đã đọc | 🔒 |
+
+**Query**: `unread=true` để chỉ lấy chưa đọc, `page`, `limit`.
+Response `GET /` có thêm `unreadCount` ở cấp gốc.
+
+### Sự kiện Socket.IO
+Client kết nối tới `http://localhost:5000` với `auth: { token }`. Server đưa socket vào room `user:<userId>`.
+
+| Event | Hướng | Payload |
+|-------|-------|---------|
+| `notification:new` | Server → Client | Document Notification đã populate `actor` |
+| `notification:read` | Server → Client | `{ id }` |
+| `notification:read-all` | Server → Client | `{}` |
+
+---
+
+## 9. Activity Logs (`/api/activity-logs`)
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/` | Danh sách nhật ký hoạt động | 🔒 |
+| GET | `/stats` | Thống kê (tổng, hôm nay, theo entityType, top 5 user) | 🔒 |
+| DELETE | `/` | Xóa toàn bộ nhật ký | 👑 |
+
+**Query filter cho `GET /`**: `entityType`, `action`, `user`, `search` (description/entityTitle/userName),
+`startDate` + `endDate` (phải có cả hai), `page`, `limit`.
+
+Các `action` đang được ghi: `CREATE_PROJECT`, `UPDATE_PROJECT`, `DELETE_PROJECT`,
+`CREATE_TASK`, `UPDATE_TASK`, `UPDATE_TASK_STATUS`, `DELETE_TASK`, `APPLY_OPTIMIZATION`.
+
+---
+
+## 10. Health Check
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/api/health` | Kiểm tra server status | 🔓 |
+
+```json
+{ "status": "ok", "message": "Resource Allocation Optimization API is running", "timestamp": "2026-08-18T12:20:38.360Z" }
+```
+
+---
+
+## Phụ lục: các endpoint KHÔNG tồn tại
+
+Những đường dẫn sau từng xuất hiện ở bản tài liệu cũ nhưng **không có trong code** (đã kiểm chứng: trả 404):
+
+| Đường dẫn cũ (sai) | Thay bằng |
+|--------------------|-----------|
+| `PUT /api/tasks/:id/assign` | `PUT /api/tasks/:id` với field `assignee` |
+| `PUT /api/tasks/:id/status` | `PATCH /api/tasks/:id/status` |
+| `GET /api/resources/:id/skills` | `GET /api/resources/:id` (skills nằm trong resource) |
+| `GET /api/resources/:id/workload` | `GET /api/analytics/utilization` |
+| `POST /api/optimization/run` | `POST /api/optimization/run/genetic\|csp\|hybrid` |
+| `GET /api/optimization/:id/result` | `GET /api/optimization/:id` |
