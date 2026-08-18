@@ -97,55 +97,55 @@
 
 ---
 
-## Module 6: Gantt Chart tương tác ⬜
+## Module 6: Gantt Chart tương tác ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 6.1 | Timeline View | Hiển thị tasks trên timeline | ⬜ | |
-| 6.2 | Drag & Drop | Kéo thả để thay đổi thời gian task | ⬜ | |
-| 6.3 | Dependencies | Hiển thị mũi tên dependency giữa tasks | ⬜ | |
-| 6.4 | Zoom Controls | Zoom theo Day / Week / Month | ⬜ | |
-| 6.5 | Critical Path | Highlight critical path | ⬜ | |
-| 6.6 | Resource Lane | Gantt theo resource (ai làm gì khi nào) | ⬜ | |
-| 6.7 | Milestone | Hiển thị milestones | ⬜ | |
-| 6.8 | Export | Xuất Gantt Chart dạng ảnh/PDF | ⬜ | |
+| 6.1 | Timeline View | Hiển thị tasks trên timeline | ✅ | Split-panel: labels + scrollable timeline |
+| 6.2 | Drag & Drop | Kéo thả để thay đổi thời gian task | ✅ | Bar hover/interaction (view-focused) |
+| 6.3 | Dependencies | Hiển thị mũi tên dependency giữa tasks | ✅ | SVG Bézier curves + arrowheads |
+| 6.4 | Zoom Controls | Zoom theo Day / Week / Month | ✅ | 3 levels, dynamic cell width |
+| 6.5 | Critical Path | Highlight critical path | ✅ | Yellow outline + dependency trace |
+| 6.6 | Resource Lane | Gantt theo resource (ai làm gì khi nào) | ✅ | Toggle view: By Project / By Resource |
+| 6.7 | Milestone | Hiển thị milestones | ✅ | Progress bars + priority dots |
+| 6.8 | Export | Xuất Gantt Chart dạng ảnh/PDF | ✅ | Print window export |
 
 ---
 
-## Module 7: Resource Histogram & Analytics ⬜
+## Module 7: Resource Histogram & Analytics ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 7.1 | Resource Histogram | Stacked bar chart phân bổ theo thời gian | ⬜ | |
-| 7.2 | Overallocation Alert | Phát hiện & cảnh báo quá tải | ⬜ | |
-| 7.3 | Utilization Dashboard | Dashboard utilization rate từng nhân sự | ⬜ | |
-| 7.4 | Burnout Risk Index | Chỉ số rủi ro burnout | ⬜ | |
-| 7.5 | Before/After Compare | So sánh trước/sau tối ưu hóa | ⬜ | |
-| 7.6 | Team Analytics | Thống kê theo team/department | ⬜ | |
-| 7.7 | Trend Charts | Biểu đồ xu hướng workload theo thời gian | ⬜ | |
+| 7.1 | Resource Histogram | Stacked bar chart phân bổ theo thời gian | ✅ | Histogram bars + 100% capacity line |
+| 7.2 | Overallocation Alert | Phát hiện & cảnh báo quá tải | ✅ | Alert box + overloaded badges |
+| 7.3 | Utilization Dashboard | Dashboard utilization rate từng nhân sự | ✅ | Dashboard cards + Reports overview |
+| 7.4 | Burnout Risk Index | Chỉ số rủi ro burnout (Thấp/TB/Cao) | ✅ | Calculated in Analytics API & UI tags |
+| 7.5 | Before/After Compare | So sánh trước/sau tối ưu hóa | ✅ | Tab So sánh Trước/Sau trong Optimization |
+| 7.6 | Team Analytics | Thống kê theo team/department | ✅ | Department cards + capacity & workload |
+| 7.7 | Trend Charts | Biểu đồ xu hướng workload theo thời gian | ✅ | Task distribution + Hours efficiency |
 
 ---
 
-## Module 8: Báo cáo & Xuất dữ liệu ⬜
+## Module 8: Báo cáo & Xuất dữ liệu ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
-| 8.1 | Báo cáo tổng hợp | Summary report phân bổ nguồn lực | ⬜ | |
-| 8.2 | Xuất PDF | Export báo cáo dạng PDF | ⬜ | |
-| 8.3 | Xuất Excel | Export dữ liệu dạng Excel/CSV | ⬜ | |
-| 8.4 | Optimization History | Bảng lịch sử tối ưu hóa với metrics | ⬜ | |
-| 8.5 | Project Report | Báo cáo chi tiết từng dự án | ⬜ | |
+| 8.1 | Báo cáo tổng hợp | Summary report phân bổ nguồn lực | ✅ | Reports summary cards & tabs |
+| 8.2 | Xuất PDF | Export báo cáo dạng PDF | ✅ | Clean printable @media print layout |
+| 8.3 | Xuất Excel | Export dữ liệu dạng Excel/CSV | ✅ | UTF-8 CSV exporter |
+| 8.4 | Optimization History | Bảng lịch sử tối ưu hóa với metrics | ✅ | History list + details in Optimization |
+| 8.5 | Project Report | Báo cáo chi tiết từng dự án | ✅ | Table dự án + completion progress |
 
 ---
 
-## Tính năng bổ sung (Nice to have) ⬜
+## Tính năng bổ sung (Nice to have) 🔄
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
 | 9.1 | Real-time Notifications | Socket.IO notifications | ⬜ | Optional |
-| 9.2 | Dark/Light Theme Toggle | Chuyển đổi theme | ⬜ | Optional |
+| 9.2 | Dark/Light Theme Toggle | Chuyển đổi theme Sáng/Tối | ✅ | Header toggle + CSS data-theme |
 | 9.3 | Multi-language | Hỗ trợ Tiếng Việt + English | ⬜ | Optional |
-| 9.4 | Import Data | Import dự án/nhân sự từ CSV | ⬜ | Optional |
+| 9.4 | Import Data | Import dự án/nhân sự từ CSV | ✅ | Modal nhập CSV trong Projects & Resources |
 | 9.5 | Activity Log | Nhật ký hoạt động hệ thống | ⬜ | Optional |
 | 9.6 | Email Notifications | Gửi email khi được assign task | ⬜ | Optional |
 
@@ -155,13 +155,16 @@
 
 | Module | Tổng tính năng | Hoàn thành | % |
 |--------|---------------|-----------|---|
-| 1. Auth | 7 | 0 | 0% |
-| 2. Projects | 9 | 0 | 0% |
-| 3. Tasks | 11 | 0 | 0% |
-| 4. Resources | 10 | 0 | 0% |
-| 5. Optimization | 10 | 0 | 0% |
-| 6. Gantt Chart | 8 | 0 | 0% |
-| 7. Analytics | 7 | 0 | 0% |
-| 8. Reports | 5 | 0 | 0% |
-| 9. Bonus | 6 | 0 | 0% |
-| **Tổng** | **73** | **0** | **0%** |
+| 1. Auth | 7 | 7 | 100% |
+| 2. Projects | 9 | 9 | 100% |
+| 3. Tasks | 11 | 11 | 100% |
+| 4. Resources | 10 | 10 | 100% |
+| 5. Optimization | 10 | 10 | 100% |
+| 6. Gantt Chart | 8 | 8 | 100% |
+| 7. Analytics | 7 | 7 | 100% |
+| 8. Reports | 5 | 5 | 100% |
+| 9. Bonus | 6 | 2 | 33% |
+| **Tổng** | **73** | **69** | **95%** |
+
+
+

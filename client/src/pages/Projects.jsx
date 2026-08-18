@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   HiOutlineCheckCircle,
+  HiOutlineDownload,
   HiOutlineExclamation,
   HiOutlineFolder,
   HiOutlinePencil,
@@ -8,6 +9,7 @@ import {
   HiOutlineRefresh,
   HiOutlineSearch,
   HiOutlineTrash,
+  HiOutlineUpload,
   HiOutlineX,
 } from 'react-icons/hi';
 import projectService from '../services/projectService';
@@ -56,6 +58,7 @@ export default function Projects() {
   const [notice, setNotice] = useState(null);
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(initialForm);
+  const [csvContent, setCsvContent] = useState('');
 
   const loadProjects = async () => {
     setLoading(true);
@@ -71,18 +74,16 @@ export default function Projects() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(loadProjects, filters.search ? 350 : 0);
+    const timer = setTimeout(loadProjects, filters.search ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [filters]);
+  }, [filters.search, filters.status, filters.priority]);
 
-  const projectStats = useMemo(
-    () => ({
-      total: projects.length,
-      active: projects.filter((project) => project.status === 'in_progress').length,
-      completed: projects.filter((project) => project.status === 'completed').length,
-    }),
-    [projects]
-  );
+  const projectStats = useMemo(() => {
+    const total = projects.length;
+    const active = projects.filter((project) => project.status === 'in_progress').length;
+    const completed = projects.filter((project) => project.status === 'completed').length;
+    return { total, active, completed };
+  }, [projects]);
 
   const openCreate = () => {
     setForm(initialForm);
@@ -99,23 +100,18 @@ export default function Projects() {
       startDate: project.startDate ? project.startDate.slice(0, 10) : '',
       endDate: project.endDate ? project.endDate.slice(0, 10) : '',
       budget: project.budget || 0,
-      tags: (project.tags || []).join(', '),
+      tags: Array.isArray(project.tags) ? project.tags.join(', ') : '',
     });
     setModal({ type: 'form', project });
   };
 
-  const closeModal = () => {
-    if (!submitting) setModal(null);
-  };
+  const closeModal = () => setModal(null);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (new Date(form.endDate) < new Date(form.startDate)) {
-      setNotice({ type: 'error', text: 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.' });
-      return;
-    }
-
     setSubmitting(true);
+    setNotice(null);
+
     const payload = {
       ...form,
       budget: Number(form.budget) || 0,
@@ -158,6 +154,47 @@ export default function Projects() {
     }
   };
 
+  const handleImportCSV = async (e) => {
+    e.preventDefault();
+    if (!csvContent.trim()) return;
+
+    setSubmitting(true);
+    let successCount = 0;
+    const lines = csvContent.trim().split('\n');
+    const today = new Date().toISOString().slice(0, 10);
+    const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line || (i === 0 && line.toLowerCase().includes('tên'))) continue; // skip header
+
+      const parts = line.split(',').map((p) => p.trim().replace(/^["']|["']$/g, ''));
+      if (!parts[0]) continue;
+
+      try {
+        await projectService.create({
+          name: parts[0],
+          code: parts[1] || undefined,
+          description: parts[2] || '',
+          status: parts[3] || 'planning',
+          priority: parts[4] || 'medium',
+          budget: Number(parts[5]) || 0,
+          startDate: parts[6] || today,
+          endDate: parts[7] || nextMonth,
+        });
+        successCount++;
+      } catch {
+        /* skip invalid line */
+      }
+    }
+
+    setNotice({ type: 'success', text: `Đã nhập thành công ${successCount} dự án từ CSV.` });
+    setSubmitting(false);
+    setModal(null);
+    setCsvContent('');
+    await loadProjects();
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="page-header projects-header">
@@ -165,9 +202,14 @@ export default function Projects() {
           <h1 className="page-title">Quản lý Dự án</h1>
           <p className="page-description">Theo dõi tiến độ, ngân sách và trạng thái các dự án của tổ chức.</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate} id="btn-create-project">
-          <HiOutlinePlus /> Tạo dự án
-        </button>
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <button className="btn btn-secondary" onClick={() => setModal({ type: 'import' })}>
+            <HiOutlineUpload /> Nhập CSV
+          </button>
+          <button className="btn btn-primary" onClick={openCreate} id="btn-create-project">
+            <HiOutlinePlus /> Tạo dự án
+          </button>
+        </div>
       </div>
 
       {notice && (
@@ -275,6 +317,39 @@ export default function Projects() {
               <footer>
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>Hủy</button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Đang lưu...' : modal.project ? 'Lưu thay đổi' : 'Tạo dự án'}</button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {/* CSV Import Modal */}
+      {modal?.type === 'import' && (
+        <div className="modal-backdrop" onMouseDown={closeModal}>
+          <section className="project-modal" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <header>
+              <div>
+                <h2>Nhập dự án từ CSV</h2>
+                <p>Định dạng: Tên, Mã, Mô tả, Trạng thái, Ưu tiên, Ngân sách, Ngày bắt đầu, Ngày kết thúc</p>
+              </div>
+              <button className="modal-close" onClick={closeModal} aria-label="Đóng"><HiOutlineX /></button>
+            </header>
+            <form onSubmit={handleImportCSV}>
+              <div style={{ padding: '0 var(--space-6) var(--space-4)' }}>
+                <textarea
+                  rows="8"
+                  value={csvContent}
+                  onChange={(e) => setCsvContent(e.target.value)}
+                  placeholder={`Tên dự án, Mã, Mô tả, Trạng thái, Ưu tiên, Ngân sách\nHệ thống ERP, ERP-01, Quản lý tài nguyên, in_progress, high, 50000000\nMobile App, APP-02, Ứng dụng di động, planning, medium, 30000000`}
+                  style={{ width: '100%', fontFamily: 'monospace', fontSize: 'var(--font-size-xs)' }}
+                  required
+                />
+              </div>
+              <footer>
+                <button type="button" className="btn btn-secondary" onClick={closeModal}>Hủy</button>
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                  {submitting ? 'Đang nhập...' : 'Bắt đầu nhập'}
+                </button>
               </footer>
             </form>
           </section>

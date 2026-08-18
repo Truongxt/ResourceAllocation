@@ -7,6 +7,8 @@ import {
   HiOutlineUser,
   HiOutlineLogout,
   HiOutlineCog,
+  HiOutlineSun,
+  HiOutlineMoon,
 } from 'react-icons/hi';
 import './Header.css';
 
@@ -18,6 +20,7 @@ const pageTitles = {
   '/optimization': 'Tối ưu hóa Phân bổ',
   '/gantt': 'Gantt Chart',
   '/reports': 'Báo cáo',
+  '/settings': 'Cài đặt tài khoản',
 };
 
 const ROLE_LABELS = {
@@ -31,9 +34,19 @@ export default function Header() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('rao_theme') || 'dark');
   const menuRef = useRef(null);
 
   const currentTitle = pageTitles[location.pathname] || 'RAO';
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('rao_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -68,6 +81,16 @@ export default function Header() {
             id="global-search"
           />
         </div>
+
+        {/* Theme Toggle */}
+        <button
+          className="header-icon-btn"
+          onClick={toggleTheme}
+          id="theme-toggle-btn"
+          title={theme === 'dark' ? 'Chuyển sang Giao diện Sáng' : 'Chuyển sang Giao diện Tối'}
+        >
+          {theme === 'dark' ? <HiOutlineSun /> : <HiOutlineMoon />}
+        </button>
 
         {/* Notifications */}
         <button className="header-icon-btn" id="notifications-btn" title="Thông báo">

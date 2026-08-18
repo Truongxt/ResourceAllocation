@@ -16,6 +16,7 @@ export default function Register() {
     email: '',
     password: '',
     confirmPassword: '',
+    role: 'project_manager',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,6 +51,7 @@ export default function Register() {
       name: formData.name,
       email: formData.email,
       password: formData.password,
+      role: formData.role,
     });
 
     if (result.success) {

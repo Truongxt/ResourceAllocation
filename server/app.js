@@ -8,6 +8,7 @@ const projectRoutes = require('./src/routes/project.routes');
 const taskRoutes = require('./src/routes/task.routes');
 const resourceRoutes = require('./src/routes/resource.routes');
 const optimizationRoutes = require('./src/routes/optimization.routes');
+const analyticsRoutes = require('./src/routes/analytics.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./src/middleware/error');
@@ -26,6 +27,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/optimization', optimizationRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

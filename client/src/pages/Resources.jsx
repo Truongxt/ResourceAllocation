@@ -7,6 +7,7 @@ import {
   HiOutlineRefresh,
   HiOutlineSearch,
   HiOutlineTrash,
+  HiOutlineUpload,
   HiOutlineUser,
   HiOutlineX,
 } from 'react-icons/hi';
@@ -45,6 +46,7 @@ export default function Resources() {
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [skillForm, setSkillForm] = useState({ resourceId: '', skills: [] });
+  const [csvContent, setCsvContent] = useState('');
 
   // Load
   const loadResources = useCallback(async () => {
@@ -68,25 +70,27 @@ export default function Resources() {
   }, []);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
+
   useEffect(() => {
-    const t = setTimeout(loadResources, filters.search ? 350 : 0);
+    const t = setTimeout(loadResources, filters.search ? 300 : 0);
     return () => clearTimeout(t);
-  }, [loadResources]);
+  }, [loadResources, filters.department, filters.availability]);
+
+  // Departments list for filter
+  const departments = useMemo(() => {
+    const set = new Set(resources.map((r) => r.department).filter(Boolean));
+    return Array.from(set);
+  }, [resources]);
 
   // Stats
   const stats = useMemo(() => {
-    const active = resources.filter((r) => r.isActive);
-    const overloaded = active.filter((r) => r.utilizationRate > 100);
-    const avgUtil = active.length > 0
-      ? Math.round(active.reduce((s, r) => s + (r.utilizationRate || 0), 0) / active.length)
+    const total = resources.length;
+    const available = resources.filter((r) => r.availability === 'available').length;
+    const overloaded = resources.filter((r) => r.isOverloaded).length;
+    const avgUtil = total > 0
+      ? Math.round(resources.reduce((s, r) => s + (r.utilizationRate || 0), 0) / total)
       : 0;
-    return { total: active.length, overloaded: overloaded.length, avgUtil };
-  }, [resources]);
-
-  // Departments list
-  const departments = useMemo(() => {
-    const set = new Set(resources.map((r) => r.department).filter(Boolean));
-    return [...set].sort();
+    return { total, available, overloaded, avgUtil };
   }, [resources]);
 
   // Handlers
@@ -101,9 +105,9 @@ export default function Resources() {
       employeeId: resource.employeeId || '',
       position: resource.position || '',
       department: resource.department || '',
-      maxCapacity: resource.maxCapacity ?? 40,
-      fte: resource.fte ?? 1,
-      hourlyRate: resource.hourlyRate ?? 0,
+      maxCapacity: resource.maxCapacity || 40,
+      fte: resource.fte || 1,
+      hourlyRate: resource.hourlyRate || 0,
     });
     setModal({ type: 'form', resource });
   };
@@ -111,12 +115,16 @@ export default function Resources() {
   const openSkills = (resource) => {
     setSkillForm({
       resourceId: resource._id,
-      skills: (resource.skills || []).map((s) => ({ ...s })),
+      skills: (resource.skills || []).map((s) => ({
+        name: s.name,
+        level: s.level,
+        yearsOfExperience: s.yearsOfExperience || 0,
+      })),
     });
     setModal({ type: 'skills', resource });
   };
 
-  const closeModal = () => { if (!submitting) setModal(null); };
+  const closeModal = () => setModal(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -187,6 +195,52 @@ export default function Resources() {
     }
   };
 
+  const handleImportCSV = async (e) => {
+    e.preventDefault();
+    if (!csvContent.trim()) return;
+
+    setSubmitting(true);
+    let successCount = 0;
+    const lines = csvContent.trim().split('\n');
+
+    // Available users without resource record
+    const linkedUserIds = new Set(resources.map((r) => r.user?._id));
+    const availableUsers = users.filter((u) => !linkedUserIds.has(u._id));
+    let userIdx = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line || (i === 0 && line.toLowerCase().includes('vị trí'))) continue;
+
+      const parts = line.split(',').map((p) => p.trim().replace(/^["']|["']$/g, ''));
+      if (!parts[0]) continue;
+
+      const targetUser = availableUsers[userIdx] || users[0];
+      if (!targetUser) break;
+
+      try {
+        await resourceService.create({
+          user: targetUser._id,
+          position: parts[0],
+          department: parts[1] || 'General',
+          fte: Number(parts[2]) || 1,
+          maxCapacity: Number(parts[3]) || 40,
+          hourlyRate: Number(parts[4]) || 0,
+        });
+        successCount++;
+        userIdx++;
+      } catch {
+        /* skip error line */
+      }
+    }
+
+    setNotice({ type: 'success', text: `Đã nhập thành công ${successCount} nhân sự từ CSV.` });
+    setSubmitting(false);
+    setModal(null);
+    setCsvContent('');
+    await loadResources();
+  };
+
   const getUtilColor = (rate) => {
     if (rate > 100) return 'var(--color-danger)';
     if (rate > 80) return '#f59e0b';
@@ -200,9 +254,14 @@ export default function Resources() {
           <h1 className="page-title">Quản lý Nhân sự</h1>
           <p className="page-description">Quản lý nhân sự, kỹ năng và tải công việc.</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate} id="btn-create-resource">
-          <HiOutlinePlus /> Thêm nhân sự
-        </button>
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <button className="btn btn-secondary" onClick={() => setModal({ type: 'import' })}>
+            <HiOutlineUpload /> Nhập CSV
+          </button>
+          <button className="btn btn-primary" onClick={openCreate} id="btn-create-resource">
+            <HiOutlinePlus /> Thêm nhân sự
+          </button>
+        </div>
       </div>
 
       {notice && (
@@ -249,74 +308,80 @@ export default function Resources() {
         </div>
       ) : (
         <div className="resources-grid">
-          {resources.map((r) => (
-            <article className="resource-card card" key={r._id}>
-              <div className="resource-card-top">
-                <div className="resource-avatar">
-                  <HiOutlineUser />
-                </div>
-                <div className="resource-info">
-                  <h3>{r.user?.name || 'N/A'}</h3>
-                  <span className="resource-position">{r.position}</span>
-                  {r.department && <span className="resource-dept">{r.department}</span>}
-                </div>
-                <div className="resource-card-actions">
-                  <button title="Skills" onClick={() => openSkills(r)}>🎯</button>
-                  <button title="Sửa" onClick={() => openEdit(r)}><HiOutlinePencil /></button>
-                  <button className="danger-action" title="Xóa" onClick={() => handleDelete(r)}><HiOutlineTrash /></button>
-                </div>
-              </div>
+          {resources.map((r) => {
+            const util = r.utilizationRate || 0;
+            const skills = r.skills || [];
 
-              {/* Utilization */}
-              <div className="resource-utilization">
-                <div className="resource-util-header">
-                  <span>Utilization</span>
-                  <strong style={{ color: getUtilColor(r.utilizationRate || 0) }}>
-                    {r.utilizationRate || 0}%
-                  </strong>
+            return (
+              <article key={r._id} className="resource-card card">
+                <div className="resource-card-top">
+                  <div className="resource-avatar">
+                    {(r.user?.name || r.position || 'U')[0].toUpperCase()}
+                  </div>
+                  <div className="resource-info">
+                    <h3>{r.user?.name || 'Chưa gán tài khoản'}</h3>
+                    <span className="resource-position">{r.position}</span>
+                    <span className="resource-dept">{r.department || '—'}</span>
+                  </div>
+                  <div className="resource-card-actions">
+                    <button title="Chỉnh sửa thông tin" onClick={() => openEdit(r)}><HiOutlinePencil /></button>
+                    <button title="Xóa" className="danger-action" onClick={() => handleDelete(r)}><HiOutlineTrash /></button>
+                  </div>
                 </div>
-                <div className="resource-util-bar">
-                  <div
-                    className="resource-util-fill"
-                    style={{
-                      width: `${Math.min(r.utilizationRate || 0, 100)}%`,
-                      background: getUtilColor(r.utilizationRate || 0),
-                    }}
-                  />
-                </div>
-              </div>
 
-              {/* Skills */}
-              {r.skills && r.skills.length > 0 && (
+                {/* Utilization */}
+                <div className="resource-utilization">
+                  <div className="resource-util-header">
+                    <span>Workload: {r.currentWorkload || 0}h / {r.capacity || (r.maxCapacity * r.fte)}h</span>
+                    <strong style={{ color: getUtilColor(util) }}>{util}%</strong>
+                  </div>
+                  <div className="resource-util-bar">
+                    <div
+                      className="resource-util-fill"
+                      style={{ width: `${Math.min(util, 100)}%`, background: getUtilColor(util) }}
+                    />
+                  </div>
+                </div>
+
+                {/* Skills Preview */}
                 <div className="resource-skills">
-                  {r.skills.slice(0, 4).map((s, i) => (
-                    <span key={i} className="resource-skill-tag" title={`${s.name} - ${SKILL_LEVELS[s.level]}`}>
-                      {s.name} <em>Lv.{s.level}</em>
+                  {skills.slice(0, 3).map((s, i) => (
+                    <span key={i} className="resource-skill-tag">
+                      {s.name} <em>({s.level})</em>
                     </span>
                   ))}
-                  {r.skills.length > 4 && <span className="resource-skill-more">+{r.skills.length - 4}</span>}
+                  {skills.length > 3 && (
+                    <span className="resource-skill-more">+{skills.length - 3}</span>
+                  )}
+                  <button className="btn btn-secondary" style={{ fontSize: 'var(--font-size-xs)', padding: '2px 8px' }} onClick={() => openSkills(r)}>
+                    Skill Matrix ({skills.length})
+                  </button>
                 </div>
-              )}
 
-              {/* Meta */}
-              <div className="resource-meta">
-                <span>FTE: {r.fte}</span>
-                <span>{r.currentWorkload || 0}/{r.maxCapacity || 40}h</span>
-                <span className={`badge avail-${r.availability}`}>{AVAILABILITY_LABELS[r.availability]}</span>
-              </div>
-            </article>
-          ))}
+                {/* Meta */}
+                <div className="resource-meta">
+                  <span className={`badge avail-${r.availability}`}>
+                    {AVAILABILITY_LABELS[r.availability] || r.availability}
+                  </span>
+                  <span>FTE: {r.fte}</span>
+                  {r.hourlyRate > 0 && (
+                    <span>{r.hourlyRate.toLocaleString('vi-VN')} đ/h</span>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Resource Form Modal */}
       {modal?.type === 'form' && (
         <div className="modal-backdrop" onMouseDown={closeModal}>
           <section className="resource-modal" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <header>
               <div>
-                <h2>{modal.resource ? 'Cập nhật Nhân sự' : 'Thêm Nhân sự mới'}</h2>
-                <p>Thông tin cơ bản về nhân sự.</p>
+                <h2>{modal.resource ? 'Cập nhật nhân sự' : 'Thêm nhân sự mới'}</h2>
+                <p>Thông tin cơ bản, vị trí và năng lực.</p>
               </div>
               <button className="modal-close" onClick={closeModal}><HiOutlineX /></button>
             </header>
@@ -375,6 +440,39 @@ export default function Resources() {
               <footer>
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>Hủy</button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Đang lưu...' : 'Lưu kỹ năng'}</button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {/* CSV Import Modal */}
+      {modal?.type === 'import' && (
+        <div className="modal-backdrop" onMouseDown={closeModal}>
+          <section className="resource-modal" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <header>
+              <div>
+                <h2>Nhập nhân sự từ CSV</h2>
+                <p>Định dạng: Vị trí, Phòng ban, FTE, Max Capacity, Lương theo giờ</p>
+              </div>
+              <button className="modal-close" onClick={closeModal} aria-label="Đóng"><HiOutlineX /></button>
+            </header>
+            <form onSubmit={handleImportCSV}>
+              <div style={{ padding: '0 var(--space-6) var(--space-4)' }}>
+                <textarea
+                  rows="8"
+                  value={csvContent}
+                  onChange={(e) => setCsvContent(e.target.value)}
+                  placeholder={`Vị trí, Phòng ban, FTE, Max Capacity, Lương theo giờ\nSenior React Dev, Frontend, 1, 40, 250000\nBackend Lead, Backend, 1, 40, 300000\nQA Engineer, Quality, 1, 40, 180000`}
+                  style={{ width: '100%', fontFamily: 'monospace', fontSize: 'var(--font-size-xs)' }}
+                  required
+                />
+              </div>
+              <footer>
+                <button type="button" className="btn btn-secondary" onClick={closeModal}>Hủy</button>
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                  {submitting ? 'Đang nhập...' : 'Bắt đầu nhập'}
+                </button>
               </footer>
             </form>
           </section>

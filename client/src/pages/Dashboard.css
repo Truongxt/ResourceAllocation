@@ -194,4 +194,116 @@
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
+
+  .dashboard-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dashboard Row */
+.dashboard-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+/* Task Distribution */
+.task-distribution {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.task-dist-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.task-dist-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+}
+
+.task-dist-header span {
+  font-weight: var(--font-weight-medium);
+}
+
+.task-dist-header strong {
+  color: var(--text-primary);
+}
+
+.task-dist-bar {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.task-dist-bar div {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.8s ease;
+}
+
+/* Hours Summary */
+.hours-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.hours-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+}
+
+.hours-item span {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.hours-item strong {
+  font-size: var(--font-size-lg);
+  color: var(--text-primary);
+}
+
+/* Recent Optimizations */
+.opt-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.opt-recent-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.opt-recent-item:hover {
+  background: var(--bg-card-hover);
+}
+
+.opt-recent-algo {
+  font-weight: var(--font-weight-bold);
+  min-width: 80px;
+  font-size: var(--font-size-xs);
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-success);
 }

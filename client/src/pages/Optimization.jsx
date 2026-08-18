@@ -6,10 +6,13 @@ import {
   HiOutlineLightningBolt,
   HiOutlinePlay,
   HiOutlineRefresh,
+  HiOutlineScale,
+  HiOutlineTrendingUp,
   HiOutlineX,
 } from 'react-icons/hi';
 import optimizationService from '../services/optimizationService';
 import projectService from '../services/projectService';
+import analyticsService from '../services/analyticsService';
 import './Optimization.css';
 
 const ALGO_OPTIONS = [
@@ -41,9 +44,11 @@ export default function Optimization() {
   });
   const [running, setRunning] = useState(false);
   const [currentResult, setCurrentResult] = useState(null);
+  const [comparisonData, setComparisonData] = useState(null);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [notice, setNotice] = useState(null);
-  const [viewTab, setViewTab] = useState('result'); // 'result' | 'history'
+  const [viewTab, setViewTab] = useState('result'); // 'result' | 'compare' | 'history'
 
   const loadProjects = useCallback(async () => {
     try {
@@ -61,10 +66,24 @@ export default function Optimization() {
 
   useEffect(() => { loadProjects(); loadHistory(); }, [loadProjects, loadHistory]);
 
+  const loadComparison = useCallback(async (resultId) => {
+    if (!resultId) return;
+    setComparisonLoading(true);
+    try {
+      const res = await analyticsService.getOptimizationComparison(resultId);
+      setComparisonData(res.data.data);
+    } catch {
+      setComparisonData(null);
+    } finally {
+      setComparisonLoading(false);
+    }
+  }, []);
+
   const handleRun = async () => {
     setRunning(true);
     setNotice(null);
     setCurrentResult(null);
+    setComparisonData(null);
 
     try {
       let res;
@@ -82,6 +101,7 @@ export default function Optimization() {
 
       if (result.status === 'completed') {
         setNotice({ type: 'success', text: `Tối ưu hóa hoàn thành trong ${formatTime(result.executionTime)}!` });
+        loadComparison(result._id);
       } else {
         setNotice({ type: 'error', text: result.errorMessage || 'Không tìm thấy giải pháp.' });
       }
@@ -110,8 +130,12 @@ export default function Optimization() {
   const viewResult = async (id) => {
     try {
       const res = await optimizationService.getById(id);
-      setCurrentResult(res.data.data.result);
+      const resData = res.data.data.result;
+      setCurrentResult(resData);
       setViewTab('result');
+      if (resData.status === 'completed') {
+        loadComparison(resData._id);
+      }
     } catch { /* ignore */ }
   };
 
@@ -200,6 +224,16 @@ export default function Optimization() {
             <button className={`opt-tab ${viewTab === 'result' ? 'active' : ''}`} onClick={() => setViewTab('result')}>
               <HiOutlineLightningBolt /> Kết quả
             </button>
+            <button
+              className={`opt-tab ${viewTab === 'compare' ? 'active' : ''}`}
+              onClick={() => {
+                setViewTab('compare');
+                if (currentResult?._id && !comparisonData) loadComparison(currentResult._id);
+              }}
+              disabled={!currentResult || currentResult.status !== 'completed'}
+            >
+              <HiOutlineScale /> So sánh Trước / Sau
+            </button>
             <button className={`opt-tab ${viewTab === 'history' ? 'active' : ''}`} onClick={() => setViewTab('history')}>
               <HiOutlineClock /> Lịch sử ({history.length})
             </button>
@@ -256,7 +290,7 @@ export default function Optimization() {
                   </div>
                 )}
 
-                {/* Convergence Chart (simple text-based) */}
+                {/* Convergence Chart */}
                 {currentResult.convergenceHistory && currentResult.convergenceHistory.length > 1 && (
                   <div className="opt-convergence">
                     <h4>Convergence (Fitness qua Generations)</h4>
@@ -311,7 +345,7 @@ export default function Optimization() {
                 {/* Resource utilization */}
                 {currentResult.metrics?.resourceUtilization && (
                   <div className="opt-utilization">
-                    <h4>Phân bổ nhân sự</h4>
+                    <h4>Phân bổ nhân sự đề xuất</h4>
                     {currentResult.metrics.resourceUtilization.map((r, i) => (
                       <div key={i} className="opt-util-row">
                         <span className="opt-util-name">{r.name}</span>
@@ -331,15 +365,24 @@ export default function Optimization() {
                   </div>
                 )}
 
-                {/* Apply button */}
-                {currentResult.status === 'completed' && !currentResult.isApplied && (
-                  <button className="btn btn-primary opt-apply-btn" onClick={() => handleApply(currentResult._id)}>
-                    <HiOutlineCheckCircle /> Áp dụng kết quả phân bổ
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+                  {currentResult.status === 'completed' && !currentResult.isApplied && (
+                    <button className="btn btn-primary opt-apply-btn" onClick={() => handleApply(currentResult._id)}>
+                      <HiOutlineCheckCircle /> Áp dụng kết quả phân bổ
+                    </button>
+                  )}
+                  {currentResult.isApplied && (
+                    <div className="opt-applied-badge">✅ Đã áp dụng vào hệ thống</div>
+                  )}
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => { setViewTab('compare'); loadComparison(currentResult._id); }}
+                    style={{ marginTop: currentResult.isApplied ? 'var(--space-2)' : '0' }}
+                  >
+                    <HiOutlineScale /> So sánh Trước / Sau
                   </button>
-                )}
-                {currentResult.isApplied && (
-                  <div className="opt-applied-badge">✅ Đã áp dụng</div>
-                )}
+                </div>
               </div>
             ) : (
               <div className="empty-state card">
@@ -348,6 +391,90 @@ export default function Optimization() {
                 <p className="empty-state-text">Chọn thuật toán, điều chỉnh tham số rồi nhấn "Chạy" để bắt đầu.</p>
               </div>
             )
+          ) : viewTab === 'compare' ? (
+            /* Before / After Comparison Tab */
+            <div className="opt-compare card">
+              <div className="card-header" style={{ marginBottom: 'var(--space-4)' }}>
+                <h3 className="card-title">⚖️ So sánh Trước & Sau Tối ưu hóa</h3>
+                <span className="badge badge-primary">Giải pháp: {currentResult?.algorithm?.toUpperCase()}</span>
+              </div>
+
+              {comparisonLoading ? (
+                <p className="empty-state-text">Đang phân tích dữ liệu so sánh...</p>
+              ) : comparisonData ? (
+                <div className="opt-compare-content">
+                  {/* Summary Improvements */}
+                  <div className="opt-compare-stats">
+                    <div className="compare-stat-card">
+                      <span>Độ phù hợp kỹ năng</span>
+                      <strong>{comparisonData.improvement?.skillMatch || 0}%</strong>
+                      <small className="text-success"><HiOutlineTrendingUp /> Tối đa hóa năng lực</small>
+                    </div>
+                    <div className="compare-stat-card">
+                      <span>Độ lệch Workload</span>
+                      <strong>{comparisonData.improvement?.workloadVariance || 0}</strong>
+                      <small className="text-success">Cân bằng khối lượng</small>
+                    </div>
+                    <div className="compare-stat-card">
+                      <span>Fitness Score</span>
+                      <strong style={{ color: 'var(--color-primary-400)' }}>{comparisonData.improvement?.fitness || 0}</strong>
+                      <small>Điểm tối ưu tổng thể</small>
+                    </div>
+                  </div>
+
+                  {/* Side-by-side Resource Breakdown */}
+                  <h4 style={{ margin: 'var(--space-5) 0 var(--space-3)', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+                    So sánh phân bổ từng nhân sự
+                  </h4>
+                  <div className="opt-compare-table-wrap">
+                    <table className="opt-compare-table">
+                      <thead>
+                        <tr>
+                          <th>Nhân sự</th>
+                          <th>Hiện tại (Trước)</th>
+                          <th>Đề xuất (Sau)</th>
+                          <th>Thay đổi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {comparisonData.optimized?.map((optR, idx) => {
+                          const curR = comparisonData.current?.find((c) => c.name === optR.name) || { workload: 0, utilization: 0, capacity: optR.capacity };
+                          const diff = Math.round((optR.workload - curR.workload) * 10) / 10;
+                          return (
+                            <tr key={idx}>
+                              <td><strong>{optR.name}</strong></td>
+                              <td>
+                                <div className="compare-bar-cell">
+                                  <span>{curR.workload}/{curR.capacity}h ({curR.utilization}%)</span>
+                                  <div className="compare-mini-bar">
+                                    <div style={{ width: `${Math.min(curR.utilization, 100)}%`, background: curR.utilization > 100 ? 'var(--color-danger)' : '#6366f1' }} />
+                                  </div>
+                                </div>
+                              </td>
+                              <td>
+                                <div className="compare-bar-cell">
+                                  <span>{optR.workload}/{optR.capacity}h ({optR.utilization}%)</span>
+                                  <div className="compare-mini-bar">
+                                    <div style={{ width: `${Math.min(optR.utilization, 100)}%`, background: optR.utilization > 100 ? 'var(--color-danger)' : 'var(--color-success)' }} />
+                                  </div>
+                                </div>
+                              </td>
+                              <td>
+                                <span className={diff > 0 ? 'text-warning' : diff < 0 ? 'text-success' : ''}>
+                                  {diff > 0 ? `+${diff}h` : `${diff}h`}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <p className="empty-state-text">Không có dữ liệu so sánh.</p>
+              )}
+            </div>
           ) : (
             /* History Tab */
             <div className="opt-history card">
