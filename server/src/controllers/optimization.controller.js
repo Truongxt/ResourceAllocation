@@ -154,6 +154,9 @@ const runCSPSolver = async (req, res, next) => {
     resultRecord.constraintReport = result.constraintReport
       ? { satisfied: result.constraintReport.satisfied, violated: result.constraintReport.violated }
       : undefined;
+    // Chấm điểm bằng cùng thang đo với GA để hai thuật toán so sánh được trong lịch sử
+    resultRecord.fitness = result.fitness || 0;
+    resultRecord.metrics = result.metrics || {};
     resultRecord.executionTime = result.solveTime || 0;
     resultRecord.iterations = result.iterations || 0;
     resultRecord.errorMessage = result.message || undefined;

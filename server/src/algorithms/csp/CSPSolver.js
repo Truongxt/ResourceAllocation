@@ -9,11 +9,23 @@
  * Algorithm: Backtracking + AC-3 + MRV + LCV heuristics
  */
 
+const {
+  DEFAULT_WEIGHTS,
+  computeSkillMatch,
+  buildSkillMatrix,
+  computeMaxCost,
+  computeFitness,
+  computeMetrics,
+  emptyMetrics,
+} = require('../scoring');
+
 class CSPSolver {
   constructor(options = {}) {
     this.maxIterations = options.maxIterations || 10000;
     this.timeout = options.timeout || 30000; // 30 seconds
     this.minSkillMatchThreshold = options.minSkillMatchThreshold ?? 0.5;
+    // Dùng để chấm điểm lời giải bằng cùng thang đo với GA
+    this.weights = options.weights || DEFAULT_WEIGHTS;
   }
 
   /**
@@ -85,15 +97,24 @@ class CSPSolver {
       };
     }
 
-    // Build assignments
-    const assignments = this._buildAssignments(result, tasks, resources);
+    // Chuyển lời giải {taskIndex: resourceIndex} về dạng mảng để dùng chung hàm chấm điểm
+    const solution = tasks.map((_, tIdx) => result[tIdx]);
+    const skillMatrix = buildSkillMatrix(tasks, resources);
+
+    const assignments = this._buildAssignments(result, tasks, resources, skillMatrix);
     const constraintReport = this._validateConstraints(result, tasks, resources);
+    const fitness = computeFitness(
+      solution, tasks, resources, skillMatrix, computeMaxCost(tasks, resources), this.weights
+    );
+    const metrics = computeMetrics(solution, tasks, resources, skillMatrix);
 
     return {
       success: true,
       feasible: true,
       assignments,
       constraintReport,
+      fitness: Math.round(fitness * 10000) / 10000,
+      metrics,
       iterations: this._iterations,
       solveTime,
       domainSizes: reducedDomains.map((d, i) => ({
@@ -124,25 +145,8 @@ class CSPSolver {
   // Constraint Checks
   // ──────────────────────────────────────────────
   _checkSkillConstraint(resource, task) {
-    const required = task.requiredSkills || [];
-    if (!required.length) return true;
-
-    let totalWeight = 0;
-    let totalMatch = 0;
-
-    for (const req of required) {
-      const weight = req.weight ?? 1;
-      totalWeight += weight * req.level;
-
-      const resSkill = (resource.skills || []).find(
-        (s) => s.name.toLowerCase() === req.name.toLowerCase()
-      );
-      const resLevel = resSkill ? resSkill.level : 0;
-      totalMatch += weight * Math.min(resLevel, req.level);
-    }
-
-    const matchScore = totalWeight > 0 ? totalMatch / totalWeight : 1;
-    return matchScore >= this.minSkillMatchThreshold;
+    // Dùng chung công thức với GA để hai thuật toán đánh giá kỹ năng như nhau
+    return computeSkillMatch(task, resource) >= this.minSkillMatchThreshold;
   }
 
   _checkAvailabilityConstraint(resource, task) {
@@ -272,15 +276,17 @@ class CSPSolver {
   // ──────────────────────────────────────────────
   // Build result assignments
   // ──────────────────────────────────────────────
-  _buildAssignments(assignment, tasks, resources) {
+  _buildAssignments(assignment, tasks, resources, skillMatrix) {
     return Object.entries(assignment).map(([tIdx, rIdx]) => {
-      const task = tasks[parseInt(tIdx)];
+      const taskIndex = parseInt(tIdx, 10);
+      const task = tasks[taskIndex];
       const resource = resources[rIdx];
       return {
         task: task._id,
         taskTitle: task.title,
         resource: resource._id,
         resourceName: resource.userName || resource.position,
+        skillMatch: Math.round(skillMatrix[taskIndex][rIdx] * 100),
         estimatedHours: task.estimatedHours || 0,
       };
     });
@@ -321,6 +327,8 @@ class CSPSolver {
       message,
       assignments: [],
       constraintReport: { satisfied: 0, violated: 0, details: { satisfied: [], violated: [] } },
+      fitness: 0,
+      metrics: emptyMetrics(),
       iterations: 0,
       solveTime: 0,
     };
