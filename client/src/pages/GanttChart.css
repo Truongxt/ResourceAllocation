@@ -36,6 +36,26 @@
   border-bottom: 1px solid var(--border-color, rgba(148, 163, 184, 0.1));
 }
 
+.gantt-sidebar-row.is-child {
+  padding-left: 30px;
+}
+
+.gantt-sidebar-row.is-group,
+.gantt-timeline-row.is-group {
+  background: rgba(99, 102, 241, 0.07);
+}
+
+.gantt-sidebar-row.is-group {
+  flex-direction: row;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.gantt-sidebar-row.is-group:hover {
+  background: rgba(99, 102, 241, 0.14);
+}
+
 .gantt-timeline-wrap {
   flex: 1;
   overflow-x: auto;
@@ -127,6 +147,192 @@
   z-index: 1;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ===== Kéo thả đổi lịch ===== */
+.gantt-task-bar.is-draggable,
+.gantt-milestone.is-draggable {
+  cursor: grab;
+}
+
+.gantt-task-bar.is-draggable:active,
+.gantt-milestone.is-draggable:active {
+  cursor: grabbing;
+}
+
+.gantt-task-bar.is-dragging {
+  opacity: 0.85;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  z-index: 4;
+}
+
+.gantt-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  z-index: 2;
+  cursor: ew-resize;
+}
+
+.gantt-resize-handle.is-start {
+  left: 0;
+  border-radius: 6px 0 0 6px;
+}
+
+.gantt-resize-handle.is-end {
+  right: 0;
+  border-radius: 0 6px 6px 0;
+}
+
+.gantt-task-bar:hover .gantt-resize-handle {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* Chấm ưu tiên ở đầu mỗi thanh task */
+.gantt-priority-dot {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.55);
+}
+
+/* ===== Milestone (task có thời lượng 0) ===== */
+.gantt-milestone {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  transform: rotate(45deg);
+  border: 2px solid;
+  border-radius: 3px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease;
+}
+
+.gantt-milestone:hover {
+  transform: rotate(45deg) scale(1.2);
+}
+
+.gantt-milestone-label {
+  position: absolute;
+  left: 22px;
+  top: -2px;
+  transform: rotate(-45deg);
+  transform-origin: left center;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #cbd5e1);
+  pointer-events: none;
+}
+
+/* ===== Dải tổng hợp của hàng nhóm ===== */
+.gantt-group-band {
+  position: absolute;
+  height: 12px;
+  border-radius: 3px;
+  background: rgba(99, 102, 241, 0.35);
+  border: 1px solid rgba(129, 140, 248, 0.6);
+  overflow: hidden;
+  cursor: default;
+}
+
+.gantt-group-band-progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(129, 140, 248, 0.85);
+}
+
+.gantt-group-band-label {
+  position: absolute;
+  right: -34px;
+  top: -3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary, #8494ac);
+}
+
+/* ===== Mũi tên phụ thuộc (lớp SVG phủ lên thân biểu đồ) ===== */
+.gantt-arrows {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 2;
+  overflow: visible;
+}
+
+.gantt-arrow {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+  opacity: 0.75;
+}
+
+.gantt-arrow.is-critical {
+  stroke: #facc15;
+  stroke-width: 2;
+  opacity: 1;
+}
+
+.gantt-arrow.is-violated {
+  stroke: #ef4444;
+  stroke-dasharray: 4 3;
+  opacity: 1;
+}
+
+/* ===== Đường găng ===== */
+.gantt-task-bar.is-critical {
+  outline: 2px solid #facc15;
+  outline-offset: 1px;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.45);
+}
+
+.gantt-milestone.is-critical {
+  border-color: #facc15 !important;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.55);
+}
+
+/* ===== Chú giải ===== */
+.gantt-legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.gantt-legend-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.gantt-legend-diamond {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
+  border-radius: 2px;
+  border: 2px solid #f59e0b;
+  background: #3b82f6;
+}
+
+.gantt-legend-critical {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+  background: #3b82f6;
+  outline: 2px solid #facc15;
+  outline-offset: 1px;
 }
 
 /* Print layout for thesis/reports */

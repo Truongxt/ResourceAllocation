@@ -60,10 +60,10 @@ export const TASK_STATUS_COLORS = Object.fromEntries(
 // Priority — dùng chung cho cả Project và Task
 // ──────────────────────────────────────────────
 export const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Thấp', color: 'default' },
-  { value: 'medium', label: 'Trung bình', color: 'blue' },
-  { value: 'high', label: 'Cao', color: 'warning' },
-  { value: 'critical', label: 'Khẩn cấp', color: 'red' },
+  { value: 'low', label: 'Thấp', color: 'default', hex: '#94a3b8' },
+  { value: 'medium', label: 'Trung bình', color: 'blue', hex: '#3b82f6' },
+  { value: 'high', label: 'Cao', color: 'warning', hex: '#f59e0b' },
+  { value: 'critical', label: 'Khẩn cấp', color: 'red', hex: '#ef4444' },
 ];
 
 export const PRIORITY = Object.fromEntries(
@@ -72,6 +72,11 @@ export const PRIORITY = Object.fromEntries(
 
 export const PRIORITY_LABELS = Object.fromEntries(
   PRIORITY_OPTIONS.map((p) => [p.value, p.label])
+);
+
+// Mã màu thật, dùng cho những chỗ vẽ trực tiếp (Gantt) thay vì Tag của Ant Design.
+export const PRIORITY_COLORS = Object.fromEntries(
+  PRIORITY_OPTIONS.map((p) => [p.value, p.hex])
 );
 
 // ──────────────────────────────────────────────
