@@ -133,6 +133,42 @@ let taskA, taskB;
   ok(a.data.task.requiredSkills[0].level === 3 && a.data.task.requiredSkills[0].weight === 1,
     'requiredSkills lưu đúng {name, level, weight}');
 
+  // Form Task cho đặt level/weight từng kỹ năng, nên các giá trị ngoài thang phải bị chặn.
+  const skillNoName = await call('POST', '/tasks', {
+    token: TOK.admin,
+    body: { title: 'ZZ skill thiếu tên', project: projectId, requiredSkills: [{ level: 3 }] },
+  });
+  ok(skillNoName.status === 400, 'Kỹ năng yêu cầu thiếu tên → 400');
+
+  const skillBadLevel = await call('POST', '/tasks', {
+    token: TOK.admin,
+    body: { title: 'ZZ level xấu', project: projectId, requiredSkills: [{ name: 'React', level: 9 }] },
+  });
+  ok(skillBadLevel.status === 400, 'Level kỹ năng ngoài 1-5 → 400');
+
+  const skillBadWeight = await call('POST', '/tasks', {
+    token: TOK.admin,
+    body: { title: 'ZZ weight xấu', project: projectId, requiredSkills: [{ name: 'React', weight: 1.5 }] },
+  });
+  ok(skillBadWeight.status === 400, 'Trọng số ngoài 0-1 → 400');
+
+  // Sửa task mà không đụng tới kỹ năng thì level/weight phải giữ nguyên.
+  const untouched = await call('PUT', `/tasks/${taskA}`, { token: TOK.admin, body: { progress: 25 } });
+  ok(untouched.data.task.requiredSkills[0].level === 3 && untouched.data.task.requiredSkills[0].weight === 1,
+    'Sửa trường khác không làm mất level/weight của kỹ năng');
+
+  const reweighted = await call('PUT', `/tasks/${taskA}`, {
+    token: TOK.admin,
+    body: { requiredSkills: [{ name: 'React', level: 4, weight: 0.3 }, { name: 'SQL', level: 2, weight: 1 }] },
+  });
+  ok(reweighted.data.task.requiredSkills.length === 2 &&
+     reweighted.data.task.requiredSkills[0].weight === 0.3,
+    'Cập nhật lại cả danh sách kỹ năng kèm trọng số');
+
+  await call('PUT', `/tasks/${taskA}`, {
+    token: TOK.admin, body: { requiredSkills: [{ name: 'React', level: 3, weight: 1 }] },
+  });
+
   const b = await call('POST', '/tasks', {
     token: TOK.admin,
     body: { title: 'E2E Task B', project: projectId, estimatedHours: 20, dependencies: [taskA] },
