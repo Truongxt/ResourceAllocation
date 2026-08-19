@@ -359,6 +359,54 @@ let deptId, resId;
 }
 
 // ══════════════════════════════════════════════
+S('5b. Lịch nghỉ (unavailablePeriods)');
+{
+  const setLeave = (periods, token = TOK.admin) =>
+    call('PUT', `/resources/${resId}`, { token, body: { unavailablePeriods: periods } });
+
+  const saved = await setLeave([
+    { startDate: '2026-10-01T00:00:00.000Z', endDate: '2026-10-05T23:59:59.000Z', reason: 'Nghỉ phép năm' },
+    { startDate: '2026-11-10T00:00:00.000Z', endDate: '2026-11-12T23:59:59.000Z', reason: 'Công tác' },
+  ]);
+  ok(saved.status === 200 && saved.data.resource.unavailablePeriods.length === 2, 'Lưu 2 kỳ nghỉ → 200');
+  ok(saved.data.resource.unavailablePeriods[0].reason === 'Nghỉ phép năm', 'Lý do được lưu kèm');
+
+  const reversed = await setLeave([
+    { startDate: '2026-10-10T00:00:00.000Z', endDate: '2026-10-01T00:00:00.000Z' },
+  ]);
+  ok(reversed.status === 400, 'Ngày kết thúc trước ngày bắt đầu → 400');
+
+  const overlapping = await setLeave([
+    { startDate: '2026-10-01T00:00:00.000Z', endDate: '2026-10-10T00:00:00.000Z' },
+    { startDate: '2026-10-05T00:00:00.000Z', endDate: '2026-10-15T00:00:00.000Z' },
+  ]);
+  ok(overlapping.status === 400 && /chồng lên nhau/.test(overlapping.message || ''),
+    'Hai kỳ nghỉ chồng nhau → 400');
+
+  const badDate = await setLeave([{ startDate: 'tuần sau', endDate: '2026-10-05T00:00:00.000Z' }]);
+  ok(badDate.status === 400, 'Ngày sai định dạng → 400');
+
+  const notArray = await call('PUT', `/resources/${resId}`, {
+    token: TOK.admin, body: { unavailablePeriods: 'nghỉ phép' },
+  });
+  ok(notArray.status === 400, 'Không phải mảng → 400');
+
+  const memberEdit = await setLeave([], TOK.member);
+  ok(memberEdit.status === 403, 'Member sửa lịch nghỉ của người khác → 403');
+
+  // Kỳ nghỉ liền kề nhưng không giao nhau thì hợp lệ
+  const adjacent = await setLeave([
+    { startDate: '2026-10-01T00:00:00.000Z', endDate: '2026-10-05T00:00:00.000Z' },
+    { startDate: '2026-10-06T00:00:00.000Z', endDate: '2026-10-09T00:00:00.000Z' },
+  ]);
+  ok(adjacent.status === 200, 'Hai kỳ nghỉ liền kề, không giao nhau → 200');
+
+  const cleared = await setLeave([]);
+  ok(cleared.status === 200 && cleared.data.resource.unavailablePeriods.length === 0,
+    'Xóa hết lịch nghỉ → 200');
+}
+
+// ══════════════════════════════════════════════
 S('6. Optimization — GA / CSP / Hybrid');
 let gaId;
 {

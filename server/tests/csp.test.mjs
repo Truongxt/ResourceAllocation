@@ -158,4 +158,70 @@ S('H4 — các trường hợp biên');
   );
 }
 
+// ══════════════════════════════════════════════
+S('H3 — lịch nghỉ của nhân sự');
+// ══════════════════════════════════════════════
+{
+  // Task 05–15/03. R1 nghỉ 10–12/03 (giao) → chỉ còn R2 nhận được việc.
+  const tasks = [task('A', 5, 15)];
+  const onLeave = resource('R1', {
+    unavailablePeriods: [{ startDate: day(10), endDate: day(12), reason: 'Nghỉ phép' }],
+  });
+  const result = await solver().solve(tasks, [onLeave, resource('R2')]);
+
+  ok(result.success, 'Vẫn giải được khi còn người khác rảnh');
+  ok(assignedTo(result, 'A') === 'R2', 'Không giao việc cho người đang nghỉ trong kỳ đó');
+}
+
+{
+  // Kỳ nghỉ nằm ngoài thời gian task → không ảnh hưởng.
+  const tasks = [task('A', 5, 15)];
+  const onLeaveLater = resource('R1', {
+    unavailablePeriods: [{ startDate: day(20), endDate: day(25), reason: 'Công tác' }],
+  });
+  const result = await solver().solve(tasks, [onLeaveLater]);
+
+  ok(result.success, 'Kỳ nghỉ không giao với task thì không loại nhân sự');
+  ok(assignedTo(result, 'A') === 'R1', 'Vẫn giao việc như bình thường');
+}
+
+{
+  // Kỳ nghỉ chạm đúng ngày bắt đầu task: vẫn chung một ngày nên bị loại.
+  const tasks = [task('A', 10, 15)];
+  const touching = resource('R1', {
+    unavailablePeriods: [{ startDate: day(5), endDate: day(10) }],
+  });
+  const result = await solver().solve(tasks, [touching]);
+
+  ok(!result.success, 'Kỳ nghỉ chạm ngày bắt đầu task vẫn tính là bận (biên đóng)');
+  ok(
+    (result.infeasibleTasks || []).length === 1,
+    'Báo rõ task nào không có ai nhận',
+    (result.infeasibleTasks || []).join(', ')
+  );
+}
+
+{
+  // Nhiều kỳ nghỉ: chỉ cần một kỳ giao với task là bị loại.
+  const tasks = [task('A', 5, 15)];
+  const many = resource('R1', {
+    unavailablePeriods: [
+      { startDate: day(1), endDate: day(2) },
+      { startDate: day(12), endDate: day(13) },
+      { startDate: day(25), endDate: day(26) },
+    ],
+  });
+  const result = await solver().solve(tasks, [many, resource('R2')]);
+
+  ok(assignedTo(result, 'A') === 'R2', 'Một kỳ nghỉ giao với task là đủ để loại');
+}
+
+{
+  // availability = 'unavailable' loại nhân sự khỏi mọi task, không cần kỳ nghỉ nào.
+  const tasks = [task('A', 5, 15)];
+  const result = await solver().solve(tasks, [resource('R1', { availability: 'unavailable' })]);
+
+  ok(!result.success, "availability='unavailable' loại nhân sự khỏi mọi task");
+}
+
 process.exit(summary() === 0 ? 0 : 1);
