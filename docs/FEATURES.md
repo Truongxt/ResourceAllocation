@@ -82,7 +82,7 @@ của `server/tests/api.test.mjs`.
 
 ---
 
-## Module 5: Thuật toán Tối ưu hóa (Optimization Engine) 🔨
+## Module 5: Thuật toán Tối ưu hóa (Optimization Engine) ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
@@ -91,7 +91,7 @@ của `server/tests/api.test.mjs`.
 | 5.3 | Fitness Function | Workload balance + skill match + cost + overallocation | ✅ | 4 mục tiêu, trọng số cấu hình được |
 | 5.4 | Constraint Validation | Kiểm tra capacity, skill, availability, dependency | ✅ | Đủ H1–H4. **H2 dùng ngưỡng tổng hợp ≥ 0.5** chứ không bắt buộc từng kỹ năng. H4 cấm giao hai việc phụ thuộc nhau, chồng lịch cho cùng một người; sai thứ tự ngày thì báo trong `constraintReport` (thuật toán không đổi được ngày) — xem [ALGORITHMS.md](./ALGORITHMS.md) mục 2.2 |
 | 5.5 | Run Optimization UI | Giao diện chạy tối ưu hóa với parameters | ✅ | Chọn thuật toán, slider tham số, tinh chỉnh trọng số |
-| 5.6 | Results Comparison | So sánh multiple solutions | 🔨 | Chỉ có danh sách lịch sử + xem chi tiết **một** kết quả; không so sánh song song nhiều phương án |
+| 5.6 | Results Comparison | So sánh multiple solutions | ✅ | Tick chọn 2–4 lần chạy trong lịch sử → `GET /optimization/compare`. Bảng 9 chỉ số kèm đánh dấu bên thắng, bảng phân công ghép theo từng công việc, và cảnh báo khi các phương án chạy khác phạm vi |
 | 5.7 | Apply Solution | Áp dụng kết quả vào hệ thống | ✅ | Ghi `assignee` cho từng task + notification + ActivityLog |
 | 5.8 | History | Lưu lịch sử các lần chạy | ✅ | Model `OptimizationResult`, 50 bản ghi mới nhất |
 | 5.9 | Convergence Chart | Biểu đồ hội tụ GA | ✅ | Bar chart, hiển thị 40 điểm cuối |
@@ -191,15 +191,13 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 2. Projects | 9 | 9 | 0 | 0 |
 | 3. Tasks | 11 | 11 | 0 | 0 |
 | 4. Resources | 10 | 10 | 0 | 0 |
-| 5. Optimization | 11 | 10 | 1 | 0 |
+| 5. Optimization | 11 | 11 | 0 | 0 |
 | 6. Gantt Chart | 8 | 8 | 0 | 0 |
 | 7. Analytics | 7 | 6 | 0 | 1 |
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 4 | 0 | 2 |
-| **Tổng** | **78** | **74 (94.9%)** | **1 (1.3%)** | **3 (3.8%)** |
-
-Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 95.5%**.
+| **Tổng** | **78** | **75 (96.2%)** | **0** | **3 (3.8%)** |
 
 ---
 
@@ -207,10 +205,9 @@ Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 95.5%*
 
 Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 
-1. **So sánh song song nhiều phương án tối ưu hóa** (5.6).
-2. **Trend chart theo thời gian** (7.7).
-3. Đa ngôn ngữ (10.3), email notification (10.6).
-4. **Ràng buộc all-different trong CSP** — AC-3 trên `≠` không suy luận được kiểu chuồng
+1. **Trend chart theo thời gian** (7.7).
+2. Đa ngôn ngữ (10.3), email notification (10.6).
+3. **Ràng buộc all-different trong CSP** — AC-3 trên `≠` không suy luận được kiểu chuồng
    bồ câu; muốn phát hiện sớm những trường hợp đó cần thuật toán Régin.
 
 ### Chênh lệch thang đo cần quyết định

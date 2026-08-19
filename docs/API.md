@@ -4,7 +4,7 @@
 > Base URL: `http://localhost:5000/api`
 >
 > Tài liệu này đã được đối chiếu trực tiếp với mã nguồn (`server/src/routes/`, `server/src/controllers/`)
-> và kiểm chứng bằng request thật. Tổng cộng **51 endpoints**.
+> và kiểm chứng bằng request thật. Tổng cộng **52 endpoints**.
 
 ## Chú thích
 
@@ -344,11 +344,14 @@ Hai kỳ nghỉ liền kề nhưng không giao nhau là hợp lệ.
 | POST | `/run/csp` | Chạy CSP Solver | 🔒 |
 | POST | `/run/hybrid` | Chạy Hybrid (CSP + GA) | 🔒 |
 | GET | `/history` | Lịch sử tối ưu hóa (50 bản ghi mới nhất) | 🔒 |
+| GET | `/compare?ids=` | So sánh song song 2–4 phương án | 🔒 |
 | GET | `/:id` | Chi tiết một kết quả | 🔒 |
 | POST | `/:id/apply` | Áp dụng kết quả vào hệ thống | 📋 PM+ |
 
 > Không có endpoint `POST /run` gộp — mỗi thuật toán một đường dẫn riêng.
 > Chi tiết kết quả là `GET /:id`, **không phải** `GET /:id/result`.
+> `/compare` khai báo **trước** `/:id` trong router, nếu không Express khớp chuỗi
+> `"compare"` vào `:id` và request chết ở tầng validate.
 
 ### POST `/api/optimization/run/genetic`
 Body **phẳng** (không lồng `parameters`/`weights`), và chỉ nhận **một** `projectId`:
@@ -457,6 +460,67 @@ Trả về **nguyên document `OptimizationResult`**, không phải object rút 
 > không đổi được ngày. Xem [ALGORITHMS.md](./ALGORITHMS.md) mục 2.2.
 >
 > Các bản ghi CSP tạo **trước** thay đổi này vẫn còn `fitness: 0` và `metrics` rỗng trong DB.
+
+### GET `/api/optimization/compare?ids=id1,id2,id3`
+
+Đặt 2–4 phương án cạnh nhau. Nhận danh sách ID ngăn bằng dấu phẩy; ID trùng bị khử
+trước khi đếm, nên `?ids=X,X` là **400** chứ không phải "hai phương án".
+
+| Trường hợp | Mã |
+|---|---|
+| Dưới 2 ID khác nhau | 400 |
+| Quá 4 ID | 400 |
+| ID sai định dạng ObjectId | 400 |
+| Có ID không tồn tại | 404 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "comparison": {
+      "results": [ /* bản rút gọn của từng phương án, GIỮ ĐÚNG THỨ TỰ trong ?ids */ ],
+      "metrics": [
+        { "key": "fitness", "label": "Điểm fitness", "unit": "", "digits": 4,
+          "higherIsBetter": true, "values": [0.8734, 0.8102, 0.8734], "bestIndex": null }
+      ],
+      "assignments": {
+        "total": 12, "comparable": 12, "agreed": 8, "agreementRate": 67,
+        "rows": [
+          { "task": "...", "taskTitle": "...", "comparable": true, "agreed": false,
+            "cells": [ { "resource": "...", "resourceName": "...", "skillMatch": 100 }, null ] }
+        ]
+      },
+      "warnings": ["..."]
+    }
+  }
+}
+```
+
+9 chỉ số: `fitness`, `assignedCount`, `averageSkillMatch`, `workloadVariance`,
+`overallocatedResources`, `totalCost`, `averageUtilization`, `violatedConstraints`,
+`executionTime`.
+
+**Quy ước quan trọng khi đọc kết quả:**
+
+- `bestIndex` là `null` khi **không có bên thắng rõ ràng**: chỉ số vô hướng
+  (`higherIsBetter: null`, ví dụ `averageUtilization` — 40% là để phí người, 100% là vắt
+  kiệt), dưới hai phương án có số liệu, hoặc **nhiều phương án cùng đạt giá trị tốt nhất**.
+  Không trao giải cho phương án đứng trước chỉ vì nó đứng trước.
+- Giá trị `null` trong `values` nghĩa là **phương án đó không sinh ra chỉ số này**, khác hẳn
+  0. GA không kiểm tra ràng buộc nên `violatedConstraints` của nó là `null`, không phải
+  "0 vi phạm"; `constraintReport` của nó cũng là `null`.
+- `workloadVariance` giữ nguyên tên field vì dữ liệu cũ đã lưu vậy, nhưng giá trị thực tế là
+  **độ lệch chuẩn** (`scoring.js` lấy căn bậc hai của phương sai). Nhãn trả về ghi đúng bản chất.
+- Một công việc chỉ tính vào `agreed`/`comparable` khi **mọi** phương án đều phân công nó.
+  Công việc có phương án bỏ trống bị loại khỏi mẫu số thay vì bị tính là bất đồng, nên
+  `agreementRate` có thể là `null` nếu không công việc nào so được.
+- `rows` sắp xếp **chỗ khác nhau lên trước**.
+- `warnings` cảnh báo khi các phương án không thực sự so được: khác phạm vi dự án, khác số
+  công việc đầu vào (chỉ số cộng dồn như `totalCost` sẽ lệch theo quy mô chứ không theo chất
+  lượng lời giải), hoặc có phương án chưa `completed`.
+
+Response cố tình **không kèm** `metrics.resourceUtilization` và `constraintReport.details` —
+bảng so sánh không dùng tới, mà 4 phương án kèm đủ hai mảng đó là payload rất nặng.
 
 ### POST `/api/optimization/:id/apply`
 Ghi `assignee` cho từng task theo `assignments`, dùng `resource.user` (User ID) làm giá trị.

@@ -27,6 +27,18 @@ Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code ch�
 
 ### Added
 
+- **So sánh song song nhiều phương án** (5.6) — `GET /api/optimization/compare?ids=` đặt 2–4
+  lần chạy cạnh nhau: 9 chỉ số kèm đánh dấu bên thắng, và bảng phân công ghép theo từng công
+  việc để thấy hai thuật toán chọn khác nhau ở đâu. Trên giao diện: tick chọn trong tab Lịch
+  sử chạy → tab **So sánh phương án**, có công tắc chỉ hiện chỗ khác.
+  Ba quy ước cố tình chọn để số liệu không nói dối:
+  - Nhiều phương án cùng đạt giá trị tốt nhất thì **không ai** được tô đậm — hòa nhau không
+    phải là thắng, và phương án đứng trước không được ưu ái vì đứng trước.
+  - `averageUtilization` không có bên thắng: 40% là để phí người, 100% là vắt kiệt.
+  - Chỉ số một phương án không sinh ra được trả `null` chứ không quy về 0 — GA không kiểm tra
+    ràng buộc, hiển thị "0 vi phạm" cho nó là sai sự thật.
+  Kèm cảnh báo khi các phương án chạy khác phạm vi dự án hoặc khác số công việc đầu vào; so
+  một lần chạy 20 việc với một lần chạy 8 việc rồi kết luận thuật toán nào hơn là kết luận sai.
 - **AC-3 đúng nghĩa trong CSPSolver** (5.2) — tách hẳn hai bước từng bị gộp dưới một cái tên:
   `_nodeConsistency()` lọc theo capacity (ràng buộc đơn phân), `_arcConsistency()` chạy AC-3
   thật trên đồ thị ràng buộc nhị phân H4, có hàng đợi cung và đẩy lại cung sau mỗi lần cắt.
