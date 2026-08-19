@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
+import { setToken, clearToken, getToken } from '../services/tokenStore';
 
 const AuthContext = createContext(null);
 
@@ -8,22 +9,20 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Verify token and load user on mount
+  // Khôi phục phiên khi tải trang.
+  //
+  // Access token nằm trong bộ nhớ nên tải lại trang là mất. Nguồn sự thật cho
+  // "còn đăng nhập hay không" là cookie refresh (httpOnly) — hỏi thẳng server
+  // bằng một lần làm mới. Không còn cờ nào trong localStorage để đọc, và cũng
+  // không cần: không có cookie thì lời gọi này trả 401 và coi như chưa đăng nhập.
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('rao_token');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        const response = await authService.getMe();
+        const response = await authService.refresh();
+        setToken(response.data.token);
         setUser(response.data.user);
       } catch {
-        // Token invalid or expired
-        localStorage.removeItem('rao_token');
-        localStorage.removeItem('rao_user');
+        clearToken();
       } finally {
         setLoading(false);
       }
@@ -38,8 +37,7 @@ export function AuthProvider({ children }) {
     try {
       const response = await authService.register(userData);
       const { user: newUser, token } = response.data;
-      localStorage.setItem('rao_token', token);
-      localStorage.setItem('rao_user', JSON.stringify(newUser));
+      setToken(token);
       setUser(newUser);
       return { success: true };
     } catch (err) {
@@ -55,8 +53,7 @@ export function AuthProvider({ children }) {
     try {
       const response = await authService.login(credentials);
       const { user: loggedInUser, token } = response.data;
-      localStorage.setItem('rao_token', token);
-      localStorage.setItem('rao_user', JSON.stringify(loggedInUser));
+      setToken(token);
       setUser(loggedInUser);
       return { success: true };
     } catch (err) {
@@ -76,8 +73,7 @@ export function AuthProvider({ children }) {
     } catch {
       /* ignore */
     }
-    localStorage.removeItem('rao_token');
-    localStorage.removeItem('rao_user');
+    clearToken();
     setUser(null);
     setError(null);
   }, []);
@@ -88,7 +84,6 @@ export function AuthProvider({ children }) {
     try {
       const response = await authService.updateProfile(profileData);
       const updatedUser = response.data.user;
-      localStorage.setItem('rao_user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       return { success: true, message: response.message };
     } catch (err) {
@@ -105,7 +100,7 @@ export function AuthProvider({ children }) {
       const response = await authService.changePassword(passwordData);
       // Update token after password change
       if (response.data?.token) {
-        localStorage.setItem('rao_token', response.data.token);
+        setToken(response.data.token);
       }
       return { success: true, message: response.message };
     } catch (err) {
@@ -125,6 +120,10 @@ export function AuthProvider({ children }) {
     loading,
     error,
     isAuthenticated: !!user,
+    // SocketContext cần token để xác thực kết nối. Trước đây nó đọc `token` từ
+    // đây nhưng context chưa bao giờ trả field này, nên luôn rơi xuống nhánh dự
+    // phòng đọc localStorage — mà localStorage nay không còn giữ token nữa.
+    getToken,
     register,
     login,
     logout,

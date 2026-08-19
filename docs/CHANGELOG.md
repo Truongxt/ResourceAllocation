@@ -12,6 +12,27 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code chứ không theo trí nhớ.
 
+- **Bỏ hẳn token khỏi `localStorage`.** Access token nay giữ trong biến module
+  (`client/src/services/tokenStore.js`); `rao_token` và `rao_user` không còn được ghi ở đâu.
+  Đóng tab là mất token, nên không còn gì để trộm về sau. XSS đang chạy vẫn đọc được biến
+  trong bộ nhớ — không SPA nào chặn được điều đó — nhưng nó chỉ lấy được token sống 15 phút
+  và không lấy được refresh token (cookie `httpOnly`), nên không duy trì được quyền truy cập.
+  Đổi lại, tải lại trang là mất token: `AuthProvider` khôi phục phiên bằng một lần gọi
+  `/auth/refresh` lúc khởi động thay vì đọc cờ trong `localStorage`.
+- **Sửa lỗi đá người dùng ra oan khi mở nhiều tab.** Cookie dùng chung cho mọi tab, nên hai
+  tab cùng hết hạn access token sẽ cùng gửi **một** cookie đi làm mới; cái tới sau trình ra
+  token vừa bị xoay vòng và bị xử là tái sử dụng → thu hồi cả chuỗi → đăng xuất, dù không ai
+  tấn công. Nay có khoảng ân hạn `REFRESH_GRACE_SECONDS` (mặc định 10 giây): trong cửa sổ đó,
+  phát lại được coi là đua giữa các tab.
+  Đánh đổi nói thẳng: kẻ tấn công phát lại đúng trong cửa sổ này cũng lọt. Cửa sổ hẹp thì an
+  toàn hơn nhưng bắt oan nhiều hơn. Đặt về 0 là tắt hẳn ân hạn.
+  Trong khoảng ân hạn, bản ghi cũ **không** bị đánh dấu lại — đánh dấu lại sẽ đẩy `revokedAt`
+  về hiện tại và làm cửa sổ trượt đi mãi, khiến một token cũ sống vô hạn miễn là cứ 10 giây
+  lại dùng một lần.
+- Socket.IO nhận token qua **hàm** `auth: (cb) => cb({ token })` thay vì object. Object chốt
+  giá trị tại lúc tạo socket, nên mọi lần kết nối lại sau 15 phút đều trình ra token đã hết
+  hạn. Tiện thể sửa `SocketContext` đọc `token` từ `useAuth()` — context chưa bao giờ trả
+  field đó, nên nó vẫn luôn rơi xuống nhánh dự phòng đọc `localStorage`.
 - **Refresh token thu hồi được** — access token rút xuống **15 phút** (`ACCESS_TOKEN_EXPIRE`),
   kèm refresh token 7 ngày (`REFRESH_TOKEN_DAYS`) đi bằng cookie `httpOnly`, `Path=/api/auth`.
   Access token vẫn nằm trong `localStorage` như cũ, nhưng thứ sống lâu nhất thì JavaScript

@@ -42,6 +42,15 @@ const authService = {
   },
 
   /**
+   * Đổi cookie refresh lấy access token mới.
+   * Dùng lúc khởi động để khôi phục phiên, vì access token chỉ nằm trong bộ nhớ.
+   */
+  refresh: async () => {
+    const response = await api.post('/auth/refresh');
+    return response.data;
+  },
+
+  /**
    * Đăng xuất thiết bị hiện tại — thu hồi refresh token ở server.
    * Chỉ xóa token phía client là chưa đủ: cookie refresh vẫn sống và vẫn đổi
    * được access token mới.

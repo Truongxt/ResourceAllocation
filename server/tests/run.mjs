@@ -53,6 +53,11 @@ const env = {
   // Bộ e2e đăng nhập và gọi API liên tục từ cùng một IP; ngưỡng thật sẽ chặn giữa chừng.
   // Bản thân middleware giới hạn tần suất được kiểm riêng trong bộ `security`.
   AUTH_RATE_LIMIT_MAX: '10000',
+  // Ân hạn khi xoay vòng refresh token rút xuống 1 giây để bộ `refresh-token`
+  // kiểm được cả hai phía của ranh giới: phát lại ngay là đua giữa các tab (cho
+  // qua), phát lại sau khi hết ân hạn là tái sử dụng (thu hồi cả chuỗi). Giữ mặc
+  // định 10 giây thì phải ngủ 10 giây giữa bài test.
+  REFRESH_GRACE_SECONDS: '1',
   API_RATE_LIMIT_MAX: '100000',
 };
 

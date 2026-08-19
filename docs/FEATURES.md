@@ -19,7 +19,7 @@
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
 | 1.1 | Đăng ký | Form đăng ký với validation (email, password ≥ 6) | ✅ | `Register.jsx` + express-validator |
-| 1.2 | Đăng nhập | JWT-based authentication | ✅ | Token lưu `localStorage.rao_token` |
+| 1.2 | Đăng nhập | JWT-based authentication | ✅ | Access token giữ **trong bộ nhớ** (`services/tokenStore.js`), không chạm `localStorage`. Refresh token đi bằng cookie `httpOnly` |
 | 1.3 | Đăng xuất | Clear token, redirect to login | ✅ | Dropdown ở Header. Gọi `POST /auth/logout` để **thu hồi refresh token ở server** — chỉ xóa phía client là chưa đủ, cookie vẫn đổi được access token mới |
 | 1.4 | Phân quyền | Role-based: Admin, PM, Member | ✅ | `authorize` cho các thao tác theo role; `canModifyTask` cho phép người được giao tự cập nhật tiến độ task của mình |
 | 1.5 | Quản lý Profile | Cập nhật thông tin cá nhân, avatar | ✅ | Trang Cài đặt (`Settings.jsx`) |
@@ -265,7 +265,9 @@ mới chặn. Script là loại một lần, xong hết mọi môi trường th�
 | Đã có | Chưa có |
 |-------|---------|
 | `helmet` (nosniff, frameguard, HSTS…) | |
-| CORS giới hạn theo `CLIENT_URL` cho cả REST lẫn Socket.IO | **Access token** vẫn để trong `localStorage` — XSS đọc được. Cửa sổ thiệt hại nay là 15 phút thay vì 7 ngày, và refresh token thì XSS không lấy được |
+| CORS giới hạn theo `CLIENT_URL` cho cả REST lẫn Socket.IO | XSS đang chạy vẫn đọc được access token trong bộ nhớ — không SPA nào chặn được điều đó. Nhưng nó chỉ lấy được token sống 15 phút, không lấy được refresh token, nên **không duy trì được quyền truy cập** |
+| **Không còn token nào trong `localStorage`.** Access token giữ trong biến module, đóng tab là mất; phiên khôi phục bằng cookie refresh lúc tải trang | |
+| **Ân hạn khi xoay vòng** (`REFRESH_GRACE_SECONDS`, mặc định 10s): nhiều tab cùng làm mới không bị xử oan là tấn công | |
 | **Refresh token thu hồi được**: cookie `httpOnly`, `Path=/api/auth`, chỉ lưu bản băm SHA-256 trong DB, xoay vòng mỗi lần làm mới | |
 | **Phát hiện tái sử dụng**: trình lại token đã bị xoay vòng thì thu hồi cả chuỗi — token bị đánh cắp chỉ dùng được tới lần làm mới kế tiếp của chủ thật | |
 | **Đổi mật khẩu đuổi mọi phiên khác**; có `POST /auth/logout-all` | |

@@ -41,8 +41,17 @@ S('Phân loại token khi có người trình ra');
 
   // Đây là ca quan trọng nhất của cả tính năng: token đã bị thay thế trong chuỗi
   // xoay vòng mà vẫn được trình ra, nghĩa là có người đang phát lại bản cũ.
-  ok(classifyToken({ expiresAt: future, revokedAt: new Date(), revokedReason: 'rotated' }).status === 'reused',
-    'Token đã bị xoay vòng mà trình lại → reused (dấu hiệu bị đánh cắp)');
+  const longAgo = new Date(Date.now() - 60_000);
+  ok(classifyToken({ expiresAt: future, revokedAt: longAgo, revokedReason: 'rotated' }, new Date(), 10_000).status === 'reused',
+    'Token đã xoay vòng từ lâu mà trình lại → reused (dấu hiệu bị đánh cắp)');
+
+  // Nhưng ngay sau khi xoay vòng thì đó nhiều khả năng là hai tab của cùng một
+  // người cùng làm mới, không phải tấn công. Xử như tấn công là đá người dùng ra oan.
+  ok(classifyToken({ expiresAt: future, revokedAt: new Date(), revokedReason: 'rotated' }, new Date(), 10_000).status === 'grace',
+    'Trình lại ngay sau khi xoay vòng → grace, coi là đua giữa các tab');
+
+  ok(classifyToken({ expiresAt: future, revokedAt: new Date(), revokedReason: 'rotated' }, new Date(), 0).status === 'reused',
+    'Đặt ân hạn về 0 thì mọi lần phát lại đều là reused');
 
   ok(classifyToken({ expiresAt: future, revokedAt: new Date(), revokedReason: 'logout' }).status === 'revoked',
     'Token đã đăng xuất → revoked, KHÔNG phải reused — người dùng tự bấm thì không có gì đáng ngờ');
@@ -129,15 +138,39 @@ S('Xoay vòng');
 }
 
 // ══════════════════════════════════════════════
+S('Đua giữa nhiều tab được tha (trong ân hạn)');
+{
+  // Cookie dùng chung cho mọi tab. Hai tab cùng hết hạn access token sẽ cùng gửi
+  // đúng một cookie đi làm mới. Xử cái thứ hai như tấn công là đá người dùng ra oan.
+  const session = await login();
+
+  const [first, second] = await Promise.all([
+    callWithCookie('POST', '/auth/refresh', { cookie: session.cookie }),
+    callWithCookie('POST', '/auth/refresh', { cookie: session.cookie }),
+  ]);
+
+  ok(first.status === 200 && second.status === 200,
+    'Hai tab cùng làm mới bằng một cookie → cả hai đều qua',
+    `(${first.status}, ${second.status})`);
+  ok(first.cookie !== second.cookie, 'Mỗi tab nhận một token riêng');
+
+  const stillAlive = await callWithCookie('POST', '/auth/refresh', { cookie: second.cookie });
+  ok(stillAlive.status === 200, 'Phiên không bị thu hồi vì cú đua đó');
+}
+
+// ══════════════════════════════════════════════
 S('Phát hiện tái sử dụng — cả chuỗi bị thu hồi');
 {
   const session = await login();
   const rotated = await callWithCookie('POST', '/auth/refresh', { cookie: session.cookie });
   ok(rotated.status === 200, 'Lần làm mới đầu thành công');
 
-  // Kẻ tấn công phát lại token cũ đã bị thay thế.
+  // Chờ hết ân hạn (bộ chạy đặt REFRESH_GRACE_SECONDS=1) rồi mới phát lại —
+  // lúc này không còn giải thích được bằng cú đua giữa các tab nữa.
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+
   const replay = await callWithCookie('POST', '/auth/refresh', { cookie: session.cookie });
-  ok(replay.status === 401, 'Trình lại token đã xoay vòng → 401');
+  ok(replay.status === 401, 'Trình lại token đã xoay vòng, sau ân hạn → 401');
   ok(replay.reason === 'reused', 'Server nhận diện đúng là tái sử dụng', `(${replay.reason})`);
 
   // Và đây mới là điểm mấu chốt: token *mới* — đang nằm trong tay chủ thật —

@@ -17,6 +17,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import axios from 'axios';
 import api from '../src/services/api.js';
+import { setToken, getToken, clearToken } from '../src/services/tokenStore.js';
 
 let refreshCalls = 0;
 let tokenCounter = 0;
@@ -58,7 +59,9 @@ describe('Tự làm mới access token khi hết hạn', () => {
     refreshCalls = 0;
     tokenCounter = 0;
     validToken = 'token-cu';
-    localStorage.setItem('rao_token', 'token-cu');
+    clearToken();
+    localStorage.clear();
+    setToken('token-cu');
     api.defaults.adapter = adapter;
     axios.defaults.adapter = adapter;
   });
@@ -70,7 +73,26 @@ describe('Tự làm mới access token khi hết hạn', () => {
 
     expect(res.status).toBe(200);
     expect(refreshCalls).toBe(1);
-    expect(localStorage.getItem('rao_token')).toBe(validToken);
+    expect(getToken()).toBe(validToken);
+  });
+
+  it('access token KHÔNG bao giờ chạm localStorage', async () => {
+    validToken = 'token-server-doi-roi';
+    await api.get('/tasks');
+
+    // Lỗ XSS đọc được localStorage. Token chỉ sống trong bộ nhớ thì đóng tab là
+    // mất, và không còn gì để trộm về sau.
+    expect(localStorage.getItem('rao_token')).toBeNull();
+    expect(localStorage.length).toBe(0);
+    expect(getToken()).toBe(validToken);
+  });
+
+  it('401 không cứu được thì xóa token trong bộ nhớ', async () => {
+    api.defaults.adapter = (config) => makeResponse(config, 401, { message: 'hết hạn' });
+    axios.defaults.adapter = api.defaults.adapter;
+
+    await expect(api.get('/tasks')).rejects.toBeTruthy();
+    expect(getToken()).toBeNull();
   });
 
   it('nhiều request cùng gặp 401 chỉ kích hoạt MỘT lượt làm mới', async () => {

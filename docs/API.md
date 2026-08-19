@@ -89,6 +89,7 @@ cookie `rao_refresh`.
 | | Access token | Refresh token |
 |---|---|---|
 | Đi bằng | Header `Authorization: Bearer` | Cookie `rao_refresh` (`httpOnly`, `Path=/api/auth`) |
+| Client giữ ở | **Bộ nhớ** (biến module), không phải `localStorage` | Trình duyệt tự giữ |
 | Sống | 15 phút (`ACCESS_TOKEN_EXPIRE`) | 7 ngày (`REFRESH_TOKEN_DAYS`) |
 | Thu hồi được | **Không** | **Có** |
 | Lưu ở server | Không lưu (JWT) | Chỉ lưu bản băm SHA-256 |
@@ -110,6 +111,10 @@ Không có request body — token nằm trong cookie.
 một refresh token đã bị xoay vòng, tức là token đã lọt ra ngoài. Server thu hồi **cả chuỗi**
 token của lần đăng nhập đó — kể cả token đang nằm trong tay chủ thật — vì tại thời điểm ấy
 không phân biệt được ai là ai. Cả hai bên phải đăng nhập lại.
+
+Ngoại lệ: trong `REFRESH_GRACE_SECONDS` giây đầu sau khi xoay vòng, phát lại được coi là
+**đua giữa các tab** chứ không phải tấn công, và vẫn trả 200. Không có ngoại lệ này thì mở
+hai tab là đủ để tự đăng xuất chính mình.
 
 ### POST `/api/auth/register`
 ```json

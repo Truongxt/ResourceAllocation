@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken, setToken, clearToken } from './tokenStore';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -15,7 +16,7 @@ const api = axios.create({
 // Request interceptor - attach JWT token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('rao_token');
+    const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -60,8 +61,7 @@ const onRefreshed = (token, error) => {
 };
 
 const clearSessionAndRedirect = () => {
-  localStorage.removeItem('rao_token');
-  localStorage.removeItem('rao_user');
+  clearToken();
   if (window.location.pathname !== '/login') {
     window.location.href = '/login';
   }
@@ -89,7 +89,7 @@ api.interceptors.response.use(
     if (!refreshing) {
       refreshing = runRefresh()
         .then((token) => {
-          localStorage.setItem('rao_token', token);
+          setToken(token);
           onRefreshed(token, null);
           return token;
         })

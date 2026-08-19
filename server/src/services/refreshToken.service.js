@@ -21,19 +21,47 @@ function hashToken(value) {
 }
 
 /**
+ * Khoảng ân hạn sau khi một token bị xoay vòng.
+ *
+ * Cookie dùng chung cho mọi tab của trình duyệt. Hai tab cùng hết hạn access token
+ * sẽ cùng gọi làm mới với **cùng một cookie cũ** — cái tới sau trình ra token vừa
+ * bị xoay vòng, và nếu xử theo đúng luật thì đó là "tái sử dụng", thu hồi cả chuỗi,
+ * người dùng bị đá ra dù không ai tấn công gì.
+ *
+ * Trong vài giây đầu, coi đó là đua chứ không phải tấn công.
+ *
+ * Đánh đổi: kẻ tấn công phát lại token trong đúng cửa sổ này cũng lọt. Đổi lại,
+ * người dùng bình thường mở nhiều tab không bị đăng xuất oan. Cửa sổ càng hẹp
+ * càng an toàn nhưng càng dễ bắt oan; 10 giây là chỗ dung hòa, chỉnh được bằng
+ * REFRESH_GRACE_SECONDS.
+ */
+const getGraceMs = () => {
+  const seconds = Number(process.env.REFRESH_GRACE_SECONDS ?? 10);
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : 10_000;
+};
+
+/**
  * Phân loại một bản ghi token khi có người trình nó ra.
  *
- * Hàm thuần: nhận bản ghi (hoặc null) và thời điểm hiện tại, trả về quyết định.
+ * Hàm thuần: nhận bản ghi (hoặc null), thời điểm hiện tại và khoảng ân hạn,
+ * trả về quyết định.
  *
- * @returns {{status: 'valid'|'unknown'|'expired'|'reused'|'revoked'}}
+ * @returns {{status: 'valid'|'unknown'|'expired'|'reused'|'revoked'|'grace'}}
  */
-function classifyToken(record, now = new Date()) {
+function classifyToken(record, now = new Date(), graceMs = getGraceMs()) {
   if (!record) return { status: 'unknown' };
 
   if (record.revokedAt) {
     // Token đã bị thay thế trong chuỗi xoay vòng mà vẫn được trình ra: chủ thật
     // đã đổi sang token mới, nên kẻ đang cầm bản cũ này là người phát lại.
-    if (record.revokedReason === 'rotated') return { status: 'reused' };
+    if (record.revokedReason === 'rotated') {
+      const since = now - new Date(record.revokedAt);
+      // So sánh `<` chứ không phải `<=`: đặt ân hạn về 0 phải nghĩa là KHÔNG tha
+      // lần nào. Với `<=` thì hai mốc thời gian trùng nhau vẫn lọt, và cấu hình
+      // "tắt ân hạn" không tắt được gì.
+      if (since < graceMs) return { status: 'grace' };
+      return { status: 'reused' };
+    }
     return { status: 'revoked' };
   }
 
@@ -97,7 +125,7 @@ async function rotateRefreshToken(presentedValue, { userAgent, ipAddress } = {})
     return { ok: false, status: 'reused' };
   }
 
-  if (status !== 'valid') return { ok: false, status };
+  if (status !== 'valid' && status !== 'grace') return { ok: false, status };
 
   const next = await issueRefreshToken(record.user, {
     userAgent,
@@ -105,12 +133,23 @@ async function rotateRefreshToken(presentedValue, { userAgent, ipAddress } = {})
     family: record.family, // vẫn cùng một chuỗi
   });
 
-  record.revokedAt = new Date();
-  record.revokedReason = 'rotated';
-  record.replacedBy = next.record.tokenHash;
-  await record.save();
+  // Trong khoảng ân hạn thì bản ghi cũ đã bị đánh dấu rồi; đánh dấu lại sẽ đẩy
+  // `revokedAt` về hiện tại và làm cửa sổ ân hạn trượt đi mãi, khiến một token
+  // cũ sống vô hạn miễn là cứ 10 giây lại dùng một lần.
+  if (status === 'valid') {
+    record.revokedAt = new Date();
+    record.revokedReason = 'rotated';
+    record.replacedBy = next.record.tokenHash;
+    await record.save();
+  }
 
-  return { ok: true, userId: record.user, value: next.value, expiresAt: next.expiresAt };
+  return {
+    ok: true,
+    status,
+    userId: record.user,
+    value: next.value,
+    expiresAt: next.expiresAt,
+  };
 }
 
 /** Thu hồi đúng token đang được trình ra (đăng xuất trên thiết bị này). */
