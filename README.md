@@ -62,7 +62,8 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run dev:server` | gốc | Chỉ chạy server (port 5000) |
 | `npm run build` | gốc | Build client cho production |
 | `npm start` | `server/` | Chạy server không auto-reload |
-| `npm run seed` | `server/` | Tạo dữ liệu mẫu (xóa sạch dữ liệu cũ trước) |
+| `npm run seed` | `server/` | Tạo dữ liệu mẫu (xóa sạch cả 8 collection trước) |
+| `npm run cleanup` | `server/` | Liệt kê dữ liệu mồ côi trong DB đang chạy; thêm `-- --apply` để xóa thật |
 | `npm test` | `server/` | Chạy kiểm thử end-to-end trên DB + cổng riêng ([chi tiết](./server/tests/README.md)) |
 | `npm test` | `client/` | Chạy kiểm thử logic thuần (CPM của sơ đồ Gantt) bằng node |
 | `npm run preview` | `client/` | Xem thử bản build production |

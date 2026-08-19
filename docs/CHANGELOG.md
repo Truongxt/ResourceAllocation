@@ -8,6 +8,23 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ## [Chưa phát hành] - 2026-08-19
 
+### Security
+
+Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code chứ không theo trí nhớ.
+
+- **Giới hạn tần suất** (`express-rate-limit`): 10 lần đăng nhập **sai** / 15 phút mỗi IP cho
+  `/auth/login` và `/auth/register`, 1000 request / 15 phút cho phần còn lại của API. Đăng nhập
+  đúng không bị tính vào ngưỡng nên không khóa nhầm người dùng thật. Ngưỡng đặt qua
+  `AUTH_RATE_LIMIT_MAX` / `API_RATE_LIMIT_MAX`.
+- **`helmet`** — bổ sung nosniff, frameguard, HSTS, gỡ `X-Powered-By`. CSP tắt vì API chỉ trả JSON.
+- **CORS siết theo `CLIENT_URL`** cho REST API; trước đây `cors()` mở cho mọi origin.
+  Request không kèm `Origin` (curl, health check hạ tầng) vẫn đi qua được.
+- **Giới hạn body 1 MB** cho cả JSON lẫn urlencoded.
+- Chặn open redirect ở đích điều hướng động duy nhất của client (`notif.link` trong
+  `Header.jsx`): chỉ nhận đường dẫn nội bộ, loại `//host` và `/\host`.
+- `.env.example` ghi rõ `CLIENT_URL` là **bắt buộc khi deploy** — thiếu thì server chỉ chấp
+  nhận `localhost:5173` và realtime chết trên môi trường thật.
+
 ### Added
 
 - **AC-3 đúng nghĩa trong CSPSolver** (5.2) — tách hẳn hai bước từng bị gộp dưới một cái tên:
@@ -26,6 +43,10 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   giảm từ 119 xuống 90 (trung bình 40 lần chạy mỗi chế độ), fitness nhỉnh hơn một chút.
 - `OptimizationResult.domainReduction` — ghi lại mức thu hẹp và số công việc phải mở lại
   miền vì không nhân sự nào đủ điều kiện; hiện trên trang Tối ưu hóa kèm cảnh báo.
+- `npm run cleanup` — liệt kê dữ liệu mồ côi trong database đang chạy (thông báo trỏ tới user
+  đã xóa, kết quả CSP cũ có `fitness: 0`, kết quả trỏ tới dự án đã xóa). **Mặc định chạy khô**,
+  phải thêm `-- --apply` mới xóa thật. ActivityLog cố ý không đụng tới: nhật ký lưu sẵn
+  `userName`/`userEmail` để đọc được sau khi tài khoản biến mất, xóa đi là mất vết kiểm toán.
 - **UI level/weight cho kỹ năng yêu cầu** (3.9) — form Task nhập từng dòng: tên (gợi ý lấy
   từ Skill Matrix của nhân sự vì thuật toán so khớp theo tên), mức yêu cầu, trọng số 0-1.
   Bảng công việc hiện luôn danh sách kỹ năng kèm mức. Server chặn thiếu tên, level ngoài
@@ -87,6 +108,16 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Fixed
 
+- **Seeder chỉ xóa 5/8 collection.** `notifications`, `activitylogs` và `optimizationresults`
+  tồn đọng qua mọi lần seed và trỏ tới user/task đã bị xóa. Nay xóa đủ 8, có assertion
+  kiểm tra ba collection này sạch ngay sau khi seed.
+- **Member thấy ô mình không lưu được.** Form công việc vẫn cho gõ tiêu đề, ưu tiên, người
+  thực hiện, ngày tháng rồi báo "Cập nhật thành công", trong khi client lặng lẽ cắt bỏ những
+  trường đó trước khi gửi. Nay các ô bị khóa kèm giải thích ba trường được phép đổi.
+- Hai trang tự định nghĩa lại hằng số đã có trong `constants/`: `Dashboard.jsx` (nhãn + màu
+  5 trạng thái task, ở ba chỗ khác nhau) và `Resources.jsx` (`SKILL_LEVELS`,
+  `AVAILABILITY_OPTIONS`, 4 chỗ viết cứng tên role). Đây đúng loại lệch đã sinh ra 4 lỗi
+  trong đợt rà soát đầu tiên.
 - Form Task đọc `requiredSkills` ra chuỗi tên rồi ghi lại với `level: 2` cố định, nên
   **mỗi lần sửa công việc là mất mức yêu cầu và trọng số đã đặt**. Nay giữ nguyên giá trị đã lưu.
 - `Reports.jsx` đọc `summary.highBurnoutRisk` trong khi API trả `summary.highBurnout` →

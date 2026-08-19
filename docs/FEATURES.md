@@ -223,13 +223,30 @@ muốn dứt điểm thì phải thống nhất một thang cho cả hai schema.
 
 - `GET /api/auth/users` giới hạn Admin, nên UI cần danh sách người dùng phải lấy gián tiếp
   qua `GET /api/resources` (đây là cách trang chi tiết dự án đang làm).
-- Seeder chỉ xóa 5 collection (User, Project, Task, Resource, Department); `notifications`,
-  `activitylogs` và `optimizationresults` tồn đọng qua các lần seed và trỏ tới bản ghi đã xóa.
+- `react-router-dom` v6 còn 2 advisory mức moderate, chỉ sửa được bằng cách lên v7 (breaking).
+  **Không áp dụng được cho dự án này**: một cái nằm ở SSR hydration mà đây là SPA thuần Vite,
+  cái còn lại là open redirect qua `<Link>`/`useNavigate` — đích điều hướng động duy nhất
+  trong client (`notif.link` ở `Header.jsx`) đã được chặn chỉ nhận đường dẫn nội bộ.
+- `vite`/`esbuild` có advisory nhưng chỉ ảnh hưởng dev server, không đi vào bản build.
+- Bundle client là **một mảnh ~1.5 MB**, chưa tách code theo route.
 - Chưa có kiểm thử render component; hiện có kiểm thử end-to-end qua API và Socket.IO
   (`cd server && npm test`, xem [server/tests/README.md](../server/tests/README.md)) và kiểm thử
   logic thuần phía client (`cd client && npm test`).
 - Dữ liệu mẫu của seeder có 2 phụ thuộc bị vi phạm (task sau bắt đầu trước khi task trước
   kết thúc) — sơ đồ Gantt hiện cảnh báo đỏ và CSP báo lại trong `constraintReport` ngay sau khi seed.
+
+### Bảo mật — mức đã đạt và chưa đạt
+
+| Đã có | Chưa có |
+|-------|---------|
+| `helmet` (nosniff, frameguard, HSTS…) | Chưa có refresh token / thu hồi token |
+| CORS giới hạn theo `CLIENT_URL` cho cả REST lẫn Socket.IO | Token để trong `localStorage` — XSS đọc được (đánh đổi tiêu chuẩn của SPA) |
+| Giới hạn tần suất: 10 lần đăng nhập sai / 15 phút, 1000 request / 15 phút | Chưa chống NoSQL injection ở tầng middleware (hiện dựa vào `express-validator` từng route) |
+| Giới hạn body 1 MB | Chưa có log kiểm toán cho hành động của Admin ngoài `ActivityLog` |
+| Stack trace chỉ lộ khi `NODE_ENV=development` | |
+| `JWT_SECRET` bắt buộc khi `NODE_ENV=production`, thiếu là không khởi động | |
+
+Ngưỡng giới hạn tần suất đặt qua `AUTH_RATE_LIMIT_MAX` / `API_RATE_LIMIT_MAX`.
 
 ## Lỗi đã sửa
 

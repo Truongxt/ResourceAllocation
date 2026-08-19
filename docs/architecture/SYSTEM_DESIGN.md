@@ -96,13 +96,14 @@ server/
     ├── services/       # Cross-cutting: socket.service, notification.service,
     │                   #   activityLog.service
     ├── models/         # 8 Mongoose schema
-    ├── middleware/     # auth (protect/authorize), error (notFound/errorHandler),
-    │                   #   validate (gom kết quả express-validator)
+    ├── middleware/     # auth (protect/authorize), taskAccess (phân quyền theo bản ghi),
+    │                   #   error (notFound/errorHandler), validate (gom kết quả
+    │                   #   express-validator), rateLimit (authLimiter/apiLimiter)
     ├── algorithms/
     │   ├── genetic/    # GeneticAlgorithm.js
     │   └── csp/        # CSPSolver.js
-    ├── config/         # db.js (kết nối Mongoose)
-    └── utils/          # seeder.js (dữ liệu mẫu)
+    ├── config/         # db.js (kết nối Mongoose), jwt.js (nguồn duy nhất cho JWT)
+    └── utils/          # seeder.js (dữ liệu mẫu), cleanup.js (dọn dữ liệu mồ côi)
 ```
 
 > Dự án **không có** thư mục `validators/` — toàn bộ rule validation nằm ngay trong
@@ -141,8 +142,14 @@ Client Request
 [Response: JSON { success, data: { <key>: ... }, message }]
 ```
 
-Thứ tự middleware trong `app.js`: `cors` → `morgan('dev')` → `express.json` →
-`express.urlencoded` → routes → `notFound` → `errorHandler`.
+Thứ tự middleware trong `app.js`: `helmet` → `cors` (giới hạn theo `CLIENT_URL`) →
+`morgan('dev')` → `express.json` (giới hạn 1 MB) → `express.urlencoded` →
+`apiLimiter` (gắn ở `/api`) → routes → `notFound` → `errorHandler`.
+
+Riêng `/api/auth/login` và `/api/auth/register` có thêm `authLimiter` đứng trước validation:
+đây là hai endpoint công khai duy nhất, cũng là chỗ duy nhất thử sai hàng loạt có giá trị.
+`authLimiter` chỉ đếm lần **thất bại** (`skipSuccessfulRequests`), nên người dùng đăng nhập
+đúng liên tục không bao giờ bị khóa nhầm.
 
 `errorHandler` chuẩn hóa 3 loại lỗi Mongoose: `CastError` ObjectId → 400 "ID không hợp lệ",
 duplicate key (11000) → 400 "Giá trị '<field>' đã tồn tại", `ValidationError` → 400 (gộp message).
@@ -250,6 +257,8 @@ kết nối bị từ chối với `Error('Authentication error')`.
 | Password | bcryptjs | 2.4 | Password hashing (salt 12) |
 | Validation | express-validator | 7.1 | Input validation |
 | Logging | Morgan | 1.10 | HTTP request logging |
+| **Security headers** | **helmet** | **8.3** | **nosniff, frameguard, HSTS… (CSP tắt vì API không phục vụ HTML)** |
+| **Rate limiting** | **express-rate-limit** | **8.6** | **Siết tần suất đăng nhập và API** |
 | **Config** | **dotenv** | **16.4** | **Nạp biến môi trường từ `.env`** |
 | Dev Reload | Nodemon | 3.1 | Auto-restart server |
 | Concurrent | Concurrently | 8.2 | Run client + server |
@@ -266,7 +275,9 @@ tức đường dẫn tính từ thư mục `server/` khi chạy `npm run dev:se
 | `MONGODB_URI` | mongodb://localhost:27017/resource_allocation | Chuỗi kết nối MongoDB |
 | `JWT_SECRET` | khóa dev tạm (xem dưới) | Khóa ký JWT |
 | `JWT_EXPIRE` | 7d | Thời hạn token |
-| `CLIENT_URL` | http://localhost:5173 | Origin được phép cho CORS của Socket.IO |
+| `CLIENT_URL` | http://localhost:5173 | Origin được phép cho CORS của **REST API và Socket.IO**. Nhiều origin ngăn cách bằng dấu phẩy. **Bắt buộc khi deploy** |
+| `AUTH_RATE_LIMIT_MAX` | 10 | Số lần đăng nhập **sai** tối đa trong 15 phút mỗi IP |
+| `API_RATE_LIMIT_MAX` | 1000 | Số request tối đa trong 15 phút mỗi IP cho phần còn lại của API |
 | `VITE_API_URL` | /api | Base URL client gọi API |
 
 **`JWT_SECRET`** được đọc qua một nguồn duy nhất là [`src/config/jwt.js`](../../server/src/config/jwt.js).
