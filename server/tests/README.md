@@ -1,7 +1,8 @@
-# Kiểm thử end-to-end
+# Kiểm thử
 
-Các bộ này gọi vào một server thật đang chạy, trên một database riêng, và assert
-trên nội dung response chứ không chỉ mã HTTP.
+Phần lớn các bộ ở đây gọi vào một server thật đang chạy, trên một database riêng,
+và assert trên nội dung response chứ không chỉ mã HTTP. Riêng bộ `csp` là kiểm thử
+đơn vị: nạp thẳng class thuật toán và chạy trên dữ liệu dựng sẵn.
 
 ## Chạy
 
@@ -33,6 +34,7 @@ Ghi đè bằng biến môi trường nếu cần: `TEST_PORT`, `TEST_MONGODB_UR
 
 | Bộ | File | Phạm vi |
 |----|------|---------|
+| `csp` | `csp.test.mjs` | Ràng buộc H4 của CSPSolver ở mức đơn vị: cấm cùng người khi hai việc phụ thuộc nhau và chồng lịch, cho phép khi nối tiếp, báo lại vi phạm thứ tự ngày, các trường hợp biên. Không cần server lẫn database |
 | `api` | `api.test.mjs` | Toàn bộ REST API: health, xác thực, phân quyền 3 role, CRUD Projects/Tasks/Resources/Departments, 3 thuật toán tối ưu hóa, Analytics, Notifications, ActivityLog, dọn dữ liệu theo tầng |
 | `project-detail` | `project-detail.test.mjs` | Các API trang chi tiết dự án dùng, theo đúng thứ tự UI gọi, gồm cả nhánh lỗi và ranh giới phân quyền |
 | `socket` | `socket.test.mjs` | Socket.IO: từ chối kết nối thiếu/sai token, tách room theo user, nhận `notification:new` và `notification:read`, đối chiếu với bản ghi trong DB |

@@ -1,0 +1,161 @@
+/**
+ * Kiểm thử CSPSolver ở mức đơn vị, tập trung vào ràng buộc H4 (Dependency).
+ *
+ * Bộ này không cần server hay database: nạp thẳng class và cho chạy trên dữ liệu
+ * dựng sẵn, nhờ vậy khẳng định được đúng hành vi của thuật toán chứ không phải
+ * của cả đường đi HTTP.
+ */
+
+import { createRequire } from 'module';
+import { ok, section as S, summary } from './helpers.mjs';
+
+const require = createRequire(import.meta.url);
+const CSPSolver = require('../src/algorithms/csp/CSPSolver');
+
+const day = (d) => new Date(`2026-03-${String(d).padStart(2, '0')}T00:00:00.000Z`);
+
+/** Task rút gọn: chỉ những trường thuật toán thực sự đọc. */
+const task = (id, from, to, dependencies = []) => ({
+  _id: id,
+  title: `Task ${id}`,
+  estimatedHours: 8,
+  requiredSkills: [],
+  startDate: day(from),
+  endDate: day(to),
+  dependencies,
+});
+
+const resource = (id, overrides = {}) => ({
+  _id: id,
+  userName: `Người ${id}`,
+  position: 'Developer',
+  skills: [],
+  maxCapacity: 40,
+  fte: 1,
+  hourlyRate: 20,
+  availability: 'available',
+  unavailablePeriods: [],
+  ...overrides,
+});
+
+const solver = () => new CSPSolver({ timeout: 5000 });
+const assignedTo = (result, taskId) =>
+  result.assignments.find((a) => a.task === taskId)?.resource;
+const depEntries = (result, bucket) =>
+  result.constraintReport.details[bucket].filter((d) => d.type === 'dependency');
+
+// ══════════════════════════════════════════════
+S('H4 — hai việc phụ thuộc nhau, lịch chồng nhau');
+{
+  // B phụ thuộc A; A: 01–10/03, B: 05–15/03 → chồng 5 ngày.
+  const tasks = [task('A', 1, 10), task('B', 5, 15, ['A'])];
+  const result = await solver().solve(tasks, [resource('R1'), resource('R2')]);
+
+  ok(result.success, 'Vẫn tìm được lời giải khi có đủ người');
+  ok(
+    assignedTo(result, 'A') !== assignedTo(result, 'B'),
+    'Hai việc chồng lịch được giao cho hai người khác nhau',
+    `A→${assignedTo(result, 'A')}, B→${assignedTo(result, 'B')}`
+  );
+}
+
+{
+  // Chỉ có một người: không thể vừa làm A vừa làm B → vô nghiệm.
+  const tasks = [task('A', 1, 10), task('B', 5, 15, ['A'])];
+  const result = await solver().solve(tasks, [resource('R1')]);
+
+  ok(!result.success, 'Chỉ có một người thì bài toán vô nghiệm');
+  ok(
+    /không tìm thấy giải pháp/i.test(result.message || ''),
+    'Báo đúng lý do vô nghiệm',
+    result.message
+  );
+}
+
+// ══════════════════════════════════════════════
+S('H4 — phụ thuộc đúng thứ tự thì không ràng buộc gì thêm');
+{
+  // A kết thúc đúng lúc B bắt đầu: chạm mốc chứ không chồng lịch.
+  const tasks = [task('A', 1, 10), task('B', 10, 20, ['A'])];
+  const result = await solver().solve(tasks, [resource('R1')]);
+
+  ok(result.success, 'Một người làm tuần tự hai việc nối tiếp → có lời giải');
+  ok(
+    assignedTo(result, 'A') === assignedTo(result, 'B'),
+    'Không cấm cùng một người khi hai việc không chồng lịch'
+  );
+  ok(depEntries(result, 'violated').length === 0, 'Không báo vi phạm phụ thuộc');
+  ok(depEntries(result, 'satisfied').length === 1, 'Ghi nhận 1 quan hệ phụ thuộc đúng thứ tự');
+}
+
+// ══════════════════════════════════════════════
+S('H4 — vi phạm thứ tự ngày được báo lại, không làm vô nghiệm');
+{
+  // B bắt đầu 05/03 trong khi A tới 10/03 mới xong → sai thứ tự 5 ngày.
+  const tasks = [task('A', 1, 10), task('B', 5, 15, ['A'])];
+  const result = await solver().solve(tasks, [resource('R1'), resource('R2')]);
+  const violations = depEntries(result, 'violated');
+
+  ok(violations.length === 1, 'Báo đúng 1 vi phạm thứ tự phụ thuộc');
+  ok(
+    violations[0]?.subject === 'Task A → Task B',
+    'Nêu rõ cặp công việc nào',
+    violations[0]?.subject
+  );
+  ok(
+    /5 ngày/.test(violations[0]?.detail || ''),
+    'Nêu rõ lệch bao nhiêu ngày',
+    violations[0]?.detail
+  );
+  ok(
+    result.success,
+    'Vi phạm về ngày không làm bài toán vô nghiệm (thuật toán không đổi được ngày)'
+  );
+}
+
+// ══════════════════════════════════════════════
+S('H4 — các trường hợp biên');
+{
+  // Tiền nhiệm không nằm trong tập đang tối ưu (đã done, hoặc khác dự án).
+  const tasks = [task('A', 1, 10, ['KHONG_TON_TAI']), task('B', 5, 15)];
+  const result = await solver().solve(tasks, [resource('R1')]);
+
+  ok(result.success, 'Bỏ qua tiền nhiệm ngoài tập, vẫn giải được');
+  ok(depEntries(result, 'violated').length === 0, 'Không báo vi phạm cho tiền nhiệm ngoài tập');
+}
+
+{
+  // Task thiếu ngày tháng: không xác định được chồng lịch nên không ràng buộc.
+  const tasks = [
+    { _id: 'A', title: 'Task A', estimatedHours: 8, requiredSkills: [], dependencies: [] },
+    { _id: 'B', title: 'Task B', estimatedHours: 8, requiredSkills: [], dependencies: ['A'] },
+  ];
+  const result = await solver().solve(tasks, [resource('R1')]);
+
+  ok(result.success, 'Task không có ngày tháng vẫn giải được');
+  ok(
+    result.constraintReport.details.violated.every((d) => d.type !== 'dependency'),
+    'Không suy đoán vi phạm khi thiếu ngày tháng'
+  );
+}
+
+{
+  // Chuỗi 3 việc chồng nhau từng đôi một → cần đúng 3 người.
+  const tasks = [task('A', 1, 10), task('B', 5, 15, ['A']), task('C', 12, 20, ['B'])];
+
+  const withThree = await solver().solve(tasks, [resource('R1'), resource('R2'), resource('R3')]);
+  ok(withThree.success, 'Chuỗi 3 việc chồng nhau: 3 người thì giải được');
+
+  const ids = new Set(['A', 'B', 'C'].map((t) => String(assignedTo(withThree, t))));
+  ok(ids.size === 3, 'Mỗi việc một người khác nhau', [...ids].join(', '));
+
+  // A và C không chồng lịch (A xong 10/03, C bắt đầu 12/03) nên 2 người là đủ.
+  const withTwo = await solver().solve(tasks, [resource('R1'), resource('R2')]);
+  ok(withTwo.success, 'Hai người vẫn đủ vì A và C không chồng lịch');
+  ok(
+    assignedTo(withTwo, 'A') === assignedTo(withTwo, 'C'),
+    'A và C dồn về cùng một người'
+  );
+}
+
+process.exit(summary() === 0 ? 0 : 1);

@@ -20,6 +20,8 @@ const PORT = process.env.TEST_PORT || '5099';
 const DB = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/resource_allocation_test';
 
 const SUITES = [
+  // Bộ đơn vị, không cần server lẫn database — chạy trước để lỗi thuật toán lộ ra sớm.
+  { name: 'csp', file: 'csp.test.mjs', label: 'CSP — ràng buộc H4' },
   { name: 'api', file: 'api.test.mjs', label: 'REST API' },
   { name: 'project-detail', file: 'project-detail.test.mjs', label: 'Trang chi tiết dự án' },
   { name: 'socket', file: 'socket.test.mjs', label: 'Socket.IO realtime' },

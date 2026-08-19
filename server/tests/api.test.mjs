@@ -170,7 +170,68 @@ let taskA, taskB;
 }
 
 // ══════════════════════════════════════════════
-S('4b. Phân quyền công việc');
+S('4b. Ràng buộc phụ thuộc công việc');
+{
+  const mk = async (title, dependencies) =>
+    call('POST', '/tasks', {
+      token: TOK.admin,
+      body: { title, project: projectId, estimatedHours: 8, ...(dependencies ? { dependencies } : {}) },
+    });
+
+  const d1 = await mk('E2E dep 1');
+  const d2 = await mk('E2E dep 2', [d1.data.task._id]);
+  const d3 = await mk('E2E dep 3', [d2.data.task._id]);
+  const [id1, id2, id3] = [d1.data.task._id, d2.data.task._id, d3.data.task._id];
+  ok(d2.status === 201 && d2.data.task.dependencies.length === 1, 'Tạo task kèm tiền nhiệm hợp lệ → 201');
+
+  const badId = await mk('E2E dep xấu', ['không-phải-id']);
+  ok(badId.status === 400, 'ID tiền nhiệm sai định dạng → 400');
+
+  const missing = await mk('E2E dep thiếu', ['000000000000000000000000']);
+  ok(missing.status === 400, 'Tiền nhiệm không tồn tại → 400');
+
+  const self = await call('PUT', `/tasks/${id1}`, { token: TOK.admin, body: { dependencies: [id1] } });
+  ok(self.status === 400 && /chính nó/.test(self.message || ''), 'Task phụ thuộc chính nó → 400');
+
+  const direct = await call('PUT', `/tasks/${id1}`, { token: TOK.admin, body: { dependencies: [id2] } });
+  ok(direct.status === 400 && /vòng lặp/.test(direct.message || ''), 'Vòng lặp trực tiếp (1→2→1) → 400');
+
+  const indirect = await call('PUT', `/tasks/${id1}`, { token: TOK.admin, body: { dependencies: [id3] } });
+  ok(indirect.status === 400, 'Vòng lặp gián tiếp (1→3→2→1) → 400');
+
+  const other = await call('POST', '/projects', {
+    token: TOK.admin,
+    body: { name: 'E2E dự án khác', code: 'E2E-DEP', startDate: '2026-09-01', endDate: '2026-12-01' },
+  });
+  const otherTask = await call('POST', '/tasks', {
+    token: TOK.admin,
+    body: { title: 'E2E task dự án khác', project: other.data.project._id, estimatedHours: 4 },
+  });
+  const crossProject = await call('PUT', `/tasks/${id1}`, {
+    token: TOK.admin,
+    body: { dependencies: [otherTask.data.task._id] },
+  });
+  ok(crossProject.status === 400 && /dự án khác/.test(crossProject.message || ''),
+    'Tiền nhiệm thuộc dự án khác → 400');
+
+  const duplicated = await call('PUT', `/tasks/${id3}`, {
+    token: TOK.admin,
+    body: { dependencies: [id1, id1, id2] },
+  });
+  ok(duplicated.status === 200 && duplicated.data.task.dependencies.length === 2,
+    'ID trùng trong danh sách được gộp lại', `(${duplicated.data?.task?.dependencies?.length})`);
+
+  const cleared = await call('PUT', `/tasks/${id3}`, { token: TOK.admin, body: { dependencies: [] } });
+  ok(cleared.status === 200 && cleared.data.task.dependencies.length === 0, 'Xóa hết tiền nhiệm → 200');
+
+  for (const id of [id3, id2, id1, otherTask.data.task._id]) {
+    await call('DELETE', `/tasks/${id}`, { token: TOK.admin });
+  }
+  await call('DELETE', `/projects/${other.data.project._id}?force=true`, { token: TOK.admin });
+}
+
+// ══════════════════════════════════════════════
+S('4c. Phân quyền công việc');
 {
   const memberCreate = await call('POST', '/tasks', { token: TOK.member, body: { title: 'ZZ member', project: projectId } });
   ok(memberCreate.status === 403, 'Member tạo task → 403');
@@ -320,7 +381,13 @@ let gaId;
   ok(csp.data.result.fitness > 0, 'CSP CÓ fitness (lỗi cũ: luôn 0)', `(${csp.data.result.fitness})`);
   ok(csp.data.result.metrics.resourceUtilization.length > 0, 'CSP có metrics đầy đủ');
   ok(typeof csp.data.result.assignments[0].skillMatch === 'number', 'CSP assignment có skillMatch');
-  ok(csp.data.result.constraintReport.violated === 0, 'CSP không vi phạm ràng buộc capacity');
+  const cspViolations = csp.data.result.constraintReport.details.violated;
+  ok(cspViolations.every((d) => d.type !== 'capacity'), 'CSP không vi phạm ràng buộc capacity');
+  // Dữ liệu mẫu có công việc bắt đầu trước khi tiền nhiệm của nó kết thúc. Thuật toán
+  // không đổi được ngày nên phải báo lại chứ không được im lặng bỏ qua (H4).
+  ok(cspViolations.some((d) => d.type === 'dependency'),
+    'CSP báo lại phụ thuộc sai thứ tự trong dữ liệu mẫu',
+    cspViolations.find((d) => d.type === 'dependency')?.subject || '');
 
   const hy = await call('POST', '/optimization/run/hybrid', { token: TOK.admin, body: { populationSize: 30, maxGenerations: 50 } });
   ok(hy.data.result.status === 'completed', 'Hybrid chạy xong');
