@@ -530,6 +530,39 @@ export default function Optimization() {
                       </div>
                     </Card>
 
+                    {/* Hybrid: pha CSP thu hẹp không gian tìm kiếm cho pha GA */}
+                    {currentResult.domainReduction?.restricted && (
+                      <Card size="small" title="🔗 Pha CSP đã thu hẹp không gian tìm kiếm">
+                        <Space size={32} wrap>
+                          <Statistic
+                            title="Cặp (công việc × nhân sự) còn lại"
+                            value={currentResult.domainReduction.feasiblePairs}
+                            suffix={`/ ${currentResult.domainReduction.totalPairs}`}
+                          />
+                          <Statistic
+                            title="Giảm được"
+                            value={Math.round(
+                              (1 -
+                                currentResult.domainReduction.feasiblePairs /
+                                  currentResult.domainReduction.totalPairs) *
+                                100
+                            )}
+                            suffix="%"
+                            valueStyle={{ color: '#10b981' }}
+                          />
+                        </Space>
+                        {currentResult.domainReduction.tasksReopened > 0 && (
+                          <Alert
+                            type="warning"
+                            showIcon
+                            style={{ marginTop: 12 }}
+                            message={`${currentResult.domainReduction.tasksReopened} công việc không có nhân sự nào đủ điều kiện`}
+                            description="Những công việc này được mở lại cho toàn bộ nhân sự, nếu không thuật toán sẽ không gán được ai. Kiểm tra lại kỹ năng yêu cầu và lịch nghỉ."
+                          />
+                        )}
+                      </Card>
+                    )}
+
                     {/* Ràng buộc bị vi phạm — CSP/Hybrid mới có báo cáo này */}
                     {currentResult.constraintReport?.details?.violated?.length > 0 && (
                       <Card

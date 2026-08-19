@@ -137,6 +137,22 @@ class CSPSolver {
     };
   }
 
+  /**
+   * Miền giá trị khả thi của từng task sau khi lọc H2/H3 và bộ lọc capacity —
+   * `domains[taskIndex] = [resourceIndex, ...]`.
+   *
+   * Đây là thứ Hybrid cần: GA chỉ sinh gen trong miền này thay vì trên toàn bộ
+   * nhân sự. Tách riêng khỏi `solve()` vì miền vẫn dùng được kể cả khi backtracking
+   * không tìm ra lời giải đầy đủ (hết thời gian, hoặc ràng buộc quá chặt).
+   *
+   * Miền rỗng nghĩa là không nhân sự nào đủ điều kiện cho task đó; bên gọi tự
+   * quyết định xử lý ra sao chứ hàm này không tự ý mở rộng.
+   */
+  buildFeasibleDomains(tasks, resources) {
+    if (!tasks.length || !resources.length) return [];
+    return this._arcConsistency(tasks, this._buildDomains(tasks, resources), resources);
+  }
+
   // ──────────────────────────────────────────────
   // Build domains: feasible resources for each task
   // ──────────────────────────────────────────────

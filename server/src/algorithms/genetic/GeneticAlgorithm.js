@@ -42,9 +42,14 @@ class GeneticAlgorithm {
    * Run the genetic algorithm optimization
    * @param {Array} tasks - [{ _id, estimatedHours, requiredSkills: [{name, level, weight}] }]
    * @param {Array} resources - [{ _id, maxCapacity, fte, hourlyRate, skills: [{name, level}], currentWorkload }]
+   * @param {Object} [options]
+   * @param {Array<Array<number>>} [options.domains] - miền giá trị cho từng task
+   *        (`domains[t] = [resourceIndex, ...]`). Dùng cho Hybrid: GA chỉ sinh và
+   *        đột biến gen trong miền đã được CSP lọc. Bỏ qua tham số này thì GA
+   *        chọn tự do trên toàn bộ nhân sự như trước.
    * @returns {Object} Best solution
    */
-  async optimize(tasks, resources) {
+  async optimize(tasks, resources, { domains } = {}) {
     if (!tasks.length || !resources.length) {
       return this._emptyResult('Không có dữ liệu tasks hoặc resources');
     }
@@ -53,13 +58,16 @@ class GeneticAlgorithm {
     const numTasks = tasks.length;
     const numResources = resources.length;
 
+    const domainReport = this._resolveDomains(domains, numTasks, numResources);
+    this._domains = domainReport.domains;
+
     // Precompute skill match matrix: skillMatrix[t][r] = match score 0..1
     const skillMatrix = buildSkillMatrix(tasks, resources);
 
     // Precompute max values for normalization
     const maxCost = computeMaxCost(tasks, resources);
 
-    // Initialize population
+    // Initialize population (trong miền đã lọc nếu có)
     let population = this._initializePopulation(numTasks, numResources);
     let fitnesses = population.map((ch) =>
       computeFitness(ch, tasks, resources, skillMatrix, maxCost, this.weights)
@@ -145,6 +153,12 @@ class GeneticAlgorithm {
       convergenceHistory,
       metrics,
       executionTime: Date.now() - startTime,
+      domainReduction: {
+        restricted: domainReport.domains !== null,
+        totalPairs: numTasks * numResources,
+        feasiblePairs: domainReport.feasiblePairs,
+        tasksReopened: domainReport.tasksReopened,
+      },
       parameters: {
         populationSize: this.populationSize,
         maxGenerations: this.maxGenerations,
@@ -156,6 +170,51 @@ class GeneticAlgorithm {
   }
 
   // ──────────────────────────────────────────────
+  // Miền giá trị (Hybrid)
+  // ──────────────────────────────────────────────
+
+  /**
+   * Chuẩn hóa miền giá trị nhận từ CSP.
+   *
+   * Task có miền rỗng — không nhân sự nào qua được H2/H3 — sẽ được mở lại toàn bộ
+   * nhân sự, vì để rỗng thì GA không sinh nổi gen nào cho task đó. Số lần mở lại
+   * được trả về để bên gọi báo cho người dùng thay vì im lặng bỏ qua ràng buộc.
+   */
+  _resolveDomains(domains, numTasks, numResources) {
+    const allResources = Array.from({ length: numResources }, (_, i) => i);
+    if (!Array.isArray(domains) || !domains.length) {
+      return { domains: null, tasksReopened: 0, feasiblePairs: numTasks * numResources };
+    }
+
+    let tasksReopened = 0;
+    let feasiblePairs = 0;
+
+    const resolved = Array.from({ length: numTasks }, (_, t) => {
+      const domain = domains[t];
+      const usable = Array.isArray(domain) && domain.length
+        ? domain.filter((r) => r >= 0 && r < numResources)
+        : [];
+
+      if (!usable.length) {
+        tasksReopened++;
+        feasiblePairs += numResources;
+        return allResources;
+      }
+      feasiblePairs += usable.length;
+      return usable;
+    });
+
+    return { domains: resolved, tasksReopened, feasiblePairs };
+  }
+
+  /** Một resource index ngẫu nhiên hợp lệ cho task `t`. */
+  _randomResourceFor(t, numResources) {
+    const domain = this._domains?.[t];
+    if (domain?.length) return domain[Math.floor(Math.random() * domain.length)];
+    return Math.floor(Math.random() * numResources);
+  }
+
+  // ──────────────────────────────────────────────
   // Population
   // ──────────────────────────────────────────────
   _initializePopulation(numTasks, numResources) {
@@ -163,7 +222,7 @@ class GeneticAlgorithm {
     for (let i = 0; i < this.populationSize; i++) {
       const chromosome = [];
       for (let t = 0; t < numTasks; t++) {
-        chromosome.push(Math.floor(Math.random() * numResources));
+        chromosome.push(this._randomResourceFor(t, numResources));
       }
       pop.push(chromosome);
     }
@@ -188,6 +247,9 @@ class GeneticAlgorithm {
 
   // ──────────────────────────────────────────────
   // Crossover: Uniform
+  //
+  // Chỉ hoán đổi gen giữa hai cha mẹ tại cùng vị trí, mà gen tại vị trí t của cả
+  // hai đều đã nằm trong domains[t], nên con sinh ra luôn hợp lệ — không cần sửa lại.
   // ──────────────────────────────────────────────
   _crossover(parent1, parent2) {
     const child1 = [];
@@ -205,12 +267,12 @@ class GeneticAlgorithm {
   }
 
   // ──────────────────────────────────────────────
-  // Mutation: Random Reassignment
+  // Mutation: Random Reassignment (trong miền của task đó)
   // ──────────────────────────────────────────────
   _mutate(chromosome, numResources) {
     for (let i = 0; i < chromosome.length; i++) {
       if (Math.random() < this.mutationRate) {
-        chromosome[i] = Math.floor(Math.random() * numResources);
+        chromosome[i] = this._randomResourceFor(i, numResources);
       }
     }
   }

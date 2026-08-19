@@ -91,6 +91,13 @@ const optimizationResultSchema = new mongoose.Schema(
         ],
       },
     },
+    // Hybrid: mức độ thu hẹp không gian tìm kiếm mà pha CSP mang lại cho pha GA
+    domainReduction: {
+      restricted: Boolean, // GA có chạy trên miền đã lọc hay không
+      totalPairs: Number, // số cặp (task, nhân sự) trước khi lọc
+      feasiblePairs: Number, // số cặp còn lại sau khi lọc
+      tasksReopened: Number, // task có miền rỗng, buộc phải mở lại toàn bộ nhân sự
+    },
     // Performance
     executionTime: { type: Number, default: 0 }, // ms
     generations: { type: Number, default: 0 },

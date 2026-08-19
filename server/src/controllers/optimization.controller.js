@@ -194,13 +194,17 @@ const runHybrid = async (req, res, next) => {
 
     const startTime = Date.now();
 
-    // Phase 1: CSP to validate feasibility
+    // Pha 1: CSP lọc miền giá trị (H2 skill, H3 availability, capacity) và kiểm tra
+    // tính khả thi. `buildFeasibleDomains` chạy độc lập với backtracking nên miền
+    // vẫn dùng được ngay cả khi CSP không tìm ra lời giải đầy đủ.
     const csp = new CSPSolver();
     const cspResult = await csp.solve(tasks, resources);
+    const domains = csp.buildFeasibleDomains(tasks, resources);
 
-    // Phase 2: GA optimization (runs regardless, but CSP validates constraints)
+    // Pha 2: GA tối ưu hóa TRÊN MIỀN ĐÃ THU HẸP — đây là chỗ khiến Hybrid khác với
+    // việc chạy hai thuật toán rời rạc.
     const ga = new GeneticAlgorithm(gaParams);
-    const gaResult = await ga.optimize(tasks, resources);
+    const gaResult = await ga.optimize(tasks, resources, { domains });
 
     const totalTime = Date.now() - startTime;
 
@@ -212,6 +216,7 @@ const runHybrid = async (req, res, next) => {
     resultRecord.executionTime = totalTime;
     resultRecord.generations = gaResult.generations || 0;
     resultRecord.constraintReport = cspResult.constraintReport || undefined;
+    resultRecord.domainReduction = gaResult.domainReduction || undefined;
     resultRecord.errorMessage = gaResult.message || undefined;
     await resultRecord.save();
 
