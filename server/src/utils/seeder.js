@@ -6,6 +6,9 @@ const Project = require('../models/Project');
 const Task = require('../models/Task');
 const Resource = require('../models/Resource');
 const Department = require('../models/Department');
+const Notification = require('../models/Notification');
+const ActivityLog = require('../models/ActivityLog');
+const OptimizationResult = require('../models/OptimizationResult');
 
 // .env nằm ở thư mục gốc dự án, không phải trong server/
 dotenv.config({ path: path.join(__dirname, '..', '..', '..', '.env') });
@@ -18,15 +21,20 @@ async function seedData() {
     await mongoose.connect(MONGO_URI);
     console.log('Connected to MongoDB for seeding...');
 
-    // Clear existing data (optional)
+    // Xóa cả 8 collection. Trước đây chỉ xóa 5 cái đầu, nên notifications,
+    // activitylogs và optimizationresults tồn đọng qua mọi lần seed và trỏ tới
+    // những user/task đã bị xóa — dữ liệu mồ côi làm lệch mọi báo cáo.
     await Promise.all([
       User.deleteMany({}),
       Project.deleteMany({}),
       Task.deleteMany({}),
       Resource.deleteMany({}),
       Department.deleteMany({}),
+      Notification.deleteMany({}),
+      ActivityLog.deleteMany({}),
+      OptimizationResult.deleteMany({}),
     ]);
-    console.log('Cleared existing collections.');
+    console.log('Cleared all 8 collections.');
 
     // 1. Create Users
     const adminUser = await User.create({

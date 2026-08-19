@@ -23,6 +23,7 @@ import {
   Avatar,
   Empty,
   AutoComplete,
+  Alert,
 } from 'antd';
 import {
   PlusOutlined,
@@ -629,13 +630,26 @@ export default function Tasks() {
         width={680}
         destroyOnClose
       >
+        {!canManageTasks && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginTop: 8 }}
+            message="Bạn chỉ sửa được tiến độ công việc của mình"
+            description="Trạng thái, tiến độ và giờ thực tế là ba trường bạn được phép đổi. Những ô còn lại bị khóa vì server sẽ từ chối — muốn đổi, hãy báo Quản lý dự án."
+          />
+        )}
+
         <Form form={form} layout="vertical" onFinish={handleFormSubmit} style={{ marginTop: 16 }}>
           <Form.Item
             name="title"
             label="Tiêu đề công việc"
             rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}
           >
-            <Input placeholder="Ví dụ: Thiết kế cơ sở dữ liệu cho Module Auth" />
+            <Input
+              placeholder="Ví dụ: Thiết kế cơ sở dữ liệu cho Module Auth"
+              disabled={!canManageTasks}
+            />
           </Form.Item>
 
           <Row gutter={16}>
@@ -647,6 +661,7 @@ export default function Tasks() {
               >
                 <Select
                   placeholder="Chọn dự án"
+                  disabled={!canManageTasks}
                   options={projects.map((p) => ({ value: p._id, label: `${p.code ? p.code + ' - ' : ''}${p.name}` }))}
                 />
               </Form.Item>
@@ -664,6 +679,7 @@ export default function Tasks() {
                 <Select
                   placeholder="-- Chưa gán người thực hiện --"
                   allowClear
+                  disabled={!canManageTasks}
                   options={resources.map((r) => ({
                     value: r.user?._id || r.userId || r._id,
                     label: (
@@ -679,13 +695,17 @@ export default function Tasks() {
             </Col>
             <Col span={12}>
               <Form.Item name="priority" label="Mức ưu tiên" rules={[{ required: true }]}>
-                <Select options={PRIORITY_OPTIONS} />
+                <Select options={PRIORITY_OPTIONS} disabled={!canManageTasks} />
               </Form.Item>
             </Col>
           </Row>
 
           <Form.Item name="description" label="Mô tả chi tiết">
-            <TextArea rows={3} placeholder="Mô tả yêu cầu và kết quả đầu ra của công việc..." />
+            <TextArea
+              rows={3}
+              placeholder="Mô tả yêu cầu và kết quả đầu ra của công việc..."
+              disabled={!canManageTasks}
+            />
           </Form.Item>
 
           <Form.Item
@@ -776,7 +796,7 @@ export default function Tasks() {
             </Col>
             <Col span={8}>
               <Form.Item name="estimatedHours" label="Giờ ước tính (h)">
-                <InputNumber min={0} style={{ width: '100%' }} />
+                <InputNumber min={0} style={{ width: '100%' }} disabled={!canManageTasks} />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -787,7 +807,11 @@ export default function Tasks() {
           </Row>
 
           <Form.Item name="dateRange" label="Thời gian thực hiện">
-            <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            <DatePicker.RangePicker
+              style={{ width: '100%' }}
+              format="DD/MM/YYYY"
+              disabled={!canManageTasks}
+            />
           </Form.Item>
 
           <div style={{ textAlign: 'right', marginTop: 24 }}>
