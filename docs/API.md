@@ -206,6 +206,20 @@ Quy tắc nằm ở [`middleware/taskAccess.js`](../server/src/middleware/taskAc
 **Lưu ý quan trọng về `requiredSkills`**: field tên là `name` (không phải `skill`), kèm `level`
 (1-5, mặc định 3) và `weight` (0-1, mặc định 1). Gửi sai tên field sẽ bị Mongoose loại bỏ âm thầm.
 
+**Kiểm tra `dependencies`** (áp dụng cho cả `POST /` và `PUT /:id`) — mọi trường hợp dưới đây
+đều trả **400** kèm thông báo tiếng Việt:
+
+| Trường hợp | Thông báo |
+|-----------|-----------|
+| Phần tử không phải ObjectId hợp lệ | `ID công việc tiền nhiệm không hợp lệ` |
+| Task phụ thuộc chính nó | `Công việc không thể phụ thuộc vào chính nó` |
+| ID không tồn tại | `Có công việc tiền nhiệm không tồn tại` |
+| Tiền nhiệm thuộc dự án khác | `Công việc "..." thuộc dự án khác, không thể làm tiền nhiệm` |
+| Tạo thành vòng lặp (trực tiếp hoặc gián tiếp) | `Phụ thuộc này tạo thành vòng lặp giữa các công việc` |
+
+ID trùng trong danh sách được gộp lại trước khi lưu. Ràng buộc vòng lặp là bắt buộc vì
+CPM trên sơ đồ Gantt và ràng buộc H4 của CSP đều giả định đồ thị không có chu trình.
+
 ### Hành vi tự động
 - Tạo/sửa/xóa task đều **tính lại `progress` của dự án** (trung bình progress các task, task `done` tính 100).
 - `PUT /:id` khi đổi status sang `done` → `progress` tự set 100.
@@ -360,7 +374,20 @@ Trả về **nguyên document `OptimizationResult`**, không phải object rút 
         ]
       },
       "convergenceHistory": [ { "generation": 0, "fitness": 0.74 } ],  // mảng OBJECT
-      "constraintReport": { "satisfied": 3, "violated": 0 },
+      "constraintReport": {
+        "satisfied": 3,
+        "violated": 1,
+        "details": {
+          "satisfied": [
+            { "type": "capacity", "subject": "Trần Văn Nam", "detail": "32/40h" }
+          ],
+          "violated": [
+            { "type": "dependency",
+              "subject": "Xây dựng REST APIs → Phát triển Giao diện",
+              "detail": "công việc sau bắt đầu sớm hơn 6 ngày so với lúc công việc trước kết thúc" }
+          ]
+        }
+      },
       "isApplied": false, "appliedAt": null, "appliedBy": null
     }
   }
@@ -370,6 +397,10 @@ Trả về **nguyên document `OptimizationResult`**, không phải object rút 
 > Cả ba thuật toán đều trả `fitness` và `metrics` theo **cùng một thang đo** (module dùng chung
 > `src/algorithms/scoring.js`), nên so sánh trực tiếp được trong lịch sử. Riêng CSP không có
 > `convergenceHistory`/`generations` mà có `iterations`.
+>
+> `constraintReport` chỉ do CSP (và pha CSP của Hybrid) sinh ra. Mục `type: 'dependency'` trong
+> `violated` là **lỗi dữ liệu lịch**, không phải lỗi phân công: thuật toán chỉ chọn người chứ
+> không đổi được ngày. Xem [ALGORITHMS.md](./ALGORITHMS.md) mục 2.2.
 >
 > Các bản ghi CSP tạo **trước** thay đổi này vẫn còn `fitness: 0` và `metrics` rỗng trong DB.
 

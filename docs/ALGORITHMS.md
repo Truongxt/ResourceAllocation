@@ -121,15 +121,32 @@ Constraints: C = {c₁, c₂, ..., cₖ}   (ràng buộc)
 | H1 | Capacity | Tổng workload ≤ max capacity | `workload[r] + effort(t) ≤ C[r] × FTE` — kiểm tra khi gán trong backtracking |
 | H2 | Skill | Điểm khớp kỹ năng đạt ngưỡng | `skill_match(t, r) ≥ minSkillMatchThreshold` (mặc định **0.5**) |
 | H3 | Availability | Resource khả dụng trong kỳ | `availability ≠ 'unavailable'` và khoảng thời gian task **không giao** với `unavailablePeriods` |
+| H4 | Dependency | Hai task phụ thuộc nhau mà lịch chồng nhau thì không cùng người | `assignment[tₐ] ≠ assignment[tᵦ]` khi `(tₐ, tᵦ)` có quan hệ phụ thuộc và `start(tₐ) < end(tᵦ) ∧ start(tᵦ) < end(tₐ)` |
 
 > ⚠️ **H2 là ràng buộc ngưỡng tổng hợp, không phải ràng buộc từng kỹ năng.**
 > Code dùng cùng công thức có trọng số ở mục 1.3 rồi so với `minSkillMatchThreshold`.
 > Nghĩa là một nhân sự thiếu hẳn một kỹ năng vẫn có thể được gán, miễn điểm tổng ≥ 0.5.
 > Đây **không** tương đương với `∀s: S[rᵢ][s] ≥ Q[tⱼ][s]`.
 
-> ⚠️ **Ràng buộc Dependency chưa được implement.** CSPSolver hiện không đọc
-> `Task.dependencies`, nên không đảm bảo `end(tₐ) ≤ start(tᵦ)`. Thứ tự phụ thuộc
-> giữa các task hoàn toàn không ảnh hưởng tới kết quả phân bổ.
+#### H4 được phát biểu lại như thế nào và tại sao
+
+Biến quyết định của bài toán này là **"task nào giao cho ai"**; ngày bắt đầu và
+kết thúc là dữ liệu đầu vào cố định, thuật toán không sinh ra lịch. Vì vậy dạng
+`∀(tₐ→tᵦ): end(tₐ) ≤ start(tᵦ)` **không phải là ràng buộc trên biến quyết định** —
+đổi người bao nhiêu lần cũng không làm nó đúng lên. Nếu cài đúng như công thức
+đó, mọi bộ dữ liệu có lịch chồng nhau sẽ lập tức vô nghiệm mà không nói được lý do.
+
+Nên H4 tách làm hai phần:
+
+| Phần | Bản chất | Cách xử lý |
+|------|----------|-----------|
+| Thứ tự ngày `end(tₐ) > start(tᵦ)` | Lỗi **dữ liệu lịch** | Ghi vào `constraintReport.details.violated` với `type: 'dependency'`, nêu rõ cặp công việc và lệch bao nhiêu ngày. Không làm bài toán vô nghiệm |
+| Cùng một người làm hai việc phụ thuộc nhau, chồng lịch | Lỗi **phân công** | Ràng buộc cứng trong backtracking: loại giá trị vi phạm khỏi miền đang thử |
+
+Hai task nối tiếp đúng thứ tự (`end(tₐ) = start(tᵦ)`) **không** bị coi là chồng
+lịch, nên một người vẫn được làm tuần tự cả hai.
+
+Phần này có bộ kiểm thử đơn vị riêng: `cd server && npm test csp` (20 assertion).
 
 ### 2.3 Soft Constraints
 
@@ -152,11 +169,15 @@ Luồng thực tế trong `CSPSolver.solve()`:
      Dⱼ ← { r ∈ Dⱼ | effort(tⱼ) ≤ C[r] × FTE }  // lọc unary theo capacity
      Nếu tồn tại Dⱼ = ∅  →  trả về "ràng buộc quá chặt", dừng
 
-3. BACKTRACK(assignment)                        // MRV + LCV + kiểm tra H1
+3. BUILD-CONFLICTS(tasks)                       // chuẩn bị cho H4
+     conflicts[i] = { j | (i,j) phụ thuộc nhau ∧ lịch chồng nhau }
+
+4. BACKTRACK(assignment)                        // MRV + LCV + kiểm tra H1, H4
      if |assignment| = |tasks|: return assignment
      var ← MRV(unassigned)
      for r in LCV(Dvar):
-         if workload[r] + effort(var) ≤ capacity[r]:
+         if workload[r] + effort(var) ≤ capacity[r]        // H1
+            ∧ ∀j ∈ conflicts[var]: assignment[j] ≠ r:      // H4
              assign; recurse; nếu thất bại thì undo
      return failure
 ```

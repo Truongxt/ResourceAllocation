@@ -57,7 +57,7 @@ của `server/tests/api.test.mjs`.
 | 3.4 | Cập nhật task | Chỉnh sửa thông tin task | ✅ | Modal form edit |
 | 3.5 | Xóa task | Xóa task khỏi dự án | ✅ | Confirm + gỡ khỏi dependencies của task khác |
 | 3.6 | Kanban Board | Drag & drop thay đổi status | ✅ | 5 cột, optimistic UI, gọi `PATCH /:id/status` |
-| 3.7 | Task Dependencies | Thiết lập predecessor/successor | ⬜ | **Chỉ có schema + API.** Không có UI thiết lập trong `Tasks.jsx`; chỉ hiển thị khi Gantt populate |
+| 3.7 | Task Dependencies | Thiết lập predecessor/successor | ✅ | Ô chọn nhiều trong form Task (chỉ Admin/PM), giới hạn công việc cùng dự án, tự loại các lựa chọn tạo vòng lặp. Server kiểm tra lại: tự phụ thuộc, id không tồn tại, khác dự án, vòng lặp trực tiếp lẫn gián tiếp đều trả 400 |
 | 3.8 | Gán nhân sự | Assign resource cho task | ✅ | Chọn từ danh sách Resource, lưu `resource.user` vào `assignee` |
 | 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | 🔨 | Schema + API đúng, `level` gửi lên đã được lưu đúng. Còn thiếu: UI chưa cho chọn `level`/`weight` cho từng kỹ năng (đang cố định level 2) |
 | 3.10 | Estimated Hours | Nhập giờ ước tính vs thực tế | ✅ | `estimatedHours` / `actualHours` |
@@ -89,7 +89,7 @@ của `server/tests/api.test.mjs`.
 | 5.1 | Genetic Algorithm | Multi-objective GA cho phân bổ nhân sự | ✅ | Tournament (k=5), Uniform Crossover, Random Mutation, Elitism 5% |
 | 5.2 | CSP Solver | Backtracking + MRV + LCV | 🔨 | Chạy được, đã có `fitness`/`metrics` cùng thang đo với GA. Còn lại: **bước "AC-3" chỉ là bộ lọc unary theo capacity**, không phải arc consistency |
 | 5.3 | Fitness Function | Workload balance + skill match + cost + overallocation | ✅ | 4 mục tiêu, trọng số cấu hình được |
-| 5.4 | Constraint Validation | Kiểm tra capacity, skill, availability | 🔨 | H1/H2/H3 có. **H2 dùng ngưỡng tổng hợp ≥ 0.5** chứ không bắt buộc từng kỹ năng. **Ràng buộc Dependency (H4) chưa implement** |
+| 5.4 | Constraint Validation | Kiểm tra capacity, skill, availability, dependency | ✅ | Đủ H1–H4. **H2 dùng ngưỡng tổng hợp ≥ 0.5** chứ không bắt buộc từng kỹ năng. H4 cấm giao hai việc phụ thuộc nhau, chồng lịch cho cùng một người; sai thứ tự ngày thì báo trong `constraintReport` (thuật toán không đổi được ngày) — xem [ALGORITHMS.md](./ALGORITHMS.md) mục 2.2 |
 | 5.5 | Run Optimization UI | Giao diện chạy tối ưu hóa với parameters | ✅ | Chọn thuật toán, slider tham số, tinh chỉnh trọng số |
 | 5.6 | Results Comparison | So sánh multiple solutions | 🔨 | Chỉ có danh sách lịch sử + xem chi tiết **một** kết quả; không so sánh song song nhiều phương án |
 | 5.7 | Apply Solution | Áp dụng kết quả vào hệ thống | ✅ | Ghi `assignee` cho từng task + notification + ActivityLog |
@@ -187,17 +187,17 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 |--------|------|--------------|-------------|-----------|
 | 1. Auth | 7 | 7 | 0 | 0 |
 | 2. Projects | 9 | 9 | 0 | 0 |
-| 3. Tasks | 11 | 9 | 1 | 1 |
+| 3. Tasks | 11 | 10 | 1 | 0 |
 | 4. Resources | 10 | 9 | 1 | 0 |
-| 5. Optimization | 10 | 7 | 3 | 0 |
+| 5. Optimization | 10 | 8 | 2 | 0 |
 | 6. Gantt Chart | 8 | 8 | 0 | 0 |
 | 7. Analytics | 7 | 6 | 0 | 1 |
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 4 | 0 | 2 |
-| **Tổng** | **77** | **68 (88.3%)** | **5 (6.5%)** | **4 (5.2%)** |
+| **Tổng** | **77** | **70 (90.9%)** | **4 (5.2%)** | **3 (3.9%)** |
 
-Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 91.6%**.
+Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 93.5%**.
 
 ---
 
@@ -205,15 +205,13 @@ Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 91.6%*
 
 Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 
-1. **UI thiết lập Task Dependencies** (3.7) — schema và API đã có, sơ đồ Gantt đã vẽ được
-   mũi tên nhưng chưa có chỗ nào để tạo/sửa quan hệ phụ thuộc.
+1. **UI lịch nghỉ / unavailablePeriods** (4.6) — CSP solver đã dùng dữ liệu này để lọc (H3)
+   nhưng không có màn hình nào nhập được.
 2. **UI chọn level/weight cho từng kỹ năng yêu cầu** (3.9) — hiện cố định level 2.
-3. **UI lịch nghỉ / unavailablePeriods** (4.6) — CSP solver đã dùng dữ liệu này để lọc.
-4. **Ràng buộc Dependency trong CSP** (5.4 / H4) — Gantt đang cảnh báo vi phạm ở tầng hiển thị,
-   nhưng thuật toán vẫn chưa ràng buộc.
-5. **Hybrid thực sự nối CSP → GA** (5.6 / ALGORITHMS.md mục 3).
-6. **Trend chart theo thời gian** (7.7).
-7. Đa ngôn ngữ (10.3), email notification (10.6).
+3. **Hybrid thực sự nối CSP → GA** (5.6 / ALGORITHMS.md mục 3).
+4. **AC-3 đúng nghĩa trong CSP** (5.2) — bước hiện tại chỉ là bộ lọc unary theo capacity.
+5. **Trend chart theo thời gian** (7.7).
+6. Đa ngôn ngữ (10.3), email notification (10.6).
 
 ### Nợ kỹ thuật đã biết
 
@@ -225,7 +223,7 @@ Sắp theo mức độ ảnh hưởng tới trải nghiệm:
   (`cd server && npm test`, xem [server/tests/README.md](../server/tests/README.md)) và kiểm thử
   logic thuần phía client (`cd client && npm test`).
 - Dữ liệu mẫu của seeder có 2 phụ thuộc bị vi phạm (task sau bắt đầu trước khi task trước
-  kết thúc) — sơ đồ Gantt sẽ hiện cảnh báo đỏ ngay sau khi seed.
+  kết thúc) — sơ đồ Gantt hiện cảnh báo đỏ và CSP báo lại trong `constraintReport` ngay sau khi seed.
 
 ## Lỗi đã sửa
 

@@ -10,6 +10,16 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Added
 
+- **UI thiết lập công việc tiền nhiệm** (3.7) — ô chọn nhiều trong form Task, giới hạn
+  công việc cùng dự án và tự loại các lựa chọn sẽ tạo vòng lặp. Server kiểm tra lại
+  toàn bộ: tự phụ thuộc, id không tồn tại, khác dự án, vòng lặp trực tiếp lẫn gián tiếp
+  đều trả 400; id trùng được gộp trước khi lưu.
+- **Ràng buộc H4 (Dependency) trong CSPSolver** (5.4) — hai công việc phụ thuộc nhau mà
+  lịch chồng nhau không được giao cho cùng một người. Vi phạm thuần về thứ tự ngày được
+  báo trong `constraintReport` thay vì làm bài toán vô nghiệm, vì thuật toán chỉ chọn
+  người chứ không sinh lịch. Có bộ kiểm thử đơn vị riêng: `npm test csp` (20 assertion).
+- `constraintReport.details` được lưu vào `OptimizationResult` và hiển thị trong trang
+  Tối ưu hóa — trước đây chỉ lưu hai con số nên "violated: 1" không cho biết vi phạm gì.
 - **Sơ đồ Gantt nâng cao** — hoàn thành 5 tính năng còn thiếu của Module 6:
   - Kéo thả đổi lịch: kéo thanh để dời cả hai đầu, kéo hai mép để đổi riêng ngày bắt đầu
     hoặc kết thúc; snap theo ngày, cập nhật lạc quan rồi hoàn tác nếu server từ chối.
@@ -70,8 +80,13 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 Rà soát toàn bộ tài liệu, đối chiếu với mã nguồn và kiểm chứng bằng request thật.
 
 #### Changed
-- **FEATURES.md**: Module 6 lên đủ 8/8; thống kê tổng từ 81.8% lên **88.3%**
-  (≈91.6% nếu tính mục dở dang theo 50%); rút gọn backlog còn 7 hạng mục.
+- **FEATURES.md**: Module 6 lên đủ 8/8, 3.7 và 5.4 lên ✅; thống kê tổng từ 81.8% lên
+  **90.9%** (≈93.5% nếu tính mục dở dang theo 50%); rút gọn backlog còn 6 hạng mục.
+- **ALGORITHMS.md**: bổ sung H4 vào bảng ràng buộc cứng và giải thích vì sao phải phát biểu
+  lại nó (biến quyết định là "giao cho ai", không phải "làm khi nào"); cập nhật pseudo-code
+  của `solve()`.
+- **API.md** và **DATABASE.md**: bảng lỗi kiểm tra `dependencies`, và cấu trúc
+  `constraintReport.details` mới.
 - **SYSTEM_DESIGN.md** và **docs/README.md**: bổ sung `client/src/utils/` và `client/tests/`;
   bỏ ghi chú "constants là dead code" (nay đã được dùng ở 4 trang) và ghi chú seeder đọc sai
   biến môi trường (đã sửa từ đợt trước).

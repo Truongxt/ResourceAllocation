@@ -229,7 +229,16 @@ không dùng ObjectId. Không thể xóa phòng ban còn nhân sự `isActive`.
   convergenceHistory: [           // Mảng OBJECT, không phải mảng số
     { generation: Number, fitness: Number }
   ],
-  constraintReport: { satisfied: Number, violated: Number },
+  constraintReport: {
+    satisfied: Number,
+    violated: Number,
+    // Chi tiết từng ràng buộc; type = 'capacity' | 'dependency'
+    // subject = tên nhân sự, hoặc "Việc trước → Việc sau" với ràng buộc phụ thuộc
+    details: {
+      satisfied: [{ type: String, subject: String, detail: String }],
+      violated:  [{ type: String, subject: String, detail: String }],
+    },
+  },
 
   executionTime: Number,        // ms
   generations: Number,          // GA/Hybrid
