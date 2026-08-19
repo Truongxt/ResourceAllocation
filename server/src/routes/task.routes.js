@@ -68,7 +68,7 @@ const createValidation = [
   body('dependencies.*').optional().isMongoId().withMessage('ID công việc tiền nhiệm không hợp lệ'),
   body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
   body('requiredSkills.*.name').trim().notEmpty().withMessage('Tên kỹ năng yêu cầu không được để trống'),
-  body('requiredSkills.*.level').optional().isInt({ min: 1, max: 5 }).withMessage('Level kỹ năng yêu cầu phải từ 1 đến 5'),
+  body('requiredSkills.*.level').optional().isInt({ min: 1, max: 4 }).withMessage('Level kỹ năng yêu cầu phải từ 1 đến 4'),
   body('requiredSkills.*.weight').optional().isFloat({ min: 0, max: 1 }).withMessage('Trọng số kỹ năng phải từ 0 đến 1'),
 ];
 
@@ -112,7 +112,7 @@ const updateValidation = [
   body('dependencies.*').optional().isMongoId().withMessage('ID công việc tiền nhiệm không hợp lệ'),
   body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
   body('requiredSkills.*.name').trim().notEmpty().withMessage('Tên kỹ năng yêu cầu không được để trống'),
-  body('requiredSkills.*.level').optional().isInt({ min: 1, max: 5 }).withMessage('Level kỹ năng yêu cầu phải từ 1 đến 5'),
+  body('requiredSkills.*.level').optional().isInt({ min: 1, max: 4 }).withMessage('Level kỹ năng yêu cầu phải từ 1 đến 4'),
   body('requiredSkills.*.weight').optional().isFloat({ min: 0, max: 1 }).withMessage('Trọng số kỹ năng phải từ 0 đến 1'),
 ];
 

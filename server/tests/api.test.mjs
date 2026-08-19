@@ -157,7 +157,15 @@ let taskA, taskB;
     token: TOK.admin,
     body: { title: 'ZZ level xấu', project: projectId, requiredSkills: [{ name: 'React', level: 9 }] },
   });
-  ok(skillBadLevel.status === 400, 'Level kỹ năng ngoài 1-5 → 400');
+  ok(skillBadLevel.status === 400, 'Level kỹ năng ngoài 1-4 → 400');
+
+  // Mức 5 từng hợp lệ. Nó là ranh giới thật của thay đổi thang đo, nên kiểm riêng
+  // thay vì tin vào trường hợp 9 ở trên.
+  const skillLevelFive = await call('POST', '/tasks', {
+    token: TOK.admin,
+    body: { title: 'ZZ level 5', project: projectId, requiredSkills: [{ name: 'React', level: 5 }] },
+  });
+  ok(skillLevelFive.status === 400, 'Level kỹ năng 5 (vượt thang nhân sự) → 400');
 
   const skillBadWeight = await call('POST', '/tasks', {
     token: TOK.admin,

@@ -76,15 +76,15 @@ Ví dụ (weight = 1 cho cả hai):
   Skill Matrix của nhân sự, vì so khớp theo **tên**: gõ lệch một chữ là điểm về 0 mà không
   có cảnh báo nào.
 
-> ⚠️ **Hai thang level không khớp nhau.** `Resource.skills[].level` là enum **1-4**, còn
-> `Task.requiredSkills[].level` nhận tới **5**. Yêu cầu level 5 thì nhân sự giỏi nhất cũng
-> chỉ đạt `min(4,5)/5 = 0.8` — không bao giờ khớp tuyệt đối. Schema giữ nguyên để không
-> làm hỏng dữ liệu cũ, nhưng ô chọn trong form khoá mức 5 lại. Xem
+> **Một thang duy nhất: 1-4.** `Resource.skills[].level` (enum 1-4) và
+> `Task.requiredSkills[].level` (max 4) nay dùng chung thang, nên yêu cầu ở mức cao nhất
+> vẫn có người khớp tuyệt đối.
+>
+> Trước đây `requiredSkills.level` nhận tới 5: yêu cầu mức 5 thì nhân sự giỏi nhất cũng chỉ
+> đạt `min(4,5)/5 = 0.8`, không bao giờ khớp tuyệt đối, và mọi phương án đều bị trừ điểm như
+> nhau ở kỹ năng đó — tức là nó không phân biệt được ai hơn ai. Bản ghi cũ còn mức 5 dọn bằng
+> `npm run migrate:skill-level`; hàm chấm điểm vẫn xử lý được chúng nếu chưa dọn. Xem
 > `server/tests/scoring.test.mjs`.
-
-> **Lưu ý thang điểm**: `Resource.skills[].level` giới hạn 1-4, nhưng
-> `Task.requiredSkills[].level` cho phép tới 5. Nếu task yêu cầu level 5,
-> điểm khớp tối đa chỉ đạt 4/5 = 0.8.
 
 ### 1.4 GA Operators
 

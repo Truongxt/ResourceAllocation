@@ -78,14 +78,24 @@ S('Trọng số (weight) — thứ mà form Task cho phép đặt');
 // ══════════════════════════════════════════════
 S('Giới hạn thang điểm');
 {
-  // Resource.skills.level là enum 1-4, còn Task.requiredSkills.level nhận tới 5.
-  const impossible = computeSkillMatch(
+  // Cả hai thang nay đều là 1-4, nên không tạo mới được yêu cầu Lv.5. Nhưng bản ghi
+  // cũ trong DB có thể còn, và hàm chấm điểm vẫn phải xử lý được thay vì vỡ —
+  // dọn dứt điểm bằng `npm run migrate:skill-level`.
+  const legacy = computeSkillMatch(
     task([{ name: 'React', level: 5 }]),
     dev([{ name: 'React', level: 4 }])
   );
-  ok(impossible === 0.8,
-    'Yêu cầu Lv.5 thì nhân sự giỏi nhất cũng chỉ đạt 0.8 — ô chọn trong UI khoá mức này lại',
-    `(${impossible})`);
+  ok(legacy === 0.8,
+    'Bản ghi cũ còn Lv.5 vẫn chấm được, nhân sự giỏi nhất đạt 0.8 — lý do phải migrate',
+    `(${legacy})`);
+
+  const topOfScale = computeSkillMatch(
+    task([{ name: 'React', level: 4 }]),
+    dev([{ name: 'React', level: 4 }])
+  );
+  ok(topOfScale === 1,
+    'Trên thang mới, mức cao nhất của yêu cầu khớp tuyệt đối với nhân sự giỏi nhất',
+    `(${topOfScale})`);
 
   const allZero = computeSkillMatch(
     task([{ name: 'React', level: 3, weight: 0 }]),

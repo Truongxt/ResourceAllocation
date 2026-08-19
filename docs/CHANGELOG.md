@@ -126,6 +126,16 @@ Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code ch�
 
 ### Changed
 
+- **Thống nhất thang kỹ năng về 1-4** — `Task.requiredSkills[].level` đổi `max` từ 5 xuống 4,
+  khớp `enum [1,2,3,4]` của `Resource.skills[].level`; validator ở `POST /tasks` và
+  `PUT /tasks/:id` đổi thông báo theo. Ô chọn trong form bỏ mức `Lv.5 — vượt thang` vốn để
+  `disabled` như một cái khoá tạm.
+  Lý do: điểm khớp là `min(level_nhân_sự, level_yêu_cầu) / level_yêu_cầu`, nên yêu cầu mức 5
+  thì mọi nhân sự đều tối đa 0.8 — kỹ năng đó mất khả năng phân biệt ai hơn ai, đúng thứ
+  hàm fitness cần.
+  Bản ghi cũ dọn bằng `npm run migrate:skill-level` (chạy khô mặc định, `-- --apply` để sửa
+  thật): hạ 5 xuống 4, giữ nguyên tên và trọng số, không đụng các kỹ năng khác trong cùng
+  mảng. Chưa chạy thì task đó vẫn chấm điểm được nhưng không lưu lại được.
 - **Tách bundle client theo route** — 12 trang chuyển sang `React.lazy`, hai ranh giới
   `Suspense`: một trong `Content` của `AppLayout` để đổi trang chỉ chớp vùng nội dung chứ
   không mất sidebar/header, một ở ngoài cùng cho Login/Register vốn không nằm trong layout.

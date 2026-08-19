@@ -57,10 +57,14 @@ const taskSchema = new mongoose.Schema(
     requiredSkills: [
       {
         name: String,
+        // Cùng thang với Resource.skills[].level (enum 1-4). Trước đây nhận tới 5,
+        // nên yêu cầu mức 5 vĩnh viễn không ai đạt được: điểm khớp là
+        // min(level_nhân_sự, level_yêu_cầu) / level_yêu_cầu, tối đa 4/5 = 0.8.
+        // Bản ghi cũ còn level 5 được dọn bằng `npm run migrate:skill-level`.
         level: {
           type: Number,
           min: 1,
-          max: 5,
+          max: 4,
           default: 3,
         },
         weight: {

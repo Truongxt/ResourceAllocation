@@ -59,7 +59,7 @@ của `server/tests/api.test.mjs`.
 | 3.6 | Kanban Board | Drag & drop thay đổi status | ✅ | 5 cột, optimistic UI, gọi `PATCH /:id/status` |
 | 3.7 | Task Dependencies | Thiết lập predecessor/successor | ✅ | Ô chọn nhiều trong form Task (chỉ Admin/PM), giới hạn công việc cùng dự án, tự loại các lựa chọn tạo vòng lặp. Server kiểm tra lại: tự phụ thuộc, id không tồn tại, khác dự án, vòng lặp trực tiếp lẫn gián tiếp đều trả 400 |
 | 3.8 | Gán nhân sự | Assign resource cho task | ✅ | Chọn từ danh sách Resource, lưu `resource.user` vào `assignee` |
-| 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | ✅ | Nhập từng dòng: tên (gợi ý từ Skill Matrix nhân sự), mức yêu cầu Lv.1-4, trọng số 0-1. Danh sách kỹ năng kèm mức hiện luôn trên bảng công việc. Server chặn thiếu tên, level ngoài 1-5, trọng số ngoài 0-1 |
+| 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | ✅ | Nhập từng dòng: tên (gợi ý từ Skill Matrix nhân sự), mức yêu cầu Lv.1-4, trọng số 0-1. Danh sách kỹ năng kèm mức hiện luôn trên bảng công việc. Server chặn thiếu tên, level ngoài **1-4** (cùng thang với nhân sự), trọng số ngoài 0-1 |
 | 3.10 | Estimated Hours | Nhập giờ ước tính vs thực tế | ✅ | `estimatedHours` / `actualHours` |
 | 3.11 | Thay đổi trạng thái | Cập nhật progress, status | ✅ | `PATCH /:id/status`, tự set progress 0/100 |
 
@@ -222,11 +222,16 @@ Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 3. **Ràng buộc all-different trong CSP** — AC-3 trên `≠` không suy luận được kiểu chuồng
    bồ câu; muốn phát hiện sớm những trường hợp đó cần thuật toán Régin.
 
-### Chênh lệch thang đo cần quyết định
+### Thang đo kỹ năng — đã thống nhất
 
-`Resource.skills[].level` là enum 1-4 nhưng `Task.requiredSkills[].level` nhận tới 5, nên
-yêu cầu mức 5 vĩnh viễn không thể khớp tuyệt đối. Hiện ô chọn trong form khoá mức 5 lại;
-muốn dứt điểm thì phải thống nhất một thang cho cả hai schema.
+`Resource.skills[].level` và `Task.requiredSkills[].level` nay cùng thang **1-4**. Trước đây
+task nhận tới 5 nên yêu cầu mức 5 vĩnh viễn không khớp tuyệt đối (tối đa `min(4,5)/5 = 0.8`)
+và không phân biệt được nhân sự nào hơn nhân sự nào ở kỹ năng đó.
+
+Bản ghi cũ còn mức 5 trong DB **không tự sửa**: chạy `npm run migrate:skill-level` (mặc định
+chạy khô, thêm `-- --apply` để sửa thật) — nó hạ 5 xuống 4 và giữ nguyên tên lẫn trọng số.
+Chưa chạy thì các task đó vẫn chấm điểm được, nhưng sẽ **không lưu lại được** vì validator
+mới chặn. Script là loại một lần, xong hết mọi môi trường thì xóa được.
 
 ### Nợ kỹ thuật đã biết
 

@@ -103,7 +103,7 @@ Lưu trữ thông tin tài khoản người dùng.
   requiredSkills: [
     {
       name: String,            // Tên skill — field là `name`, KHÔNG phải `skill`
-      level: Number,           // 1-5, default 3
+      level: Number,           // 1-4, default 3 — cùng thang với Resource.skills[].level
       weight: Number           // 0-1, default 1 — trọng số dùng trong công thức skill match
     }
   ],
@@ -122,8 +122,9 @@ Lưu trữ thông tin tài khoản người dùng.
   hệ thống lấy `resource.user` để ghi vào `assignee`. Muốn tìm task của một Resource,
   phải query theo `assignee: resource.user`.
 - **`status` có 5 giá trị**, gồm cả `review` (không phải `in_review`) và `blocked`.
-- **`requiredSkills.level` cho phép tới 5**, trong khi `Resource.skills.level` chỉ nhận 1-4.
-  Đây là điểm không nhất quán còn tồn tại trong code.
+- **`requiredSkills.level` dùng chung thang 1-4 với `Resource.skills.level`.** Trước đây
+  field này nhận tới 5, khiến yêu cầu mức 5 vĩnh viễn không ai khớp tuyệt đối (tối đa
+  `min(4,5)/5 = 0.8`). Bản ghi cũ còn mức 5 dọn bằng `npm run migrate:skill-level`.
 - Không có field `storyPoints` và `completedAt`.
 
 ---

@@ -8,6 +8,7 @@
     "start": "node server.js",
     "seed": "node src/utils/seeder.js",
     "cleanup": "node src/utils/cleanup.js",
+    "migrate:skill-level": "node src/utils/migrate-skill-level.js",
     "test": "node tests/run.mjs"
   },
   "dependencies": {

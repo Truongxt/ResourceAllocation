@@ -91,8 +91,8 @@ export const PRIORITY_COLORS = Object.fromEntries(
 );
 
 // ──────────────────────────────────────────────
-// Skill levels — khớp Resource.skills[].level (enum 1-4)
-// Lưu ý: Task.requiredSkills[].level ở server cho phép tới 5.
+// Skill levels — thang 1-4 dùng chung cho cả Resource.skills[].level (enum 1-4)
+// và Task.requiredSkills[].level (max 4). Hai bên trước đây lệch nhau.
 // ──────────────────────────────────────────────
 export const SKILL_LEVELS = {
   BEGINNER: 1,
@@ -108,19 +108,15 @@ export const SKILL_LEVEL_LABELS = {
   [SKILL_LEVELS.EXPERT]: 'Chuyên gia',
 };
 
-// Ô chọn level cho kỹ năng mà công việc yêu cầu.
-//
-// Điểm khớp kỹ năng là min(level_nhân_sự, level_yêu_cầu) / level_yêu_cầu, mà
-// Resource.skills.level là enum 1-4. Nên yêu cầu level 5 sẽ không bao giờ đạt
-// điểm tuyệt đối (tối đa 4/5 = 0.8). Schema vẫn nhận giá trị 5 để không làm hỏng
-// dữ liệu cũ, nhưng ô chọn khoá lại để không tạo thêm yêu cầu bất khả thi.
-export const REQUIRED_SKILL_LEVEL_OPTIONS = [
-  ...Object.entries(SKILL_LEVEL_LABELS).map(([value, label]) => ({
+// Ô chọn level cho kỹ năng mà công việc yêu cầu — cùng thang với nhân sự, nên
+// mọi mức đều có người đạt được. Trước đây danh sách này có thêm mức 5 để khoá
+// lại; nay server đã chốt max 4 nên không cần cái khoá đó nữa.
+export const REQUIRED_SKILL_LEVEL_OPTIONS = Object.entries(SKILL_LEVEL_LABELS).map(
+  ([value, label]) => ({
     value: Number(value),
     label: `${label} (Lv.${value})`,
-  })),
-  { value: 5, label: 'Lv.5 — vượt thang, không ai đạt được', disabled: true },
-];
+  })
+);
 
 // ──────────────────────────────────────────────
 // Resource availability — khớp Resource.availability
