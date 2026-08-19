@@ -1,7 +1,8 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
+const { canModifyTask } = require('../middleware/taskAccess');
 const {
   getTasks,
   getTaskById,
@@ -120,9 +121,20 @@ router.use(protect);
 router.get('/stats/summary', getTaskSummary);
 router.get('/', listValidation, validate, getTasks);
 router.get('/:id', taskIdValidation, validate, getTaskById);
-router.post('/', createValidation, validate, createTask);
-router.put('/:id', taskIdValidation, updateValidation, validate, updateTask);
-router.patch('/:id/status', taskIdValidation, statusValidation, validate, updateTaskStatus);
-router.delete('/:id', taskIdValidation, validate, deleteTask);
+
+router.post('/', authorize('admin', 'project_manager'), createValidation, validate, createTask);
+
+// Member sửa được task của chính mình, nhưng chỉ các trường về tiến độ
+router.put(
+  '/:id',
+  taskIdValidation,
+  updateValidation,
+  validate,
+  canModifyTask({ restrictFields: true }),
+  updateTask
+);
+router.patch('/:id/status', taskIdValidation, statusValidation, validate, canModifyTask(), updateTaskStatus);
+
+router.delete('/:id', authorize('admin', 'project_manager'), taskIdValidation, validate, deleteTask);
 
 module.exports = router;

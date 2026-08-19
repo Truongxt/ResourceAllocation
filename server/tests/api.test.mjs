@@ -17,8 +17,12 @@ S('1. Health & Authentication');
   TOK.admin = login.data?.token;
 
   TOK.pm = (await call('POST', '/auth/login', { body: { email: 'pm@rao.com', password: 'password123' } })).data?.token;
-  TOK.member = (await call('POST', '/auth/login', { body: { email: 'nam.tran@rao.com', password: 'password123' } })).data?.token;
-  ok(!!TOK.pm && !!TOK.member, 'Đăng nhập PM và Member');
+  const memberLogin = await call('POST', '/auth/login', { body: { email: 'nam.tran@rao.com', password: 'password123' } });
+  TOK.member = memberLogin.data?.token;
+  // Lấy id từ chính response login: danh sách /auth/users sắp xếp -createdAt nên
+  // "member đầu tiên" không nhất thiết là tài khoản đang đăng nhập ở đây
+  TOK.memberId = memberLogin.data?.user?._id;
+  ok(!!TOK.pm && !!TOK.member && !!TOK.memberId, 'Đăng nhập PM và Member');
 
   ok(!login.data?.user?.password, 'Response login KHÔNG chứa password');
 
@@ -163,9 +167,58 @@ let taskA, taskB;
   const bAfter = await call('GET', `/tasks/${taskB}`, { token: TOK.admin });
   ok(bAfter.data.task.dependencies.length === 0, 'xóa task gỡ nó khỏi dependencies của task khác');
 
+}
+
+// ══════════════════════════════════════════════
+S('4b. Phân quyền công việc');
+{
   const memberCreate = await call('POST', '/tasks', { token: TOK.member, body: { title: 'ZZ member', project: projectId } });
-  ok(memberCreate.status === 201, 'Member tạo được task (đúng như tài liệu mô tả hiện trạng)');
-  await call('DELETE', `/tasks/${memberCreate.data.task._id}`, { token: TOK.admin });
+  ok(memberCreate.status === 403, 'Member tạo task → 403');
+
+  const own = await call('POST', '/tasks', {
+    token: TOK.admin,
+    body: { title: 'E2E own task', project: projectId, estimatedHours: 8, assignee: TOK.memberId },
+  });
+  const ownId = own.data.task._id;
+
+  const other = await call('POST', '/tasks', {
+    token: TOK.admin,
+    body: { title: 'E2E other task', project: projectId, estimatedHours: 8 },
+  });
+  const otherId = other.data.task._id;
+
+  const progress = await call('PUT', `/tasks/${ownId}`, { token: TOK.member, body: { progress: 40 } });
+  ok(progress.status === 200 && progress.data.task.progress === 40, 'Member cập nhật tiến độ task của mình → 200');
+
+  const statusOwn = await call('PATCH', `/tasks/${ownId}/status`, { token: TOK.member, body: { status: 'in_progress' } });
+  ok(statusOwn.status === 200, 'Member đổi trạng thái task của mình → 200');
+
+  const retitle = await call('PUT', `/tasks/${ownId}`, { token: TOK.member, body: { title: 'đổi tên' } });
+  ok(retitle.status === 403, 'Member đổi tiêu đề task của mình → 403 (chỉ được sửa trường tiến độ)');
+
+  const reassign = await call('PUT', `/tasks/${ownId}`, { token: TOK.member, body: { assignee: null } });
+  ok(reassign.status === 403, 'Member tự bỏ gán task của mình → 403');
+
+  const mixed = await call('PUT', `/tasks/${ownId}`, { token: TOK.member, body: { progress: 60, priority: 'critical' } });
+  ok(mixed.status === 403, 'Trộn trường hợp lệ với trường cấm cũng bị chặn');
+
+  const foreign = await call('PUT', `/tasks/${otherId}`, { token: TOK.member, body: { progress: 10 } });
+  ok(foreign.status === 403, 'Member cập nhật task của người khác → 403');
+
+  const foreignStatus = await call('PATCH', `/tasks/${otherId}/status`, { token: TOK.member, body: { status: 'done' } });
+  ok(foreignStatus.status === 403, 'Member đổi trạng thái task của người khác → 403');
+
+  const memberDelete = await call('DELETE', `/tasks/${ownId}`, { token: TOK.member });
+  ok(memberDelete.status === 403, 'Member xóa task của chính mình → 403');
+
+  ok((await call('PUT', `/tasks/${otherId}`, { token: TOK.pm, body: { title: 'PM đổi được' } })).status === 200,
+    'PM sửa mọi trường của task bất kỳ → 200');
+  ok((await call('DELETE', `/tasks/${otherId}`, { token: TOK.pm })).status === 200, 'PM xóa task → 200');
+
+  const ghost = await call('PUT', '/tasks/000000000000000000000000', { token: TOK.member, body: { progress: 10 } });
+  ok(ghost.status === 404, 'Member sửa task không tồn tại → 404 (không lộ thành 403)');
+
+  await call('DELETE', `/tasks/${ownId}`, { token: TOK.admin });
 }
 
 // ══════════════════════════════════════════════
@@ -209,6 +262,11 @@ let deptId, resId;
     token: TOK.admin, body: { skills: [{ name: 'Testing', level: 4 }, { name: 'React', level: 2 }] },
   });
   ok(skills.data.resource.skills.length === 2, 'Cập nhật skill matrix');
+
+  const memberSkills = await call('PUT', `/resources/${resId}/skills`, {
+    token: TOK.member, body: { skills: [{ name: 'Hacked', level: 4 }] },
+  });
+  ok(memberSkills.status === 403, 'Member sửa skill matrix của người khác → 403');
 
   const bySkill = await call('GET', '/resources?skill=Testing&skillLevel=3', { token: TOK.admin });
   ok(bySkill.data.resources.length >= 1, 'Tìm nhân sự theo skill + level');

@@ -123,7 +123,7 @@ router.get('/', listValidation, validate, getResources);
 router.get('/:id', resourceIdValidation, validate, getResourceById);
 router.post('/', authorize('admin', 'project_manager'), createValidation, validate, createResource);
 router.put('/:id', authorize('admin', 'project_manager'), resourceIdValidation, updateValidation, validate, updateResource);
-router.put('/:id/skills', resourceIdValidation, skillsValidation, validate, updateSkills);
+router.put('/:id/skills', authorize('admin', 'project_manager'), resourceIdValidation, skillsValidation, validate, updateSkills);
 router.delete('/:id', authorize('admin'), resourceIdValidation, validate, deleteResource);
 
 module.exports = router;

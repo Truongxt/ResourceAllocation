@@ -41,13 +41,15 @@ import dayjs from 'dayjs';
 import taskService from '../services/taskService';
 import projectService from '../services/projectService';
 import resourceService from '../services/resourceService';
-import { TASK_STATUSES as STATUS_COLS, PRIORITY_OPTIONS } from '../constants';
+import { TASK_STATUSES as STATUS_COLS, PRIORITY_OPTIONS, ROLES } from '../constants';
+import { useAuth } from '../context/AuthContext';
 import './Tasks.css';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 export default function Tasks() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [resources, setResources] = useState([]);
@@ -59,6 +61,15 @@ export default function Tasks() {
   const [editingTask, setEditingTask] = useState(null);
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [form] = Form.useForm();
+
+  // Khớp với phân quyền ở server: Admin/PM toàn quyền, Member chỉ cập nhật
+  // tiến độ công việc được giao cho mình (xem middleware/taskAccess.js)
+  const canManageTasks = user?.role === ROLES.ADMIN || user?.role === ROLES.PM;
+  const isAssignedToMe = (task) => {
+    const assigneeId = task?.assignee?._id || task?.assignee;
+    return !!assigneeId && !!user?._id && assigneeId === user._id;
+  };
+  const canEditTask = (task) => canManageTasks || isAssignedToMe(task);
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -184,7 +195,16 @@ export default function Tasks() {
 
     try {
       if (editingTask) {
-        await taskService.update(editingTask._id, payload);
+        // Người được giao việc chỉ được gửi các trường về tiến độ; gửi thừa
+        // trường khác sẽ bị server từ chối (middleware/taskAccess.js)
+        const updatePayload = canManageTasks
+          ? payload
+          : {
+              status: payload.status,
+              progress: payload.progress,
+              actualHours: payload.actualHours,
+            };
+        await taskService.update(editingTask._id, updatePayload);
         message.success('Cập nhật công việc thành công');
       } else {
         await taskService.create(payload);
@@ -320,20 +340,27 @@ export default function Tasks() {
       width: 100,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="Chỉnh sửa">
-            <Button type="text" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+          <Tooltip title={canEditTask(record) ? 'Chỉnh sửa' : 'Chỉ người được giao hoặc quản lý mới sửa được'}>
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              disabled={!canEditTask(record)}
+              onClick={() => openEdit(record)}
+            />
           </Tooltip>
-          <Tooltip title="Xóa">
-            <Popconfirm
-              title="Xác nhận xóa công việc?"
-              onConfirm={() => handleDelete(record._id)}
-              okText="Xóa"
-              cancelText="Hủy"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="text" danger icon={<DeleteOutlined />} />
-            </Popconfirm>
-          </Tooltip>
+          {canManageTasks && (
+            <Tooltip title="Xóa">
+              <Popconfirm
+                title="Xác nhận xóa công việc?"
+                onConfirm={() => handleDelete(record._id)}
+                okText="Xóa"
+                cancelText="Hủy"
+                okButtonProps={{ danger: true }}
+              >
+                <Button type="text" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -356,9 +383,11 @@ export default function Tasks() {
               { value: 'list', icon: <UnorderedListOutlined />, label: 'Danh sách' },
             ]}
           />
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} id="btn-create-task">
-            Tạo công việc
-          </Button>
+          {canManageTasks && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} id="btn-create-task">
+              Tạo công việc
+            </Button>
+          )}
         </Space>
       </div>
 
@@ -471,9 +500,9 @@ export default function Tasks() {
                         size="small"
                         hoverable
                         className="kanban-task-card"
-                        draggable
+                        draggable={canEditTask(task)}
                         onDragStart={(e) => handleDragStart(e, task._id)}
-                        style={{ marginBottom: 10, cursor: 'grab' }}
+                        style={{ marginBottom: 10, cursor: canEditTask(task) ? 'grab' : 'default' }}
                         styles={{ body: { padding: '12px' } }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
