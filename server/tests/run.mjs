@@ -23,6 +23,7 @@ const SUITES = [
   // Bộ đơn vị, không cần server lẫn database — chạy trước để lỗi thuật toán lộ ra sớm.
   { name: 'scoring', file: 'scoring.test.mjs', label: 'Thang điểm dùng chung' },
   { name: 'csp', file: 'csp.test.mjs', label: 'CSP — ràng buộc H3/H4' },
+  { name: 'hybrid', file: 'hybrid.test.mjs', label: 'Hybrid — bàn giao CSP → GA' },
   { name: 'api', file: 'api.test.mjs', label: 'REST API' },
   { name: 'project-detail', file: 'project-detail.test.mjs', label: 'Trang chi tiết dự án' },
   { name: 'socket', file: 'socket.test.mjs', label: 'Socket.IO realtime' },

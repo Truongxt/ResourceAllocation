@@ -35,6 +35,7 @@ Ghi đè bằng biến môi trường nếu cần: `TEST_PORT`, `TEST_MONGODB_UR
 | Bộ | File | Phạm vi |
 |----|------|---------|
 | `scoring` | `scoring.test.mjs` | Thang điểm dùng chung của GA và CSP ở mức đơn vị: công thức khớp kỹ năng có trọng số, so khớp tên không phân biệt hoa thường, giới hạn thang level, capacity/effort mặc định |
+| `hybrid` | `hybrid.test.mjs` | Bàn giao CSP → GA ở mức đơn vị: CSP lọc đúng miền, GA chỉ chọn trong miền đó, miền rỗng được mở lại và báo lại, chỉ số hỏng bị bỏ qua |
 | `csp` | `csp.test.mjs` | Ràng buộc H3 và H4 của CSPSolver ở mức đơn vị: loại nhân sự có kỳ nghỉ giao với task; cấm cùng người khi hai việc phụ thuộc nhau và chồng lịch, cho phép khi nối tiếp, báo lại vi phạm thứ tự ngày. Không cần server lẫn database |
 | `api` | `api.test.mjs` | Toàn bộ REST API: health, xác thực, phân quyền 3 role, CRUD Projects/Tasks/Resources/Departments, 3 thuật toán tối ưu hóa, Analytics, Notifications, ActivityLog, dọn dữ liệu theo tầng |
 | `project-detail` | `project-detail.test.mjs` | Các API trang chi tiết dự án dùng, theo đúng thứ tự UI gọi, gồm cả nhánh lỗi và ranh giới phân quyền |

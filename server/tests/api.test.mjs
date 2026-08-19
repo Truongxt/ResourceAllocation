@@ -478,6 +478,22 @@ let gaId;
   ok('cspFeasible' in hy.data, 'Hybrid trả cờ cspFeasible');
   ok(hy.data.result.constraintReport !== undefined, 'Hybrid có constraintReport từ pha CSP');
 
+  // Pha GA phải chạy trên miền do pha CSP lọc, không phải chạy rời rạc như trước.
+  const reduction = hy.data.result.domainReduction;
+  ok(reduction?.restricted === true, 'Hybrid: GA nhận miền giá trị từ CSP');
+  ok(
+    reduction.feasiblePairs <= reduction.totalPairs && reduction.totalPairs > 0,
+    'Số cặp khả thi không vượt quá toàn bộ không gian',
+    `${reduction.feasiblePairs}/${reduction.totalPairs}`
+  );
+  ok(typeof reduction.tasksReopened === 'number', 'Báo số task phải mở lại miền');
+
+  const gaOnly = await call('POST', '/optimization/run/genetic', {
+    token: TOK.admin, body: { populationSize: 30, maxGenerations: 50 },
+  });
+  ok(gaOnly.data.result.domainReduction?.restricted !== true,
+    'Chạy GA đơn lẻ thì không thu hẹp miền — khác biệt thật giữa hai chế độ');
+
   const hist = await call('GET', '/optimization/history', { token: TOK.admin });
   ok(hist.data.results.length >= 3, 'Lịch sử có đủ các lần chạy');
   const recent = hist.data.results.slice(0, 3);
