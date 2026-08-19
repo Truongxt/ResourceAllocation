@@ -126,6 +126,19 @@ Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code ch�
 
 ### Changed
 
+- **Tách bundle client theo route** — 12 trang chuyển sang `React.lazy`, hai ranh giới
+  `Suspense`: một trong `Content` của `AppLayout` để đổi trang chỉ chớp vùng nội dung chứ
+  không mất sidebar/header, một ở ngoài cùng cho Login/Register vốn không nằm trong layout.
+  `vite.config.js` chỉ tách tay `react-vendor` và `net-vendor` — hai khối đằng nào cũng nằm
+  trong đồ thị entry, gom lại để cache lâu qua các lần deploy.
+  **Cố tình không gom antd vào một chunk**: thử cách đó trước và nó phản tác dụng — Table,
+  DatePicker, Slider dù chỉ một trang dùng vẫn bị kéo vào chunk mà khung layout cần ngay,
+  lần vào đầu tiên vẫn phải tải 1,1 MB (chỉ giảm 8%). Để Rollup tự chia thì phần antd chỉ
+  một trang dùng nằm luôn trong chunk của trang đó.
+  Tải ở lần vào đầu tiên: **1.544 kB → 813 kB** (gzip 489 → 266 kB), giảm 47%.
+  `Table` 158 kB nay chỉ tải ở trang thực sự có bảng.
+  Chunk entry còn 559 kB nên cảnh báo >500 kB của Vite vẫn còn — đó là lõi antd + cssinjs
+  mà khung layout cần ngay, không tách thêm được nếu không đổi thư viện UI.
 - **Siết phân quyền công việc và ma trận kỹ năng**: `POST /tasks`, `DELETE /tasks/:id` và
   `PUT /resources/:id/skills` giới hạn Admin/PM. `PUT /tasks/:id` và `PATCH /tasks/:id/status`
   cho phép thêm người được giao việc, nhưng chỉ ba trường `status`, `progress`, `actualHours` —

@@ -31,7 +31,7 @@ của `server/tests/api.test.mjs`.
 
 ---
 
-## Module 2: Quản lý Dự án (Project Management) 🔨
+## Module 2: Quản lý Dự án (Project Management) ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
@@ -47,7 +47,7 @@ của `server/tests/api.test.mjs`.
 
 ---
 
-## Module 3: Quản lý Công việc (Task Management) 🔨
+## Module 3: Quản lý Công việc (Task Management) ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
@@ -65,7 +65,7 @@ của `server/tests/api.test.mjs`.
 
 ---
 
-## Module 4: Quản lý Nhân sự (Resource Management) 🔨
+## Module 4: Quản lý Nhân sự (Resource Management) ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
@@ -237,7 +237,10 @@ muốn dứt điểm thì phải thống nhất một thang cho cả hai schema.
   cái còn lại là open redirect qua `<Link>`/`useNavigate` — đích điều hướng động duy nhất
   trong client (`notif.link` ở `Header.jsx`) đã được chặn chỉ nhận đường dẫn nội bộ.
 - `vite`/`esbuild` có advisory nhưng chỉ ảnh hưởng dev server, không đi vào bản build.
-- Bundle client là **một mảnh ~1.5 MB**, chưa tách code theo route.
+- Bundle client đã tách theo route (`React.lazy` cho 12 trang). Lần vào đầu tiên tải
+  **813 kB** (gzip 266 kB) thay vì 1.544 kB. Chunk entry vẫn 559 kB — lõi antd + cssinjs
+  mà khung layout cần ngay — nên cảnh báo >500 kB của Vite còn nguyên; muốn nhỏ hơn nữa
+  thì phải đổi thư viện UI chứ không phải chia chunk khác đi.
 - Chưa có kiểm thử render component; hiện có kiểm thử end-to-end qua API và Socket.IO
   (`cd server && npm test`, xem [server/tests/README.md](../server/tests/README.md)) và kiểm thử
   logic thuần phía client (`cd client && npm test`).
