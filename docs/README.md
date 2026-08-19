@@ -14,11 +14,10 @@ Hệ thống **Resource Allocation Optimization (RAO)** là Web Application hỗ
 |---------|-------|----------------------------------|
 | **Admin** | Quản trị hệ thống | Toàn quyền. Riêng: xem danh sách tài khoản, xóa nhân sự, xóa phòng ban, tính lại workload, xóa nhật ký hoạt động |
 | **Project Manager** | Quản lý dự án | Tạo/sửa/xóa dự án, quản lý thành viên dự án, thêm/sửa nhân sự, tạo/sửa phòng ban, áp dụng kết quả tối ưu hóa |
-| **Member** | Thành viên dự án | Xem toàn bộ dữ liệu, chạy tối ưu hóa, và **CRUD toàn bộ task** + **sửa skill matrix** của bất kỳ nhân sự nào |
+| **Member** | Thành viên dự án | Xem toàn bộ dữ liệu, chạy tối ưu hóa, và cập nhật `status`/`progress`/`actualHours` của **task được giao cho mình** |
 
-> ⚠️ **Phân quyền hiện chưa siết đúng thiết kế.** Toàn bộ `/api/tasks` và
-> `PUT /api/resources/:id/skills` chỉ kiểm tra đã đăng nhập, không kiểm tra role.
-> Chi tiết từng endpoint: xem [API.md](./API.md).
+Member không tạo/xóa được task, không sửa được task của người khác, và không sửa được
+skill matrix. Chi tiết từng endpoint: xem [API.md](./API.md).
 
 ## Kiến trúc hệ thống
 

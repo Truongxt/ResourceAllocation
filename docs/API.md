@@ -168,13 +168,17 @@ Mỗi phần tử trong `GET /` được bổ sung `taskStats: { totalTasks, com
 | GET | `/stats/summary` | Thống kê task (status, priority, tổng giờ) | 🔒 |
 | GET | `/` | Danh sách tasks | 🔒 |
 | GET | `/:id` | Chi tiết task | 🔒 |
-| POST | `/` | Tạo task | 🔒 |
-| PUT | `/:id` | Cập nhật task (bao gồm gán `assignee`) | 🔒 |
-| PATCH | `/:id/status` | Đổi nhanh status (dùng cho Kanban drag & drop) | 🔒 |
-| DELETE | `/:id` | Xóa task | 🔒 |
+| POST | `/` | Tạo task | 📋 PM+ |
+| PUT | `/:id` | Cập nhật task (bao gồm gán `assignee`) | 📋 PM+ hoặc người được giao¹ |
+| PATCH | `/:id/status` | Đổi nhanh status (dùng cho Kanban drag & drop) | 📋 PM+ hoặc người được giao |
+| DELETE | `/:id` | Xóa task | 📋 PM+ |
 
-> ⚠️ Toàn bộ endpoint task chỉ yêu cầu đăng nhập — **không** giới hạn PM+.
-> Member cũng có thể tạo/sửa/xóa bất kỳ task nào.
+¹ **Người được giao việc** (`assignee`) sửa được task của chính mình, nhưng chỉ ba trường
+`status`, `progress`, `actualHours`. Gửi kèm bất kỳ trường nào khác → **403** kèm danh sách
+trường bị từ chối. Việc này để họ không tự chuyển việc sang người khác hay đổi phạm vi công việc.
+Sửa task của người khác cũng trả 403; task không tồn tại vẫn trả 404.
+
+Quy tắc nằm ở [`middleware/taskAccess.js`](../server/src/middleware/taskAccess.js).
 
 **Query filter cho `GET /`**: `project`, `status`, `priority`, `assignee`, `search` (title/description), `page`, `limit`, `sort`.
 
@@ -222,10 +226,8 @@ Mỗi phần tử trong `GET /` được bổ sung `taskStats: { totalTasks, com
 | GET | `/:id` | Chi tiết nhân sự + danh sách task đang được gán | 🔒 |
 | POST | `/` | Thêm nhân sự | 📋 PM+ |
 | PUT | `/:id` | Cập nhật nhân sự | 📋 PM+ |
-| PUT | `/:id/skills` | Cập nhật skill matrix | 🔒 |
+| PUT | `/:id/skills` | Cập nhật skill matrix | 📋 PM+ |
 | DELETE | `/:id` | Xóa nhân sự | 👑 |
-
-> ⚠️ `PUT /:id/skills` chỉ yêu cầu đăng nhập — Member cũng sửa được kỹ năng của bất kỳ nhân sự nào.
 
 **Query filter cho `GET /`**: `department`, `availability`, `skill` (regex theo tên kỹ năng),
 `skillLevel` (1-4, lọc `>=`), `isActive`, `search` (position/department/employeeId), `page`, `limit`, `sort`.

@@ -21,14 +21,13 @@
 | 1.1 | Đăng ký | Form đăng ký với validation (email, password ≥ 6) | ✅ | `Register.jsx` + express-validator |
 | 1.2 | Đăng nhập | JWT-based authentication | ✅ | Token lưu `localStorage.rao_token` |
 | 1.3 | Đăng xuất | Clear token, redirect to login | ✅ | Dropdown ở Header |
-| 1.4 | Phân quyền | Role-based: Admin, PM, Member | 🔨 | Middleware `authorize` hoạt động, nhưng **chưa áp cho toàn bộ Task API và `PUT /resources/:id/skills`** — xem cảnh báo bên dưới |
+| 1.4 | Phân quyền | Role-based: Admin, PM, Member | ✅ | `authorize` cho các thao tác theo role; `canModifyTask` cho phép người được giao tự cập nhật tiến độ task của mình |
 | 1.5 | Quản lý Profile | Cập nhật thông tin cá nhân, avatar | ✅ | Trang Cài đặt (`Settings.jsx`) |
 | 1.6 | Đổi mật khẩu | Thay đổi mật khẩu từ profile | ✅ | Trả token mới sau khi đổi |
 | 1.7 | Protected Routes | Chặn truy cập trang khi chưa login | ✅ | `ProtectedRoute.jsx` + interceptor 401 |
 
-> ⚠️ **Phân quyền thực tế lỏng hơn thiết kế**: toàn bộ endpoint `/api/tasks` (kể cả POST và DELETE)
-> và `PUT /api/resources/:id/skills` chỉ yêu cầu đăng nhập. Member có thể tạo/xóa bất kỳ task nào
-> và sửa kỹ năng của bất kỳ nhân sự nào. Đã kiểm chứng: member tạo task → HTTP 201.
+Ranh giới phân quyền được kiểm chứng bằng 12 assertion trong nhóm "4b. Phân quyền công việc"
+của `server/tests/api.test.mjs`.
 
 ---
 
@@ -180,7 +179,7 @@ tô màu theo status, đánh dấu cuối tuần và ngày hôm nay.
 
 | Module | Tổng | ✅ Hoàn thành | 🔨 Một phần | ⬜ Chưa có |
 |--------|------|--------------|-------------|-----------|
-| 1. Auth | 7 | 6 | 1 | 0 |
+| 1. Auth | 7 | 7 | 0 | 0 |
 | 2. Projects | 9 | 9 | 0 | 0 |
 | 3. Tasks | 11 | 9 | 1 | 1 |
 | 4. Resources | 10 | 9 | 1 | 0 |
@@ -190,9 +189,9 @@ tô màu theo status, đánh dấu cuối tuần và ngày hôm nay.
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 4 | 0 | 2 |
-| **Tổng** | **77** | **62 (80.5%)** | **6 (7.8%)** | **9 (11.7%)** |
+| **Tổng** | **77** | **63 (81.8%)** | **5 (6.5%)** | **9 (11.7%)** |
 
-Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 84.4%**.
+Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 85.1%**.
 
 ---
 
@@ -211,8 +210,6 @@ Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 
 ### Nợ kỹ thuật đã biết
 
-- Toàn bộ `/api/tasks` và `PUT /api/resources/:id/skills` chỉ kiểm tra đăng nhập, không kiểm role —
-  Member xóa được task bất kỳ và sửa skill của bất kỳ nhân sự nào.
 - `GET /api/auth/users` giới hạn Admin, nên UI cần danh sách người dùng phải lấy gián tiếp
   qua `GET /api/resources` (đây là cách trang chi tiết dự án đang làm).
 - Seeder chỉ xóa 5 collection (User, Project, Task, Resource, Department); `notifications`,
