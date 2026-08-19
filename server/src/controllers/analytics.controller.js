@@ -3,6 +3,7 @@ const Task = require('../models/Task');
 const Resource = require('../models/Resource');
 const OptimizationResult = require('../models/OptimizationResult');
 const mongoose = require('mongoose');
+const { buildWorkloadTrend } = require('../analytics/workloadTrend');
 
 /**
  * @desc    Dashboard overview — tổng hợp real data
@@ -271,6 +272,67 @@ const getTaskAnalytics = async (req, res, next) => {
 };
 
 /**
+ * @desc    Xu hướng khối lượng công việc theo thời gian
+ * @route   GET /api/analytics/workload-trend
+ * @access  Private
+ *
+ * Query: `from`, `to` (ISO date), `granularity` = day|week, `projectId`.
+ * Bỏ trống from/to thì tự lấy trọn khoảng thời gian các công việc đang chiếm.
+ */
+const getWorkloadTrend = async (req, res, next) => {
+  try {
+    const { from, to, granularity, projectId } = req.query;
+
+    if (projectId && !mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({ success: false, message: 'ID dự án không hợp lệ' });
+    }
+    const parseDate = (value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? undefined : date;
+    };
+    const fromDate = parseDate(from);
+    const toDate = parseDate(to);
+    if (fromDate === undefined || toDate === undefined) {
+      return res.status(400).json({ success: false, message: 'Khoảng thời gian không hợp lệ' });
+    }
+
+    // Lấy cả task đã done: biểu đồ trải theo lịch nên phần quá khứ phải có mặt, nếu chỉ
+    // lấy task đang mở thì mọi khoảng đã qua đều phẳng lì một cách sai lệch.
+    const taskFilter = {};
+    if (projectId) taskFilter.project = projectId;
+
+    const [tasks, resources] = await Promise.all([
+      Task.find(taskFilter).select('title estimatedHours startDate endDate assignee status').lean(),
+      Resource.find({ isActive: true })
+        .populate('user', 'name')
+        .select('user position maxCapacity fte unavailablePeriods')
+        .lean(),
+    ]);
+
+    const flatResources = resources.map((r) => ({
+      _id: r._id,
+      userId: r.user?._id,
+      userName: r.user?.name || r.position,
+      position: r.position,
+      maxCapacity: r.maxCapacity,
+      fte: r.fte,
+      unavailablePeriods: r.unavailablePeriods || [],
+    }));
+
+    const trend = buildWorkloadTrend(tasks, flatResources, {
+      from: fromDate,
+      to: toDate,
+      granularity,
+    });
+
+    res.json({ success: true, data: { trend } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Optimization comparison (before vs after)
  * @route   GET /api/analytics/optimization-comparison/:id
  * @access  Private
@@ -382,5 +444,6 @@ module.exports = {
   getDashboardOverview,
   getUtilizationBreakdown,
   getTaskAnalytics,
+  getWorkloadTrend,
   getOptimizationComparison,
 };

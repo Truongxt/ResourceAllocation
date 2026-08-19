@@ -6,6 +6,7 @@ const {
   getDashboardOverview,
   getUtilizationBreakdown,
   getTaskAnalytics,
+  getWorkloadTrend,
   getOptimizationComparison,
 } = require('../controllers/analytics.controller');
 
@@ -16,6 +17,7 @@ router.use(protect);
 router.get('/dashboard', getDashboardOverview);
 router.get('/utilization', getUtilizationBreakdown);
 router.get('/tasks', getTaskAnalytics);
+router.get('/workload-trend', getWorkloadTrend);
 router.get(
   '/optimization-comparison/:id',
   [param('id').isMongoId().withMessage('ID không hợp lệ')],
