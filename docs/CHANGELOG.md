@@ -10,6 +10,10 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Added
 
+- **UI lịch nghỉ nhân sự** (4.6) — modal "Lịch nghỉ" ở trang Nhân sự cho thêm/xóa nhiều kỳ
+  nghỉ kèm lý do; bảng hiện tag "Đang nghỉ tới…" / "Nghỉ từ…". CSP Solver đã dùng
+  `unavailablePeriods` cho ràng buộc H3 từ trước nhưng không màn hình nào nhập được.
+  Server chặn ngày đảo ngược, kỳ nghỉ chồng nhau, ngày sai định dạng và lý do quá dài.
 - **UI thiết lập công việc tiền nhiệm** (3.7) — ô chọn nhiều trong form Task, giới hạn
   công việc cùng dự án và tự loại các lựa chọn sẽ tạo vòng lặp. Server kiểm tra lại
   toàn bộ: tự phụ thuộc, id không tồn tại, khác dự án, vòng lặp trực tiếp lẫn gián tiếp
@@ -80,8 +84,8 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 Rà soát toàn bộ tài liệu, đối chiếu với mã nguồn và kiểm chứng bằng request thật.
 
 #### Changed
-- **FEATURES.md**: Module 6 lên đủ 8/8, 3.7 và 5.4 lên ✅; thống kê tổng từ 81.8% lên
-  **90.9%** (≈93.5% nếu tính mục dở dang theo 50%); rút gọn backlog còn 6 hạng mục.
+- **FEATURES.md**: Module 4 và 6 lên đủ, 3.7 và 5.4 lên ✅; thống kê tổng từ 81.8% lên
+  **92.2%** (≈94.2% nếu tính mục dở dang theo 50%); rút gọn backlog còn 6 hạng mục.
 - **ALGORITHMS.md**: bổ sung H4 vào bảng ràng buộc cứng và giải thích vì sao phải phát biểu
   lại nó (biến quyết định là "giao cho ai", không phải "làm khi nào"); cập nhật pseudo-code
   của `solve()`.

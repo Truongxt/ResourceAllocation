@@ -120,7 +120,7 @@ Constraints: C = {c₁, c₂, ..., cₖ}   (ràng buộc)
 |---|-----------|-------|--------------------------|
 | H1 | Capacity | Tổng workload ≤ max capacity | `workload[r] + effort(t) ≤ C[r] × FTE` — kiểm tra khi gán trong backtracking |
 | H2 | Skill | Điểm khớp kỹ năng đạt ngưỡng | `skill_match(t, r) ≥ minSkillMatchThreshold` (mặc định **0.5**) |
-| H3 | Availability | Resource khả dụng trong kỳ | `availability ≠ 'unavailable'` và khoảng thời gian task **không giao** với `unavailablePeriods` |
+| H3 | Availability | Resource khả dụng trong kỳ | `availability ≠ 'unavailable'` và khoảng thời gian task **không giao** với `unavailablePeriods`. Biên **đóng**: kỳ nghỉ kết thúc đúng ngày task bắt đầu vẫn tính là bận. Nhập lịch nghỉ ở trang Nhân sự → nút lịch → "Lịch nghỉ" |
 | H4 | Dependency | Hai task phụ thuộc nhau mà lịch chồng nhau thì không cùng người | `assignment[tₐ] ≠ assignment[tᵦ]` khi `(tₐ, tᵦ)` có quan hệ phụ thuộc và `start(tₐ) < end(tᵦ) ∧ start(tᵦ) < end(tₐ)` |
 
 > ⚠️ **H2 là ràng buộc ngưỡng tổng hợp, không phải ràng buộc từng kỹ năng.**
@@ -146,7 +146,8 @@ Nên H4 tách làm hai phần:
 Hai task nối tiếp đúng thứ tự (`end(tₐ) = start(tᵦ)`) **không** bị coi là chồng
 lịch, nên một người vẫn được làm tuần tự cả hai.
 
-Phần này có bộ kiểm thử đơn vị riêng: `cd server && npm test csp` (20 assertion).
+H3 và H4 có bộ kiểm thử đơn vị riêng, chạy thẳng vào `CSPSolver` không qua HTTP:
+`cd server && npm test csp` (28 assertion).
 
 ### 2.3 Soft Constraints
 

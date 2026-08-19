@@ -74,7 +74,7 @@ của `server/tests/api.test.mjs`.
 | 4.3 | Chi tiết nhân sự | Profile chi tiết + assignments hiện tại | ✅ | `GET /:id` trả kèm task đang gán |
 | 4.4 | Cập nhật thông tin | Chỉnh sửa thông tin nhân sự | ✅ | Edit modal |
 | 4.5 | Skill Matrix | CRUD kỹ năng + level cho từng nhân sự | ✅ | Skill modal editor, level 1-4 |
-| 4.6 | Availability Calendar | Lịch trình, ngày nghỉ, periods unavailable | 🔨 | Chỉ chọn được trạng thái `availability`. **Không có UI nhập `unavailablePeriods`** dù schema và CSP solver đều đã hỗ trợ |
+| 4.6 | Availability Calendar | Lịch trình, ngày nghỉ, periods unavailable | ✅ | Modal "Lịch nghỉ" (nút lịch ở cột Hành động): thêm/xóa nhiều kỳ nghỉ kèm lý do. Bảng nhân sự hiện tag "Đang nghỉ tới…" / "Nghỉ từ…". Server chặn ngày đảo ngược, kỳ nghỉ chồng nhau, ngày sai định dạng. Chỉ Admin/PM |
 | 4.7 | Capacity (FTE) | Thiết lập FTE, max hours/week | ✅ | `fte` + `maxCapacity` |
 | 4.8 | Workload View | Hiển thị workload hiện tại, utilization rate | ✅ | Virtual `utilizationRate` + thanh utilization |
 | 4.9 | Department Filter | Lọc nhân sự theo bộ phận | ✅ | Filter by department |
@@ -188,16 +188,16 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 1. Auth | 7 | 7 | 0 | 0 |
 | 2. Projects | 9 | 9 | 0 | 0 |
 | 3. Tasks | 11 | 10 | 1 | 0 |
-| 4. Resources | 10 | 9 | 1 | 0 |
+| 4. Resources | 10 | 10 | 0 | 0 |
 | 5. Optimization | 10 | 8 | 2 | 0 |
 | 6. Gantt Chart | 8 | 8 | 0 | 0 |
 | 7. Analytics | 7 | 6 | 0 | 1 |
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 4 | 0 | 2 |
-| **Tổng** | **77** | **70 (90.9%)** | **4 (5.2%)** | **3 (3.9%)** |
+| **Tổng** | **77** | **71 (92.2%)** | **3 (3.9%)** | **3 (3.9%)** |
 
-Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 93.5%**.
+Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 94.2%**.
 
 ---
 
@@ -205,11 +205,11 @@ Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 93.5%*
 
 Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 
-1. **UI lịch nghỉ / unavailablePeriods** (4.6) — CSP solver đã dùng dữ liệu này để lọc (H3)
-   nhưng không có màn hình nào nhập được.
-2. **UI chọn level/weight cho từng kỹ năng yêu cầu** (3.9) — hiện cố định level 2.
-3. **Hybrid thực sự nối CSP → GA** (5.6 / ALGORITHMS.md mục 3).
-4. **AC-3 đúng nghĩa trong CSP** (5.2) — bước hiện tại chỉ là bộ lọc unary theo capacity.
+1. **UI chọn level/weight cho từng kỹ năng yêu cầu** (3.9) — hiện cố định level 2, nên
+   trọng số `weight` của thuật toán luôn là mặc định.
+2. **Hybrid thực sự nối CSP → GA** (5.6 / ALGORITHMS.md mục 3).
+3. **AC-3 đúng nghĩa trong CSP** (5.2) — bước hiện tại chỉ là bộ lọc unary theo capacity.
+4. **So sánh song song nhiều phương án tối ưu hóa** (5.6).
 5. **Trend chart theo thời gian** (7.7).
 6. Đa ngôn ngữ (10.3), email notification (10.6).
 

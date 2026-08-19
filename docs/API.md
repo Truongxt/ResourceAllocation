@@ -270,6 +270,32 @@ Cho phép **liên kết tài khoản có sẵn** hoặc **tạo tài khoản m�
 - `employeeId` **do hệ thống tự sinh** (`NV0001`, `NV0002`...). Giá trị client gửi lên bị bỏ qua.
 - Nếu tạo User mới thất bại ở bước tạo Resource, User vừa tạo sẽ được rollback.
 
+### Lịch nghỉ — `unavailablePeriods`
+
+Gửi kèm trong `POST /` hoặc `PUT /:id` (giao diện dùng `PUT /:id`, thay toàn bộ danh sách):
+
+```json
+{
+  "unavailablePeriods": [
+    { "startDate": "2026-10-01T00:00:00.000Z", "endDate": "2026-10-05T23:59:59.000Z", "reason": "Nghỉ phép năm" }
+  ]
+}
+```
+
+CSP Solver dùng danh sách này cho ràng buộc **H3**: nhân sự có kỳ nghỉ giao với thời gian
+task sẽ bị loại khỏi miền giá trị của task đó. Vì vậy dữ liệu lệch sẽ làm sai kết quả phân
+bổ một cách âm thầm, và các trường hợp sau bị chặn ngay với **400**:
+
+| Trường hợp | Thông báo |
+|-----------|-----------|
+| Không phải mảng | `Lịch nghỉ phải là mảng` |
+| Thiếu / sai định dạng ngày | `Kỳ nghỉ thứ N: thiếu hoặc sai định dạng ngày` |
+| `endDate` trước `startDate` | `Kỳ nghỉ thứ N: ngày kết thúc trước ngày bắt đầu` |
+| `reason` quá 200 ký tự | `Kỳ nghỉ thứ N: lý do không vượt quá 200 ký tự` |
+| Hai kỳ nghỉ giao nhau | `Các kỳ nghỉ không được chồng lên nhau` |
+
+Hai kỳ nghỉ liền kề nhưng không giao nhau là hợp lệ.
+
 ### GET `/api/resources/:id`
 ```json
 { "success": true, "data": { "resource": { ... }, "assignments": [ /* task todo/in_progress/review */ ] } }
