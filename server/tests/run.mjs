@@ -24,6 +24,7 @@ const SUITES = [
   { name: 'scoring', file: 'scoring.test.mjs', label: 'Thang điểm dùng chung' },
   { name: 'csp', file: 'csp.test.mjs', label: 'CSP — ràng buộc H3/H4' },
   { name: 'hybrid', file: 'hybrid.test.mjs', label: 'Hybrid — bàn giao CSP → GA' },
+  { name: 'workload-trend', file: 'workload-trend.test.mjs', label: 'Chuỗi thời gian khối lượng' },
   { name: 'security', file: 'security.test.mjs', label: 'Header, CORS, giới hạn tần suất' },
   { name: 'api', file: 'api.test.mjs', label: 'REST API' },
   { name: 'project-detail', file: 'project-detail.test.mjs', label: 'Trang chi tiết dự án' },

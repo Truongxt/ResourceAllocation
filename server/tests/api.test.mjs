@@ -622,6 +622,33 @@ S('7. Analytics');
   ok(cmp.data.resources.every((r) => r.resourceId && r.resourceName && 'beforeWorkload' in r && 'afterWorkload' in r),
     'resources[] đủ field cho bảng client');
   ok(Array.isArray(cmp.data.current) && Array.isArray(cmp.data.optimized), 'giữ tương thích ngược current/optimized');
+
+  // ── Xu hướng khối lượng theo thời gian ──
+  const trend = await call('GET', '/analytics/workload-trend', { token: TOK.admin });
+  ok(trend.status === 200 && Array.isArray(trend.data.trend.buckets), 'GET /analytics/workload-trend → 200');
+
+  const T = trend.data.trend;
+  ok(T.buckets.length > 0 && T.totals.length === T.buckets.length,
+    'Số mốc thời gian khớp với số điểm dữ liệu', `(${T.buckets.length} mốc, gộp theo ${T.granularity})`);
+  ok(T.resources.length > 0 && T.resources.every((r) => r.load.length === T.buckets.length && r.capacity.length === T.buckets.length),
+    'Mỗi nhân sự có đủ chuỗi tải và chuỗi capacity');
+  ok(T.totals.every((t) => t.utilization === null || (t.utilization >= 0 && t.capacity > 0)),
+    'Tỉ lệ chỉ có mặt khi có capacity, còn lại là null');
+  ok(typeof T.excluded.unassignedHours === 'number' && typeof T.excluded.unscheduledHours === 'number',
+    'Báo lại số giờ không đặt được lên trục thời gian',
+    `(${T.excluded.unassignedHours}h chưa giao, ${T.excluded.unscheduledHours}h thiếu ngày)`);
+
+  const weekly = await call('GET', '/analytics/workload-trend?granularity=week', { token: TOK.admin });
+  ok(weekly.data.trend.granularity === 'week' && weekly.data.trend.buckets.length <= T.buckets.length,
+    'Gộp theo tuần cho ít mốc hơn hoặc bằng theo ngày');
+
+  const scopedTrend = await call('GET', `/analytics/workload-trend?projectId=${projectId}`, { token: TOK.admin });
+  ok(scopedTrend.status === 200, 'Lọc theo dự án → 200');
+
+  const badRange = await call('GET', '/analytics/workload-trend?from=hom-qua', { token: TOK.admin });
+  ok(badRange.status === 400, 'Khoảng thời gian sai định dạng → 400');
+  const badProject = await call('GET', '/analytics/workload-trend?projectId=abc', { token: TOK.admin });
+  ok(badProject.status === 400, 'ID dự án sai định dạng → 400');
 }
 
 // ══════════════════════════════════════════════
