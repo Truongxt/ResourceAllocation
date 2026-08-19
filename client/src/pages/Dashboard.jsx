@@ -12,16 +12,15 @@ import {
   ArrowUpOutlined,
 } from '@ant-design/icons';
 import analyticsService from '../services/analyticsService';
+import {
+  TASK_STATUSES,
+  TASK_STATUS_LABELS as STATUS_LABELS,
+  TASK_STATUS_BADGE_COLORS as STATUS_COLORS,
+  TASK_STATUS_COLORS,
+  taskStatusCountKey,
+} from '../constants';
 
 const { Title, Text } = Typography;
-
-const STATUS_LABELS = {
-  todo: 'Cần làm', in_progress: 'Đang làm', review: 'Đánh giá',
-  done: 'Hoàn thành', blocked: 'Bị chặn',
-};
-const STATUS_COLORS = {
-  todo: 'default', in_progress: 'processing', review: 'warning', done: 'success', blocked: 'error',
-};
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -44,13 +43,12 @@ export default function Dashboard() {
   const t = data?.tasks || {};
   const r = data?.resources || {};
 
-  const taskDistribution = [
-    { key: 'todo', label: 'Cần làm', value: t.todo || 0, color: '#94a3b8' },
-    { key: 'inProgress', label: 'Đang làm', value: t.inProgress || 0, color: '#6366f1' },
-    { key: 'review', label: 'Đánh giá', value: t.review || 0, color: '#f59e0b' },
-    { key: 'done', label: 'Hoàn thành', value: t.done || 0, color: '#10b981' },
-    { key: 'blocked', label: 'Bị chặn', value: t.blocked || 0, color: '#ef4444' },
-  ];
+  const taskDistribution = TASK_STATUSES.map((status) => ({
+    key: status.key,
+    label: status.label,
+    value: t[taskStatusCountKey(status.key)] || 0,
+    color: status.color,
+  }));
 
   return (
     <Spin spinning={loading} size="large">
@@ -144,7 +142,7 @@ export default function Dashboard() {
               ) : (
                 <Timeline
                   items={(data?.recentTasks || []).slice(0, 8).map((task) => ({
-                    color: task.status === 'done' ? 'green' : task.status === 'blocked' ? 'red' : 'blue',
+                    color: TASK_STATUS_COLORS[task.status] || '#6366f1',
                     children: (
                       <div>
                         <Text strong>{task.title}</Text>

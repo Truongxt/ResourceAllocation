@@ -52,9 +52,20 @@ export const TASK_STATUS_LABELS = Object.fromEntries(
   TASK_STATUSES.map((s) => [s.key, s.label])
 );
 
+// Mã màu thật, dùng khi vẽ trực tiếp (Gantt, biểu đồ)
 export const TASK_STATUS_COLORS = Object.fromEntries(
   TASK_STATUSES.map((s) => [s.key, s.color])
 );
+
+// Tên màu của Ant Design, dùng cho Tag / Badge
+export const TASK_STATUS_BADGE_COLORS = Object.fromEntries(
+  TASK_STATUSES.map((s) => [s.key, s.badgeColor])
+);
+
+// API thống kê trả về đếm theo camelCase (`inProgress`) trong khi enum dùng
+// snake_case (`in_progress`) — chuyển đổi ở một chỗ thay vì viết cứng danh sách.
+export const taskStatusCountKey = (statusKey) =>
+  statusKey.replace(/_(.)/g, (_, char) => char.toUpperCase());
 
 // ──────────────────────────────────────────────
 // Priority — dùng chung cho cả Project và Task

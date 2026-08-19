@@ -43,22 +43,17 @@ import {
 import dayjs from 'dayjs';
 import resourceService from '../services/resourceService';
 import departmentService from '../services/departmentService';
+import { AVAILABILITY_OPTIONS, ROLES, SKILL_LEVEL_LABELS } from '../constants';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
-const SKILL_LEVELS = [
-  { value: 1, label: 'Beginner (Cơ bản - Lv.1)' },
-  { value: 2, label: 'Intermediate (Trung cấp - Lv.2)' },
-  { value: 3, label: 'Advanced (Nâng cao - Lv.3)' },
-  { value: 4, label: 'Expert (Chuyên gia - Lv.4)' },
-];
-
-const AVAILABILITY_OPTIONS = [
-  { value: 'available', label: 'Sẵn sàng', color: 'success' },
-  { value: 'partially_available', label: 'Bận một phần', color: 'warning' },
-  { value: 'unavailable', label: 'Không khả dụng', color: 'error' },
-];
+// Thang level của Resource là enum 1-4 ở schema; nhãn lấy từ constants để trang này
+// và ô chọn kỹ năng yêu cầu trong form Task không bao giờ nói hai kiểu khác nhau.
+const SKILL_LEVELS = Object.entries(SKILL_LEVEL_LABELS).map(([value, label]) => ({
+  value: Number(value),
+  label: `${label} (Lv.${value})`,
+}));
 
 /** Kỳ nghỉ đang diễn ra hôm nay, nếu có. */
 function currentLeave(resource) {
@@ -146,7 +141,7 @@ export default function Resources() {
     setEditingResource(null);
     resourceForm.resetFields();
     resourceForm.setFieldsValue({
-      newUserRole: 'member',
+      newUserRole: ROLES.MEMBER,
       maxCapacity: 40,
       fte: 1,
       hourlyRate: 0,
@@ -343,7 +338,7 @@ export default function Resources() {
             name: parts[0],
             email: parts[1],
             password: parts[2] || 'password123',
-            role: 'member',
+            role: ROLES.MEMBER,
           },
           position: parts[3],
           department: parts[4] || '',
@@ -817,8 +812,8 @@ export default function Resources() {
                   <Form.Item name="newUserRole" label="Vai trò">
                     <Select
                       options={[
-                        { value: 'member', label: 'Thành viên (Member)' },
-                        { value: 'project_manager', label: 'Project Manager' },
+                        { value: ROLES.MEMBER, label: 'Thành viên (Member)' },
+                        { value: ROLES.PM, label: 'Project Manager' },
                       ]}
                     />
                   </Form.Item>
