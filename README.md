@@ -66,7 +66,7 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run cleanup` | `server/` | Liệt kê dữ liệu mồ côi trong DB đang chạy; thêm `-- --apply` để xóa thật |
 | `npm run migrate:skill-level` | `server/` | Hạ `requiredSkills.level` cũ từ 5 về 4; thêm `-- --apply` để sửa thật |
 | `npm test` | `server/` | Chạy kiểm thử end-to-end trên DB + cổng riêng ([chi tiết](./server/tests/README.md)) |
-| `npm test` | `client/` | Chạy kiểm thử logic thuần (CPM của sơ đồ Gantt) bằng node |
+| `npm test` | `client/` | Logic thuần bằng node + kiểm thử render component bằng vitest ([chi tiết](./client/tests/README.md)) |
 | `npm run preview` | `client/` | Xem thử bản build production |
 
 ## Tài liệu

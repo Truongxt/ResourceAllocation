@@ -246,9 +246,16 @@ mới chặn. Script là loại một lần, xong hết mọi môi trường th�
   **813 kB** (gzip 266 kB) thay vì 1.544 kB. Chunk entry vẫn 559 kB — lõi antd + cssinjs
   mà khung layout cần ngay — nên cảnh báo >500 kB của Vite còn nguyên; muốn nhỏ hơn nữa
   thì phải đổi thư viện UI chứ không phải chia chunk khác đi.
-- Chưa có kiểm thử render component; hiện có kiểm thử end-to-end qua API và Socket.IO
-  (`cd server && npm test`, xem [server/tests/README.md](../server/tests/README.md)) và kiểm thử
-  logic thuần phía client (`cd client && npm test`).
+- Kiểm thử: end-to-end qua API và Socket.IO (`cd server && npm test`, 8 bộ — xem
+  [server/tests/README.md](../server/tests/README.md)); phía client `cd client && npm test`
+  chạy cả logic thuần (33 assertion) lẫn **render component** (15 test qua vitest + jsdom —
+  xem [client/tests/README.md](../client/tests/README.md)). Phần component hiện phủ
+  ProtectedRoute, định tuyến theo chunk `React.lazy`, và chốt chặn open redirect ở link thông
+  báo; **chưa** phủ các trang nghiệp vụ (Tasks, Resources, Optimization…).
+- Ant Design 6 cảnh báo một số API đã lạc hậu mà code còn dùng: `Dropdown.dropdownRender`
+  (→ `popupRender`), `Statistic.valueStyle` (→ `styles.content`), `Space.direction`
+  (→ `orientation`), và `List` sẽ bị bỏ ở bản major kế tiếp. Chưa hỏng gì, nhưng sẽ hỏng khi
+  lên antd 7. Bộ test component là chỗ phát hiện ra chúng.
 - Dữ liệu mẫu của seeder có 2 phụ thuộc bị vi phạm (task sau bắt đầu trước khi task trước
   kết thúc) — sơ đồ Gantt hiện cảnh báo đỏ và CSP báo lại trong `constraintReport` ngay sau khi seed.
 

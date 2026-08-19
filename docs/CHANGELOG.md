@@ -124,6 +124,18 @@ Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code ch�
 - `server/src/config/jwt.js` — nguồn duy nhất cho JWT secret và thời hạn token.
 - `server/src/middleware/taskAccess.js` — phân quyền theo bản ghi cho công việc.
 
+### Added
+
+- **Kiểm thử render component** (vitest + jsdom + Testing Library) — 15 test, 3 bộ:
+  `ProtectedRoute` (ranh giới đăng nhập và vai trò), `app-routing` (12 trang nạp theo chunk
+  `React.lazy` và ranh giới `Suspense` giữ được sidebar/header), `notification-link` (chặn
+  open redirect ở `notif.link`, bấm thật qua giao diện).
+  Tách theo đuôi file: `*.test.mjs` là logic thuần chạy bằng `node` như trước, `*.test.jsx`
+  là component chạy bằng vitest; `npm test` chạy cả hai.
+  Cả hai bộ quan trọng đều đã qua kiểm tra ngược: gỡ chốt chặn open redirect thì 5/6 test đỏ,
+  gỡ ranh giới `Suspense` trong `Content` thì test giữ khung layout đỏ. Bộ test không đỏ khi
+  phá code là bộ test chưa kiểm gì cả.
+
 ### Changed
 
 - **Thống nhất thang kỹ năng về 1-4** — `Task.requiredSkills[].level` đổi `max` từ 5 xuống 4,

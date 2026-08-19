@@ -36,6 +36,14 @@ export default defineConfig({
       output: { manualChunks },
     },
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./tests/setup.js'],
+    // Chỉ nhận file .jsx. Các bộ .mjs trong cùng thư mục là kiểm thử logic thuần
+    // chạy thẳng bằng `node`, cố ý không phụ thuộc vitest — để vitest quét vào
+    // thì nó nạp file rồi tự chạy runner riêng của file đó, kết quả không được đếm.
+    include: ['tests/**/*.test.jsx'],
+  },
   server: {
     port: 5173,
     proxy: {
