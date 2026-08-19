@@ -34,6 +34,7 @@ Ghi đè bằng biến môi trường nếu cần: `TEST_PORT`, `TEST_MONGODB_UR
 
 | Bộ | File | Phạm vi |
 |----|------|---------|
+| `security` | `security.test.mjs` | Security header của helmet, CORS chỉ nhận origin của client, và giới hạn tần suất đăng nhập. Phần giới hạn tần suất dựng app express riêng trên cổng tạm vì đó là trạng thái toàn cục theo IP — chạm ngưỡng trên server dùng chung sẽ làm các bộ sau không đăng nhập nổi |
 | `scoring` | `scoring.test.mjs` | Thang điểm dùng chung của GA và CSP ở mức đơn vị: công thức khớp kỹ năng có trọng số, so khớp tên không phân biệt hoa thường, giới hạn thang level, capacity/effort mặc định |
 | `hybrid` | `hybrid.test.mjs` | Bàn giao CSP → GA ở mức đơn vị: CSP lọc đúng miền, GA chỉ chọn trong miền đó, miền rỗng được mở lại và báo lại, chỉ số hỏng bị bỏ qua |
 | `csp` | `csp.test.mjs` | CSPSolver ở mức đơn vị: ràng buộc H3 (lịch nghỉ) và H4 (phụ thuộc), cùng lan truyền AC-3 — cắt từ biến singleton, lan theo dây chuyền, phát hiện vô nghiệm với 0 vòng backtracking, và trường hợp AC-3 **không** cắt được gì. Không cần server lẫn database |

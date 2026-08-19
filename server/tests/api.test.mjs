@@ -26,6 +26,19 @@ S('1. Health & Authentication');
 
   ok(!login.data?.user?.password, 'Response login KHÔNG chứa password');
 
+  // Seeder phải xóa cả 8 collection. Trước đây chỉ xóa 5, nên notifications /
+  // activitylogs / optimizationresults tồn đọng qua mọi lần seed và trỏ tới bản ghi đã xóa.
+  const logsAfterSeed = await call('GET', '/activity-logs', { token: TOK.admin });
+  ok(logsAfterSeed.total === 0, 'Sau khi seed: activity logs sạch', `(${logsAfterSeed.total})`);
+
+  const historyAfterSeed = await call('GET', '/optimization/history', { token: TOK.admin });
+  ok(historyAfterSeed.data.results.length === 0, 'Sau khi seed: lịch sử tối ưu hóa sạch',
+    `(${historyAfterSeed.data.results.length})`);
+
+  const notifsAfterSeed = await call('GET', '/notifications', { token: TOK.member });
+  ok(notifsAfterSeed.data.notifications.length === 0, 'Sau khi seed: thông báo sạch',
+    `(${notifsAfterSeed.data.notifications.length})`);
+
   const bad = await call('POST', '/auth/login', { body: { email: 'admin@rao.com', password: 'sai' } });
   ok(bad.status === 401, 'Sai mật khẩu trả 401');
 

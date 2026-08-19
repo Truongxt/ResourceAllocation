@@ -24,6 +24,7 @@ const SUITES = [
   { name: 'scoring', file: 'scoring.test.mjs', label: 'Thang điểm dùng chung' },
   { name: 'csp', file: 'csp.test.mjs', label: 'CSP — ràng buộc H3/H4' },
   { name: 'hybrid', file: 'hybrid.test.mjs', label: 'Hybrid — bàn giao CSP → GA' },
+  { name: 'security', file: 'security.test.mjs', label: 'Header, CORS, giới hạn tần suất' },
   { name: 'api', file: 'api.test.mjs', label: 'REST API' },
   { name: 'project-detail', file: 'project-detail.test.mjs', label: 'Trang chi tiết dự án' },
   { name: 'socket', file: 'socket.test.mjs', label: 'Socket.IO realtime' },
@@ -45,6 +46,10 @@ const env = {
   TEST_PORT: PORT,
   MONGODB_URI: DB,
   JWT_SECRET: process.env.JWT_SECRET || 'rao_test_secret',
+  // Bộ e2e đăng nhập và gọi API liên tục từ cùng một IP; ngưỡng thật sẽ chặn giữa chừng.
+  // Bản thân middleware giới hạn tần suất được kiểm riêng trong bộ `security`.
+  AUTH_RATE_LIMIT_MAX: '10000',
+  API_RATE_LIMIT_MAX: '100000',
 };
 
 // Không dùng shell: trên Windows, shell tạo một tiến trình bọc ngoài và child.kill()
