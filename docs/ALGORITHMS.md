@@ -71,6 +71,16 @@ Ví dụ (weight = 1 cho cả hai):
 - Task **không** yêu cầu kỹ năng nào → match = 1 (khớp hoàn hảo).
 - Resource thiếu hẳn một kỹ năng → `resource_skill_level = 0` cho kỹ năng đó.
 - So khớp tên kỹ năng **không phân biệt hoa thường**.
+- `weight = 0` loại hẳn kỹ năng đó khỏi công thức; tổng trọng số bằng 0 → trả về 0.
+- Đặt `level`/`weight` trong form Task (mục Kỹ năng yêu cầu). Tên kỹ năng có gợi ý lấy từ
+  Skill Matrix của nhân sự, vì so khớp theo **tên**: gõ lệch một chữ là điểm về 0 mà không
+  có cảnh báo nào.
+
+> ⚠️ **Hai thang level không khớp nhau.** `Resource.skills[].level` là enum **1-4**, còn
+> `Task.requiredSkills[].level` nhận tới **5**. Yêu cầu level 5 thì nhân sự giỏi nhất cũng
+> chỉ đạt `min(4,5)/5 = 0.8` — không bao giờ khớp tuyệt đối. Schema giữ nguyên để không
+> làm hỏng dữ liệu cũ, nhưng ô chọn trong form khoá mức 5 lại. Xem
+> `server/tests/scoring.test.mjs`.
 
 > **Lưu ý thang điểm**: `Resource.skills[].level` giới hạn 1-4, nhưng
 > `Task.requiredSkills[].level` cho phép tới 5. Nếu task yêu cầu level 5,

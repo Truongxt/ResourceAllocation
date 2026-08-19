@@ -10,6 +10,12 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Added
 
+- **UI level/weight cho kỹ năng yêu cầu** (3.9) — form Task nhập từng dòng: tên (gợi ý lấy
+  từ Skill Matrix của nhân sự vì thuật toán so khớp theo tên), mức yêu cầu, trọng số 0-1.
+  Bảng công việc hiện luôn danh sách kỹ năng kèm mức. Server chặn thiếu tên, level ngoài
+  1-5, trọng số ngoài 0-1.
+- `server/tests/scoring.test.mjs` — 18 assertion cho thang điểm dùng chung của GA và CSP,
+  trong đó chứng minh `weight` thực sự đổi kết quả chứ không chỉ được lưu.
 - **UI lịch nghỉ nhân sự** (4.6) — modal "Lịch nghỉ" ở trang Nhân sự cho thêm/xóa nhiều kỳ
   nghỉ kèm lý do; bảng hiện tag "Đang nghỉ tới…" / "Nghỉ từ…". CSP Solver đã dùng
   `unavailablePeriods` cho ràng buộc H3 từ trước nhưng không màn hình nào nhập được.
@@ -65,6 +71,8 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Fixed
 
+- Form Task đọc `requiredSkills` ra chuỗi tên rồi ghi lại với `level: 2` cố định, nên
+  **mỗi lần sửa công việc là mất mức yêu cầu và trọng số đã đặt**. Nay giữ nguyên giá trị đã lưu.
 - `Reports.jsx` đọc `summary.highBurnoutRisk` trong khi API trả `summary.highBurnout` →
   thẻ "Nguy cơ burnout cao" luôn bằng 0.
 - `Tasks.jsx` gửi `requiredSkills[].minLevel` không có trong schema → `level` luôn bị đặt
@@ -84,8 +92,9 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 Rà soát toàn bộ tài liệu, đối chiếu với mã nguồn và kiểm chứng bằng request thật.
 
 #### Changed
-- **FEATURES.md**: Module 4 và 6 lên đủ, 3.7 và 5.4 lên ✅; thống kê tổng từ 81.8% lên
-  **92.2%** (≈94.2% nếu tính mục dở dang theo 50%); rút gọn backlog còn 6 hạng mục.
+- **FEATURES.md**: Module 3, 4 và 6 lên đủ, 5.4 lên ✅; thống kê tổng từ 81.8% lên
+  **93.5%** (≈94.8% nếu tính mục dở dang theo 50%); rút gọn backlog còn 5 hạng mục;
+  ghi lại chênh lệch thang level giữa Resource (1-4) và Task (1-5) cần quyết định.
 - **ALGORITHMS.md**: bổ sung H4 vào bảng ràng buộc cứng và giải thích vì sao phải phát biểu
   lại nó (biến quyết định là "giao cho ai", không phải "làm khi nào"); cập nhật pseudo-code
   của `solve()`.

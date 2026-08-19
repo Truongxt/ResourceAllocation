@@ -206,6 +206,18 @@ Quy tắc nằm ở [`middleware/taskAccess.js`](../server/src/middleware/taskAc
 **Lưu ý quan trọng về `requiredSkills`**: field tên là `name` (không phải `skill`), kèm `level`
 (1-5, mặc định 3) và `weight` (0-1, mặc định 1). Gửi sai tên field sẽ bị Mongoose loại bỏ âm thầm.
 
+Kiểm tra từng phần tử — mọi trường hợp trả **400**:
+
+| Trường hợp | Thông báo |
+|-----------|-----------|
+| Thiếu `name` | `Tên kỹ năng yêu cầu không được để trống` |
+| `level` ngoài 1-5 | `Level kỹ năng yêu cầu phải từ 1 đến 5` |
+| `weight` ngoài 0-1 | `Trọng số kỹ năng phải từ 0 đến 1` |
+
+`name` so khớp với `Resource.skills[].name` **không phân biệt hoa thường**, nên tên lệch
+một chữ sẽ cho điểm khớp 0 mà không có lỗi nào. `level` chỉ nên đặt tối đa **4** vì
+`Resource.skills[].level` là enum 1-4 — xem [ALGORITHMS.md](./ALGORITHMS.md) mục 1.3.
+
 **Kiểm tra `dependencies`** (áp dụng cho cả `POST /` và `PUT /:id`) — mọi trường hợp dưới đây
 đều trả **400** kèm thông báo tiếng Việt:
 

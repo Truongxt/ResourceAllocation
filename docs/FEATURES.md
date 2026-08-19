@@ -59,7 +59,7 @@ của `server/tests/api.test.mjs`.
 | 3.6 | Kanban Board | Drag & drop thay đổi status | ✅ | 5 cột, optimistic UI, gọi `PATCH /:id/status` |
 | 3.7 | Task Dependencies | Thiết lập predecessor/successor | ✅ | Ô chọn nhiều trong form Task (chỉ Admin/PM), giới hạn công việc cùng dự án, tự loại các lựa chọn tạo vòng lặp. Server kiểm tra lại: tự phụ thuộc, id không tồn tại, khác dự án, vòng lặp trực tiếp lẫn gián tiếp đều trả 400 |
 | 3.8 | Gán nhân sự | Assign resource cho task | ✅ | Chọn từ danh sách Resource, lưu `resource.user` vào `assignee` |
-| 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | 🔨 | Schema + API đúng, `level` gửi lên đã được lưu đúng. Còn thiếu: UI chưa cho chọn `level`/`weight` cho từng kỹ năng (đang cố định level 2) |
+| 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | ✅ | Nhập từng dòng: tên (gợi ý từ Skill Matrix nhân sự), mức yêu cầu Lv.1-4, trọng số 0-1. Danh sách kỹ năng kèm mức hiện luôn trên bảng công việc. Server chặn thiếu tên, level ngoài 1-5, trọng số ngoài 0-1 |
 | 3.10 | Estimated Hours | Nhập giờ ước tính vs thực tế | ✅ | `estimatedHours` / `actualHours` |
 | 3.11 | Thay đổi trạng thái | Cập nhật progress, status | ✅ | `PATCH /:id/status`, tự set progress 0/100 |
 
@@ -187,7 +187,7 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 |--------|------|--------------|-------------|-----------|
 | 1. Auth | 7 | 7 | 0 | 0 |
 | 2. Projects | 9 | 9 | 0 | 0 |
-| 3. Tasks | 11 | 10 | 1 | 0 |
+| 3. Tasks | 11 | 11 | 0 | 0 |
 | 4. Resources | 10 | 10 | 0 | 0 |
 | 5. Optimization | 10 | 8 | 2 | 0 |
 | 6. Gantt Chart | 8 | 8 | 0 | 0 |
@@ -195,9 +195,9 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 4 | 0 | 2 |
-| **Tổng** | **77** | **71 (92.2%)** | **3 (3.9%)** | **3 (3.9%)** |
+| **Tổng** | **77** | **72 (93.5%)** | **2 (2.6%)** | **3 (3.9%)** |
 
-Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 94.2%**.
+Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 94.8%**.
 
 ---
 
@@ -205,13 +205,18 @@ Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 94.2%*
 
 Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 
-1. **UI chọn level/weight cho từng kỹ năng yêu cầu** (3.9) — hiện cố định level 2, nên
-   trọng số `weight` của thuật toán luôn là mặc định.
-2. **Hybrid thực sự nối CSP → GA** (5.6 / ALGORITHMS.md mục 3).
-3. **AC-3 đúng nghĩa trong CSP** (5.2) — bước hiện tại chỉ là bộ lọc unary theo capacity.
-4. **So sánh song song nhiều phương án tối ưu hóa** (5.6).
-5. **Trend chart theo thời gian** (7.7).
-6. Đa ngôn ngữ (10.3), email notification (10.6).
+1. **Hybrid thực sự nối CSP → GA** (5.6 / ALGORITHMS.md mục 3) — hiện hai thuật toán chạy
+   độc lập, kết quả CSP chỉ dùng để lấy `constraintReport`.
+2. **AC-3 đúng nghĩa trong CSP** (5.2) — bước hiện tại chỉ là bộ lọc unary theo capacity.
+3. **So sánh song song nhiều phương án tối ưu hóa** (5.6).
+4. **Trend chart theo thời gian** (7.7).
+5. Đa ngôn ngữ (10.3), email notification (10.6).
+
+### Chênh lệch thang đo cần quyết định
+
+`Resource.skills[].level` là enum 1-4 nhưng `Task.requiredSkills[].level` nhận tới 5, nên
+yêu cầu mức 5 vĩnh viễn không thể khớp tuyệt đối. Hiện ô chọn trong form khoá mức 5 lại;
+muốn dứt điểm thì phải thống nhất một thang cho cả hai schema.
 
 ### Nợ kỹ thuật đã biết
 
