@@ -47,11 +47,12 @@ import resourceService from '../services/resourceService';
 import {
   TASK_STATUSES as STATUS_COLS,
   PRIORITY_OPTIONS,
-  REQUIRED_SKILL_LEVEL_OPTIONS,
+
   ROLES,
 } from '../constants';
 import { invalidPredecessors } from '../utils/gantt';
 import { useAuth } from '../context/AuthContext';
+import { requiredSkillLevelOptions } from '../i18n/enums';
 import './Tasks.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -738,7 +739,7 @@ export default function Tasks() {
                         name={[name, 'level']}
                         style={{ width: 210, marginBottom: 0 }}
                       >
-                        <Select options={REQUIRED_SKILL_LEVEL_OPTIONS} placeholder="Mức yêu cầu" />
+                        <Select options={requiredSkillLevelOptions()} placeholder="Mức yêu cầu" />
                       </Form.Item>
 
                       <Form.Item

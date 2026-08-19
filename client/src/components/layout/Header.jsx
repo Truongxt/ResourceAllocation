@@ -14,6 +14,8 @@ import {
   ProjectOutlined,
   CloseOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
+import { LANGUAGES, changeLanguage } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useSocket } from '../../context/SocketContext';
@@ -21,33 +23,17 @@ import { useSocket } from '../../context/SocketContext';
 const { Header: AntHeader } = Layout;
 const { Text, Title } = Typography;
 
-const pageTitles = {
-  '/': 'Dashboard',
-  '/projects': 'Quản lý Dự án',
-  '/tasks': 'Quản lý Công việc',
-  '/resources': 'Quản lý Nhân sự',
-  '/optimization': 'Tối ưu hóa Phân bổ',
-  '/gantt': 'Gantt Chart',
-  '/reports': 'Báo cáo',
-  '/activity-logs': 'Nhật ký Hoạt động',
-  '/settings': 'Cài đặt tài khoản',
-};
+// Tiêu đề trang và nhãn vai trò lấy từ i18n (`pageTitle.*`, `enums.role.*`).
 
-const ROLE_LABELS = {
-  admin: 'Quản trị viên',
-  project_manager: 'Project Manager',
-  member: 'Thành viên',
-};
-
-function formatTimeAgo(dateString) {
+function formatTimeAgo(dateString, t) {
   if (!dateString) return '';
   const now = new Date();
   const past = new Date(dateString);
   const diffSec = Math.floor((now - past) / 1000);
-  if (diffSec < 60) return 'Vừa xong';
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
-  return `${Math.floor(diffSec / 86400)} ngày trước`;
+  if (diffSec < 60) return t('header.justNow');
+  if (diffSec < 3600) return t('header.minutesAgo', { count: Math.floor(diffSec / 60) });
+  if (diffSec < 86400) return t('header.hoursAgo', { count: Math.floor(diffSec / 3600) });
+  return t('header.daysAgo', { count: Math.floor(diffSec / 86400) });
 }
 
 function getNotifIcon(type) {
@@ -71,7 +57,10 @@ export default function Header({ collapsed }) {
     dismissToast,
   } = useSocket();
 
-  const currentTitle = pageTitles[location.pathname] || 'RAO';
+  const { t, i18n } = useTranslation();
+  const currentTitle = t(`pageTitle.${location.pathname}`, { defaultValue: 'RAO' });
+  const nextLanguage =
+    LANGUAGES.find((l) => l.code !== i18n.language) || LANGUAGES[0];
 
   const handleLogout = () => {
     logout();
@@ -105,13 +94,13 @@ export default function Header({ collapsed }) {
     {
       key: 'settings',
       icon: <SettingOutlined />,
-      label: 'Cài đặt tài khoản',
+      label: t('header.settings'),
       onClick: () => navigate('/settings'),
     },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: 'Đăng xuất',
+      label: t('header.logout'),
       danger: true,
       onClick: handleLogout,
     },
@@ -139,20 +128,20 @@ export default function Header({ collapsed }) {
         }}
       >
         <Space>
-          <Text strong style={{ fontSize: 14 }}>Thông báo</Text>
+          <Text strong style={{ fontSize: 14 }}>{t('header.notifications')}</Text>
           {unreadCount > 0 && (
-            <Badge count={`${unreadCount} mới`} style={{ backgroundColor: '#4f46e5' }} />
+            <Badge count={t('header.unreadBadge', { count: unreadCount })} style={{ backgroundColor: '#4f46e5' }} />
           )}
         </Space>
         {unreadCount > 0 && (
           <Button type="link" size="small" icon={<CheckOutlined />} onClick={markAllAsRead}>
-            Đọc tất cả
+            {t('header.markAllRead')}
           </Button>
         )}
       </div>
       <div style={{ maxHeight: 380, overflowY: 'auto' }}>
         {notifications.length === 0 ? (
-          <Empty description="Không có thông báo mới" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '28px 0' }} />
+          <Empty description={t('header.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '28px 0' }} />
         ) : (
           <List
             dataSource={notifications}
@@ -173,7 +162,7 @@ export default function Header({ collapsed }) {
                     <>
                       <Text style={{ fontSize: 12, color: isDark ? '#cbd5e1' : '#475569' }}>{n.message}</Text>
                       <br />
-                      <Text type="secondary" style={{ fontSize: 11 }}>{formatTimeAgo(n.createdAt)}</Text>
+                      <Text type="secondary" style={{ fontSize: 11 }}>{formatTimeAgo(n.createdAt, t)}</Text>
                     </>
                   }
                 />
@@ -221,8 +210,21 @@ export default function Header({ collapsed }) {
         </Title>
 
         <Space size="large">
+          {/* Language Toggle — bấm để chuyển sang ngôn ngữ còn lại. Hai ngôn ngữ
+              thì nút bập bênh gọn hơn dropdown; thêm ngôn ngữ thứ ba thì đổi. */}
+          <Tooltip title={`${t('header.switchLanguage')}: ${nextLanguage.label}`}>
+            <Button
+              type="text"
+              size="small"
+              onClick={() => changeLanguage(nextLanguage.code)}
+              style={{ fontWeight: 600, letterSpacing: 0.5 }}
+            >
+              {nextLanguage.short}
+            </Button>
+          </Tooltip>
+
           {/* Theme Toggle */}
-          <Tooltip title={isDark ? 'Chuyển sang Giao diện Sáng' : 'Chuyển sang Giao diện Tối'}>
+          <Tooltip title={t('header.toggleTheme')}>
             <Switch
               checked={isDark}
               onChange={toggleTheme}
@@ -258,7 +260,7 @@ export default function Header({ collapsed }) {
                   {user?.name || 'User'}
                 </Text>
                 <Text type="secondary" style={{ fontSize: 11, fontWeight: 500 }}>
-                  {ROLE_LABELS[user?.role] || user?.role || 'Member'}
+                  {user?.role ? t(`enums.role.${user.role}`) : ''}
                 </Text>
               </div>
             </Space>

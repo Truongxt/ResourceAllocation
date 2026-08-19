@@ -30,10 +30,10 @@ import {
   ROLES,
   TASK_STATUSES,
   TASK_STATUS_COLORS as STATUS_COLORS,
-  TASK_STATUS_LABELS as STATUS_LABELS,
+  PRIORITY_OPTIONS,
   PRIORITY_COLORS,
-  PRIORITY_LABELS,
 } from '../constants';
+import { taskStatusLabel, priorityLabel } from '../i18n/enums';
 import { addDays, computeCriticalPath, daysBetween, formatDate, isMilestone } from '../utils/gantt';
 import './GanttChart.css';
 
@@ -372,9 +372,9 @@ export default function GanttChart() {
         <Tag color="warning" style={{ marginLeft: 6 }}>Đường găng</Tag>
       )}
       <br />
-      <span>Trạng thái: {STATUS_LABELS[task.status] || task.status}</span>
+      <span>Trạng thái: {taskStatusLabel(task.status)}</span>
       <br />
-      <span>Ưu tiên: {PRIORITY_LABELS[task.priority] || task.priority}</span>
+      <span>Ưu tiên: {priorityLabel(task.priority)}</span>
       <br />
       <span>
         Thời gian: {formatDate(task.startDate)} → {formatDate(task.endDate)}
@@ -695,16 +695,16 @@ export default function GanttChart() {
             {TASK_STATUSES.map((s) => (
               <Space key={s.key} size={4}>
                 <span className="gantt-legend-swatch" style={{ backgroundColor: s.color }} />
-                <Text style={{ fontSize: 12 }}>{s.label}</Text>
+                <Text style={{ fontSize: 12 }}>{taskStatusLabel(s.key)}</Text>
               </Space>
             ))}
           </Space>
           <Space size={8} wrap>
             <Text type="secondary" style={{ fontSize: 12 }}>Ưu tiên:</Text>
-            {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+            {PRIORITY_OPTIONS.map(({ value }) => (
               <Space key={value} size={4}>
                 <span className="gantt-legend-dot" style={{ backgroundColor: PRIORITY_COLORS[value] }} />
-                <Text style={{ fontSize: 12 }}>{label}</Text>
+                <Text style={{ fontSize: 12 }}>{priorityLabel(value)}</Text>
               </Space>
             ))}
           </Space>

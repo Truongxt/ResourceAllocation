@@ -12,9 +12,9 @@ import {
   ArrowUpOutlined,
 } from '@ant-design/icons';
 import analyticsService from '../services/analyticsService';
+import { taskStatusLabel } from '../i18n/enums';
 import {
   TASK_STATUSES,
-  TASK_STATUS_LABELS as STATUS_LABELS,
   TASK_STATUS_BADGE_COLORS as STATUS_COLORS,
   TASK_STATUS_COLORS,
   taskStatusCountKey,
@@ -45,7 +45,7 @@ export default function Dashboard() {
 
   const taskDistribution = TASK_STATUSES.map((status) => ({
     key: status.key,
-    label: status.label,
+    label: taskStatusLabel(status.key),
     value: t[taskStatusCountKey(status.key)] || 0,
     color: status.color,
   }));
@@ -147,7 +147,7 @@ export default function Dashboard() {
                       <div>
                         <Text strong>{task.title}</Text>
                         <span> — </span>
-                        <Tag color={STATUS_COLORS[task.status]}>{STATUS_LABELS[task.status] || task.status}</Tag>
+                        <Tag color={STATUS_COLORS[task.status]}>{taskStatusLabel(task.status)}</Tag>
                         {task.project && <Text type="secondary" style={{ fontSize: 12 }}> ({task.project.code || task.project.name})</Text>}
                         <br />
                         <Text type="secondary" style={{ fontSize: 11 }}>

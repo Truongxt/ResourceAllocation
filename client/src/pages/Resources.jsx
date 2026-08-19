@@ -43,17 +43,15 @@ import {
 import dayjs from 'dayjs';
 import resourceService from '../services/resourceService';
 import departmentService from '../services/departmentService';
-import { AVAILABILITY_OPTIONS, ROLES, SKILL_LEVEL_LABELS } from '../constants';
+import { AVAILABILITY_OPTIONS, ROLES, SKILL_LEVEL_KEYS } from '../constants';
+import { availabilityLabel, skillLevelLabel, requiredSkillLevelOptions } from '../i18n/enums';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 // Thang level của Resource là enum 1-4 ở schema; nhãn lấy từ constants để trang này
 // và ô chọn kỹ năng yêu cầu trong form Task không bao giờ nói hai kiểu khác nhau.
-const SKILL_LEVELS = Object.entries(SKILL_LEVEL_LABELS).map(([value, label]) => ({
-  value: Number(value),
-  label: `${label} (Lv.${value})`,
-}));
+const SKILL_LEVELS = requiredSkillLevelOptions();
 
 /** Kỳ nghỉ đang diễn ra hôm nay, nếu có. */
 function currentLeave(resource) {

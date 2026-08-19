@@ -94,9 +94,12 @@ api.interceptors.response.use(
           return token;
         })
         .catch((err) => {
+          // Báo cho các request đang xếp hàng rồi NUỐT lỗi tại đây. Ném tiếp thì
+          // promise `refreshing` không còn ai bắt và Node/trình duyệt ghi nhận
+          // một unhandled rejection — lỗi đã được xử lý đầy đủ qua `waiters`.
           onRefreshed(null, err);
           clearSessionAndRedirect();
-          throw err;
+          return null;
         })
         .finally(() => {
           refreshing = null;

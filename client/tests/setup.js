@@ -1,5 +1,8 @@
 // Chạy trước mọi bộ test component.
 import '@testing-library/jest-dom/vitest';
+// Khởi tạo i18n cho mọi bộ test: thiếu nó thì `t()` trả về chính khóa dịch và
+// mọi assertion theo text đều trượt với thông báo rất khó đoán nguyên nhân.
+import '../src/i18n';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 

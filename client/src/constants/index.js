@@ -18,38 +18,33 @@ export const ROLES = {
 // Project status — khớp Project.status
 // ──────────────────────────────────────────────
 export const PROJECT_STATUSES = [
-  { value: 'planning', label: 'Lập kế hoạch', color: 'blue' },
-  { value: 'in_progress', label: 'Đang thực hiện', color: 'processing' },
-  { value: 'on_hold', label: 'Tạm dừng', color: 'warning' },
-  { value: 'completed', label: 'Hoàn thành', color: 'success' },
-  { value: 'cancelled', label: 'Đã hủy', color: 'error' },
+  { value: 'planning', color: 'blue' },
+  { value: 'in_progress', color: 'processing' },
+  { value: 'on_hold', color: 'warning' },
+  { value: 'completed', color: 'success' },
+  { value: 'cancelled', color: 'error' },
 ];
 
 export const PROJECT_STATUS = Object.fromEntries(
   PROJECT_STATUSES.map((s) => [s.value.toUpperCase(), s.value])
 );
 
-export const PROJECT_STATUS_LABELS = Object.fromEntries(
-  PROJECT_STATUSES.map((s) => [s.value, s.label])
-);
+// Nhãn hiển thị nằm ở src/i18n/enums.js — file này chỉ giữ giá trị enum và màu,
+// vốn không phụ thuộc ngôn ngữ.
 
 // ──────────────────────────────────────────────
 // Task status — khớp Task.status (5 giá trị, gồm 'review' và 'blocked')
 // ──────────────────────────────────────────────
 export const TASK_STATUSES = [
-  { key: 'todo', label: 'Cần làm', color: '#94a3b8', badgeColor: 'default' },
-  { key: 'in_progress', label: 'Đang làm', color: '#3b82f6', badgeColor: 'processing' },
-  { key: 'review', label: 'Đánh giá', color: '#f59e0b', badgeColor: 'warning' },
-  { key: 'done', label: 'Hoàn thành', color: '#10b981', badgeColor: 'success' },
-  { key: 'blocked', label: 'Bị chặn', color: '#ef4444', badgeColor: 'error' },
+  { key: 'todo', color: '#94a3b8', badgeColor: 'default' },
+  { key: 'in_progress', color: '#3b82f6', badgeColor: 'processing' },
+  { key: 'review', color: '#f59e0b', badgeColor: 'warning' },
+  { key: 'done', color: '#10b981', badgeColor: 'success' },
+  { key: 'blocked', color: '#ef4444', badgeColor: 'error' },
 ];
 
 export const TASK_STATUS = Object.fromEntries(
   TASK_STATUSES.map((s) => [s.key.toUpperCase(), s.key])
-);
-
-export const TASK_STATUS_LABELS = Object.fromEntries(
-  TASK_STATUSES.map((s) => [s.key, s.label])
 );
 
 // Mã màu thật, dùng khi vẽ trực tiếp (Gantt, biểu đồ)
@@ -71,18 +66,14 @@ export const taskStatusCountKey = (statusKey) =>
 // Priority — dùng chung cho cả Project và Task
 // ──────────────────────────────────────────────
 export const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Thấp', color: 'default', hex: '#94a3b8' },
-  { value: 'medium', label: 'Trung bình', color: 'blue', hex: '#3b82f6' },
-  { value: 'high', label: 'Cao', color: 'warning', hex: '#f59e0b' },
-  { value: 'critical', label: 'Khẩn cấp', color: 'red', hex: '#ef4444' },
+  { value: 'low', color: 'default', hex: '#94a3b8' },
+  { value: 'medium', color: 'blue', hex: '#3b82f6' },
+  { value: 'high', color: 'warning', hex: '#f59e0b' },
+  { value: 'critical', color: 'red', hex: '#ef4444' },
 ];
 
 export const PRIORITY = Object.fromEntries(
   PRIORITY_OPTIONS.map((p) => [p.value.toUpperCase(), p.value])
-);
-
-export const PRIORITY_LABELS = Object.fromEntries(
-  PRIORITY_OPTIONS.map((p) => [p.value, p.label])
 );
 
 // Mã màu thật, dùng cho những chỗ vẽ trực tiếp (Gantt) thay vì Tag của Ant Design.
@@ -101,32 +92,17 @@ export const SKILL_LEVELS = {
   EXPERT: 4,
 };
 
-export const SKILL_LEVEL_LABELS = {
-  [SKILL_LEVELS.BEGINNER]: 'Cơ bản',
-  [SKILL_LEVELS.INTERMEDIATE]: 'Trung cấp',
-  [SKILL_LEVELS.ADVANCED]: 'Nâng cao',
-  [SKILL_LEVELS.EXPERT]: 'Chuyên gia',
-};
-
-// Ô chọn level cho kỹ năng mà công việc yêu cầu — cùng thang với nhân sự, nên
-// mọi mức đều có người đạt được. Trước đây danh sách này có thêm mức 5 để khoá
-// lại; nay server đã chốt max 4 nên không cần cái khoá đó nữa.
-export const REQUIRED_SKILL_LEVEL_OPTIONS = Object.entries(SKILL_LEVEL_LABELS).map(
-  ([value, label]) => ({
-    value: Number(value),
-    label: `${label} (Lv.${value})`,
-  })
-);
+// Thứ tự các mức, dùng để dựng ô chọn. Nhãn ở src/i18n/enums.js.
+// Thang dừng ở 4 vì đó cũng là trần của Resource.skills[].level — mọi mức yêu cầu
+// đều có người đạt được.
+export const SKILL_LEVEL_KEYS = Object.values(SKILL_LEVELS);
 
 // ──────────────────────────────────────────────
 // Resource availability — khớp Resource.availability
 // ──────────────────────────────────────────────
 export const AVAILABILITY_OPTIONS = [
-  { value: 'available', label: 'Sẵn sàng', color: 'success' },
-  { value: 'partially_available', label: 'Bận một phần', color: 'warning' },
-  { value: 'unavailable', label: 'Không khả dụng', color: 'error' },
+  { value: 'available', color: 'success' },
+  { value: 'partially_available', color: 'warning' },
+  { value: 'unavailable', color: 'error' },
 ];
 
-export const AVAILABILITY_LABELS = Object.fromEntries(
-  AVAILABILITY_OPTIONS.map((a) => [a.value, a.label])
-);

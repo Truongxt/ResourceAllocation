@@ -12,6 +12,9 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code chứ không theo trí nhớ.
 
+- Interceptor làm mới token không còn ném lại lỗi sau khi đã báo cho các request đang xếp
+  hàng. Ném tiếp thì promise `refreshing` không còn ai bắt và sinh unhandled rejection, dù
+  lỗi đã được xử lý đầy đủ. Bộ test component là chỗ phát hiện ra.
 - **Bỏ hẳn token khỏi `localStorage`.** Access token nay giữ trong biến module
   (`client/src/services/tokenStore.js`); `rao_token` và `rao_user` không còn được ghi ở đâu.
   Đóng tab là mất token, nên không còn gì để trộm về sau. XSS đang chạy vẫn đọc được biến
@@ -206,6 +209,22 @@ Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code ch�
 
 ### Added
 
+- **Đa ngôn ngữ Việt/Anh** (10.3) — i18next + react-i18next, nút đổi ngôn ngữ ở Header, lựa
+  chọn nhớ trong `localStorage` (`rao_lang`), locale Ant Design đổi theo nên DatePicker và
+  Table cũng nói đúng thứ tiếng.
+  Đã dịch: sidebar, header, đăng nhập, đăng ký, màn chặn quyền, **và toàn bộ nhãn enum** —
+  trạng thái dự án/công việc, mức ưu tiên, vai trò, mức kỹ năng, tình trạng nhân sự. Nhãn
+  enum xuất hiện ở mọi bảng và thẻ trong ứng dụng nên đây là phần lan tỏa rộng nhất.
+  Nội dung riêng của 10 trang nghiệp vụ **chưa dịch** (~500 chuỗi) — bảng chi tiết trong
+  FEATURES.md. `fallbackLng: 'vi'` nên chỗ chưa dịch hiện tiếng Việt chứ không hiện khóa.
+  Hai quyết định đáng ghi:
+  - Nhãn enum chuyển từ `constants/index.js` sang `src/i18n/enums.js`. `constants` quay về
+    đúng vai trò khai báo giá trị khớp schema Mongoose — mã trạng thái, màu, thứ tự — chứ
+    không giữ câu chữ.
+  - `main.jsx` gắn `key={i18n.language}` lên cây ứng dụng nên đổi ngôn ngữ là dựng lại toàn
+    bộ. Thô, nhưng nhiều chỗ lấy nhãn ngoài vòng render của React (cột Table dựng trong
+    `useMemo`, option truyền vào Select) và chúng không tự cập nhật — kết quả là màn hình
+    lẫn hai thứ tiếng. Đổi ngôn ngữ là thao tác hiếm, mất một lần dựng lại là đáng.
 - **Kiểm thử render component** (vitest + jsdom + Testing Library) — 15 test, 3 bộ:
   `ProtectedRoute` (ranh giới đăng nhập và vai trò), `app-routing` (12 trang nạp theo chunk
   `React.lazy` và ranh giới `Suspense` giữ được sidebar/header), `notification-link` (chặn

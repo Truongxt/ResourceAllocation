@@ -1,0 +1,130 @@
+{
+  "common": {
+    "appName": "RAO",
+    "appFullName": "Resource Allocation Optimization",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "close": "Đóng",
+    "edit": "Sửa",
+    "delete": "Xóa",
+    "add": "Thêm",
+    "search": "Tìm kiếm",
+    "filter": "Lọc",
+    "reload": "Tải lại",
+    "loading": "Đang tải…",
+    "noData": "Không có dữ liệu",
+    "actions": "Hành động",
+    "confirm": "Xác nhận",
+    "yes": "Có",
+    "no": "Không",
+    "all": "Tất cả",
+    "language": "Ngôn ngữ"
+  },
+  "enums": {
+    "role": {
+      "admin": "Quản trị viên",
+      "project_manager": "Project Manager",
+      "member": "Thành viên"
+    },
+    "projectStatus": {
+      "planning": "Lập kế hoạch",
+      "in_progress": "Đang thực hiện",
+      "on_hold": "Tạm dừng",
+      "completed": "Hoàn thành",
+      "cancelled": "Đã hủy"
+    },
+    "taskStatus": {
+      "todo": "Cần làm",
+      "in_progress": "Đang làm",
+      "review": "Đánh giá",
+      "done": "Hoàn thành",
+      "blocked": "Bị chặn"
+    },
+    "priority": {
+      "low": "Thấp",
+      "medium": "Trung bình",
+      "high": "Cao",
+      "critical": "Khẩn cấp"
+    },
+    "skillLevel": {
+      "1": "Cơ bản",
+      "2": "Trung cấp",
+      "3": "Nâng cao",
+      "4": "Chuyên gia",
+      "withLevel": "{{label}} (Lv.{{level}})"
+    },
+    "availability": {
+      "available": "Sẵn sàng",
+      "partially_available": "Bận một phần",
+      "unavailable": "Không khả dụng"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Dự án",
+    "tasks": "Công việc",
+    "resources": "Nhân sự",
+    "optimization": "Tối ưu hóa",
+    "gantt": "Gantt Chart",
+    "reports": "Báo cáo",
+    "activityLogs": "Nhật ký hoạt động",
+    "collapse": "Thu gọn menu",
+    "expand": "Mở rộng menu"
+  },
+  "pageTitle": {
+    "/": "Dashboard",
+    "/projects": "Quản lý Dự án",
+    "/tasks": "Quản lý Công việc",
+    "/resources": "Quản lý Nhân sự",
+    "/optimization": "Tối ưu hóa Phân bổ",
+    "/gantt": "Gantt Chart",
+    "/reports": "Báo cáo",
+    "/activity-logs": "Nhật ký Hoạt động",
+    "/settings": "Cài đặt tài khoản"
+  },
+  "header": {
+    "notifications": "Thông báo",
+    "unreadBadge": "{{count}} mới",
+    "markAllRead": "Đọc tất cả",
+    "empty": "Không có thông báo mới",
+    "settings": "Cài đặt tài khoản",
+    "logout": "Đăng xuất",
+    "toggleTheme": "Chuyển giao diện Sáng/Tối",
+    "switchLanguage": "Đổi ngôn ngữ",
+    "justNow": "Vừa xong",
+    "minutesAgo": "{{count}} phút trước",
+    "hoursAgo": "{{count}} giờ trước",
+    "daysAgo": "{{count}} ngày trước"
+  },
+  "auth": {
+    "loginTitle": "Đăng nhập hệ thống",
+    "subtitle": "Resource Allocation Optimization",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "login": "Đăng nhập",
+    "loggingIn": "Đang đăng nhập…",
+    "noAccount": "Chưa có tài khoản?",
+    "register": "Đăng ký",
+    "registerTitle": "Tạo tài khoản mới",
+    "name": "Họ và tên",
+    "confirmPassword": "Nhập lại mật khẩu",
+    "haveAccount": "Đã có tài khoản?",
+    "backToLogin": "Quay lại đăng nhập",
+    "required": {
+      "name": "Vui lòng nhập họ tên",
+      "email": "Vui lòng nhập email",
+      "emailInvalid": "Email không hợp lệ",
+      "password": "Vui lòng nhập mật khẩu",
+      "passwordMin": "Mật khẩu tối thiểu 6 ký tự",
+      "confirm": "Vui lòng nhập lại mật khẩu",
+      "confirmMismatch": "Mật khẩu nhập lại không khớp"
+    },
+    "namePlaceholder": "Nguyễn Văn A",
+    "roleLabel": "Vai trò trong hệ thống",
+    "createAccount": "Tạo tài khoản"
+  },
+  "protectedRoute": {
+    "forbiddenTitle": "Không có quyền truy cập",
+    "forbiddenText": "Bạn không có quyền truy cập trang này. Vui lòng liên hệ Admin."
+  }
+}

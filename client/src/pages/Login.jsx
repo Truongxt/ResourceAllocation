@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, Alert, Divider } from 'antd';
 import { LockOutlined, MailOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 
 const { Title, Text, Paragraph } = Typography;
@@ -9,6 +10,7 @@ const { Title, Text, Paragraph } = Typography;
 export default function Login() {
   const navigate = useNavigate();
   const { login, error, clearError } = useAuth();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
 
   const onFinish = async (values) => {
@@ -57,8 +59,8 @@ export default function Login() {
           }}>
             <ThunderboltOutlined style={{ fontSize: 28, color: '#fff' }} />
           </div>
-          <Title level={3} style={{ marginBottom: 4 }}>Đăng nhập hệ thống</Title>
-          <Text type="secondary">Resource Allocation Optimization</Text>
+          <Title level={3} style={{ marginBottom: 4 }}>{t('auth.loginTitle')}</Title>
+          <Text type="secondary">{t('auth.subtitle')}</Text>
         </div>
 
         {error && (
@@ -75,10 +77,10 @@ export default function Login() {
         <Form layout="vertical" onFinish={onFinish} size="large" requiredMark={false}>
           <Form.Item
             name="email"
-            label="Email"
+            label={t('auth.email')}
             rules={[
-              { required: true, message: 'Vui lòng nhập email' },
-              { type: 'email', message: 'Email không hợp lệ' },
+              { required: true, message: t('auth.required.email') },
+              { type: 'email', message: t('auth.required.emailInvalid') },
             ]}
           >
             <Input prefix={<MailOutlined />} placeholder="admin@rao.com" autoFocus />
@@ -86,8 +88,8 @@ export default function Login() {
 
           <Form.Item
             name="password"
-            label="Mật khẩu"
-            rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}
+            label={t('auth.password')}
+            rules={[{ required: true, message: t('auth.required.password') }]}
           >
             <Input.Password prefix={<LockOutlined />} placeholder="••••••••" />
           </Form.Item>
@@ -96,19 +98,19 @@ export default function Login() {
             <Button type="primary" htmlType="submit" loading={loading} block
               style={{ height: 44, fontWeight: 600, borderRadius: 10 }}
             >
-              Đăng nhập
+              {t('auth.login')}
             </Button>
           </Form.Item>
         </Form>
 
         <Divider plain>
-          <Text type="secondary" style={{ fontSize: 13 }}>Chưa có tài khoản?</Text>
+          <Text type="secondary" style={{ fontSize: 13 }}>{t('auth.noAccount')}</Text>
         </Divider>
 
         <div style={{ textAlign: 'center' }}>
           <Link to="/register">
             <Button type="default" style={{ borderRadius: 10 }}>
-              Tạo tài khoản mới
+              {t('auth.registerTitle')}
             </Button>
           </Link>
         </div>

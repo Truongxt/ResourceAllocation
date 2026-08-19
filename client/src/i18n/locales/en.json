@@ -1,0 +1,130 @@
+{
+  "common": {
+    "appName": "RAO",
+    "appFullName": "Resource Allocation Optimization",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "edit": "Edit",
+    "delete": "Delete",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "reload": "Reload",
+    "loading": "Loading…",
+    "noData": "No data",
+    "actions": "Actions",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "all": "All",
+    "language": "Language"
+  },
+  "enums": {
+    "role": {
+      "admin": "Administrator",
+      "project_manager": "Project Manager",
+      "member": "Member"
+    },
+    "projectStatus": {
+      "planning": "Planning",
+      "in_progress": "In progress",
+      "on_hold": "On hold",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "taskStatus": {
+      "todo": "To do",
+      "in_progress": "In progress",
+      "review": "Review",
+      "done": "Done",
+      "blocked": "Blocked"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "skillLevel": {
+      "1": "Beginner",
+      "2": "Intermediate",
+      "3": "Advanced",
+      "4": "Expert",
+      "withLevel": "{{label}} (Lv.{{level}})"
+    },
+    "availability": {
+      "available": "Available",
+      "partially_available": "Partially available",
+      "unavailable": "Unavailable"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "tasks": "Tasks",
+    "resources": "Resources",
+    "optimization": "Optimization",
+    "gantt": "Gantt chart",
+    "reports": "Reports",
+    "activityLogs": "Activity log",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu"
+  },
+  "pageTitle": {
+    "/": "Dashboard",
+    "/projects": "Projects",
+    "/tasks": "Tasks",
+    "/resources": "Resources",
+    "/optimization": "Resource optimization",
+    "/gantt": "Gantt chart",
+    "/reports": "Reports",
+    "/activity-logs": "Activity log",
+    "/settings": "Account settings"
+  },
+  "header": {
+    "notifications": "Notifications",
+    "unreadBadge": "{{count}} new",
+    "markAllRead": "Mark all read",
+    "empty": "No new notifications",
+    "settings": "Account settings",
+    "logout": "Log out",
+    "toggleTheme": "Toggle light/dark theme",
+    "switchLanguage": "Switch language",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}} min ago",
+    "hoursAgo": "{{count}} h ago",
+    "daysAgo": "{{count}} d ago"
+  },
+  "auth": {
+    "loginTitle": "Sign in",
+    "subtitle": "Resource Allocation Optimization",
+    "email": "Email",
+    "password": "Password",
+    "login": "Sign in",
+    "loggingIn": "Signing in…",
+    "noAccount": "No account yet?",
+    "register": "Sign up",
+    "registerTitle": "Create an account",
+    "name": "Full name",
+    "confirmPassword": "Confirm password",
+    "haveAccount": "Already have an account?",
+    "backToLogin": "Back to sign in",
+    "required": {
+      "name": "Please enter your name",
+      "email": "Please enter your email",
+      "emailInvalid": "Invalid email",
+      "password": "Please enter your password",
+      "passwordMin": "Password must be at least 6 characters",
+      "confirm": "Please confirm your password",
+      "confirmMismatch": "Passwords do not match"
+    },
+    "namePlaceholder": "Jane Doe",
+    "roleLabel": "Role in the system",
+    "createAccount": "Create account"
+  },
+  "protectedRoute": {
+    "forbiddenTitle": "Access denied",
+    "forbiddenText": "You do not have permission to view this page. Please contact an administrator."
+  }
+}

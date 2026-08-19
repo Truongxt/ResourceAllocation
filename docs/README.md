@@ -76,7 +76,8 @@ ResourceAllocation/
 │   │   ├── pages/             # 12 page components + CSS riêng
 │   │   ├── context/           # AuthContext, SocketContext, ThemeContext
 │   │   ├── services/          # 10 API service module (Axios)
-│   │   ├── constants/         # Enum dùng chung, khớp schema Mongoose
+│   │   ├── constants/         # Enum dùng chung, khớp schema Mongoose (không chứa câu chữ)
+│   │   ├── i18n/              # i18next + locales vi/en + nhãn enum
 │   │   ├── utils/             # gantt.js — logic thuần (CPM, thời lượng, mốc)
 │   │   └── styles/            # index.css + antdTheme.js
 │   ├── tests/                 # Kiểm thử logic thuần chạy bằng node (npm test)

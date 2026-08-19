@@ -10,25 +10,31 @@ import {
   FileTextOutlined,
   HistoryOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 
 const { Sider } = Layout;
 
-const menuItems = [
-  { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
-  { key: '/projects', icon: <ProjectOutlined />, label: 'Dự án' },
-  { key: '/tasks', icon: <UnorderedListOutlined />, label: 'Công việc' },
-  { key: '/resources', icon: <TeamOutlined />, label: 'Nhân sự' },
-  { key: '/optimization', icon: <ThunderboltOutlined />, label: 'Tối ưu hóa' },
-  { key: '/gantt', icon: <BarChartOutlined />, label: 'Gantt Chart' },
-  { key: '/reports', icon: <FileTextOutlined />, label: 'Báo cáo' },
-  { key: '/activity-logs', icon: <HistoryOutlined />, label: 'Nhật ký hoạt động' },
+// Nhãn dựng trong component chứ không phải ở cấp module: ở cấp module thì nó
+// được tính đúng một lần lúc nạp file, và đổi ngôn ngữ sau đó không đổi được menu.
+const MENU_ITEMS = [
+  { key: '/', icon: <DashboardOutlined />, labelKey: 'nav.dashboard' },
+  { key: '/projects', icon: <ProjectOutlined />, labelKey: 'nav.projects' },
+  { key: '/tasks', icon: <UnorderedListOutlined />, labelKey: 'nav.tasks' },
+  { key: '/resources', icon: <TeamOutlined />, labelKey: 'nav.resources' },
+  { key: '/optimization', icon: <ThunderboltOutlined />, labelKey: 'nav.optimization' },
+  { key: '/gantt', icon: <BarChartOutlined />, labelKey: 'nav.gantt' },
+  { key: '/reports', icon: <FileTextOutlined />, labelKey: 'nav.reports' },
+  { key: '/activity-logs', icon: <HistoryOutlined />, labelKey: 'nav.activityLogs' },
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
+
+  const menuItems = MENU_ITEMS.map(({ labelKey, ...item }) => ({ ...item, label: t(labelKey) }));
 
   return (
     <Sider

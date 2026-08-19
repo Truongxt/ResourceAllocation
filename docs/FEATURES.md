@@ -185,7 +185,7 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 |---|----------|-------|-----------|---------|
 | 10.1 | Real-time Notifications | Socket.IO notifications | ✅ | WebSocket có xác thực JWT, room `user:<id>`, Notification Center, Toast |
 | 10.2 | Dark/Light Theme Toggle | Chuyển đổi theme Sáng/Tối | ✅ | Switch ở Header + CSS `data-theme` |
-| 10.3 | Multi-language | Hỗ trợ Tiếng Việt + English | ⬜ | Optional — hiện chỉ có tiếng Việt |
+| 10.3 | Multi-language | Hỗ trợ Tiếng Việt + English | 🔨 | Hạ tầng i18next xong, nút đổi ngôn ngữ ở Header, nhớ lựa chọn, locale Ant Design đổi theo. **Đã dịch**: sidebar, header, đăng nhập, đăng ký, chặn quyền, và toàn bộ nhãn enum (trạng thái, ưu tiên, vai trò, mức kỹ năng, tình trạng nhân sự) — nên mọi bảng và thẻ trong ứng dụng đều đổi. **Chưa dịch**: nội dung riêng của 10 trang nghiệp vụ, còn ~500 chuỗi — xem bảng trong ghi chú dưới |
 | 10.4 | Import Data | Import dự án/nhân sự từ CSV | ✅ | Modal **dán nội dung CSV** (chưa hỗ trợ chọn file) trong Projects & Resources |
 | 10.5 | Activity Log | Nhật ký hoạt động hệ thống | ✅ | Model + service + controller + trang ActivityLogs, lọc theo entity/action/user/thời gian |
 | 10.6 | Email Notifications | Gửi email khi được assign task | ✅ | **Mặc định tắt**, chỉ bật khi khai báo đủ `SMTP_HOST` + `MAIL_FROM`; trạng thái in ra lúc khởi động. Chỉ loại `task_assigned` được gửi mail — gửi mọi loại thì hộp thư ngập ngay ngày đầu. Lỗi SMTP không làm hỏng luồng giao việc |
@@ -205,10 +205,33 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 7. Analytics | 7 | 7 | 0 | 0 |
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
-| 10. Bổ sung | 6 | 5 | 0 | 1 |
-| **Tổng** | **79** | **78 (98.7%)** | **0** | **1 (1.3%)** |
+| 10. Bổ sung | 6 | 5 | 1 | 0 |
+| **Tổng** | **79** | **78 (98.7%)** | **1 (1.3%)** | **0** |
 
-Mục còn lại là đa ngôn ngữ (10.3), thuộc nhóm tùy chọn của Module 10.
+Mục đang dở là đa ngôn ngữ (10.3).
+
+### Đa ngôn ngữ — còn lại những gì
+
+Hạ tầng và lớp dùng chung đã xong; phần còn lại là dịch nội dung riêng của từng trang.
+Số chuỗi tiếng Việt còn trong mã (đếm bằng regex, con số thật cao hơn vì bỏ sót chuỗi
+không dấu và text nằm thẳng trong JSX):
+
+| Trang | Chuỗi còn lại |
+|-------|---------------|
+| Resources | ~109 |
+| Optimization | ~82 |
+| Tasks | ~68 |
+| ProjectDetail | ~58 |
+| Projects | ~50 |
+| Reports | ~44 |
+| ActivityLogs | ~31 |
+| Settings | ~24 |
+| Dashboard | ~21 |
+| GanttChart | ~17 |
+
+Chuyển ngôn ngữ vẫn dùng được ngay: khung ứng dụng, hai trang xác thực và mọi nhãn enum
+đều đổi. Các trang trên hiện vẫn hiện tiếng Việt khi chọn English — thiếu bản dịch thì
+`fallbackLng` trả về tiếng Việt, cố ý như vậy để không bao giờ hiện khóa dịch ra màn hình.
 
 ---
 
