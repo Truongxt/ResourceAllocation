@@ -10,6 +10,15 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Added
 
+- **Hybrid nối CSP → GA thật sự** (5.11) — `CSPSolver.buildFeasibleDomains()` đưa miền giá
+  trị đã lọc (H2 skill, H3 availability, capacity) sang `GeneticAlgorithm.optimize()`;
+  `_initializePopulation` và `_mutate` chỉ chọn trong miền đó, nên mọi cá thể đều thỏa mãn
+  hard constraint ngay từ thế hệ đầu. Trước đây hai thuật toán chạy độc lập trên cùng dữ
+  liệu gốc, kết quả CSP chỉ dùng để lấy `constraintReport`.
+  Đo trên bài toán 20 công việc × 12 nhân sự (240 → 48 cặp khả thi): số thế hệ tới khi dừng
+  giảm từ 119 xuống 90 (trung bình 40 lần chạy mỗi chế độ), fitness nhỉnh hơn một chút.
+- `OptimizationResult.domainReduction` — ghi lại mức thu hẹp và số công việc phải mở lại
+  miền vì không nhân sự nào đủ điều kiện; hiện trên trang Tối ưu hóa kèm cảnh báo.
 - **UI level/weight cho kỹ năng yêu cầu** (3.9) — form Task nhập từng dòng: tên (gợi ý lấy
   từ Skill Matrix của nhân sự vì thuật toán so khớp theo tên), mức yêu cầu, trọng số 0-1.
   Bảng công việc hiện luôn danh sách kỹ năng kèm mức. Server chặn thiếu tên, level ngoài
@@ -92,9 +101,13 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 Rà soát toàn bộ tài liệu, đối chiếu với mã nguồn và kiểm chứng bằng request thật.
 
 #### Changed
-- **FEATURES.md**: Module 3, 4 và 6 lên đủ, 5.4 lên ✅; thống kê tổng từ 81.8% lên
-  **93.5%** (≈94.8% nếu tính mục dở dang theo 50%); rút gọn backlog còn 5 hạng mục;
-  ghi lại chênh lệch thang level giữa Resource (1-4) và Task (1-5) cần quyết định.
+- **FEATURES.md**: Module 3, 4 và 6 lên đủ, 5.4 lên ✅, thêm mục 5.11 (Hybrid vốn không hề
+  có trong bảng dù đã có endpoint); thống kê tổng từ 81.8% lên **93.6%** (≈94.9% nếu tính
+  mục dở dang theo 50%); rút gọn backlog còn 4 hạng mục; ghi lại chênh lệch thang level
+  giữa Resource (1-4) và Task (1-5) cần quyết định.
+- **ALGORITHMS.md mục 3**: viết lại toàn bộ phần Hybrid — bỏ sơ đồ "hiện trạng chạy độc lập"
+  và "thiết kế mục tiêu chưa implement", thay bằng luồng thật, bảng ảnh hưởng của miền lên
+  từng toán tử di truyền, cách xử lý miền rỗng và số đo trước/sau.
 - **ALGORITHMS.md**: bổ sung H4 vào bảng ràng buộc cứng và giải thích vì sao phải phát biểu
   lại nó (biến quyết định là "giao cho ai", không phải "làm khi nào"); cập nhật pseudo-code
   của `solve()`.

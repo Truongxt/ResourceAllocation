@@ -96,9 +96,11 @@ của `server/tests/api.test.mjs`.
 | 5.8 | History | Lưu lịch sử các lần chạy | ✅ | Model `OptimizationResult`, 50 bản ghi mới nhất |
 | 5.9 | Convergence Chart | Biểu đồ hội tụ GA | ✅ | Bar chart, hiển thị 40 điểm cuối |
 | 5.10 | Performance Benchmark | Đo thời gian chạy vs kích thước bài toán | ✅ | `executionTime` + `taskCount`/`resourceCount` |
+| 5.11 | Hybrid CSP → GA | CSP lọc miền giá trị, GA tối ưu trên miền đã thu hẹp | ✅ | `buildFeasibleDomains()` đưa miền sang GA; `_initializePopulation`/`_mutate` chỉ chọn trong miền. Mức thu hẹp ghi vào `domainReduction` và hiện trên giao diện; miền rỗng được mở lại kèm cảnh báo |
 
-> ⚠️ **Hybrid không hoạt động như thiết kế**: CSP và GA chạy độc lập trên cùng dữ liệu gốc.
-> GA không nhận miền giá trị đã lọc từ CSP. Xem [ALGORITHMS.md](./ALGORITHMS.md) mục 3.
+> Hybrid nay chạy đúng thiết kế: pha CSP lọc miền giá trị theo H2/H3 và capacity, pha GA
+> chỉ sinh và đột biến gen trong miền đó. Mức thu hẹp được ghi vào `domainReduction` và
+> hiện trên giao diện. Xem [ALGORITHMS.md](./ALGORITHMS.md) mục 3.
 >
 > CSP dùng chung `src/algorithms/scoring.js` với GA nên có đủ `fitness` và `metrics` trên cùng thang đo.
 > Các bản ghi CSP tạo trước thay đổi này vẫn còn `fitness: 0` trong DB.
@@ -189,15 +191,15 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 2. Projects | 9 | 9 | 0 | 0 |
 | 3. Tasks | 11 | 11 | 0 | 0 |
 | 4. Resources | 10 | 10 | 0 | 0 |
-| 5. Optimization | 10 | 8 | 2 | 0 |
+| 5. Optimization | 11 | 9 | 2 | 0 |
 | 6. Gantt Chart | 8 | 8 | 0 | 0 |
 | 7. Analytics | 7 | 6 | 0 | 1 |
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 4 | 0 | 2 |
-| **Tổng** | **77** | **72 (93.5%)** | **2 (2.6%)** | **3 (3.9%)** |
+| **Tổng** | **78** | **73 (93.6%)** | **2 (2.6%)** | **3 (3.8%)** |
 
-Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 94.8%**.
+Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 94.9%**.
 
 ---
 
@@ -205,12 +207,11 @@ Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 94.8%*
 
 Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 
-1. **Hybrid thực sự nối CSP → GA** (5.6 / ALGORITHMS.md mục 3) — hiện hai thuật toán chạy
-   độc lập, kết quả CSP chỉ dùng để lấy `constraintReport`.
-2. **AC-3 đúng nghĩa trong CSP** (5.2) — bước hiện tại chỉ là bộ lọc unary theo capacity.
-3. **So sánh song song nhiều phương án tối ưu hóa** (5.6).
-4. **Trend chart theo thời gian** (7.7).
-5. Đa ngôn ngữ (10.3), email notification (10.6).
+1. **AC-3 đúng nghĩa trong CSP** (5.2) — bước hiện tại chỉ là bộ lọc unary theo capacity.
+   Có ràng buộc nhị phân thật rồi (H4) nên arc consistency giờ mới có việc để làm.
+2. **So sánh song song nhiều phương án tối ưu hóa** (5.6).
+3. **Trend chart theo thời gian** (7.7).
+4. Đa ngôn ngữ (10.3), email notification (10.6).
 
 ### Chênh lệch thang đo cần quyết định
 

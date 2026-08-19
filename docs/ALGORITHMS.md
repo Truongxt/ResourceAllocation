@@ -215,52 +215,70 @@ Luồng thực tế trong `CSPSolver.solve()`:
 
 ## 3. Hybrid Approach (Kết hợp)
 
-### 3.1 Hiện trạng implement
+### 3.1 Luồng thực tế
 
 ```
-              ┌──────────────┐
-              │  tasks +     │
-              │  resources   │
-              └──┬────────┬──┘
-                 │        │          (cùng một tập dữ liệu gốc)
-        ┌────────▼──┐  ┌──▼──────────┐
-        │ CSP Solver│  │     GA      │
-        └────────┬──┘  └──┬──────────┘
-                 │        │
-     constraintReport   assignments + fitness + metrics
-                 │        │
-                 └───┬────┘
-                     ▼
-            OptimizationResult
+┌──────────────┐
+│  tasks +     │
+│  resources   │
+└──────┬───────┘
+       │
+       ▼
+┌─────────────────────────┐
+│  Pha 1: CSP Solver      │
+│  buildFeasibleDomains() │──▶ domains[t] = [chỉ số nhân sự khả thi]
+│  solve()                │──▶ constraintReport + cspFeasible
+└──────────┬──────────────┘
+           │  miền đã lọc theo H2 (skill ≥ ngưỡng),
+           │  H3 (availability) và capacity
+           ▼
+┌─────────────────────────┐
+│  Pha 2: GA              │
+│  optimize(…, {domains}) │──▶ assignments + fitness + metrics
+└──────────┬──────────────┘
+           ▼
+   OptimizationResult
+   (+ domainReduction)
 ```
 
-`runHybrid` chạy **CSP và GA độc lập trên cùng dữ liệu gốc**:
+GA nhận `domains` và chỉ sinh gen trong miền đó:
 
-- Kết quả phân bổ (`assignments`), `fitness`, `metrics`, `convergenceHistory` — **lấy hoàn toàn từ GA**.
-- Kết quả CSP **chỉ** dùng để lấy `constraintReport` (số ràng buộc thỏa mãn/vi phạm)
-  và cờ `cspFeasible` trả về cho client.
-- `executionTime` là tổng thời gian của cả hai pha.
+| Toán tử | Ảnh hưởng của miền |
+|---------|--------------------|
+| `_initializePopulation` | Mỗi gen `t` lấy ngẫu nhiên **trong** `domains[t]` |
+| `_mutate` | Gán lại cũng chỉ chọn trong `domains[t]` |
+| `_crossover` | Không cần sửa: chỉ hoán đổi gen cùng vị trí giữa hai cha mẹ, mà cả hai đều đã hợp lệ |
+| Elitism | Không cần sửa: chỉ sao chép cá thể đã có |
 
-> ⚠️ **GA không nhận miền giá trị đã lọc từ CSP.** Không có luồng dữ liệu nào từ CSP sang GA,
-> nên GA vẫn tìm kiếm trên toàn bộ không gian và **có thể sinh ra phương án vi phạm hard constraints**.
-> `constraintReport` đến từ lời giải của CSP, không phải từ phương án GA được lưu.
+Nhờ vậy **mọi cá thể trong quần thể đều thỏa mãn H2/H3 ngay từ đầu** — GA không còn
+phí thế hệ để tự tìm ra điều mà CSP đã biết chắc.
 
-### 3.2 Thiết kế mục tiêu (chưa implement)
+### 3.2 Miền rỗng
 
-```
-┌──────────┐     ┌──────────────┐     ┌──────────────┐
-│  CSP     │────▶│  Feasible    │────▶│  GA          │
-│  Solver  │     │  Domains     │     │  Optimization│
-└──────────┘     └──────────────┘     └──────────────┘
-  Phase 1:          Phase 2:            Phase 3:
-  Lọc bỏ các       Miền giá trị        Tối ưu hóa
-  assignments      đã thu hẹp          multi-objective
-  vi phạm hard     cho từng task       trên miền feasible
-  constraints
-```
+Nếu không nhân sự nào đủ điều kiện cho một task, `buildFeasibleDomains` trả về miền rỗng
+chứ không tự ý nới lỏng. GA không sinh nổi gen cho miền rỗng, nên `_resolveDomains` **mở
+lại toàn bộ nhân sự** cho riêng task đó và đếm số lần phải làm vậy vào
+`domainReduction.tasksReopened`. Giao diện hiện cảnh báo tương ứng — thà báo là ràng buộc
+đã bị nới còn hơn im lặng trả về một phương án trông có vẻ hợp lệ.
 
-Để đạt được thiết kế này cần truyền `reducedDomains` từ CSPSolver vào GA và giới hạn
-`_initializePopulation` / `_mutate` chỉ chọn resource nằm trong miền hợp lệ của từng task.
+### 3.3 Đo được gì
+
+`OptimizationResult.domainReduction` ghi lại: `totalPairs` (số cặp task × nhân sự trước khi
+lọc), `feasiblePairs` (sau khi lọc), `tasksReopened`, và cờ `restricted`.
+
+Đo thử trên bài toán 20 công việc × 12 nhân sự, mỗi người chỉ thạo 1 kỹ năng
+(240 cặp → 48 cặp khả thi, giảm 80%), trung bình 40 lần chạy mỗi chế độ:
+
+| | Fitness trung bình | Số thế hệ tới khi dừng |
+|---|---|---|
+| GA chạy một mình | 0.8519 | 119 |
+| Hybrid (miền từ CSP) | 0.8532 | 90 |
+
+Thu hẹp miền chủ yếu giúp **hội tụ nhanh hơn** (~24% ít thế hệ hơn) chứ không nâng
+fitness lên đáng kể — điều này hợp lý, vì GA vốn cũng tự học được cách tránh nhân sự
+thiếu kỹ năng, chỉ là phải trả giá bằng nhiều thế hệ.
+
+Kiểm thử: `cd server && npm test hybrid` (19 assertion).
 
 ---
 

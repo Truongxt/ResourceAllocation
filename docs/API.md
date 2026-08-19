@@ -379,6 +379,22 @@ Nếu không có task hoặc không có nhân sự → **400**.
 Nhận cùng bộ tham số như GA (`projectId` + các tham số GA).
 Response có thêm `cspFeasible` ở cấp `data`.
 
+Pha CSP lọc miền giá trị rồi GA tối ưu **trên miền đã thu hẹp** đó. Kết quả có thêm
+`domainReduction` để biết pha CSP đã cắt được bao nhiêu:
+
+```json
+"domainReduction": {
+  "restricted": true,      // GA có chạy trên miền đã lọc không
+  "totalPairs": 240,       // số cặp (công việc × nhân sự) trước khi lọc
+  "feasiblePairs": 48,     // còn lại sau khi lọc H2/H3 + capacity
+  "tasksReopened": 0       // task có miền rỗng, buộc mở lại toàn bộ nhân sự
+}
+```
+
+`tasksReopened > 0` nghĩa là có công việc **không nhân sự nào đủ điều kiện**; ràng buộc
+được nới riêng cho những công việc đó, nếu không thuật toán sẽ không gán được ai. Giao
+diện hiện cảnh báo tương ứng. Chỉ endpoint hybrid mới có trường này.
+
 ### Response của cả 3 endpoint run
 
 Trả về **nguyên document `OptimizationResult`**, không phải object rút gọn:

@@ -229,6 +229,13 @@ không dùng ObjectId. Không thể xóa phòng ban còn nhân sự `isActive`.
   convergenceHistory: [           // Mảng OBJECT, không phải mảng số
     { generation: Number, fitness: Number }
   ],
+  // Chỉ Hybrid: mức thu hẹp không gian tìm kiếm mà pha CSP mang lại cho pha GA
+  domainReduction: {
+    restricted: Boolean,
+    totalPairs: Number,     // số cặp (task × nhân sự) trước khi lọc
+    feasiblePairs: Number,  // còn lại sau khi lọc
+    tasksReopened: Number,  // task có miền rỗng, buộc mở lại toàn bộ nhân sự
+  },
   constraintReport: {
     satisfied: Number,
     violated: Number,
