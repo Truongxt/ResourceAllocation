@@ -100,6 +100,7 @@ ResourceAllocation/
 ## Tài liệu liên quan
 
 - [FEATURES.md](./FEATURES.md) - Danh sách tính năng & trạng thái
+- [COMPARISON_JIRA.md](./COMPARISON_JIRA.md) - So sánh năng lực với Jira Software Cloud
 - [DATABASE.md](./DATABASE.md) - Thiết kế Database Schema
 - [API.md](./API.md) - API Documentation
 - [ALGORITHMS.md](./ALGORITHMS.md) - Mô tả thuật toán tối ưu hóa

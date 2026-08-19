@@ -72,6 +72,7 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 
 - [Tổng quan dự án](./docs/README.md)
 - [Danh sách tính năng](./docs/FEATURES.md)
+- [So sánh với Jira](./docs/COMPARISON_JIRA.md) — RAO mạnh/yếu ở đâu so với Jira Software Cloud
 - [API Documentation](./docs/API.md) — 53 endpoints
 - [Database Schema](./docs/DATABASE.md) — 8 collections
 - [Thuật toán](./docs/ALGORITHMS.md)
