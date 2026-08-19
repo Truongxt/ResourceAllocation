@@ -78,9 +78,16 @@ export default function Header({ collapsed }) {
     navigate('/login');
   };
 
+  // Đây là đích điều hướng duy nhất không phải hằng số trong toàn bộ client: nó
+  // đến từ trường `link` của Notification trong database. Hiện server chỉ ghi
+  // đường dẫn cố định, nhưng schema không ràng buộc, nên chặn tại đây: chỉ nhận
+  // đường dẫn nội bộ, loại "//host" và "/\host" (dạng open redirect).
+  const isInternalPath = (link) =>
+    typeof link === 'string' && /^\/(?![/\\])/.test(link);
+
   const handleNotifClick = (notif) => {
     if (!notif.readAt) markAsRead(notif._id);
-    if (notif.link) navigate(notif.link);
+    if (isInternalPath(notif.link)) navigate(notif.link);
   };
 
   const userMenuItems = [

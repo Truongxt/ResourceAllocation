@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const { protect, authorize } = require('../middleware/auth');
+const { authLimiter } = require('../middleware/rateLimit');
 const {
   register,
   login,
@@ -73,9 +74,9 @@ const changePasswordValidation = [
     .withMessage('Mật khẩu mới phải có ít nhất 6 ký tự'),
 ];
 
-// Public routes
-router.post('/register', registerValidation, validate, register);
-router.post('/login', loginValidation, validate, login);
+// Public routes — siết tần suất vì đây là chỗ duy nhất thử sai hàng loạt có giá trị
+router.post('/register', authLimiter, registerValidation, validate, register);
+router.post('/login', authLimiter, loginValidation, validate, login);
 
 // Protected routes
 router.get('/me', protect, getMe);
