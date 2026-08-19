@@ -550,15 +550,28 @@ const applyResult = async (req, res, next) => {
 
     // Apply assignments: Update task assignees
     let appliedCount = 0;
+    // Gom theo người nhận để mỗi người chỉ nhận MỘT thông báo tổng hợp. Bắn theo
+    // từng công việc thì áp dụng một phương án 30 task là 30 thông báo và 30 email
+    // vào cùng một hộp thư.
+    const tasksByAssignee = new Map();
+
     for (const assignment of result.assignments) {
       if (assignment.task && assignment.resource) {
         // Find the resource to get its user ID
         const resource = await Resource.findById(assignment.resource);
         if (resource) {
-          await Task.findByIdAndUpdate(assignment.task, {
-            assignee: resource.user,
-          });
+          const task = await Task.findByIdAndUpdate(
+            assignment.task,
+            { assignee: resource.user },
+            { new: true }
+          ).select('title');
           appliedCount++;
+
+          if (resource.user && task) {
+            const key = resource.user.toString();
+            if (!tasksByAssignee.has(key)) tasksByAssignee.set(key, []);
+            tasksByAssignee.get(key).push(task.title);
+          }
         }
       }
     }
@@ -568,17 +581,31 @@ const applyResult = async (req, res, next) => {
     result.appliedBy = req.user._id;
     await result.save();
 
-    // Gửi thông báo realtime đến tất cả user trong hệ thống
-    sendNotification({
-      recipient: null,
-      actor: req.user._id,
-      type: 'optimization_applied',
-      title: 'Đã áp dụng phân bổ nhân sự',
-      message: `Phương án tối ưu hóa (${result.algorithm.toUpperCase()}) đã được áp dụng cho ${appliedCount} công việc.`,
-      entityType: 'optimization',
-      entityId: result._id,
-      link: '/tasks',
-    });
+    // Báo cho từng người vừa được giao việc. Trước đây chỗ này gọi một lần với
+    // `recipient: null` kèm ý định "gửi cho tất cả user" — nhưng sendNotification
+    // bỏ qua ngay khi thiếu recipient, nên áp dụng phương án xong không ai được báo.
+    for (const [userId, titles] of tasksByAssignee) {
+      if (userId === req.user._id.toString()) continue; // người tự bấm thì đã biết
+
+      const message =
+        titles.length === 1
+          ? `Bạn được giao công việc "${titles[0]}" theo phương án tối ưu hóa vừa áp dụng.`
+          : `Bạn được giao ${titles.length} công việc theo phương án tối ưu hóa vừa áp dụng: ${titles
+              .slice(0, 3)
+              .map((t) => `"${t}"`)
+              .join(', ')}${titles.length > 3 ? `, và ${titles.length - 3} việc nữa` : ''}.`;
+
+      sendNotification({
+        recipient: userId,
+        actor: req.user._id,
+        type: 'task_assigned',
+        title: 'Phân công từ kết quả tối ưu hóa',
+        message,
+        entityType: 'optimization',
+        entityId: result._id,
+        link: '/tasks',
+      });
+    }
 
     logActivity({
       req,

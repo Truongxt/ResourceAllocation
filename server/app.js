@@ -17,6 +17,7 @@ const activityLogRoutes = require('./src/routes/activityLog.routes');
 // Import middleware
 const { errorHandler, notFound } = require('./src/middleware/error');
 const { apiLimiter } = require('./src/middleware/rateLimit');
+const { sanitizeRequest } = require('./src/middleware/sanitize');
 
 const app = express();
 
@@ -44,6 +45,10 @@ app.use(
 app.use(morgan('dev'));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Đặt ngay sau bước parse và trước mọi route: từ đây trở đi không controller nào
+// còn nhìn thấy toán tử Mongo trong dữ liệu người dùng gửi lên.
+app.use(sanitizeRequest);
 
 // API Routes
 app.use('/api', apiLimiter);

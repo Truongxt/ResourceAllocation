@@ -109,4 +109,26 @@ S('Đăng nhập đúng không bị tính vào ngưỡng');
   ok(results.every((s) => s === 200), 'Đăng nhập đúng nhiều lần liên tiếp vẫn qua', results.join(', '));
 }
 
+// ══════════════════════════════════════════════
+S('Cắt toán tử Mongo trên request thật');
+{
+  // Đây là đòn kinh điển: biến "email bằng X" thành "email lớn hơn chuỗi rỗng",
+  // tức khớp mọi bản ghi. Middleware phải cắt trước khi tới controller.
+  const injected = await call('POST', '/auth/login', {
+    body: { email: { $gt: '' }, password: 'password123' },
+  });
+  ok(injected.status !== 200, 'Đăng nhập bằng toán tử $gt không lọt', `(${injected.status})`);
+  ok(!injected.data?.token, 'Không cấp token cho request đã bị cắt toán tử');
+
+  const injectedQuery = await fetch(`${API}/health?status[$ne]=ok`);
+  ok(injectedQuery.status === 200, 'Toán tử trong query string không làm chết request');
+
+  // Và quan trọng không kém: đăng nhập bình thường vẫn phải chạy sau khi thêm
+  // middleware. Cắt nhầm dữ liệu hợp lệ còn khó lần ra hơn là không cắt gì.
+  const normal = await call('POST', '/auth/login', {
+    body: { email: 'admin@rao.com', password: 'password123' },
+  });
+  ok(normal.status === 200 && normal.data?.token, 'Đăng nhập hợp lệ vẫn qua bình thường');
+}
+
 process.exit(summary() === 0 ? 0 : 1);

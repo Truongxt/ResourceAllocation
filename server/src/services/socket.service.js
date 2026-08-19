@@ -1,4 +1,5 @@
 const Notification = require('../models/Notification');
+const { sendNotificationEmail } = require('./email.service');
 
 let ioInstance = null;
 
@@ -50,6 +51,11 @@ const sendNotification = async ({
 
     // Emit real-time socket event to the recipient's room
     emitToUser(recipient, 'notification:new', populated);
+
+    // Gửi mail song song, không chờ: người nhận đang mở ứng dụng thì đã thấy
+    // thông báo realtime rồi, không việc gì bắt request đứng đợi SMTP. Hàm này
+    // tự nuốt mọi lỗi bên trong nên không cần .catch ở đây.
+    sendNotificationEmail(populated.toObject ? populated.toObject() : populated);
 
     return populated;
   } catch (error) {

@@ -12,6 +12,20 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code chứ không theo trí nhớ.
 
+- **Cắt toán tử Mongo khỏi mọi request** (`src/middleware/sanitize.js`, mount ngay sau bước
+  parse và trước mọi route). Xóa khóa bắt đầu bằng `$`, khóa chứa `.`, và `__proto__` /
+  `constructor` / `prototype`. Đòn kinh điển bị chặn: `{"email": {"$gt": ""}}` biến điều kiện
+  "email bằng X" thành "khớp mọi bản ghi". Trước đây chỉ có `express-validator` từng route —
+  phòng thủ theo từng chỗ, quên một route là hở một route.
+  Cố ý **xóa khóa** chứ không từ chối cả request, và có giới hạn độ sâu 12 tầng để payload
+  lồng sâu không làm nghẽn CPU. 19 kiểm thử đơn vị, trong đó có ca "payload tạo task thật đi
+  qua nguyên vẹn" — cắt nhầm dữ liệu hợp lệ còn khó lần ra hơn là không cắt gì.
+- **Nhật ký kiểm toán cho hành động chỉ Admin làm được**: xóa nhân sự, xóa phòng ban, tính lại
+  workload, xóa nhật ký hoạt động. Bốn thao tác này trước đây không để lại vết nào.
+  Riêng thao tác xóa nhật ký ghi log **sau** lệnh `deleteMany` — ghi trước thì chính lệnh xóa
+  cuốn luôn bản ghi vừa tạo, và xóa sạch vết trở thành thao tác duy nhất trong hệ thống không
+  để lại vết.
+
 - **Giới hạn tần suất** (`express-rate-limit`): 10 lần đăng nhập **sai** / 15 phút mỗi IP cho
   `/auth/login` và `/auth/register`, 1000 request / 15 phút cho phần còn lại của API. Đăng nhập
   đúng không bị tính vào ngưỡng nên không khóa nhầm người dùng thật. Ngưỡng đặt qua
@@ -123,6 +137,29 @@ Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code ch�
 - `server/src/algorithms/scoring.js` — hàm tính fitness/metrics dùng chung cho GA và CSP.
 - `server/src/config/jwt.js` — nguồn duy nhất cho JWT secret và thời hạn token.
 - `server/src/middleware/taskAccess.js` — phân quyền theo bản ghi cho công việc.
+
+### Added
+
+- **Email thông báo khi được giao việc** (10.6) — `src/config/mail.js` + `src/services/email.service.js`,
+  gửi qua nodemailer. **Mặc định tắt**: thiếu `SMTP_HOST` hoặc `MAIL_FROM` thì hệ thống chạy
+  bình thường, thông báo chỉ hiện trong ứng dụng; trạng thái bật/tắt in ra lúc khởi động.
+  Chỉ loại `task_assigned` được gửi mail — gửi cả `task_status_changed` thì mỗi lần ai đó đổi
+  trạng thái một công việc là một cái mail, người dùng lọc thẳng vào thùng rác và mất luôn
+  cái đáng đọc. Gửi song song không chờ, và mọi lỗi SMTP bị nuốt trong service: hỏng mail
+  không được phép làm hỏng việc giao task. Nội dung do người dùng nhập được escape ở bản HTML.
+  27 kiểm thử đơn vị, chạy không cần SMTP.
+
+### Fixed
+
+- **Áp dụng kết quả tối ưu hóa không báo cho ai** — chỗ này gọi `sendNotification` với
+  `recipient: null` kèm ý định "gửi cho tất cả user", nhưng hàm đó bỏ qua ngay khi thiếu
+  recipient. Nghĩa là giao việc hàng loạt xong không một ai được thông báo, dù FEATURES 5.7
+  ghi là có. Nay báo cho từng người vừa được giao, **gộp một thông báo cho mỗi người** thay vì
+  mỗi công việc một cái — áp dụng phương án 30 task nếu không gộp là 30 thông báo và 30 email
+  vào cùng một hộp thư.
+- Xóa `src/services/notification.service.js`: code chết, không file nào trong `src` lẫn `tests`
+  import. Đường thật là `sendNotification` trong `socket.service.js`. Để lại thì sớm muộn có
+  người nối email vào nhầm service.
 
 ### Added
 

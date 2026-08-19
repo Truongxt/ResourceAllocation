@@ -600,6 +600,20 @@ let gaId;
 
   const applied = await call('POST', `/optimization/${gaId}/apply`, { token: TOK.admin });
   ok(applied.status === 200 && applied.data.appliedCount > 0, 'Admin áp dụng kết quả', `(${applied.data?.appliedCount} task)`);
+
+  // Trước đây chỗ này gọi sendNotification với recipient: null nên áp dụng xong
+  // KHÔNG ai được báo. Kiểm bằng hộp thông báo của chính người được giao việc.
+  const memberNotifs = await call('GET', '/notifications', { token: TOK.member });
+  const fromApply = (memberNotifs.data?.notifications || []).filter(
+    (n) => n.title === 'Phân công từ kết quả tối ưu hóa'
+  );
+  ok(fromApply.length > 0, 'Áp dụng xong thì người được giao việc nhận được thông báo');
+  ok(fromApply.length === 1,
+    'Mỗi người chỉ nhận MỘT thông báo gộp, không phải mỗi task một cái',
+    `(${fromApply.length})`);
+  ok(fromApply[0]?.type === 'task_assigned',
+    'Đúng loại task_assigned — đây cũng là loại duy nhất được gửi email');
+
   const twice = await call('POST', `/optimization/${gaId}/apply`, { token: TOK.admin });
   ok(twice.status === 400, 'Áp dụng lần 2 → 400');
 }
@@ -671,6 +685,11 @@ S('8. Notifications & Activity Logs');
   const actions = new Set(logs.data.logs.map((l) => l.action));
   ok(actions.has('CREATE_PROJECT') && actions.has('CREATE_TASK'), 'ghi nhận CREATE_PROJECT và CREATE_TASK');
   ok(actions.has('APPLY_OPTIMIZATION'), 'ghi nhận APPLY_OPTIMIZATION');
+  // Lọc theo action thay vì quét trang đầu: thao tác này chạy từ rất sớm trong
+  // bộ test nên đã bị 20 bản ghi mới hơn đẩy khỏi trang mặc định.
+  const recalcLogs = await call('GET', '/activity-logs?action=RECALCULATE_WORKLOAD', { token: TOK.admin });
+  ok((recalcLogs.data?.logs || []).length > 0,
+    'ghi nhận RECALCULATE_WORKLOAD — thao tác Admin ghi đè workload toàn hệ thống');
   ok(logs.data.logs.every((l) => l.description && l.entityType), 'mỗi log có description + entityType');
 
   const stats = await call('GET', '/activity-logs/stats', { token: TOK.admin });
@@ -693,6 +712,23 @@ S('9. Dọn dẹp fixture');
   ok(forced.status === 200, 'Xóa dự án với ?force=true → 200');
   const orphan = await call('GET', `/tasks/${taskB}`, { token: TOK.admin });
   ok(orphan.status === 404, 'Task của dự án đã xóa cũng bị xóa theo');
+
+  const afterDeletes = await call('GET', '/activity-logs?limit=100', { token: TOK.admin });
+  const deleteActions = new Set((afterDeletes.data?.logs || []).map((l) => l.action));
+  ok(deleteActions.has('DELETE_RESOURCE'), 'Xóa nhân sự để lại vết trong nhật ký');
+  ok(deleteActions.has('DELETE_DEPARTMENT'), 'Xóa phòng ban để lại vết trong nhật ký');
+
+  // Để cuối cùng vì nó xóa sạch nhật ký. Điểm cần kiểm: bản ghi "đã xóa nhật ký"
+  // phải SỐNG SÓT — ghi trước lệnh xóa thì chính nó bị cuốn đi, và thao tác xóa
+  // sạch vết trở thành thao tác duy nhất không để lại vết.
+  const cleared = await call('DELETE', '/activity-logs', { token: TOK.admin });
+  ok(cleared.status === 200, 'Admin xóa nhật ký → 200');
+
+  const afterClear = await call('GET', '/activity-logs', { token: TOK.admin });
+  const remaining = afterClear.data?.logs || [];
+  ok(remaining.length === 1, 'Sau khi xóa sạch còn đúng 1 bản ghi', `(${remaining.length})`);
+  ok(remaining[0]?.action === 'CLEAR_ACTIVITY_LOGS',
+    'Bản ghi còn lại chính là vết của thao tác xóa nhật ký');
 }
 
 // ══════════════════════════════════════════════

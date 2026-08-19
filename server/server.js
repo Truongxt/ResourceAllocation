@@ -11,6 +11,7 @@ const app = require('./app');
 const connectDB = require('./src/config/db');
 const { setIO } = require('./src/services/socket.service');
 const { getJwtSecret, assertJwtConfig } = require('./src/config/jwt');
+const { logMailStatus } = require('./src/services/email.service');
 
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
@@ -71,6 +72,9 @@ const startServer = async () => {
 ║  Health:  http://localhost:${PORT}/api/health    ║
 ╚═══════════════════════════════════════════════╝
       `);
+      // In ngay trạng thái email: bật hay tắt, và nếu tắt thì vì sao. Không có
+      // dòng này thì "sao tôi không nhận được mail" phải đi đọc code mới biết.
+      logMailStatus();
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);

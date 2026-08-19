@@ -187,7 +187,7 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 10.3 | Multi-language | Hỗ trợ Tiếng Việt + English | ⬜ | Optional — hiện chỉ có tiếng Việt |
 | 10.4 | Import Data | Import dự án/nhân sự từ CSV | ✅ | Modal **dán nội dung CSV** (chưa hỗ trợ chọn file) trong Projects & Resources |
 | 10.5 | Activity Log | Nhật ký hoạt động hệ thống | ✅ | Model + service + controller + trang ActivityLogs, lọc theo entity/action/user/thời gian |
-| 10.6 | Email Notifications | Gửi email khi được assign task | ⬜ | Optional — chưa có |
+| 10.6 | Email Notifications | Gửi email khi được assign task | ✅ | **Mặc định tắt**, chỉ bật khi khai báo đủ `SMTP_HOST` + `MAIL_FROM`; trạng thái in ra lúc khởi động. Chỉ loại `task_assigned` được gửi mail — gửi mọi loại thì hộp thư ngập ngay ngày đầu. Lỗi SMTP không làm hỏng luồng giao việc |
 
 ---
 
@@ -204,10 +204,10 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 7. Analytics | 7 | 7 | 0 | 0 |
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
-| 10. Bổ sung | 6 | 4 | 0 | 2 |
-| **Tổng** | **78** | **76 (97.4%)** | **0** | **2 (2.6%)** |
+| 10. Bổ sung | 6 | 5 | 0 | 1 |
+| **Tổng** | **78** | **77 (98.7%)** | **0** | **1 (1.3%)** |
 
-Hai mục còn lại đều nằm trong nhóm tùy chọn của Module 10 (đa ngôn ngữ, email).
+Mục còn lại là đa ngôn ngữ (10.3), thuộc nhóm tùy chọn của Module 10.
 
 ---
 
@@ -218,7 +218,7 @@ Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 1. **Ảnh chụp workload định kỳ** — 7.7 hiện suy ra chuỗi thời gian từ lịch công việc, đủ để
    nhìn về phía trước nhưng không phải số liệu lịch sử. Muốn trả lời "tháng trước đội thực
    sự chạy ở mức nào" thì phải chụp và lưu theo ngày.
-2. Đa ngôn ngữ (10.3), email notification (10.6).
+2. Đa ngôn ngữ (10.3).
 3. **Ràng buộc all-different trong CSP** — AC-3 trên `≠` không suy luận được kiểu chuồng
    bồ câu; muốn phát hiện sớm những trường hợp đó cần thuật toán Régin.
 
@@ -265,8 +265,10 @@ mới chặn. Script là loại một lần, xong hết mọi môi trường th�
 |-------|---------|
 | `helmet` (nosniff, frameguard, HSTS…) | Chưa có refresh token / thu hồi token |
 | CORS giới hạn theo `CLIENT_URL` cho cả REST lẫn Socket.IO | Token để trong `localStorage` — XSS đọc được (đánh đổi tiêu chuẩn của SPA) |
-| Giới hạn tần suất: 10 lần đăng nhập sai / 15 phút, 1000 request / 15 phút | Chưa chống NoSQL injection ở tầng middleware (hiện dựa vào `express-validator` từng route) |
-| Giới hạn body 1 MB | Chưa có log kiểm toán cho hành động của Admin ngoài `ActivityLog` |
+| Giới hạn tần suất: 10 lần đăng nhập sai / 15 phút, 1000 request / 15 phút | |
+| Giới hạn body 1 MB | |
+| **Cắt toán tử Mongo** khỏi body/query/params ở tầng middleware (`src/middleware/sanitize.js`) — xóa khóa bắt đầu bằng `$`, chứa `.`, và ba khóa gây ô nhiễm prototype | |
+| **Nhật ký kiểm toán cho hành động Admin**: xóa nhân sự, xóa phòng ban, tính lại workload, xóa nhật ký. Riêng thao tác xóa nhật ký được ghi **sau** lệnh xóa nên vết của nó sống sót | |
 | Stack trace chỉ lộ khi `NODE_ENV=development` | |
 | `JWT_SECRET` bắt buộc khi `NODE_ENV=production`, thiếu là không khởi động | |
 

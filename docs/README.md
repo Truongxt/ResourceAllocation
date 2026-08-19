@@ -48,7 +48,7 @@ skill matrix. Chi tiết từng endpoint: xem [API.md](./API.md).
 │  │  └──────────────────┘  └──────────────────────────┘  ││
 │  └──────────────────────────────────────────────────────┘│
 │  ┌──────────────────────────────────────────────────────┐│
-│  │  Services: socket · notification · activityLog       ││
+│  │  Services: socket · email · activityLog              ││
 │  └──────────────────────────────────────────────────────┘│
 └─────────────────────┬───────────────────────────────────┘
                       │ Mongoose ODM
@@ -86,12 +86,12 @@ ResourceAllocation/
 │   ├── app.js                 # Express app + mount routes
 │   └── src/
 │       ├── algorithms/        # genetic/ + csp/
-│       ├── config/            # db.js
+│       ├── config/            # db.js, jwt.js, mail.js
 │       ├── controllers/       # 9 controllers
-│       ├── middleware/        # auth, error, validate
+│       ├── middleware/        # auth, error, validate, rateLimit, sanitize
 │       ├── models/            # 8 Mongoose models
 │       ├── routes/            # 9 route files (kèm validation inline)
-│       ├── services/          # socket, notification, activityLog
+│       ├── services/          # socket, email, activityLog
 │       └── utils/             # seeder.js
 ├── server/tests/              # Kiểm thử end-to-end qua API + Socket.IO (npm test)
 └── docs/                      # Documentation
