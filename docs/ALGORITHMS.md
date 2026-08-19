@@ -172,18 +172,28 @@ H3 và H4 có bộ kiểm thử đơn vị riêng, chạy thẳng vào `CSPSolve
 Luồng thực tế trong `CSPSolver.solve()`:
 
 ```
-1. BUILD-DOMAINS(tasks, resources)
-     Dⱼ = { r | H2(r, tⱼ) ∧ H3(r, tⱼ) }        // lọc theo skill + availability
-     Nếu tồn tại Dⱼ = ∅  →  trả về infeasibleTasks, dừng
-
-2. REDUCE-DOMAINS(domains)                      // lặp tối đa 100 vòng
-     Dⱼ ← { r ∈ Dⱼ | effort(tⱼ) ≤ C[r] × FTE }  // lọc unary theo capacity
-     Nếu tồn tại Dⱼ = ∅  →  trả về "ràng buộc quá chặt", dừng
-
-3. BUILD-CONFLICTS(tasks)                       // chuẩn bị cho H4
+1. BUILD-CONFLICTS(tasks)                       // đồ thị ràng buộc nhị phân H4
      conflicts[i] = { j | (i,j) phụ thuộc nhau ∧ lịch chồng nhau }
 
-4. BACKTRACK(assignment)                        // MRV + LCV + kiểm tra H1, H4
+2. BUILD-DOMAINS(tasks, resources)              // ràng buộc đơn phân
+     Dⱼ = { r | H2(r, tⱼ) ∧ H3(r, tⱼ) }        // lọc theo skill + availability
+     Nếu tồn tại Dⱼ = ∅  →  "một số công việc không có nhân sự phù hợp", dừng
+
+3. NODE-CONSISTENCY(domains)                    // ràng buộc đơn phân theo capacity
+     Dⱼ ← { r ∈ Dⱼ | effort(tⱼ) ≤ C[r] × FTE }
+
+4. AC-3(domains, conflicts)                     // lan truyền ràng buộc nhị phân
+     queue ← mọi cung (i, j) có ràng buộc
+     while queue:
+         (i, j) ← queue.pop()
+         if REVISE(i, j):
+             nếu Dᵢ = ∅  →  "ràng buộc quá chặt", dừng
+             đẩy lại mọi cung (k, i) với k ∈ conflicts[i], k ≠ j
+
+     REVISE(i, j) với ràng buộc xᵢ ≠ xⱼ:
+         nếu |Dⱼ| = 1 thì bỏ giá trị đó khỏi Dᵢ
+
+5. BACKTRACK(assignment)                        // MRV + LCV + kiểm tra H1, H4
      if |assignment| = |tasks|: return assignment
      var ← MRV(unassigned)
      for r in LCV(Dvar):
@@ -196,11 +206,23 @@ Luồng thực tế trong `CSPSolver.solve()`:
 **Điều kiện dừng của backtracking**: `maxIterations` (mặc định 10 000) hoặc
 `timeout` (mặc định 30 000 ms).
 
-> ⚠️ **Bước 2 không phải AC-3 thật.** AC-3 làm việc trên các *cung* (arc) giữa hai biến
-> và loại giá trị không có giá trị hỗ trợ ở biến còn lại. Code hiện chỉ áp dụng bộ lọc
-> **unary** trên từng biến độc lập (task có vừa capacity của resource đó không), và chạy
-> **một lần trước** khi backtrack — không lồng trong vòng lặp tìm kiếm. Comment trong
-> `CSPSolver.js` cũng ghi rõ đây là "simplified AC-3".
+Bước 3 và 4 là hai việc khác nhau và trước đây bị gộp làm một dưới cái tên "AC-3":
+node consistency chỉ nhìn **một** biến (task này có vừa capacity của người kia không),
+còn arc consistency nhìn **quan hệ giữa hai** biến.
+
+> **Giới hạn của AC-3 trên ràng buộc `≠`.** Một giá trị `x ∈ Dᵢ` chỉ mất chỗ dựa khi
+> `Dⱼ = {x}`, nên AC-3 chỉ lan truyền được từ những biến **đã bị ép về một giá trị duy
+> nhất**. Nó **không** suy luận kiểu chuồng bồ câu — 8 công việc xung đột nhau từng đôi
+> mà chỉ có 5 nhân sự thì AC-3 không phát hiện ra là vô nghiệm. Muốn vậy phải dùng ràng
+> buộc **all-different** (thuật toán Régin dựa trên ghép cặp), không phải AC-3.
+>
+> Trên dữ liệu mẫu hiện tại AC-3 **không cắt được giá trị nào**, vì ngưỡng H2 = 0.5 rất
+> hiếm khi ép một task về đúng một nhân sự. Cái được đo lường rõ là **phát hiện vô nghiệm
+> sớm**: trường hợp nhiều công việc xung đột nhau cùng chỉ một người làm được, AC-3 kết
+> luận với **0 vòng backtracking** và trả về đúng thông báo "ràng buộc quá chặt", thay vì
+> để backtracking dò rồi báo chung chung là "không tìm thấy giải pháp".
+>
+> `solve()` trả thêm `propagation: { prunedValues, revisions, arcs }` để đối chiếu.
 
 ### 2.5 Heuristics
 
@@ -208,8 +230,9 @@ Luồng thực tế trong `CSPSolver.solve()`:
 |-----------|-----------|----------------|
 | **MRV** (Minimum Remaining Values) | ✅ | Sắp xếp biến chưa gán theo `domain.length` tăng dần, lấy biến đầu |
 | **LCV** (Least Constraining Value) | ✅ | Sắp xếp resource theo capacity còn lại **giảm dần** |
-| Lọc miền theo capacity | ✅ | Bộ lọc unary ở bước 2 (được đặt tên "AC-3" trong code) |
-| **AC-3** đúng nghĩa | ❌ | Chưa implement |
+| **Node consistency** theo capacity | ✅ | `_nodeConsistency()` — bước 3 |
+| **AC-3** đúng nghĩa | ✅ | `_arcConsistency()` — bước 4, chạy trên đồ thị H4, có đẩy lại cung sau mỗi lần cắt |
+| **All-different** (Régin) | ❌ | Chưa implement — xem giới hạn của AC-3 trên `≠` ở mục 2.4 |
 
 ---
 

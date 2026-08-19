@@ -10,6 +10,13 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Added
 
+- **AC-3 đúng nghĩa trong CSPSolver** (5.2) — tách hẳn hai bước từng bị gộp dưới một cái tên:
+  `_nodeConsistency()` lọc theo capacity (ràng buộc đơn phân), `_arcConsistency()` chạy AC-3
+  thật trên đồ thị ràng buộc nhị phân H4, có hàng đợi cung và đẩy lại cung sau mỗi lần cắt.
+  Phát hiện vô nghiệm với **0 vòng backtracking** và trả đúng thông báo "ràng buộc quá chặt"
+  thay vì "không tìm thấy giải pháp". `solve()` trả thêm `propagation` để đối chiếu.
+  Ghi rõ giới hạn: trên ràng buộc `≠`, AC-3 chỉ lan truyền từ biến đã bị ép về một giá trị
+  và không suy luận được kiểu chuồng bồ câu — cần all-different (Régin) cho việc đó.
 - **Hybrid nối CSP → GA thật sự** (5.11) — `CSPSolver.buildFeasibleDomains()` đưa miền giá
   trị đã lọc (H2 skill, H3 availability, capacity) sang `GeneticAlgorithm.optimize()`;
   `_initializePopulation` và `_mutate` chỉ chọn trong miền đó, nên mọi cá thể đều thỏa mãn
@@ -104,7 +111,9 @@ Rà soát toàn bộ tài liệu, đối chiếu với mã nguồn và kiểm ch
 - **FEATURES.md**: Module 3, 4 và 6 lên đủ, 5.4 lên ✅, thêm mục 5.11 (Hybrid vốn không hề
   có trong bảng dù đã có endpoint); thống kê tổng từ 81.8% lên **93.6%** (≈94.9% nếu tính
   mục dở dang theo 50%); rút gọn backlog còn 4 hạng mục; ghi lại chênh lệch thang level
-  giữa Resource (1-4) và Task (1-5) cần quyết định.
+  giữa Resource (1-4) và Task (1-5) cần quyết định. Sau khi có AC-3: **94.9%**.
+- **ALGORITHMS.md mục 2.4/2.5**: viết lại pseudo-code thành 5 bước tách bạch, bỏ cảnh báo
+  "bước 2 không phải AC-3 thật", bổ sung giới hạn của arc consistency trên ràng buộc `≠`.
 - **ALGORITHMS.md mục 3**: viết lại toàn bộ phần Hybrid — bỏ sơ đồ "hiện trạng chạy độc lập"
   và "thiết kế mục tiêu chưa implement", thay bằng luồng thật, bảng ảnh hưởng của miền lên
   từng toán tử di truyền, cách xử lý miền rỗng và số đo trước/sau.
