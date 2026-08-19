@@ -218,6 +218,25 @@ S('4b. Phân quyền công việc');
   const ghost = await call('PUT', '/tasks/000000000000000000000000', { token: TOK.member, body: { progress: 10 } });
   ok(ghost.status === 404, 'Member sửa task không tồn tại → 404 (không lộ thành 403)');
 
+  // Đúng payload mà thao tác kéo thả trên sơ đồ Gantt gửi lên.
+  const reschedule = await call('PUT', `/tasks/${ownId}`, {
+    token: TOK.pm,
+    body: { startDate: '2026-09-01T00:00:00.000Z', endDate: '2026-09-10T00:00:00.000Z' },
+  });
+  ok(
+    reschedule.status === 200 && reschedule.data.task.startDate.startsWith('2026-09-01'),
+    'PM kéo thả đổi lịch task (startDate + endDate) → 200'
+  );
+
+  const memberReschedule = await call('PUT', `/tasks/${ownId}`, {
+    token: TOK.member,
+    body: { startDate: '2026-09-02T00:00:00.000Z', endDate: '2026-09-11T00:00:00.000Z' },
+  });
+  ok(memberReschedule.status === 403, 'Member đổi lịch task của mình → 403 (Gantt ẩn thao tác kéo thả)');
+
+  const badDate = await call('PUT', `/tasks/${ownId}`, { token: TOK.pm, body: { startDate: 'hôm qua' } });
+  ok(badDate.status === 400, 'Ngày bắt đầu không hợp lệ → 400');
+
   await call('DELETE', `/tasks/${ownId}`, { token: TOK.admin });
 }
 
