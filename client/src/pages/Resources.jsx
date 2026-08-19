@@ -22,6 +22,8 @@ import {
   Avatar,
   Switch,
   Divider,
+  DatePicker,
+  Alert,
 } from 'antd';
 import {
   PlusOutlined,
@@ -36,7 +38,9 @@ import {
   ApartmentOutlined,
   ThunderboltOutlined,
   MinusCircleOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import resourceService from '../services/resourceService';
 import departmentService from '../services/departmentService';
 
@@ -56,6 +60,22 @@ const AVAILABILITY_OPTIONS = [
   { value: 'unavailable', label: 'Không khả dụng', color: 'error' },
 ];
 
+/** Kỳ nghỉ đang diễn ra hôm nay, nếu có. */
+function currentLeave(resource) {
+  const today = dayjs();
+  return (resource.unavailablePeriods || []).find(
+    (p) => today.isAfter(dayjs(p.startDate).startOf('day')) && today.isBefore(dayjs(p.endDate).endOf('day'))
+  );
+}
+
+/** Kỳ nghỉ gần nhất trong tương lai, nếu có. */
+function nextLeave(resource) {
+  const today = dayjs();
+  return (resource.unavailablePeriods || [])
+    .filter((p) => dayjs(p.startDate).isAfter(today))
+    .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
+}
+
 export default function Resources() {
   const [resources, setResources] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -67,6 +87,7 @@ export default function Resources() {
   // Modals state
   const [resourceModalOpen, setResourceModalOpen] = useState(false);
   const [skillsModalOpen, setSkillsModalOpen] = useState(false);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [editingResource, setEditingResource] = useState(null);
   const [editingDepartment, setEditingDepartment] = useState(null);
@@ -74,6 +95,7 @@ export default function Resources() {
 
   const [resourceForm] = Form.useForm();
   const [skillsForm] = Form.useForm();
+  const [leaveForm] = Form.useForm();
   const [departmentForm] = Form.useForm();
 
   // Load resources & departments
@@ -156,6 +178,43 @@ export default function Resources() {
       })),
     });
     setSkillsModalOpen(true);
+  };
+
+  const openLeaveModal = (res) => {
+    setEditingResource(res);
+    leaveForm.setFieldsValue({
+      periods: (res.unavailablePeriods || [])
+        .slice()
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+        .map((p) => ({
+          range: [dayjs(p.startDate), dayjs(p.endDate)],
+          reason: p.reason || '',
+        })),
+    });
+    setLeaveModalOpen(true);
+  };
+
+  const handleLeaveSubmit = async (values) => {
+    if (!editingResource) return;
+    setSubmitting(true);
+    try {
+      const unavailablePeriods = (values.periods || [])
+        .filter((p) => p?.range?.length === 2)
+        .map((p) => ({
+          startDate: p.range[0].startOf('day').toISOString(),
+          endDate: p.range[1].endOf('day').toISOString(),
+          reason: p.reason?.trim() || '',
+        }));
+
+      await resourceService.update(editingResource._id, { unavailablePeriods });
+      message.success('Cập nhật lịch nghỉ thành công');
+      setLeaveModalOpen(false);
+      await loadResources();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Không thể cập nhật lịch nghỉ');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleResourceSubmit = async (values) => {
@@ -337,9 +396,29 @@ export default function Resources() {
       title: 'Trạng thái',
       dataIndex: 'availability',
       key: 'availability',
-      render: (avail) => {
+      render: (avail, record) => {
         const opt = AVAILABILITY_OPTIONS.find((a) => a.value === avail) || { label: avail, color: 'default' };
-        return <Tag color={opt.color}>{opt.label}</Tag>;
+        const now = currentLeave(record);
+        const next = nextLeave(record);
+        return (
+          <Space direction="vertical" size={2}>
+            <Tag color={opt.color} style={{ margin: 0 }}>{opt.label}</Tag>
+            {now && (
+              <Tooltip title={now.reason || 'Không ghi lý do'}>
+                <Tag color="error" style={{ margin: 0, fontSize: 11 }}>
+                  Đang nghỉ tới {dayjs(now.endDate).format('DD/MM')}
+                </Tag>
+              </Tooltip>
+            )}
+            {!now && next && (
+              <Tooltip title={next.reason || 'Không ghi lý do'}>
+                <Tag color="warning" style={{ margin: 0, fontSize: 11 }}>
+                  Nghỉ từ {dayjs(next.startDate).format('DD/MM')}
+                </Tag>
+              </Tooltip>
+            )}
+          </Space>
+        );
       },
     },
     {
@@ -399,9 +478,17 @@ export default function Resources() {
     {
       title: 'Hành động',
       key: 'actions',
-      width: 100,
+      width: 140,
       render: (_, record) => (
         <Space size="small">
+          <Tooltip title={`Lịch nghỉ (${(record.unavailablePeriods || []).length} kỳ)`}>
+            <Button
+              type="text"
+              icon={<CalendarOutlined />}
+              onClick={() => openLeaveModal(record)}
+              style={(record.unavailablePeriods || []).length ? { color: '#f59e0b' } : undefined}
+            />
+          </Tooltip>
           <Tooltip title="Chỉnh sửa thông tin">
             <Button type="text" icon={<EditOutlined />} onClick={() => openEditResource(record)} />
           </Tooltip>
@@ -851,6 +938,74 @@ export default function Resources() {
               <Button onClick={() => setSkillsModalOpen(false)}>Hủy</Button>
               <Button type="primary" htmlType="submit" loading={submitting}>
                 Lưu Skill Matrix
+              </Button>
+            </Space>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Lịch nghỉ / Unavailable Periods */}
+      <Modal
+        title={`Lịch nghỉ — ${editingResource?.user?.name || editingResource?.position}`}
+        open={leaveModalOpen}
+        onCancel={() => setLeaveModalOpen(false)}
+        footer={null}
+        width={640}
+        destroyOnClose
+      >
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginTop: 8 }}
+          message="Lịch nghỉ ảnh hưởng trực tiếp tới kết quả tối ưu hóa"
+          description="CSP Solver loại nhân sự khỏi những công việc có thời gian giao với kỳ nghỉ (ràng buộc H3). Các kỳ nghỉ không được chồng lên nhau."
+        />
+
+        <Form form={leaveForm} layout="vertical" onFinish={handleLeaveSubmit} style={{ marginTop: 16 }}>
+          <Form.List name="periods">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...restField }) => (
+                  <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'range']}
+                      rules={[{ required: true, message: 'Chọn khoảng thời gian nghỉ' }]}
+                      style={{ width: 280, marginBottom: 0 }}
+                    >
+                      <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                    </Form.Item>
+
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'reason']}
+                      style={{ width: 240, marginBottom: 0 }}
+                    >
+                      <Input placeholder="Lý do (nghỉ phép, công tác…)" maxLength={200} />
+                    </Form.Item>
+
+                    <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ef4444' }} />
+                  </Space>
+                ))}
+                <Form.Item style={{ marginTop: 12 }}>
+                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                    Thêm kỳ nghỉ
+                  </Button>
+                </Form.Item>
+                {fields.length === 0 && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Chưa có kỳ nghỉ nào — nhân sự này khả dụng trong toàn bộ thời gian.
+                  </Text>
+                )}
+              </>
+            )}
+          </Form.List>
+
+          <div style={{ textAlign: 'right', marginTop: 16 }}>
+            <Space>
+              <Button onClick={() => setLeaveModalOpen(false)}>Hủy</Button>
+              <Button type="primary" htmlType="submit" loading={submitting}>
+                Lưu lịch nghỉ
               </Button>
             </Space>
           </div>

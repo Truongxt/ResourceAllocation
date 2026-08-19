@@ -29,6 +29,42 @@ const listValidation = [
   query('skillLevel').optional().isInt({ min: 1, max: 4 }).withMessage('Level kỹ năng phải từ 1 đến 4'),
 ];
 
+/**
+ * Lịch nghỉ: CSP solver dùng dữ liệu này cho ràng buộc H3 (loại nhân sự có kỳ nghỉ
+ * giao với thời gian task), nên khoảng lệch hay chồng nhau sẽ làm sai kết quả phân bổ
+ * một cách âm thầm. Kiểm tra ngay ở tầng validation.
+ */
+const unavailablePeriodsValidation = body('unavailablePeriods')
+  .optional()
+  .isArray()
+  .withMessage('Lịch nghỉ phải là mảng')
+  .bail()
+  .custom((periods) => {
+    const parsed = periods.map((period, index) => {
+      const start = new Date(period?.startDate);
+      const end = new Date(period?.endDate);
+
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        throw new Error(`Kỳ nghỉ thứ ${index + 1}: thiếu hoặc sai định dạng ngày`);
+      }
+      if (end < start) {
+        throw new Error(`Kỳ nghỉ thứ ${index + 1}: ngày kết thúc trước ngày bắt đầu`);
+      }
+      if (period.reason && String(period.reason).length > 200) {
+        throw new Error(`Kỳ nghỉ thứ ${index + 1}: lý do không vượt quá 200 ký tự`);
+      }
+      return { start, end };
+    });
+
+    parsed.sort((a, b) => a.start - b.start);
+    for (let i = 1; i < parsed.length; i++) {
+      if (parsed[i].start <= parsed[i - 1].end) {
+        throw new Error('Các kỳ nghỉ không được chồng lên nhau');
+      }
+    }
+    return true;
+  });
+
 const createValidation = [
   body()
     .custom((value) => {
@@ -78,6 +114,7 @@ const createValidation = [
     .isFloat({ min: 0 })
     .withMessage('Hourly rate phải >= 0'),
   body('skills').optional().isArray().withMessage('Skills phải là mảng'),
+  unavailablePeriodsValidation,
 ];
 
 const updateValidation = [
@@ -101,6 +138,7 @@ const updateValidation = [
     .optional()
     .isIn(['available', 'partially_available', 'unavailable'])
     .withMessage('Trạng thái khả dụng không hợp lệ'),
+  unavailablePeriodsValidation,
 ];
 
 const skillsValidation = [
