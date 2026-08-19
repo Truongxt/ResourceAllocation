@@ -131,7 +131,7 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 
 ---
 
-## Module 7: Resource Histogram & Analytics 🔨
+## Module 7: Resource Histogram & Analytics ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
@@ -141,7 +141,15 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 7.4 | Burnout Risk Index | Chỉ số rủi ro burnout (Thấp/TB/Cao) | ✅ | API tính `>120%` cao, `>90%` trung bình; cột trong bảng và thẻ tổng đều hiển thị đúng |
 | 7.5 | Before/After Compare | So sánh trước/sau tối ưu hóa | ✅ | StdDev tải, số nhân sự quá tải, skill match, và bảng delta workload từng người |
 | 7.6 | Team Analytics | Thống kê theo team/department | ✅ | Thẻ phòng ban + capacity & workload |
-| 7.7 | Trend Charts | Biểu đồ xu hướng workload theo thời gian | ⬜ | **Chưa có chuỗi thời gian.** Hiện chỉ có phân bố task theo status/priority và tỉ lệ giờ ước tính/thực tế |
+| 7.7 | Trend Charts | Biểu đồ xu hướng workload theo thời gian | ✅ | Tab **Xu hướng theo thời gian** trong Báo cáo: cột tải + đường năng lực, dải nhiệt từng nhân sự, gộp theo ngày/tuần, lọc theo dự án, xuất CSV. Là khối lượng **đã cam kết** suy ra từ lịch công việc, không phải nhật ký quá khứ — xem ghi chú dưới bảng |
+
+> **7.7 trả lời câu hỏi nào.** Hệ thống không lưu ảnh chụp workload theo ngày, nên biểu đồ
+> này được **suy ra** từ lịch: giờ ước tính của mỗi công việc trải đều lên các ngày làm việc
+> trong khoảng của nó rồi cộng theo từng người. Nó cho biết *khối lượng đã cam kết rơi vào
+> lúc nào* — đủ để thấy trước tuần nào ai sẽ quá tải — chứ **không** cho biết tháng trước ai
+> đã thực sự làm bao nhiêu giờ. Muốn có số liệu lịch sử thật thì phải chụp và lưu định kỳ,
+> đó là hạng mục khác. Vì là suy ra, mọi giờ công không đặt được lên trục thời gian (thiếu
+> ngày, chưa giao người) đều được đếm riêng và hiện thành cảnh báo, thay vì lặng lẽ biến mất.
 
 ---
 
@@ -193,11 +201,13 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 4. Resources | 10 | 10 | 0 | 0 |
 | 5. Optimization | 11 | 11 | 0 | 0 |
 | 6. Gantt Chart | 8 | 8 | 0 | 0 |
-| 7. Analytics | 7 | 6 | 0 | 1 |
+| 7. Analytics | 7 | 7 | 0 | 0 |
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 4 | 0 | 2 |
-| **Tổng** | **78** | **75 (96.2%)** | **0** | **3 (3.8%)** |
+| **Tổng** | **78** | **76 (97.4%)** | **0** | **2 (2.6%)** |
+
+Hai mục còn lại đều nằm trong nhóm tùy chọn của Module 10 (đa ngôn ngữ, email).
 
 ---
 
@@ -205,7 +215,9 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 
 Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 
-1. **Trend chart theo thời gian** (7.7).
+1. **Ảnh chụp workload định kỳ** — 7.7 hiện suy ra chuỗi thời gian từ lịch công việc, đủ để
+   nhìn về phía trước nhưng không phải số liệu lịch sử. Muốn trả lời "tháng trước đội thực
+   sự chạy ở mức nào" thì phải chụp và lưu theo ngày.
 2. Đa ngôn ngữ (10.3), email notification (10.6).
 3. **Ràng buộc all-different trong CSP** — AC-3 trên `≠` không suy luận được kiểu chuồng
    bồ câu; muốn phát hiện sớm những trường hợp đó cần thuật toán Régin.

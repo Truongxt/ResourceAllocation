@@ -27,6 +27,24 @@ Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code ch�
 
 ### Added
 
+- **Xu hướng khối lượng theo thời gian** (7.7) — `GET /api/analytics/workload-trend` và tab
+  **Xu hướng theo thời gian** trong Báo cáo: cột tải kèm đường năng lực, dải nhiệt từng nhân
+  sự, gộp theo ngày hoặc tuần, lọc theo dự án, xuất CSV mỗi mốc một cột.
+  Phép tính nằm trong `src/analytics/workloadTrend.js` (thuần, không chạm DB): giờ ước tính
+  của mỗi công việc trải đều lên các **ngày làm việc** trong khoảng của nó; capacity ngày là
+  `maxCapacity × fte / 5`, bằng 0 vào cuối tuần và trong lịch nghỉ đã đăng ký.
+  Ghi rõ ngay trên giao diện rằng đây là **khối lượng đã cam kết suy ra từ lịch**, không phải
+  nhật ký quá khứ — hệ thống không lưu ảnh chụp workload theo ngày, nên nó cho biết tuần nào
+  ai sẽ quá tải chứ không cho biết tháng trước ai đã thực sự làm bao nhiêu.
+  Ba chỗ cố tình không làm tắt:
+  - `Resource.availability` không được dùng: đó là trạng thái hiện tại, không gắn với ngày
+    nào, áp lên cả trục thời gian sẽ bóp méo cả quá khứ lẫn tương lai. Chỉ `unavailablePeriods`
+    (có ngày cụ thể) mới trừ capacity.
+  - Capacity bằng 0 thì `utilization` trả `null` chứ không phải 0% — không có mẫu số thì không
+    có tỉ lệ. Trường hợp có việc mà không có ngày làm việc nào được báo bằng cờ
+    `worksWhileUnavailable`, không quy thành một con số phần trăm bịa ra.
+  - Giờ công không đặt được lên trục thời gian (thiếu ngày, ngày ngược, chưa giao người) được
+    đếm riêng trong `excluded` và hiện thành cảnh báo, thay vì lặng lẽ biến mất khỏi biểu đồ.
 - **So sánh song song nhiều phương án** (5.6) — `GET /api/optimization/compare?ids=` đặt 2–4
   lần chạy cạnh nhau: 9 chỉ số kèm đánh dấu bên thắng, và bảng phân công ghép theo từng công
   việc để thấy hai thuật toán chọn khác nhau ở đâu. Trên giao diện: tick chọn trong tab Lịch

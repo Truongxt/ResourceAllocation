@@ -72,7 +72,7 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 
 - [Tổng quan dự án](./docs/README.md)
 - [Danh sách tính năng](./docs/FEATURES.md)
-- [API Documentation](./docs/API.md) — 52 endpoints
+- [API Documentation](./docs/API.md) — 53 endpoints
 - [Database Schema](./docs/DATABASE.md) — 8 collections
 - [Thuật toán](./docs/ALGORITHMS.md)
 - [Thiết kế hệ thống](./docs/architecture/SYSTEM_DESIGN.md)

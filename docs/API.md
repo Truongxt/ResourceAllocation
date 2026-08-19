@@ -4,7 +4,7 @@
 > Base URL: `http://localhost:5000/api`
 >
 > Tài liệu này đã được đối chiếu trực tiếp với mã nguồn (`server/src/routes/`, `server/src/controllers/`)
-> và kiểm chứng bằng request thật. Tổng cộng **52 endpoints**.
+> và kiểm chứng bằng request thật. Tổng cộng **53 endpoints**.
 
 ## Chú thích
 
@@ -540,6 +540,7 @@ Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
 | GET | `/dashboard` | Tổng quan dashboard (projects/tasks/resources + hoạt động gần đây) | 🔒 |
 | GET | `/utilization` | Utilization từng nhân sự + theo phòng ban + burnout risk | 🔒 |
 | GET | `/tasks` | Phân bố task theo status/priority/project + tỉ lệ giờ | 🔒 |
+| GET | `/workload-trend` | Chuỗi thời gian khối lượng vs năng lực | 🔒 |
 | GET | `/optimization-comparison/:id` | So sánh trạng thái hiện tại vs kết quả tối ưu hóa | 🔒 |
 
 ### GET `/api/analytics/utilization`
@@ -560,6 +561,63 @@ Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
 }
 ```
 > Field là `summary.highBurnout` (không phải `highBurnoutRisk`).
+
+### GET `/api/analytics/workload-trend`
+
+| Query | Mặc định | Ghi chú |
+|---|---|---|
+| `from`, `to` | trọn khoảng các công việc chiếm | ISO date; sai định dạng → **400** |
+| `granularity` | `day` | `day` \| `week`; tuần bắt đầu từ thứ Hai |
+| `projectId` | tất cả | sai định dạng ObjectId → **400** |
+
+```json
+{
+  "success": true,
+  "data": {
+    "trend": {
+      "granularity": "week",          // có thể KHÁC tham số gửi lên, xem bên dưới
+      "from": "2026-03-02T00:00:00.000Z",
+      "to": "2026-03-13T00:00:00.000Z",
+      "truncated": false,
+      "buckets": [ { "key": "2026-03-02", "start": "...", "end": "...", "label": "Tuần 02/03" } ],
+      "totals": [ { "load": 40, "capacity": 40, "utilization": 100, "overloaded": 0 } ],
+      "resources": [
+        { "_id": "...", "name": "...", "position": "...",
+          "load": [40, 32], "capacity": [40, 40],
+          "peakUtilization": 100, "worksWhileUnavailable": false }
+      ],
+      "excluded": { "unscheduledTasks": 2, "unscheduledHours": 17,
+                    "unassignedTasks": 1, "unassignedHours": 8 }
+    }
+  }
+}
+```
+
+**Đây là dữ liệu suy ra, không phải dữ liệu ghi nhận.** Hệ thống không lưu ảnh chụp workload
+theo ngày. Endpoint trải `estimatedHours` của mỗi công việc đều lên các **ngày làm việc**
+trong khoảng `startDate`–`endDate` của nó rồi cộng theo từng người. Nó trả lời "khối lượng đã
+cam kết rơi vào lúc nào", **không** trả lời "tháng trước ai đã thực sự làm bao nhiêu".
+
+Các quy ước cần biết để không đọc sai:
+
+- `load` và `capacity` là hai mảng **song song với `buckets`**, cùng độ dài, index khớp nhau.
+- Capacity ngày = `maxCapacity × fte / 5` (`maxCapacity` là giờ mỗi **tuần**). Bằng **0** vào
+  cuối tuần và trong `unavailablePeriods`.
+- `Resource.availability` **cố tình không được dùng**: đó là trạng thái hiện tại, không gắn
+  với ngày nào, nên áp nó lên cả trục thời gian sẽ bóp méo cả quá khứ lẫn tương lai.
+- `utilization` là `null` khi capacity bằng 0 — không có mẫu số thì không có tỉ lệ, và 0%
+  sẽ là một lời nói dối. Cùng lý do, `peakUtilization` chỉ tính trên các mốc có capacity;
+  trường hợp "có việc nhưng không có ngày làm việc nào" được báo bằng cờ
+  `worksWhileUnavailable` chứ không quy thành một con số phần trăm.
+- Công việc nằm **trọn trong cuối tuần** không có ngày làm việc nào để chia; khi đó giờ được
+  chia đều cho ngày lịch, để số giờ không bốc hơi khỏi biểu đồ.
+- Capacity được cộng cho **mọi** nhân sự đang hoạt động, kể cả người chưa được giao việc gì.
+  Thiếu họ thì đường capacity tổng bị hụt và cả đội trông như đang quá tải.
+- `excluded` đếm số giờ **không đặt được lên trục thời gian** (thiếu ngày, ngày kết thúc
+  trước ngày bắt đầu, chưa giao người, hoặc người được giao không còn là nhân sự hoạt động).
+  Chúng không nằm trong biểu đồ, nên phải được báo lại thay vì im lặng biến mất.
+- Khoảng quá dài mà vẽ theo ngày sẽ tự **hạ xuống tuần** — vì vậy `granularity` trong response
+  mới là nguồn đúng, không phải tham số đã gửi. Vượt trần số mốc thì cắt bớt và bật `truncated`.
 
 ### GET `/api/analytics/optimization-comparison/:id`
 ```json

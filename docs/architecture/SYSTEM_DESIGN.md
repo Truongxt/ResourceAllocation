@@ -101,7 +101,10 @@ server/
     │                   #   express-validator), rateLimit (authLimiter/apiLimiter)
     ├── algorithms/
     │   ├── genetic/    # GeneticAlgorithm.js
-    │   └── csp/        # CSPSolver.js
+    │   ├── csp/        # CSPSolver.js
+    │   └── scoring.js  # Thang điểm dùng chung cho cả GA và CSP
+    ├── analytics/      # Tính toán thuần, không chạm DB — workloadTrend.js (chuỗi
+    │                   #   thời gian khối lượng, kiểm thử đơn vị được)
     ├── config/         # db.js (kết nối Mongoose), jwt.js (nguồn duy nhất cho JWT)
     └── utils/          # seeder.js (dữ liệu mẫu), cleanup.js (dọn dữ liệu mồ côi)
 ```
