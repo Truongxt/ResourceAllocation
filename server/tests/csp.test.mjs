@@ -38,6 +38,12 @@ const resource = (id, overrides = {}) => ({
   ...overrides,
 });
 
+/** Task cần một kỹ năng hiếm, dùng để ép miền về đúng một nhân sự. */
+const needing = (id, from, to, skill, dependencies = []) => ({
+  ...task(id, from, to, dependencies),
+  requiredSkills: [{ name: skill, level: 3, weight: 1 }],
+});
+
 const solver = () => new CSPSolver({ timeout: 5000 });
 const assignedTo = (result, taskId) =>
   result.assignments.find((a) => a.task === taskId)?.resource;
@@ -222,6 +228,121 @@ S('H3 — lịch nghỉ của nhân sự');
   const result = await solver().solve(tasks, [resource('R1', { availability: 'unavailable' })]);
 
   ok(!result.success, "availability='unavailable' loại nhân sự khỏi mọi task");
+}
+
+// ══════════════════════════════════════════════
+S('AC-3 — lan truyền ràng buộc H4');
+// ══════════════════════════════════════════════
+{
+  // A chỉ R0 làm được (kỹ năng hiếm). B phụ thuộc A, chồng lịch, ai cũng làm được.
+  // AC-3 phải loại R0 khỏi miền của B trước khi backtracking bắt đầu.
+  const tasks = [needing('A', 1, 10, 'COBOL'), task('B', 5, 15, ['A'])];
+  const resources = [resource('R0', { skills: [{ name: 'COBOL', level: 4 }] }), resource('R1')];
+
+  const domains = solver().buildFeasibleDomains(tasks, resources);
+  ok(JSON.stringify(domains[0]) === '[0]', 'A bị ép về đúng một nhân sự', JSON.stringify(domains[0]));
+  ok(JSON.stringify(domains[1]) === '[1]', 'AC-3 loại nhân sự đó khỏi miền của B', JSON.stringify(domains[1]));
+}
+
+{
+  // Dây chuyền: A={R0}. B xung đột A → còn {R1}. C xung đột B → còn {R2}.
+  // Chỉ lan truyền được nếu AC-3 đẩy lại cung sau mỗi lần cắt.
+  const tasks = [
+    needing('A', 1, 10, 'COBOL'),
+    needing('B', 5, 15, 'Java', ['A']),
+    needing('C', 8, 20, 'Java', ['B']),
+  ];
+  const resources = [
+    resource('R0', { skills: [{ name: 'COBOL', level: 4 }, { name: 'Java', level: 4 }] }),
+    resource('R1', { skills: [{ name: 'Java', level: 4 }] }),
+    resource('R2', { skills: [{ name: 'Java', level: 4 }] }),
+  ];
+
+  const domains = solver().buildFeasibleDomains(tasks, resources);
+  ok(JSON.stringify(domains[0]) === '[0]', 'Dây chuyền: A = {R0}', JSON.stringify(domains[0]));
+  ok(JSON.stringify(domains[1]) === '[1,2]', 'B mất R0', JSON.stringify(domains[1]));
+  ok(
+    JSON.stringify(domains[2]) === '[0,1,2]',
+    'C chưa cắt được vì B còn hai lựa chọn — giới hạn của arc consistency trên ràng buộc ≠',
+    JSON.stringify(domains[2])
+  );
+}
+
+{
+  // Lan truyền hai bước: A={R0} ép B về {R1}, rồi chính B={R1} ép C về {R2}.
+  const tasks = [
+    needing('A', 1, 10, 'COBOL'),
+    needing('B', 5, 15, 'Java', ['A']),
+    needing('C', 8, 20, 'Java', ['B']),
+  ];
+  const resources = [
+    resource('R0', { skills: [{ name: 'COBOL', level: 4 }, { name: 'Java', level: 4 }] }),
+    resource('R1', { skills: [{ name: 'Java', level: 4 }] }),
+    resource('R2', { skills: [{ name: 'Java', level: 4 }] }),
+  ];
+  // Kỳ nghỉ 05–07/03 chỉ giao với B (05–15) chứ không giao với C (08–20),
+  // nên B mất R2 còn C vẫn giữ đủ ba lựa chọn ban đầu.
+  resources[2].unavailablePeriods = [{ startDate: day(5), endDate: day(7) }];
+
+  const domains = solver().buildFeasibleDomains(tasks, resources);
+  ok(JSON.stringify(domains[1]) === '[1]', 'B bị ép về một giá trị', JSON.stringify(domains[1]));
+  ok(
+    JSON.stringify(domains[2]) === '[0,2]',
+    'Rồi chính B lan tiếp sang C — cung được đẩy lại sau mỗi lần cắt',
+    JSON.stringify(domains[2])
+  );
+}
+
+{
+  // Cả hai task đều chỉ có R0 làm được, mà lại xung đột nhau → vô nghiệm.
+  // AC-3 phát hiện ngay, không cần backtrack tới lúc hết giờ.
+  const tasks = [needing('A', 1, 10, 'COBOL'), needing('B', 5, 15, 'COBOL', ['A'])];
+  const resources = [resource('R0', { skills: [{ name: 'COBOL', level: 4 }] }), resource('R1')];
+
+  const result = await solver().solve(tasks, resources);
+  ok(!result.success, 'Hai việc xung đột cùng cần một người → vô nghiệm');
+  ok(
+    /ràng buộc quá chặt/i.test(result.message || ''),
+    'Báo là ràng buộc quá chặt, không phải "không có nhân sự phù hợp"',
+    result.message
+  );
+  ok((result.infeasibleTasks || []).length === 1, 'Nêu đúng task bị kẹt',
+    (result.infeasibleTasks || []).join(', '));
+  ok(result.iterations === 0, 'Không tốn một vòng backtracking nào', `(${result.iterations})`);
+}
+
+{
+  // Không biến nào bị ép về một giá trị → AC-3 không cắt được gì. Ghi lại cho rõ
+  // đây là giới hạn của arc consistency trên ≠, không phải lỗi.
+  const tasks = [task('A', 1, 10), task('B', 5, 15, ['A'])];
+  const resources = [resource('R0'), resource('R1')];
+
+  const domains = solver().buildFeasibleDomains(tasks, resources);
+  ok(
+    domains.every((d) => d.length === 2),
+    'Hai biến cùng hai lựa chọn: AC-3 không cắt được giá trị nào'
+  );
+}
+
+{
+  // Node consistency (capacity) là bước riêng, không phụ thuộc H4.
+  const heavy = { ...task('A', 1, 10), estimatedHours: 100 };
+  const result = await solver().solve([heavy], [resource('R0', { maxCapacity: 40, fte: 1 })]);
+
+  ok(!result.success, 'Task nặng hơn capacity của mọi nhân sự → vô nghiệm');
+  ok((result.infeasibleTasks || []).length === 1, 'Báo rõ task nào không xếp được');
+}
+
+{
+  // Báo cáo lan truyền để đối chiếu được, thay vì chỉ tin là nó có chạy.
+  const tasks = [needing('A', 1, 10, 'COBOL'), task('B', 5, 15, ['A'])];
+  const resources = [resource('R0', { skills: [{ name: 'COBOL', level: 4 }] }), resource('R1')];
+  const result = await solver().solve(tasks, resources);
+
+  ok(result.propagation?.prunedValues === 1, 'Đếm đúng số giá trị bị AC-3 cắt',
+    `(${result.propagation?.prunedValues})`);
+  ok(result.propagation?.arcs === 2, 'Đếm đúng số cung (mỗi cặp xung đột là hai chiều)',
+    `(${result.propagation?.arcs})`);
 }
 
 process.exit(summary() === 0 ? 0 : 1);
