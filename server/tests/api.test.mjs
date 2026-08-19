@@ -516,6 +516,77 @@ let gaId;
   const gone = await call('GET', '/optimization/000000000000000000000000', { token: TOK.admin });
   ok(gone.status === 404, 'Kết quả không tồn tại → 404');
 
+  // ── So sánh song song nhiều phương án ──
+  const cspId = csp.data.result._id;
+  const hyId = hy.data.result._id;
+
+  // Thứ tự cột phải theo thứ tự người dùng chọn, nên cố tình đảo so với thứ tự chạy.
+  const cmpOrder = [hyId, gaId, cspId];
+  const cmp = await call('GET', `/optimization/compare?ids=${cmpOrder.join(',')}`, { token: TOK.admin });
+  ok(cmp.status === 200, 'GET /optimization/compare → 200 (không bị nuốt bởi route /:id)');
+
+  const C = cmp.data?.comparison;
+  ok(C.results.map((r) => String(r._id)).join(',') === cmpOrder.join(','),
+    'Giữ đúng thứ tự phương án người dùng chọn');
+  ok(C.results.map((r) => r.algorithm).join(',') === 'hybrid,genetic,csp', 'Đúng 3 thuật toán');
+
+  // Payload phải gọn: bảng so sánh không dùng hai mảng nặng nhất.
+  ok(C.results[0].metrics.resourceUtilization === undefined, 'Không kèm resourceUtilization');
+  ok(C.results[0].constraintReport?.details === undefined, 'Không kèm constraintReport.details');
+  ok(C.results[1].constraintReport === null, 'GA không có constraintReport → null, không phải 0');
+
+  const fitnessRow = C.metrics.find((m) => m.key === 'fitness');
+  ok(fitnessRow.values.length === 3 && fitnessRow.values.every((v) => typeof v === 'number'),
+    'Chỉ số fitness có đủ giá trị cho cả 3');
+  ok(fitnessRow.bestIndex === null ||
+    fitnessRow.values[fitnessRow.bestIndex] === Math.max(...fitnessRow.values),
+    'bestIndex của fitness trỏ đúng giá trị lớn nhất', `(${fitnessRow.values.join(' / ')})`);
+
+  const timeRow = C.metrics.find((m) => m.key === 'executionTime');
+  ok(timeRow.higherIsBetter === false &&
+    (timeRow.bestIndex === null || timeRow.values[timeRow.bestIndex] === Math.min(...timeRow.values)),
+    'Thời gian chạy: nhỏ hơn mới là thắng');
+
+  const utilRow = C.metrics.find((m) => m.key === 'averageUtilization');
+  ok(utilRow.higherIsBetter === null && utilRow.bestIndex === null,
+    'Tỉ lệ sử dụng là chỉ số tham khảo, không trao giải cho ai');
+
+  const violatedRow = C.metrics.find((m) => m.key === 'violatedConstraints');
+  ok(violatedRow.values[1] === null, 'GA không có số ràng buộc vi phạm → null chứ không quy về 0');
+
+  const diff = C.assignments;
+  ok(diff.rows.length > 0 && diff.rows.every((r) => r.cells.length === 3),
+    'Mỗi công việc có đúng 3 ô, kể cả ô trống');
+  ok(diff.rows.every((r) => !r.agreed || r.comparable), 'Chỉ công việc so được mới tính là đồng thuận');
+  ok(diff.agreed <= diff.comparable && diff.comparable <= diff.total, 'Đếm đồng thuận không vượt mẫu số');
+  ok(diff.agreementRate === null || (diff.agreementRate >= 0 && diff.agreementRate <= 100),
+    'Tỉ lệ đồng thuận trong khoảng 0-100', `(${diff.agreementRate}%)`);
+  const firstAgreed = diff.rows.findIndex((r) => r.agreed);
+  const lastDiffer = diff.rows.map((r) => r.agreed).lastIndexOf(false);
+  ok(firstAgreed === -1 || lastDiffer < firstAgreed, 'Công việc khác nhau xếp lên trước');
+
+  ok(C.warnings.length === 0, 'Ba lần chạy cùng phạm vi → không cảnh báo gì');
+
+  // Chạy thêm một phương án chỉ trong 1 dự án để kiểm tra cảnh báo lệch phạm vi.
+  const scoped = await call('POST', '/optimization/run/genetic', {
+    token: TOK.admin, body: { projectId, populationSize: 20, maxGenerations: 20 },
+  });
+  const mixed = await call('GET', `/optimization/compare?ids=${gaId},${scoped.data.result._id}`, { token: TOK.admin });
+  ok(mixed.data.comparison.warnings.length >= 2,
+    'So khác phạm vi → cảnh báo cả về dự án lẫn số công việc',
+    `(${mixed.data.comparison.warnings.length} cảnh báo)`);
+
+  const one = await call('GET', `/optimization/compare?ids=${gaId}`, { token: TOK.admin });
+  ok(one.status === 400, 'So sánh 1 phương án → 400');
+  const dup = await call('GET', `/optimization/compare?ids=${gaId},${gaId}`, { token: TOK.admin });
+  ok(dup.status === 400, 'Chọn trùng một phương án hai lần → 400 (khử trùng trước khi đếm)');
+  const tooMany = await call('GET', `/optimization/compare?ids=${[gaId, cspId, hyId, gaId + '', '000000000000000000000001', '000000000000000000000002'].join(',')}`, { token: TOK.admin });
+  ok(tooMany.status === 400, 'So sánh quá 4 phương án → 400');
+  const badId = await call('GET', `/optimization/compare?ids=${gaId},khong-phai-id`, { token: TOK.admin });
+  ok(badId.status === 400, 'ID sai định dạng → 400');
+  const missing = await call('GET', `/optimization/compare?ids=${gaId},000000000000000000000000`, { token: TOK.admin });
+  ok(missing.status === 404, 'Có ID không tồn tại → 404');
+
   const memberApply = await call('POST', `/optimization/${gaId}/apply`, { token: TOK.member });
   ok(memberApply.status === 403, 'Member áp dụng kết quả → 403');
 
