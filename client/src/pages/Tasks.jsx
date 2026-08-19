@@ -22,6 +22,7 @@ import {
   Segmented,
   Avatar,
   Empty,
+  AutoComplete,
 } from 'antd';
 import {
   PlusOutlined,
@@ -36,12 +37,18 @@ import {
   SyncOutlined,
   CloseCircleOutlined,
   UserOutlined,
+  MinusCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import taskService from '../services/taskService';
 import projectService from '../services/projectService';
 import resourceService from '../services/resourceService';
-import { TASK_STATUSES as STATUS_COLS, PRIORITY_OPTIONS, ROLES } from '../constants';
+import {
+  TASK_STATUSES as STATUS_COLS,
+  PRIORITY_OPTIONS,
+  REQUIRED_SKILL_LEVEL_OPTIONS,
+  ROLES,
+} from '../constants';
 import { invalidPredecessors } from '../utils/gantt';
 import { useAuth } from '../context/AuthContext';
 import './Tasks.css';
@@ -136,6 +143,14 @@ export default function Tasks() {
     };
   }, [modalOpen, canManageTasks, selectedProject]);
 
+  // Gợi ý tên kỹ năng từ Skill Matrix của nhân sự. Thuật toán so khớp kỹ năng
+  // theo TÊN, nên gõ lệch một chữ là điểm khớp về 0 mà không có cảnh báo nào.
+  const knownSkillOptions = useMemo(() => {
+    const names = new Set();
+    resources.forEach((r) => (r.skills || []).forEach((s) => s?.name && names.add(s.name.trim())));
+    return [...names].sort((a, b) => a.localeCompare(b, 'vi')).map((value) => ({ value }));
+  }, [resources]);
+
   // Loại chính công việc đang sửa và mọi công việc phụ thuộc vào nó — chọn chúng
   // làm tiền nhiệm sẽ tạo vòng lặp. Server kiểm tra lại điều này khi lưu.
   const dependencyOptions = useMemo(() => {
@@ -178,7 +193,7 @@ export default function Tasks() {
       progress: 0,
       estimatedHours: 8,
       assignee: undefined,
-      requiredSkills: '',
+      requiredSkills: [],
       dependencies: [],
     });
     setModalOpen(true);
@@ -195,7 +210,13 @@ export default function Tasks() {
       priority: task.priority || 'medium',
       progress: task.progress || 0,
       assignee: assigneeId,
-      requiredSkills: (task.requiredSkills || []).map((s) => (typeof s === 'string' ? s : s.name)).filter(Boolean).join(', '),
+      // Giữ nguyên level/weight đã lưu — trước đây form chỉ đọc tên rồi ghi đè
+      // level về 2, nên mỗi lần sửa task là mất luôn mức yêu cầu đã đặt.
+      requiredSkills: (task.requiredSkills || []).map((s) =>
+        typeof s === 'string'
+          ? { name: s, level: 3, weight: 1 }
+          : { name: s.name, level: s.level ?? 3, weight: s.weight ?? 1 }
+      ),
       dependencies: (task.dependencies || []).map((d) => d?._id || d).filter(Boolean),
       dateRange:
         task.startDate && task.endDate ? [dayjs(task.startDate), dayjs(task.endDate)] : undefined,
@@ -218,13 +239,13 @@ export default function Tasks() {
       actualHours: Number(values.actualHours) || 0,
       assignee: values.assignee || null,
       dependencies: values.dependencies || [],
-      requiredSkills: values.requiredSkills
-        ? values.requiredSkills
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean)
-            .map((name) => ({ name, level: 2 }))
-        : [],
+      requiredSkills: (values.requiredSkills || [])
+        .filter((s) => s?.name?.trim())
+        .map((s) => ({
+          name: s.name.trim(),
+          level: Number(s.level) || 3,
+          weight: s.weight === undefined || s.weight === null ? 1 : Number(s.weight),
+        })),
     };
 
     if (values.dateRange && values.dateRange.length === 2) {
@@ -318,6 +339,21 @@ export default function Tasks() {
             <Paragraph type="secondary" ellipsis={{ rows: 1 }} style={{ fontSize: 12, margin: '2px 0 0' }}>
               {record.description}
             </Paragraph>
+          )}
+          {(record.requiredSkills || []).length > 0 && (
+            <Space size={[4, 4]} wrap style={{ marginTop: 4 }}>
+              {record.requiredSkills.map((skill, idx) => (
+                <Tooltip
+                  key={idx}
+                  title={`Mức yêu cầu ${skill.level ?? 3}/4 · trọng số ${skill.weight ?? 1}`}
+                >
+                  <Tag color="cyan" style={{ fontSize: 10, margin: 0 }}>
+                    {skill.name} Lv.{skill.level ?? 3}
+                    {(skill.weight ?? 1) !== 1 && ` ×${skill.weight}`}
+                  </Tag>
+                </Tooltip>
+              ))}
+            </Space>
           )}
         </div>
       ),
@@ -653,11 +689,61 @@ export default function Tasks() {
           </Form.Item>
 
           <Form.Item
-            name="requiredSkills"
             label="Kỹ năng yêu cầu (Required Skills)"
-            extra="Nhập các kỹ năng phân cách bằng dấu phẩy (VD: React, Node.js, MongoDB)"
+            extra="Thuật toán chấm điểm theo công thức Σ(weight × min(level_nhân_sự, level_yêu_cầu)) / Σ(weight × level_yêu_cầu). Tên kỹ năng phải trùng với tên trong Skill Matrix của nhân sự (không phân biệt hoa thường)."
+            style={{ marginBottom: 12 }}
           >
-            <Input placeholder="React, Node.js, SQL" />
+            <Form.List name="requiredSkills">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'name']}
+                        rules={[{ required: true, message: 'Nhập tên kỹ năng' }]}
+                        style={{ width: 210, marginBottom: 0 }}
+                      >
+                        <AutoComplete
+                          placeholder="Tên kỹ năng (VD: React)"
+                          options={knownSkillOptions}
+                          filterOption={(input, option) =>
+                            option.value.toLowerCase().includes(input.toLowerCase())
+                          }
+                        />
+                      </Form.Item>
+
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'level']}
+                        style={{ width: 210, marginBottom: 0 }}
+                      >
+                        <Select options={REQUIRED_SKILL_LEVEL_OPTIONS} placeholder="Mức yêu cầu" />
+                      </Form.Item>
+
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'weight']}
+                        style={{ width: 130, marginBottom: 0 }}
+                        tooltip="Trọng số 0-1: kỹ năng càng quan trọng thì đặt càng gần 1"
+                      >
+                        <InputNumber min={0} max={1} step={0.1} addonBefore="TS" style={{ width: '100%' }} />
+                      </Form.Item>
+
+                      <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ef4444' }} />
+                    </Space>
+                  ))}
+                  <Button
+                    type="dashed"
+                    onClick={() => add({ level: 3, weight: 1 })}
+                    block
+                    icon={<PlusOutlined />}
+                  >
+                    Thêm kỹ năng yêu cầu
+                  </Button>
+                </>
+              )}
+            </Form.List>
           </Form.Item>
 
           {canManageTasks && (
