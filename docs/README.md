@@ -73,11 +73,13 @@ ResourceAllocation/
 ├── client/                    # Frontend
 │   ├── src/
 │   │   ├── components/        # common/ (ProtectedRoute), layout/ (Sidebar, Header)
-│   │   ├── pages/             # 11 page components + CSS riêng
+│   │   ├── pages/             # 12 page components + CSS riêng
 │   │   ├── context/           # AuthContext, SocketContext, ThemeContext
 │   │   ├── services/          # 10 API service module (Axios)
-│   │   ├── constants/         # Constants (hiện chưa được import ở đâu)
+│   │   ├── constants/         # Enum dùng chung, khớp schema Mongoose
+│   │   ├── utils/             # gantt.js — logic thuần (CPM, thời lượng, mốc)
 │   │   └── styles/            # index.css + antdTheme.js
+│   ├── tests/                 # Kiểm thử logic thuần chạy bằng node (npm test)
 │   └── vite.config.js         # Dev server port 5173 + proxy /api → :5000
 ├── server/                    # Backend
 │   ├── server.js              # HTTP server + Socket.IO + start
@@ -91,6 +93,7 @@ ResourceAllocation/
 │       ├── routes/            # 9 route files (kèm validation inline)
 │       ├── services/          # socket, notification, activityLog
 │       └── utils/             # seeder.js
+├── server/tests/              # Kiểm thử end-to-end qua API + Socket.IO (npm test)
 └── docs/                      # Documentation
 ```
 

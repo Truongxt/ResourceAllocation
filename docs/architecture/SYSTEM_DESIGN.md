@@ -72,13 +72,16 @@ src/
 │                       #   Settings, ActivityLogs
 ├── context/            # State Management — AuthContext, SocketContext, ThemeContext
 ├── services/           # Data Access Layer — 10 service module dùng chung instance Axios
-├── constants/          # Application constants (hiện KHÔNG được import ở đâu — dead code)
+├── constants/          # Enum dùng chung (role, status, priority…), khớp schema Mongoose
+├── utils/              # Logic thuần, không phụ thuộc React — gantt.js (CPM, mốc, thời lượng)
 └── styles/             # index.css + antdTheme.js (cấu hình theme Ant Design)
 ```
 
-> Biểu đồ và Gantt được vẽ trực tiếp bằng CSS/DOM trong từng trang, không tách thành
-> thư mục `components/charts/`. Dự án hiện **không có** thư mục `hooks/`, `utils/`,
-> `components/forms/`.
+Ngoài `src/` còn có `client/tests/` — kiểm thử logic thuần chạy trực tiếp bằng node
+(`npm test`), không cần trình duyệt hay framework test.
+
+> Biểu đồ và Gantt được vẽ trực tiếp bằng CSS/DOM/SVG trong từng trang, không tách thành
+> thư mục `components/charts/`. Dự án hiện **không có** thư mục `hooks/` hay `components/forms/`.
 
 ### 2.2 Server Layer
 
@@ -283,6 +286,5 @@ biến thành 401 khó chẩn đoán ở request đầu tiên.
 > `http://localhost:5000/api`, khiến client gọi thẳng server và bỏ qua proxy — cả hai cách
 > đều chạy được ở môi trường dev.
 
-> ⚠️ **`utils/seeder.js` không dùng đúng biến này**: nó đọc `process.env.MONGO_URI`
-> (thiếu chữ `DB`) và gọi `dotenv.config()` không kèm đường dẫn, nên luôn ghi vào
-> `mongodb://localhost:27017/resource_allocation` bất kể cấu hình.
+`utils/seeder.js` đọc cùng biến `MONGODB_URI` và nạp `.env` từ thư mục gốc dự án
+(`dotenv.config({ path: ... })`), nên seed đúng database đang cấu hình.

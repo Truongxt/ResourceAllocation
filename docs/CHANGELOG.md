@@ -6,13 +6,75 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
-## [Chưa phát hành] - 2026-08-18
+## [Chưa phát hành] - 2026-08-19
+
+### Added
+
+- **Sơ đồ Gantt nâng cao** — hoàn thành 5 tính năng còn thiếu của Module 6:
+  - Kéo thả đổi lịch: kéo thanh để dời cả hai đầu, kéo hai mép để đổi riêng ngày bắt đầu
+    hoặc kết thúc; snap theo ngày, cập nhật lạc quan rồi hoàn tác nếu server từ chối.
+    Chỉ Admin/PM thấy thao tác này, khớp với `canModifyTask` ở server.
+  - Mũi tên phụ thuộc vẽ bằng SVG (đường Bézier + đầu mũi tên). Phụ thuộc bị vi phạm —
+    task sau bắt đầu trước khi task trước kết thúc — vẽ đỏ đứt nét kèm cảnh báo đếm số lượng.
+  - Đường găng theo CPM đầy đủ (lượt xuôi/ngược, slack = 0), viền vàng trên thanh và
+    mũi tên vàng trên chuỗi găng; phát hiện chu trình phụ thuộc và báo thay vì trả kết quả sai.
+  - Gộp hàng theo dự án hoặc theo nhân sự, thu gọn được, kèm dải tổng hợp thời gian và
+    % tiến độ trung bình của nhóm.
+  - Mốc (milestone): task có thời lượng 0 vẽ thành hình thoi, viền màu theo mức ưu tiên.
+  - Thêm chấm màu ưu tiên trên mỗi thanh và bảng chú giải đầy đủ.
+- `client/src/utils/gantt.js` — tách phần logic thuần (CPM, thời lượng, nhận diện mốc)
+  khỏi component để chạy và kiểm thử được bằng node.
+- `client/tests/gantt.test.mjs` + script `npm test` cho client — 24 assertion phủ CPM
+  (chuỗi tuần tự, nhánh song song có slack, chu trình, dependency trỏ ra ngoài tập, mốc).
+- `PRIORITY_COLORS` trong `client/src/constants` — mã màu thật cho những chỗ vẽ trực tiếp.
+- 3 assertion end-to-end cho đúng payload mà thao tác kéo thả gửi lên
+  (PM đổi lịch → 200, Member đổi lịch → 403, ngày sai định dạng → 400).
+- **Trang chi tiết dự án** `ProjectDetail.jsx` (route `/projects/:id`) — 4 thẻ thống kê,
+  3 tab (Tổng quan / Công việc / Thành viên) và UI thêm–sửa–gỡ thành viên kèm `%` phân bổ.
+- **Bộ kiểm thử end-to-end** `server/tests/` — 158 assertion qua API thật và Socket.IO,
+  chạy trên database và cổng riêng nên không đụng dữ liệu dev (`cd server && npm test`).
+- `server/src/algorithms/scoring.js` — hàm tính fitness/metrics dùng chung cho GA và CSP.
+- `server/src/config/jwt.js` — nguồn duy nhất cho JWT secret và thời hạn token.
+- `server/src/middleware/taskAccess.js` — phân quyền theo bản ghi cho công việc.
+
+### Changed
+
+- **Siết phân quyền công việc và ma trận kỹ năng**: `POST /tasks`, `DELETE /tasks/:id` và
+  `PUT /resources/:id/skills` giới hạn Admin/PM. `PUT /tasks/:id` và `PATCH /tasks/:id/status`
+  cho phép thêm người được giao việc, nhưng chỉ ba trường `status`, `progress`, `actualHours` —
+  gửi kèm trường khác bị chặn 403 kèm tên trường bị từ chối. Giao diện ẩn/vô hiệu hóa
+  đúng các thao tác tương ứng.
+- CSP dùng chung thang điểm với GA nên kết quả có đủ `fitness` và `metrics` để so sánh.
+- `GET /api/analytics/optimization-comparison/:id` trả thêm `metrics.before/after` và mảng
+  `resources[]` ghép theo resource ID; số liệu "trước" tính từ task đang mở thay vì
+  `Resource.currentWorkload` có thể đã cũ.
+
+### Fixed
+
+- `Reports.jsx` đọc `summary.highBurnoutRisk` trong khi API trả `summary.highBurnout` →
+  thẻ "Nguy cơ burnout cao" luôn bằng 0.
+- `Tasks.jsx` gửi `requiredSkills[].minLevel` không có trong schema → `level` luôn bị đặt
+  về mặc định 3, làm sai đầu vào của thuật toán.
+- Cột "Độ khớp kỹ năng" trong `Optimization.jsx` đọc `skillMatchScore` thay vì `skillMatch`
+  nên luôn hiện giá trị dự phòng 85%.
+- Tab "So sánh Trước/Sau" đọc cấu trúc dữ liệu mà API không hề trả về nên luôn rỗng.
+- JWT secret dự phòng ở nơi ký token và nơi xác thực khác nhau → nếu quên đặt `JWT_SECRET`
+  thì đăng nhập được nhưng mọi request sau đó đều 401.
+- `utils/seeder.js` đọc `MONGO_URI` (thiếu `DB`) và không nạp `.env` ở thư mục gốc nên
+  luôn seed vào database mặc định.
+- `client/src/constants/index.js` đã lạc hậu và không được import ở đâu; nay khớp enum của
+  server và được dùng ở 4 trang.
 
 ### 📚 Documentation
 
 Rà soát toàn bộ tài liệu, đối chiếu với mã nguồn và kiểm chứng bằng request thật.
 
 #### Changed
+- **FEATURES.md**: Module 6 lên đủ 8/8; thống kê tổng từ 81.8% lên **88.3%**
+  (≈91.6% nếu tính mục dở dang theo 50%); rút gọn backlog còn 7 hạng mục.
+- **SYSTEM_DESIGN.md** và **docs/README.md**: bổ sung `client/src/utils/` và `client/tests/`;
+  bỏ ghi chú "constants là dead code" (nay đã được dùng ở 4 trang) và ghi chú seeder đọc sai
+  biến môi trường (đã sửa từ đợt trước).
 - **API.md**: viết lại hoàn toàn — bổ sung 20 endpoint chưa từng được ghi
   (Departments, Analytics, Notifications, Activity Logs, các endpoint `stats/summary`),
   loại bỏ 6 endpoint không tồn tại, sửa format response (`data` luôn bọc dưới key có tên,

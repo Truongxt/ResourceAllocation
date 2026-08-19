@@ -105,21 +105,27 @@ của `server/tests/api.test.mjs`.
 
 ---
 
-## Module 6: Gantt Chart ⬜
+## Module 6: Gantt Chart ✅
 
 | # | Tính năng | Mô tả | Trạng thái | Ghi chú |
 |---|----------|-------|-----------|---------|
 | 6.1 | Timeline View | Hiển thị tasks trên timeline | ✅ | Split-panel: sidebar tên task + timeline cuộn ngang |
-| 6.2 | Drag & Drop | Kéo thả để thay đổi thời gian task | ⬜ | **Chưa có.** Không có handler `draggable`/`onDrop`/`onMouseDown` nào trong `GanttChart.jsx` |
-| 6.3 | Dependencies | Hiển thị mũi tên dependency giữa tasks | ⬜ | **Chưa có.** Không có phần tử `<svg>` nào trong component lẫn CSS |
+| 6.2 | Drag & Drop | Kéo thả để thay đổi thời gian task | ✅ | Kéo thanh để dời lịch, kéo hai mép để đổi ngày bắt đầu/kết thúc; snap theo ngày, cập nhật lạc quan và hoàn tác nếu server từ chối. Chỉ Admin/PM |
+| 6.3 | Dependencies | Hiển thị mũi tên dependency giữa tasks | ✅ | Lớp SVG phủ lên biểu đồ, đường Bézier + đầu mũi tên; phụ thuộc bị vi phạm (task sau bắt đầu trước khi task trước kết thúc) vẽ đỏ đứt nét kèm cảnh báo |
 | 6.4 | Zoom Controls | Zoom theo Day / Week / Month | ✅ | 3 mức, `dayWidth` 40/20/8 px |
-| 6.5 | Critical Path | Highlight critical path | ⬜ | **Chưa có** |
-| 6.6 | Resource Lane | Gantt theo resource (ai làm gì khi nào) | ⬜ | **Chưa có.** State `viewMode` được khai báo ở dòng 75 nhưng không bao giờ được sử dụng |
-| 6.7 | Milestone | Hiển thị milestones | ⬜ | **Chưa có.** Chỉ có thanh progress bên trong task bar |
+| 6.5 | Critical Path | Highlight critical path | ✅ | CPM đầy đủ (lượt xuôi/ngược, slack = 0) trong `src/utils/gantt.js`; viền vàng trên thanh + mũi tên vàng; phát hiện chu trình |
+| 6.6 | Resource Lane | Gantt theo resource (ai làm gì khi nào) | ✅ | Gộp theo nhân sự hoặc theo dự án, hàng nhóm thu gọn được kèm dải tổng hợp thời gian và % tiến độ trung bình |
+| 6.7 | Milestone | Hiển thị milestones | ✅ | Task có thời lượng 0 (bắt đầu = kết thúc) vẽ thành hình thoi, viền theo mức ưu tiên |
 | 6.8 | Export | Xuất Gantt Chart dạng ảnh/PDF | ✅ | `window.print()` + `@media print` trong `GanttChart.css` |
 
 Ngoài ra `GanttChart.jsx` còn có: tooltip chi tiết khi hover, lọc theo dự án, tìm kiếm,
-tô màu theo status, đánh dấu cuối tuần và ngày hôm nay.
+tô màu theo status, chấm màu theo mức ưu tiên, chú giải, đánh dấu cuối tuần và ngày hôm nay.
+
+Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [client/src/utils/gantt.js](../client/src/utils/gantt.js)
+để chạy được bằng node, và có bộ kiểm thử riêng: `cd client && npm test` (24 assertion).
+
+> **Giới hạn đã biết:** CPM và mũi tên chỉ tính trên tập task đang tải (tối đa 100, có thể
+> đang bị lọc theo dự án). Dependency trỏ ra ngoài tập đó bị bỏ qua chứ không báo lỗi.
 
 ---
 
@@ -184,14 +190,14 @@ tô màu theo status, đánh dấu cuối tuần và ngày hôm nay.
 | 3. Tasks | 11 | 9 | 1 | 1 |
 | 4. Resources | 10 | 9 | 1 | 0 |
 | 5. Optimization | 10 | 7 | 3 | 0 |
-| 6. Gantt Chart | 8 | 3 | 0 | 5 |
+| 6. Gantt Chart | 8 | 8 | 0 | 0 |
 | 7. Analytics | 7 | 6 | 0 | 1 |
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 4 | 0 | 2 |
-| **Tổng** | **77** | **63 (81.8%)** | **5 (6.5%)** | **9 (11.7%)** |
+| **Tổng** | **77** | **68 (88.3%)** | **5 (6.5%)** | **4 (5.2%)** |
 
-Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 85.1%**.
+Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 91.6%**.
 
 ---
 
@@ -199,14 +205,15 @@ Tính cả các mục hoàn thành một phần theo tỉ lệ 50%: **≈ 85.1%*
 
 Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 
-1. **Gantt nâng cao** (6.2, 6.3, 6.5, 6.6, 6.7) — 5 tính năng, khối lượng lớn nhất.
-2. **UI thiết lập Task Dependencies** (3.7) — schema và API đã có.
-3. **UI chọn level/weight cho từng kỹ năng yêu cầu** (3.9) — hiện cố định level 2.
-4. **UI lịch nghỉ / unavailablePeriods** (4.6) — CSP solver đã dùng dữ liệu này để lọc.
-5. **Ràng buộc Dependency trong CSP** (5.4 / H4).
-6. **Hybrid thực sự nối CSP → GA** (5.6 / ALGORITHMS.md mục 3).
-7. **Trend chart theo thời gian** (7.7).
-8. Đa ngôn ngữ (10.3), email notification (10.6).
+1. **UI thiết lập Task Dependencies** (3.7) — schema và API đã có, sơ đồ Gantt đã vẽ được
+   mũi tên nhưng chưa có chỗ nào để tạo/sửa quan hệ phụ thuộc.
+2. **UI chọn level/weight cho từng kỹ năng yêu cầu** (3.9) — hiện cố định level 2.
+3. **UI lịch nghỉ / unavailablePeriods** (4.6) — CSP solver đã dùng dữ liệu này để lọc.
+4. **Ràng buộc Dependency trong CSP** (5.4 / H4) — Gantt đang cảnh báo vi phạm ở tầng hiển thị,
+   nhưng thuật toán vẫn chưa ràng buộc.
+5. **Hybrid thực sự nối CSP → GA** (5.6 / ALGORITHMS.md mục 3).
+6. **Trend chart theo thời gian** (7.7).
+7. Đa ngôn ngữ (10.3), email notification (10.6).
 
 ### Nợ kỹ thuật đã biết
 
@@ -214,8 +221,11 @@ Sắp theo mức độ ảnh hưởng tới trải nghiệm:
   qua `GET /api/resources` (đây là cách trang chi tiết dự án đang làm).
 - Seeder chỉ xóa 5 collection (User, Project, Task, Resource, Department); `notifications`,
   `activitylogs` và `optimizationresults` tồn đọng qua các lần seed và trỏ tới bản ghi đã xóa.
-- Chưa có kiểm thử ở tầng UI; hiện chỉ có kiểm thử end-to-end qua API và Socket.IO
-  (`cd server && npm test`, xem [server/tests/README.md](../server/tests/README.md)).
+- Chưa có kiểm thử render component; hiện có kiểm thử end-to-end qua API và Socket.IO
+  (`cd server && npm test`, xem [server/tests/README.md](../server/tests/README.md)) và kiểm thử
+  logic thuần phía client (`cd client && npm test`).
+- Dữ liệu mẫu của seeder có 2 phụ thuộc bị vi phạm (task sau bắt đầu trước khi task trước
+  kết thúc) — sơ đồ Gantt sẽ hiện cảnh báo đỏ ngay sau khi seed.
 
 ## Lỗi đã sửa
 
