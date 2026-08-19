@@ -217,7 +217,8 @@ Sắp theo mức độ ảnh hưởng tới trải nghiệm:
   qua `GET /api/resources` (đây là cách trang chi tiết dự án đang làm).
 - Seeder chỉ xóa 5 collection (User, Project, Task, Resource, Department); `notifications`,
   `activitylogs` và `optimizationresults` tồn đọng qua các lần seed và trỏ tới bản ghi đã xóa.
-- Chưa có bộ kiểm thử tự động nào trong repo.
+- Chưa có kiểm thử ở tầng UI; hiện chỉ có kiểm thử end-to-end qua API và Socket.IO
+  (`cd server && npm test`, xem [server/tests/README.md](../server/tests/README.md)).
 
 ## Lỗi đã sửa
 

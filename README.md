@@ -63,6 +63,7 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run build` | gốc | Build client cho production |
 | `npm start` | `server/` | Chạy server không auto-reload |
 | `npm run seed` | `server/` | Tạo dữ liệu mẫu (xóa sạch dữ liệu cũ trước) |
+| `npm test` | `server/` | Chạy kiểm thử end-to-end trên DB + cổng riêng ([chi tiết](./server/tests/README.md)) |
 | `npm run preview` | `client/` | Xem thử bản build production |
 
 ## Tài liệu
