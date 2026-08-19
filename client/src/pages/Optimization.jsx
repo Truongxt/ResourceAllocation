@@ -21,6 +21,7 @@ import {
   Spin,
   Empty,
   Divider,
+  Switch,
 } from 'antd';
 import {
   PlayCircleOutlined,
@@ -33,6 +34,7 @@ import {
   SlidersOutlined,
   WarningOutlined,
   CheckCircleOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import optimizationService from '../services/optimizationService';
 import projectService from '../services/projectService';
@@ -46,10 +48,47 @@ const ALGO_OPTIONS = [
   { value: 'hybrid', label: '⚡ Hybrid (CSP → GA)', desc: 'Kết hợp CSP lọc miền giá trị + GA tối ưu hóa' },
 ];
 
+const ALGO_META = {
+  genetic: { icon: '🧬', label: 'GA', color: 'purple' },
+  csp: { icon: '🔗', label: 'CSP', color: 'blue' },
+  hybrid: { icon: '⚡', label: 'Hybrid', color: 'gold' },
+};
+
+// Số phương án đặt cạnh nhau được. Trên 4 cột thì bảng tràn ngang và không đọc nổi,
+// server cũng từ chối ở cùng ngưỡng này.
+const MAX_COMPARE = 4;
+
 function formatTime(ms) {
   if (!ms) return '0ms';
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
+}
+
+function formatMetric(value, metric) {
+  if (typeof value !== 'number') return '—';
+  const text = metric.digits > 0 ? value.toFixed(metric.digits) : Math.round(value).toLocaleString('vi-VN');
+  return metric.unit ? `${text} ${metric.unit}` : text;
+}
+
+/** Đầu cột trong bảng so sánh: cần đủ ngữ cảnh để biết đang so cái gì với cái gì. */
+function ResultHeader({ result }) {
+  const meta = ALGO_META[result.algorithm] || { icon: '•', label: result.algorithm, color: 'default' };
+  const scope = result.projectFilter?.code || result.projectFilter?.name || 'Toàn hệ thống';
+
+  return (
+    <Space direction="vertical" size={2} style={{ lineHeight: 1.35 }}>
+      <Space size={4}>
+        <Tag color={meta.color} style={{ margin: 0 }}>{meta.icon} {meta.label}</Tag>
+        {result.isApplied && <Tag color="cyan" style={{ margin: 0 }}>Đã áp dụng</Tag>}
+      </Space>
+      <Text type="secondary" style={{ fontSize: 11, fontWeight: 400 }}>
+        {new Date(result.createdAt).toLocaleString('vi-VN')}
+      </Text>
+      <Text type="secondary" style={{ fontSize: 11, fontWeight: 400 }}>
+        {result.taskCount} việc · {scope}
+      </Text>
+    </Space>
+  );
 }
 
 export default function Optimization() {
@@ -72,6 +111,10 @@ export default function Optimization() {
   const [comparisonLoading, setComparisonLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('result');
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [benchmark, setBenchmark] = useState(null);
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
+  const [onlyDiff, setOnlyDiff] = useState(false);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -167,6 +210,21 @@ export default function Optimization() {
       }
     } catch {
       /* ignore */
+    }
+  };
+
+  const handleCompare = async () => {
+    if (selectedIds.length < 2) return;
+    setBenchmarkLoading(true);
+    setActiveTab('benchmark');
+    try {
+      const res = await optimizationService.compare(selectedIds);
+      setBenchmark(res.data.data.comparison);
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Không so sánh được các phương án đã chọn.');
+      setBenchmark(null);
+    } finally {
+      setBenchmarkLoading(false);
     }
   };
 
@@ -275,6 +333,94 @@ export default function Optimization() {
         </Space>
       ),
     },
+  ];
+
+  const resultColumns = benchmark?.results || [];
+
+  const metricColumns = [
+    {
+      title: 'Chỉ số',
+      dataIndex: 'label',
+      key: 'label',
+      width: 230,
+      render: (label, row) => (
+        <div style={{ lineHeight: 1.35 }}>
+          <Text strong style={{ fontSize: 13 }}>{label}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {row.higherIsBetter === null
+              ? 'chỉ để tham khảo'
+              : row.higherIsBetter
+                ? '↑ cao hơn là tốt hơn'
+                : '↓ thấp hơn là tốt hơn'}
+          </Text>
+        </div>
+      ),
+    },
+    ...resultColumns.map((result, index) => ({
+      title: <ResultHeader result={result} />,
+      key: result._id,
+      align: 'center',
+      render: (_, row) => {
+        const isBest = row.bestIndex === index;
+        return (
+          <Text
+            strong={isBest}
+            style={{ fontSize: 13, color: isBest ? '#10b981' : undefined }}
+          >
+            {formatMetric(row.values[index], row)}
+            {isBest && ' ★'}
+          </Text>
+        );
+      },
+    })),
+  ];
+
+  const diffRows = onlyDiff
+    ? (benchmark?.assignments.rows || []).filter((row) => !row.agreed)
+    : benchmark?.assignments.rows || [];
+
+  const diffColumns = [
+    {
+      title: 'Công việc',
+      dataIndex: 'taskTitle',
+      key: 'task',
+      width: 230,
+      render: (title, row) => (
+        <Space size={6} align="start">
+          {!row.agreed && (
+            <Tag color={row.comparable ? 'orange' : 'default'} style={{ margin: 0 }}>
+              {row.comparable ? 'khác' : 'thiếu'}
+            </Tag>
+          )}
+          <Text style={{ fontSize: 13 }}>{title}</Text>
+        </Space>
+      ),
+    },
+    ...resultColumns.map((result, index) => {
+      const meta = ALGO_META[result.algorithm] || { icon: '•', label: result.algorithm, color: 'default' };
+      return {
+        title: <Tag color={meta.color} style={{ margin: 0 }}>{meta.icon} {meta.label}</Tag>,
+        key: `${result._id}-assignment`,
+        render: (_, row) => {
+          const cell = row.cells[index];
+          if (!cell) {
+            return <Text type="secondary" style={{ fontSize: 12 }}>không phân công</Text>;
+          }
+          return (
+            <div style={{ lineHeight: 1.35 }}>
+              <Text style={{ fontSize: 13 }}>{cell.resourceName || 'Không rõ'}</Text>
+              {typeof cell.skillMatch === 'number' && (
+                <>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: 11 }}>khớp {Math.round(cell.skillMatch)}%</Text>
+                </>
+              )}
+            </div>
+          );
+        },
+      };
+    }),
   ];
 
   return (
@@ -727,14 +873,135 @@ export default function Optimization() {
                   </span>
                 ),
                 children: (
-                  <Card styles={{ body: { padding: 0 } }}>
+                  <Card
+                    styles={{ body: { padding: 0 } }}
+                    title={
+                      <Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>
+                        Tick chọn 2–{MAX_COMPARE} lần chạy để đặt chúng cạnh nhau
+                      </Text>
+                    }
+                    extra={
+                      <Space>
+                        {selectedIds.length > 0 && (
+                          <Button size="small" onClick={() => setSelectedIds([])}>
+                            Bỏ chọn
+                          </Button>
+                        )}
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<ExperimentOutlined />}
+                          disabled={selectedIds.length < 2}
+                          loading={benchmarkLoading}
+                          onClick={handleCompare}
+                        >
+                          So sánh {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                        </Button>
+                      </Space>
+                    }
+                  >
                     <Table
                       columns={historyColumns}
                       dataSource={history}
                       rowKey="_id"
                       pagination={{ pageSize: 8 }}
+                      rowSelection={{
+                        selectedRowKeys: selectedIds,
+                        onChange: setSelectedIds,
+                        // Chặn ngay ở checkbox thay vì để người dùng chọn 6 cái rồi mới
+                        // nhận lỗi 400 từ server.
+                        getCheckboxProps: (record) => ({
+                          disabled:
+                            selectedIds.length >= MAX_COMPARE && !selectedIds.includes(record._id),
+                        }),
+                      }}
                     />
                   </Card>
+                ),
+              },
+              {
+                key: 'benchmark',
+                label: (
+                  <span>
+                    <ExperimentOutlined /> So sánh phương án
+                    {benchmark ? ` (${benchmark.results.length})` : ''}
+                  </span>
+                ),
+                children: (
+                  <Spin spinning={benchmarkLoading}>
+                    {benchmark ? (
+                      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                        {benchmark.warnings.map((warning, idx) => (
+                          <Alert key={idx} type="warning" showIcon message={warning} />
+                        ))}
+
+                        <Card title="Đối chiếu chỉ số" styles={{ body: { padding: 0 } }}>
+                          <Table
+                            columns={metricColumns}
+                            dataSource={benchmark.metrics}
+                            rowKey="key"
+                            pagination={false}
+                            size="small"
+                            scroll={{ x: 'max-content' }}
+                          />
+                        </Card>
+
+                        <Card
+                          title="Phân công khác nhau ở đâu"
+                          extra={
+                            <Space size={8}>
+                              <Text type="secondary" style={{ fontSize: 12 }}>Chỉ hiện chỗ khác</Text>
+                              <Switch size="small" checked={onlyDiff} onChange={setOnlyDiff} />
+                            </Space>
+                          }
+                          styles={{ body: { padding: 0 } }}
+                        >
+                          <div style={{ padding: '12px 16px' }}>
+                            {benchmark.assignments.agreementRate === null ? (
+                              <Text type="secondary" style={{ fontSize: 13 }}>
+                                Không có công việc nào được cả {benchmark.results.length} phương án
+                                phân công, nên không tính được mức đồng thuận.
+                              </Text>
+                            ) : (
+                              <Text style={{ fontSize: 13 }}>
+                                Các phương án chọn cùng một người ở{' '}
+                                <Text strong>{benchmark.assignments.agreed}</Text>/
+                                {benchmark.assignments.comparable} công việc so được với nhau (
+                                <Text strong>{benchmark.assignments.agreementRate}%</Text>).
+                                {benchmark.assignments.total > benchmark.assignments.comparable && (
+                                  <Text type="secondary">
+                                    {' '}
+                                    {benchmark.assignments.total - benchmark.assignments.comparable}{' '}
+                                    công việc bị bỏ ra vì có phương án không phân công chúng.
+                                  </Text>
+                                )}
+                              </Text>
+                            )}
+                          </div>
+                          <Table
+                            columns={diffColumns}
+                            dataSource={diffRows}
+                            rowKey="task"
+                            size="small"
+                            pagination={{ pageSize: 10, showSizeChanger: false }}
+                            scroll={{ x: 'max-content' }}
+                            locale={{
+                              emptyText: onlyDiff
+                                ? 'Các phương án phân công giống hệt nhau'
+                                : 'Không có phân công nào',
+                            }}
+                          />
+                        </Card>
+                      </Space>
+                    ) : (
+                      <Card>
+                        <Empty
+                          description="Vào tab Lịch sử chạy, tick chọn 2–4 lần chạy rồi bấm So sánh."
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                      </Card>
+                    )}
+                  </Spin>
                 ),
               },
             ]}

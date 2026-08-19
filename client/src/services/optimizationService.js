@@ -21,6 +21,12 @@ const optimizationService = {
     return api.get(`/optimization/${id}`);
   },
 
+  // So sánh song song 2-4 phương án. Server ghép phân công theo từng công việc và
+  // tự chấm chỉ số nào thắng, nên client chỉ việc vẽ.
+  compare(ids = []) {
+    return api.get('/optimization/compare', { params: { ids: ids.join(',') } });
+  },
+
   applyResult(id) {
     return api.post(`/optimization/${id}/apply`);
   },
