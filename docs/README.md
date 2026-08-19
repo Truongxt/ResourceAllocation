@@ -89,7 +89,7 @@ ResourceAllocation/
 │       ├── config/            # db.js, jwt.js, mail.js
 │       ├── controllers/       # 9 controllers
 │       ├── middleware/        # auth, error, validate, rateLimit, sanitize
-│       ├── models/            # 8 Mongoose models
+│       ├── models/            # 9 Mongoose models
 │       ├── routes/            # 9 route files (kèm validation inline)
 │       ├── services/          # socket, email, activityLog
 │       └── utils/             # seeder.js

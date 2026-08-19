@@ -27,6 +27,7 @@ const SUITES = [
   { name: 'workload-trend', file: 'workload-trend.test.mjs', label: 'Chuỗi thời gian khối lượng' },
   { name: 'email', file: 'email.test.mjs', label: 'Email — bật/tắt và nội dung thư' },
   { name: 'sanitize', file: 'sanitize.test.mjs', label: 'Cắt toán tử Mongo khỏi request' },
+  { name: 'refresh-token', file: 'refresh-token.test.mjs', label: 'Refresh token — xoay vòng, thu hồi, tái sử dụng' },
   { name: 'security', file: 'security.test.mjs', label: 'Header, CORS, giới hạn tần suất' },
   { name: 'api', file: 'api.test.mjs', label: 'REST API' },
   { name: 'project-detail', file: 'project-detail.test.mjs', label: 'Trang chi tiết dự án' },

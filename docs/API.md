@@ -4,7 +4,7 @@
 > Base URL: `http://localhost:5000/api`
 >
 > Tài liệu này đã được đối chiếu trực tiếp với mã nguồn (`server/src/routes/`, `server/src/controllers/`)
-> và kiểm chứng bằng request thật. Tổng cộng **53 endpoints**.
+> và kiểm chứng bằng request thật. Tổng cộng **56 endpoints**.
 
 ## Chú thích
 
@@ -75,8 +75,41 @@ Các endpoint danh sách nhận `?page=&limit=&sort=`:
 | POST | `/login` | Đăng nhập | 🔓 |
 | GET | `/me` | Lấy thông tin user hiện tại | 🔒 |
 | PUT | `/profile` | Cập nhật profile (name, department, avatar) | 🔒 |
-| PUT | `/password` | Đổi mật khẩu | 🔒 |
+| PUT | `/password` | Đổi mật khẩu (thu hồi mọi phiên khác) | 🔒 |
+| POST | `/refresh` | Đổi refresh token lấy access token mới | 🔓¹ |
+| POST | `/logout` | Đăng xuất thiết bị hiện tại | 🔓¹ |
+| POST | `/logout-all` | Đăng xuất khỏi mọi thiết bị | 🔒 |
 | GET | `/users` | Danh sách tất cả tài khoản | 👑 |
+
+¹ Không cần access token vì access token hết hạn chính là lý do gọi tới đây. Xác thực bằng
+cookie `rao_refresh`.
+
+### Cặp token
+
+| | Access token | Refresh token |
+|---|---|---|
+| Đi bằng | Header `Authorization: Bearer` | Cookie `rao_refresh` (`httpOnly`, `Path=/api/auth`) |
+| Sống | 15 phút (`ACCESS_TOKEN_EXPIRE`) | 7 ngày (`REFRESH_TOKEN_DAYS`) |
+| Thu hồi được | **Không** | **Có** |
+| Lưu ở server | Không lưu (JWT) | Chỉ lưu bản băm SHA-256 |
+
+Client phải gửi kèm cookie (`withCredentials: true`) khi gọi nhóm `/api/auth`.
+
+### POST `/api/auth/refresh`
+Không có request body — token nằm trong cookie.
+
+```json
+// Response 200 — cookie rao_refresh được thay bằng giá trị MỚI (xoay vòng)
+{ "success": true, "data": { "user": { ... }, "token": "eyJhbGciOi..." } }
+
+// Response 401
+{ "success": false, "message": "...", "reason": "unknown|expired|revoked|reused" }
+```
+
+`reason` phân biệt bốn tình huống, trong đó **`reused`** là nghiêm trọng: có người trình lại
+một refresh token đã bị xoay vòng, tức là token đã lọt ra ngoài. Server thu hồi **cả chuỗi**
+token của lần đăng nhập đó — kể cả token đang nằm trong tay chủ thật — vì tại thời điểm ấy
+không phân biệt được ai là ai. Cả hai bên phải đăng nhập lại.
 
 ### POST `/api/auth/register`
 ```json
@@ -114,7 +147,11 @@ Các endpoint danh sách nhận `?page=&limit=&sort=`:
 ```
 
 ### PUT `/api/auth/password`
-Trả về **token mới** sau khi đổi mật khẩu: `{ "success": true, "data": { "token": "..." } }`
+Trả về **access token mới** và cookie refresh mới cho chính thiết bị đang thao tác:
+`{ "success": true, "data": { "token": "..." } }`
+
+**Mọi phiên khác bị đăng xuất.** Đổi mật khẩu thường là phản ứng với nghi ngờ bị lộ tài khoản;
+để phiên cũ sống tiếp thì thao tác đó gần như vô nghĩa.
 
 ---
 

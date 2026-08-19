@@ -1,7 +1,7 @@
 # 🗄️ Database Schema Design
 
 > Tài liệu mô tả chi tiết schema MongoDB cho hệ thống RAO.
-> Đối chiếu trực tiếp với `server/src/models/` — **8 collections**.
+> Đối chiếu trực tiếp với `server/src/models/` — **9 collections**.
 
 ## Tổng quan Collections
 
@@ -46,6 +46,43 @@ Lưu trữ thông tin tài khoản người dùng.
 **Indexes**: `email` (unique)
 **Methods**: `comparePassword(candidate)`, `toJSON()` (loại bỏ `password`)
 **Hooks**: `pre('save')` tự hash password khi field thay đổi
+
+---
+
+## 1b. RefreshTokens Collection
+
+Phiên đăng nhập **thu hồi được**, đối lập với access token (JWT) không thu hồi được.
+
+```javascript
+{
+  _id: ObjectId,
+  user: ObjectId → Users,   // required
+  tokenHash: String,        // SHA-256 của token thật (unique) — KHÔNG lưu giá trị gốc
+  family: String,           // Gom cả chuỗi xoay vòng của một lần đăng nhập
+  expiresAt: Date,          // required
+  revokedAt: Date,          // null nếu còn hiệu lực
+  revokedReason: String,    // rotated | logout | logout_all | password_changed | reuse_detected
+  replacedBy: String,       // tokenHash của token kế tiếp trong chuỗi
+  userAgent: String,
+  ipAddress: String,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+**Indexes**: `user`, `tokenHash` (unique), `family`, `expiresAt` (TTL — MongoDB tự xóa bản ghi
+hết hạn, không cần cron)
+**Virtuals**: `isActive` = chưa thu hồi và chưa hết hạn
+
+Ba điểm thiết kế:
+
+- **Chỉ lưu bản băm.** Giá trị thật chỉ tồn tại trong cookie của người dùng, giống cách lưu
+  mật khẩu. Lộ database cũng không ai có token dùng được.
+- **`replacedBy` nối thành chuỗi.** Mỗi lần làm mới sinh token mới và thu hồi token cũ với
+  `revokedReason: 'rotated'`. Nhờ vậy phân biệt được "token đã xoay vòng bị trình lại"
+  (dấu hiệu bị đánh cắp) với "token đã đăng xuất" (người dùng tự bấm).
+- **`family` để thu hồi cả họ.** Phát hiện tái sử dụng thì thu hồi toàn bộ chuỗi chứ không
+  riêng token đó, vì lúc ấy không phân biệt được ai là chủ thật.
 
 ---
 

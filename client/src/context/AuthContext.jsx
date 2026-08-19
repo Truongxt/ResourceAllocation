@@ -67,7 +67,15 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Logout
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // Gọi server trước để thu hồi refresh token. Bỏ qua lỗi mạng: người dùng đã
+    // bấm đăng xuất thì phía client phải đăng xuất cho bằng được, còn token phía
+    // server sẽ tự hết hạn.
+    try {
+      await authService.logout();
+    } catch {
+      /* ignore */
+    }
     localStorage.removeItem('rao_token');
     localStorage.removeItem('rao_user');
     setUser(null);

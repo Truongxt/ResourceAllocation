@@ -7,7 +7,7 @@
 
 | Bên | Đối tượng cụ thể | Nguồn đối chiếu |
 |-----|------------------|-----------------|
-| **RAO** | Chính mã nguồn trong repo, nhánh `Mr.Tien` | Đọc code: 8 model Mongoose, 9 nhóm route (53 endpoint), 12 page React, `src/algorithms/`, `src/analytics/`, 8 bộ kiểm thử. Trạng thái tính năng lấy từ [FEATURES.md](./FEATURES.md) — tài liệu đó đã được đối chiếu với code |
+| **RAO** | Chính mã nguồn trong repo, nhánh `Mr.Tien` | Đọc code: 9 model Mongoose, 9 nhóm route (56 endpoint), 12 page React, `src/algorithms/`, `src/analytics/`, 8 bộ kiểm thử. Trạng thái tính năng lấy từ [FEATURES.md](./FEATURES.md) — tài liệu đó đã được đối chiếu với code |
 | **Jira** | **Jira Software Cloud bản gốc, không cài thêm app** — có ghi rõ khi một năng lực chỉ đạt được ở gói Premium hoặc phải mua app trên Marketplace | Tài liệu công khai của Atlassian và các bài phân tích công khai (xem [mục 8](#8-nguồn-tham-khảo)) |
 
 Hai điều cần nói trước, vì chúng quyết định cách đọc toàn bộ báo cáo:
@@ -182,7 +182,7 @@ sẽ quá tải" chứ không nói được "tháng trước đội thực sự 
 |----------|----------|-----|
 | Ngôn ngữ truy vấn (JQL) + filter lưu lại | Đầy đủ | **Không có** — chỉ filter cố định theo status/priority/dự án/phòng ban/kỹ năng |
 | Luật tự động hóa | Có (Free: 100 lần chạy/tháng) | **Không có** |
-| REST API công khai + tài liệu | Có | Có 53 endpoint nhưng **chỉ dành cho client của chính nó**: xác thực bằng JWT người dùng, chưa có API key cho máy |
+| REST API công khai + tài liệu | Có | Có 56 endpoint nhưng **chỉ dành cho client của chính nó**: xác thực bằng JWT người dùng, chưa có API key cho máy |
 | Webhook | Có | **Không có** |
 | Tích hợp Git / CI-CD / Slack / Teams | Có | **Không có** |
 | Marketplace | Hàng nghìn app | Không có |

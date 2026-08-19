@@ -62,7 +62,7 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run dev:server` | gốc | Chỉ chạy server (port 5000) |
 | `npm run build` | gốc | Build client cho production |
 | `npm start` | `server/` | Chạy server không auto-reload |
-| `npm run seed` | `server/` | Tạo dữ liệu mẫu (xóa sạch cả 8 collection trước) |
+| `npm run seed` | `server/` | Tạo dữ liệu mẫu (xóa sạch cả 9 collection trước) |
 | `npm run cleanup` | `server/` | Liệt kê dữ liệu mồ côi trong DB đang chạy; thêm `-- --apply` để xóa thật |
 | `npm run migrate:skill-level` | `server/` | Hạ `requiredSkills.level` cũ từ 5 về 4; thêm `-- --apply` để sửa thật |
 | `npm test` | `server/` | Chạy kiểm thử end-to-end trên DB + cổng riêng ([chi tiết](./server/tests/README.md)) |
@@ -74,8 +74,8 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 - [Tổng quan dự án](./docs/README.md)
 - [Danh sách tính năng](./docs/FEATURES.md)
 - [So sánh với Jira](./docs/COMPARISON_JIRA.md) — RAO mạnh/yếu ở đâu so với Jira Software Cloud
-- [API Documentation](./docs/API.md) — 53 endpoints
-- [Database Schema](./docs/DATABASE.md) — 8 collections
+- [API Documentation](./docs/API.md) — 56 endpoints
+- [Database Schema](./docs/DATABASE.md) — 9 collections
 - [Thuật toán](./docs/ALGORITHMS.md)
 - [Thiết kế hệ thống](./docs/architecture/SYSTEM_DESIGN.md)
 - [Changelog](./docs/CHANGELOG.md)

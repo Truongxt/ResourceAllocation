@@ -12,6 +12,28 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code chứ không theo trí nhớ.
 
+- **Refresh token thu hồi được** — access token rút xuống **15 phút** (`ACCESS_TOKEN_EXPIRE`),
+  kèm refresh token 7 ngày (`REFRESH_TOKEN_DAYS`) đi bằng cookie `httpOnly`, `Path=/api/auth`.
+  Access token vẫn nằm trong `localStorage` như cũ, nhưng thứ sống lâu nhất thì JavaScript
+  không đọc được — một lỗ XSS không lấy được nó, và cửa sổ dùng lại access token đánh cắp
+  còn 15 phút thay vì 7 ngày.
+  DB **chỉ lưu bản băm SHA-256**, giá trị thật chỉ tồn tại trong cookie: lộ database cũng
+  không ai có token dùng được.
+  **Xoay vòng**: mỗi lần làm mới cấp token mới và thu hồi token cũ.
+  **Phát hiện tái sử dụng**: trình lại một token đã bị xoay vòng nghĩa là có người phát lại
+  bản cũ, nên thu hồi **cả chuỗi** — kể cả token đang nằm trong tay chủ thật, vì lúc đó không
+  phân biệt được ai là ai. Token đánh cắp vì thế chỉ dùng được tới lần làm mới kế tiếp.
+  Thêm `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/logout-all`.
+  Phía client: interceptor 401 tự làm mới rồi chạy lại request. Nhiều request cùng hết hạn
+  chỉ kích hoạt **một** lượt làm mới — không gộp thì lượt thứ hai trình ra token vừa bị xoay
+  vòng, server hiểu là bị tấn công và đá người dùng ra dù không ai làm gì sai.
+  `JWT_EXPIRE` cũ không còn tác dụng: giữ nó làm mặc định sẽ âm thầm cấp access token sống
+  7 ngày cho mọi `.env` đang có. Thấy biến cũ thì cảnh báo lúc khởi động.
+  34 kiểm thử phía server + 5 phía client.
+- **Đổi mật khẩu nay đuổi mọi phiên khác.** Trước đây `changePassword` cấp token mới nhưng
+  không giết token cũ, mà `protect` chỉ kiểm `isActive` — nghĩa là đổi mật khẩu vì nghi bị lộ
+  tài khoản xong, token kẻ tấn công đang giữ vẫn dùng được thêm tới 7 ngày. Đuổi kẻ đang ở
+  trong nhà mới là mục đích của thao tác đó.
 - **Cắt toán tử Mongo khỏi mọi request** (`src/middleware/sanitize.js`, mount ngay sau bước
   parse và trước mọi route). Xóa khóa bắt đầu bằng `$`, khóa chứa `.`, và `__proto__` /
   `constructor` / `prototype`. Đòn kinh điển bị chặn: `{"email": {"$gt": ""}}` biến điều kiện

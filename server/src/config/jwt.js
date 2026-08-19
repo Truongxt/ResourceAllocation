@@ -28,7 +28,33 @@ const getJwtSecret = () => {
   return DEV_FALLBACK_SECRET;
 };
 
-const getJwtExpire = () => process.env.JWT_EXPIRE || '7d';
+/**
+ * Tuổi thọ access token. Ngắn có chủ đích: access token không thu hồi được,
+ * nên cửa sổ dùng lại một token bị đánh cắp đúng bằng con số này.
+ *
+ * `JWT_EXPIRE` cũ **không còn được dùng** cho access token. Giữ nguyên nó làm
+ * mặc định sẽ âm thầm cấp access token sống 7 ngày cho mọi .env đang có, tức là
+ * xóa sạch lợi ích của việc thêm refresh token. Thấy biến cũ thì cảnh báo.
+ */
+const getAccessTokenExpire = () => {
+  if (process.env.JWT_EXPIRE && !getAccessTokenExpire._warned) {
+    console.warn(
+      '⚠️  JWT_EXPIRE không còn được dùng. Access token dùng ACCESS_TOKEN_EXPIRE ' +
+      `(hiện tại: ${process.env.ACCESS_TOKEN_EXPIRE || '15m'}), refresh token dùng REFRESH_TOKEN_EXPIRE.`
+    );
+    getAccessTokenExpire._warned = true;
+  }
+  return process.env.ACCESS_TOKEN_EXPIRE || '15m';
+};
+
+/** Tuổi thọ refresh token, tính bằng ngày. Đây là token thu hồi được. */
+const getRefreshTokenDays = () => {
+  const days = Number(process.env.REFRESH_TOKEN_DAYS || 7);
+  return Number.isFinite(days) && days > 0 ? days : 7;
+};
+
+// Giữ tên cũ cho tương thích: vẫn là tuổi thọ access token.
+const getJwtExpire = getAccessTokenExpire;
 
 /**
  * Kiểm tra cấu hình ngay lúc khởi động.
@@ -41,4 +67,10 @@ const assertJwtConfig = () => {
   getJwtSecret();
 };
 
-module.exports = { getJwtSecret, getJwtExpire, assertJwtConfig };
+module.exports = {
+  getJwtSecret,
+  getJwtExpire,
+  getAccessTokenExpire,
+  getRefreshTokenDays,
+  assertJwtConfig,
+};

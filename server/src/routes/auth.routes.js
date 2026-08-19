@@ -10,6 +10,9 @@ const {
   updateProfile,
   changePassword,
   getUsers,
+  refresh,
+  logout,
+  logoutAll,
 } = require('../controllers/auth.controller');
 
 const router = express.Router();
@@ -78,8 +81,19 @@ const changePasswordValidation = [
 router.post('/register', authLimiter, registerValidation, validate, register);
 router.post('/login', authLimiter, loginValidation, validate, login);
 
+// Làm mới và đăng xuất chỉ cần cookie, không cần access token — access token hết
+// hạn chính là lý do người ta gọi tới đây.
+//
+// Không đặt authLimiter ở /refresh: client tự động gọi lại khi access token hết
+// hạn, nên một người dùng bình thường mở nhiều tab có thể chạm ngưỡng và bị đá ra
+// dù không làm gì sai. Chống lạm dụng ở đây dựa vào chính token: đoán bừa thì
+// trượt, mà trình lại token đã thu hồi thì mất cả chuỗi.
+router.post('/refresh', refresh);
+router.post('/logout', logout);
+
 // Protected routes
 router.get('/me', protect, getMe);
+router.post('/logout-all', protect, logoutAll);
 router.put('/profile', protect, updateProfileValidation, validate, updateProfile);
 router.put('/password', protect, changePasswordValidation, validate, changePassword);
 

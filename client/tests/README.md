@@ -24,6 +24,10 @@ npm run test:watch    # component, chế độ theo dõi
 | ProtectedRoute | `protected-route.test.jsx` | Ranh giới đăng nhập: đang kiểm tra phiên thì **không** đá về `/login`; chưa đăng nhập thì đá; sai vai trò thì chặn tại chỗ chứ không đá về `/login` |
 | Định tuyến | `app-routing.test.jsx` | 12 trang nạp theo chunk (`React.lazy`) có render ra không, và ranh giới `Suspense` trong `Content` có giữ được sidebar/header khi nội dung đang tải không |
 | Link thông báo | `notification-link.test.jsx` | Chặn open redirect ở `notif.link` — đích điều hướng động duy nhất của client. Bấm thật qua giao diện, không gọi thẳng hàm kiểm tra |
+| Làm mới token | `api-refresh.test.jsx` | Interceptor 401 tự làm mới rồi chạy lại request. Ca quan trọng nhất: nhiều request cùng hết hạn chỉ được kích hoạt **một** lượt làm mới — nhiều hơn thì server hiểu là token bị đánh cắp và thu hồi cả chuỗi |
+
+Đuôi `.jsx` đánh dấu **trình chạy** (vitest + jsdom), không có nghĩa là file phải chứa JSX:
+`api-refresh.test.jsx` không render component nào nhưng vẫn cần `localStorage` của jsdom.
 
 ## Quy ước
 

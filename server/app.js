@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 
 // Import routes
 const authRoutes = require('./src/routes/auth.routes');
@@ -43,6 +44,8 @@ app.use(
 );
 
 app.use(morgan('dev'));
+// Refresh token đi bằng cookie httpOnly nên cần parser. Không dùng cookie ở đâu khác.
+app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 

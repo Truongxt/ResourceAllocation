@@ -20,11 +20,12 @@
 |---|----------|-------|-----------|---------|
 | 1.1 | Đăng ký | Form đăng ký với validation (email, password ≥ 6) | ✅ | `Register.jsx` + express-validator |
 | 1.2 | Đăng nhập | JWT-based authentication | ✅ | Token lưu `localStorage.rao_token` |
-| 1.3 | Đăng xuất | Clear token, redirect to login | ✅ | Dropdown ở Header |
+| 1.3 | Đăng xuất | Clear token, redirect to login | ✅ | Dropdown ở Header. Gọi `POST /auth/logout` để **thu hồi refresh token ở server** — chỉ xóa phía client là chưa đủ, cookie vẫn đổi được access token mới |
 | 1.4 | Phân quyền | Role-based: Admin, PM, Member | ✅ | `authorize` cho các thao tác theo role; `canModifyTask` cho phép người được giao tự cập nhật tiến độ task của mình |
 | 1.5 | Quản lý Profile | Cập nhật thông tin cá nhân, avatar | ✅ | Trang Cài đặt (`Settings.jsx`) |
 | 1.6 | Đổi mật khẩu | Thay đổi mật khẩu từ profile | ✅ | Trả token mới sau khi đổi |
 | 1.7 | Protected Routes | Chặn truy cập trang khi chưa login | ✅ | `ProtectedRoute.jsx` + interceptor 401 |
+| 1.8 | Refresh token | Access token 15 phút + refresh token thu hồi được | ✅ | Cookie `httpOnly` `Path=/api/auth`, chỉ lưu bản băm trong DB, xoay vòng mỗi lần làm mới, phát hiện tái sử dụng thì thu hồi cả chuỗi. Client tự làm mới rồi chạy lại request; nhiều request cùng hết hạn chỉ kích hoạt **một** lượt làm mới |
 
 Ranh giới phân quyền được kiểm chứng bằng 12 assertion trong nhóm "4b. Phân quyền công việc"
 của `server/tests/api.test.mjs`.
@@ -195,7 +196,7 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 
 | Module | Tổng | ✅ Hoàn thành | 🔨 Một phần | ⬜ Chưa có |
 |--------|------|--------------|-------------|-----------|
-| 1. Auth | 7 | 7 | 0 | 0 |
+| 1. Auth | 8 | 8 | 0 | 0 |
 | 2. Projects | 9 | 9 | 0 | 0 |
 | 3. Tasks | 11 | 11 | 0 | 0 |
 | 4. Resources | 10 | 10 | 0 | 0 |
@@ -205,7 +206,7 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 5 | 0 | 1 |
-| **Tổng** | **78** | **77 (98.7%)** | **0** | **1 (1.3%)** |
+| **Tổng** | **79** | **78 (98.7%)** | **0** | **1 (1.3%)** |
 
 Mục còn lại là đa ngôn ngữ (10.3), thuộc nhóm tùy chọn của Module 10.
 
@@ -263,8 +264,11 @@ mới chặn. Script là loại một lần, xong hết mọi môi trường th�
 
 | Đã có | Chưa có |
 |-------|---------|
-| `helmet` (nosniff, frameguard, HSTS…) | Chưa có refresh token / thu hồi token |
-| CORS giới hạn theo `CLIENT_URL` cho cả REST lẫn Socket.IO | Token để trong `localStorage` — XSS đọc được (đánh đổi tiêu chuẩn của SPA) |
+| `helmet` (nosniff, frameguard, HSTS…) | |
+| CORS giới hạn theo `CLIENT_URL` cho cả REST lẫn Socket.IO | **Access token** vẫn để trong `localStorage` — XSS đọc được. Cửa sổ thiệt hại nay là 15 phút thay vì 7 ngày, và refresh token thì XSS không lấy được |
+| **Refresh token thu hồi được**: cookie `httpOnly`, `Path=/api/auth`, chỉ lưu bản băm SHA-256 trong DB, xoay vòng mỗi lần làm mới | |
+| **Phát hiện tái sử dụng**: trình lại token đã bị xoay vòng thì thu hồi cả chuỗi — token bị đánh cắp chỉ dùng được tới lần làm mới kế tiếp của chủ thật | |
+| **Đổi mật khẩu đuổi mọi phiên khác**; có `POST /auth/logout-all` | |
 | Giới hạn tần suất: 10 lần đăng nhập sai / 15 phút, 1000 request / 15 phút | |
 | Giới hạn body 1 MB | |
 | **Cắt toán tử Mongo** khỏi body/query/params ở tầng middleware (`src/middleware/sanitize.js`) — xóa khóa bắt đầu bằng `$`, chứa `.`, và ba khóa gây ô nhiễm prototype | |

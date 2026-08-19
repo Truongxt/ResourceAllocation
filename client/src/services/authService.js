@@ -42,6 +42,22 @@ const authService = {
   },
 
   /**
+   * Đăng xuất thiết bị hiện tại — thu hồi refresh token ở server.
+   * Chỉ xóa token phía client là chưa đủ: cookie refresh vẫn sống và vẫn đổi
+   * được access token mới.
+   */
+  logout: async () => {
+    const response = await api.post('/auth/logout');
+    return response.data;
+  },
+
+  /** Đăng xuất khỏi mọi thiết bị */
+  logoutAll: async () => {
+    const response = await api.post('/auth/logout-all');
+    return response.data;
+  },
+
+  /**
    * Lấy danh sách users (Admin)
    */
   getUsers: async () => {

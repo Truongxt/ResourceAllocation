@@ -9,6 +9,7 @@ const Department = require('../models/Department');
 const Notification = require('../models/Notification');
 const ActivityLog = require('../models/ActivityLog');
 const OptimizationResult = require('../models/OptimizationResult');
+const RefreshToken = require('../models/RefreshToken');
 
 // .env nằm ở thư mục gốc dự án, không phải trong server/
 dotenv.config({ path: path.join(__dirname, '..', '..', '..', '.env') });
@@ -33,6 +34,9 @@ async function seedData() {
       Notification.deleteMany({}),
       ActivityLog.deleteMany({}),
       OptimizationResult.deleteMany({}),
+      // Seed xóa sạch User rồi tạo lại với _id mới, nên mọi refresh token cũ đều
+      // trỏ vào khoảng không. Bỏ sót thì chúng nằm lại tới khi TTL dọn.
+      RefreshToken.deleteMany({}),
     ]);
     console.log('Cleared all 8 collections.');
 
