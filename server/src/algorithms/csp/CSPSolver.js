@@ -5,6 +5,15 @@
  *   H1: Capacity - Nhân sự không vượt quá FTE capacity
  *   H2: Skill - Nhân sự phải có đủ kỹ năng yêu cầu
  *   H3: Availability - Nhân sự phải available
+ *   H4: Dependency - Hai công việc có quan hệ phụ thuộc mà lịch chồng nhau
+ *       thì không được giao cho cùng một người
+ *
+ * Ghi chú về H4: biến quyết định của bài toán này là "task nào giao cho ai",
+ * ngày tháng là dữ liệu đầu vào cố định. Vì vậy vi phạm thứ tự thuần túy về
+ * ngày — end(A) > start(B) khi B phụ thuộc A — không thể sửa bằng cách đổi
+ * người, và được báo trong constraintReport thay vì làm bài toán vô nghiệm.
+ * Phần thực sự ràng buộc được lời giải là: một người không thể vừa làm A vừa
+ * làm B khi hai việc phụ thuộc nhau và khoảng thời gian chồng lên nhau.
  *
  * Algorithm: Backtracking + AC-3 + MRV + LCV heuristics
  */
@@ -77,6 +86,9 @@ class CSPSolver {
         solveTime: Date.now() - startTime,
       };
     }
+
+    // H4: cặp công việc phụ thuộc nhau và chồng lịch → không được cùng người
+    this._conflicts = this._buildDependencyConflicts(tasks);
 
     // Backtracking search
     this._iterations = 0;
@@ -176,6 +188,42 @@ class CSPSolver {
   }
 
   // ──────────────────────────────────────────────
+  // H4: Dependency
+  // ──────────────────────────────────────────────
+
+  /** Hai khoảng thời gian có phần chung thực sự (chạm nhau ở mốc không tính là chồng). */
+  _overlaps(a, b) {
+    if (!a.startDate || !a.endDate || !b.startDate || !b.endDate) return false;
+    return new Date(a.startDate) < new Date(b.endDate) && new Date(b.startDate) < new Date(a.endDate);
+  }
+
+  /** Danh sách các cặp phụ thuộc (chỉ số) mà lịch chồng nhau, tra cứu hai chiều. */
+  _buildDependencyConflicts(tasks) {
+    const indexById = new Map(tasks.map((t, i) => [String(t._id), i]));
+    const conflicts = tasks.map(() => new Set());
+
+    tasks.forEach((task, i) => {
+      (task.dependencies || []).forEach((dep) => {
+        const j = indexById.get(String(dep?._id || dep));
+        // Bỏ qua tiền nhiệm nằm ngoài tập đang tối ưu (đã xong, hoặc khác dự án)
+        if (j === undefined || j === i) return;
+        if (!this._overlaps(task, tasks[j])) return;
+        conflicts[i].add(j);
+        conflicts[j].add(i);
+      });
+    });
+
+    return conflicts;
+  }
+
+  _checkDependencyConstraint(taskIdx, resourceIdx, assignment) {
+    for (const other of this._conflicts[taskIdx]) {
+      if (assignment[other] === resourceIdx) return false;
+    }
+    return true;
+  }
+
+  // ──────────────────────────────────────────────
   // AC-3: Arc Consistency
   // ──────────────────────────────────────────────
   _arcConsistency(tasks, domains, resources) {
@@ -245,6 +293,11 @@ class CSPSolver {
         continue;
       }
 
+      // H4: không giao hai việc phụ thuộc nhau, chồng lịch cho cùng một người
+      if (!this._checkDependencyConstraint(varIdx, rIdx, assignment)) {
+        continue;
+      }
+
       // Assign
       assignment[varIdx] = rIdx;
       workloads[rIdx] += taskHours;
@@ -311,10 +364,39 @@ class CSPSolver {
     resources.forEach((r, i) => {
       const capacity = (r.maxCapacity || 40) * (r.fte || 1);
       if (workloads[i] <= capacity) {
-        satisfied.push({ type: 'capacity', resource: r.userName || r.position, detail: `${workloads[i]}/${capacity}h` });
+        satisfied.push({ type: 'capacity', subject: r.userName || r.position, detail: `${workloads[i]}/${capacity}h` });
       } else {
-        violated.push({ type: 'capacity', resource: r.userName || r.position, detail: `${workloads[i]}/${capacity}h (vượt ${Math.round(workloads[i] - capacity)}h)` });
+        violated.push({ type: 'capacity', subject: r.userName || r.position, detail: `${workloads[i]}/${capacity}h (vượt ${Math.round(workloads[i] - capacity)}h)` });
       }
+    });
+
+    // H4: thứ tự theo ngày là dữ liệu đầu vào, thuật toán không sửa được nên chỉ báo lại
+    const indexById = new Map(tasks.map((t, i) => [String(t._id), i]));
+    tasks.forEach((task, i) => {
+      (task.dependencies || []).forEach((dep) => {
+        const j = indexById.get(String(dep?._id || dep));
+        if (j === undefined || j === i) return;
+
+        const predecessor = tasks[j];
+        if (!predecessor.endDate || !task.startDate) return;
+
+        const entry = {
+          type: 'dependency',
+          subject: `${predecessor.title} → ${task.title}`,
+        };
+
+        if (new Date(predecessor.endDate) > new Date(task.startDate)) {
+          const days = Math.ceil(
+            (new Date(predecessor.endDate) - new Date(task.startDate)) / 86400000
+          );
+          violated.push({
+            ...entry,
+            detail: `công việc sau bắt đầu sớm hơn ${days} ngày so với lúc công việc trước kết thúc`,
+          });
+        } else {
+          satisfied.push({ ...entry, detail: 'đúng thứ tự trước/sau' });
+        }
+      });
     });
 
     return { satisfied: satisfied.length, violated: violated.length, details: { satisfied, violated } };

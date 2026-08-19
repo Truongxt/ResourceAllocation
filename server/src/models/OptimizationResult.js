@@ -70,6 +70,26 @@ const optimizationResultSchema = new mongoose.Schema(
     constraintReport: {
       satisfied: Number,
       violated: Number,
+      // Trước đây chỉ lưu hai con số, nên "violated: 1" không cho biết vi phạm gì.
+      // Từ khi có H4, một lời giải có thể vừa đạt capacity vừa vướng thứ tự phụ thuộc.
+      details: {
+        satisfied: [
+          {
+            _id: false,
+            type: { type: String }, // 'capacity' | 'dependency'
+            subject: String, // tên nhân sự, hoặc "Việc trước → Việc sau"
+            detail: String,
+          },
+        ],
+        violated: [
+          {
+            _id: false,
+            type: { type: String },
+            subject: String,
+            detail: String,
+          },
+        ],
+      },
     },
     // Performance
     executionTime: { type: Number, default: 0 }, // ms

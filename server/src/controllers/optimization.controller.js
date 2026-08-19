@@ -14,7 +14,7 @@ const loadOptimizationData = async (projectId) => {
   if (projectId) taskFilter.project = projectId;
 
   const [tasks, resources] = await Promise.all([
-    Task.find(taskFilter).select('title estimatedHours requiredSkills startDate endDate project status'),
+    Task.find(taskFilter).select('title estimatedHours requiredSkills startDate endDate project status dependencies'),
     Resource.find({ isActive: true })
       .populate('user', 'name email')
       .select('user position department skills maxCapacity fte hourlyRate availability unavailablePeriods currentWorkload'),
@@ -151,9 +151,7 @@ const runCSPSolver = async (req, res, next) => {
 
     resultRecord.status = result.success ? 'completed' : 'failed';
     resultRecord.assignments = result.assignments || [];
-    resultRecord.constraintReport = result.constraintReport
-      ? { satisfied: result.constraintReport.satisfied, violated: result.constraintReport.violated }
-      : undefined;
+    resultRecord.constraintReport = result.constraintReport || undefined;
     // Chấm điểm bằng cùng thang đo với GA để hai thuật toán so sánh được trong lịch sử
     resultRecord.fitness = result.fitness || 0;
     resultRecord.metrics = result.metrics || {};
@@ -213,9 +211,7 @@ const runHybrid = async (req, res, next) => {
     resultRecord.convergenceHistory = gaResult.convergenceHistory || [];
     resultRecord.executionTime = totalTime;
     resultRecord.generations = gaResult.generations || 0;
-    resultRecord.constraintReport = cspResult.constraintReport
-      ? { satisfied: cspResult.constraintReport.satisfied, violated: cspResult.constraintReport.violated }
-      : undefined;
+    resultRecord.constraintReport = cspResult.constraintReport || undefined;
     resultRecord.errorMessage = gaResult.message || undefined;
     await resultRecord.save();
 

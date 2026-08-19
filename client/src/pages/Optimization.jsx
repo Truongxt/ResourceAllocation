@@ -530,6 +530,47 @@ export default function Optimization() {
                       </div>
                     </Card>
 
+                    {/* Ràng buộc bị vi phạm — CSP/Hybrid mới có báo cáo này */}
+                    {currentResult.constraintReport?.details?.violated?.length > 0 && (
+                      <Card
+                        size="small"
+                        title={
+                          <Space>
+                            <WarningOutlined style={{ color: '#f59e0b' }} />
+                            <span>
+                              Ràng buộc bị vi phạm ({currentResult.constraintReport.details.violated.length})
+                            </span>
+                          </Space>
+                        }
+                        extra={
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {currentResult.constraintReport.satisfied} ràng buộc đạt yêu cầu
+                          </Text>
+                        }
+                      >
+                        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                          {currentResult.constraintReport.details.violated.map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                              <Tag color={item.type === 'dependency' ? 'orange' : 'red'} style={{ margin: 0 }}>
+                                {item.type === 'dependency' ? 'Phụ thuộc' : 'Khối lượng'}
+                              </Tag>
+                              <Text strong style={{ fontSize: 13 }}>{item.subject}</Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>— {item.detail}</Text>
+                            </div>
+                          ))}
+                        </Space>
+                        {currentResult.constraintReport.details.violated.some((i) => i.type === 'dependency') && (
+                          <Alert
+                            type="info"
+                            showIcon
+                            style={{ marginTop: 12 }}
+                            message="Thuật toán chỉ chọn người, không đổi được ngày tháng"
+                            description="Các vi phạm về thứ tự trước/sau nằm ở dữ liệu lịch. Hãy sửa ngày trực tiếp trên sơ đồ Gantt rồi chạy lại tối ưu hóa."
+                          />
+                        )}
+                      </Card>
+                    )}
+
                     {/* Assignments Table */}
                     <Card title="Chi tiết Phân công (Task Assignments)" styles={{ body: { padding: 0 } }}>
                       <Table
