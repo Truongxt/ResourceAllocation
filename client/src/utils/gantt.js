@@ -1,5 +1,6 @@
-// Logic thuần của sơ đồ Gantt — không phụ thuộc React nên chạy và kiểm thử
-// được trực tiếp bằng node (xem client/tests/gantt.test.mjs).
+// Logic thuần về lịch và đồ thị phụ thuộc giữa các công việc — không phụ thuộc
+// React nên chạy và kiểm thử được trực tiếp bằng node (xem client/tests/gantt.test.mjs).
+// Dùng bởi sơ đồ Gantt và ô chọn công việc tiền nhiệm trong form Task.
 
 export function addDays(date, days) {
   const d = new Date(date);
@@ -29,6 +30,46 @@ export function durationOf(task) {
   if (task.startDate && task.endDate) return Math.max(0, daysBetween(task.startDate, task.endDate));
   if (task.estimatedHours) return Math.max(1, Math.ceil(task.estimatedHours / 8));
   return 1;
+}
+
+/** Lấy id từ một tham chiếu phụ thuộc, dù đã populate thành object hay còn là ObjectId. */
+const depId = (dep) => String(dep?._id || dep);
+
+/**
+ * Những công việc KHÔNG được chọn làm tiền nhiệm của `taskId`: chính nó, và mọi
+ * công việc mà từ đó lần theo chuỗi phụ thuộc sẽ quay về `taskId` — chọn chúng
+ * sẽ tạo thành vòng lặp.
+ *
+ * Cạnh gốc trỏ từ công việc tới tiền nhiệm của nó, nên ở đây duyệt theo chiều
+ * ngược lại (tiền nhiệm → công việc phụ thuộc vào nó) bắt đầu từ `taskId`.
+ *
+ * @returns {Set<string>} tập id không hợp lệ
+ */
+export function invalidPredecessors(tasks, taskId) {
+  const invalid = new Set();
+  if (!taskId) return invalid;
+
+  const dependents = new Map();
+  tasks.forEach((task) => {
+    (task.dependencies || []).forEach((dep) => {
+      const key = depId(dep);
+      if (!dependents.has(key)) dependents.set(key, []);
+      dependents.get(key).push(String(task._id));
+    });
+  });
+
+  const queue = [String(taskId)];
+  invalid.add(String(taskId));
+  while (queue.length) {
+    const current = queue.shift();
+    for (const next of dependents.get(current) || []) {
+      if (invalid.has(next)) continue;
+      invalid.add(next);
+      queue.push(next);
+    }
+  }
+
+  return invalid;
 }
 
 /**

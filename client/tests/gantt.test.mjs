@@ -6,6 +6,7 @@
 import {
   computeCriticalPath,
   durationOf,
+  invalidPredecessors,
   isMilestone,
   daysBetween,
 } from '../src/utils/gantt.js';
@@ -119,6 +120,52 @@ section('4. Trường hợp biên');
   const result = computeCriticalPath([task('A', 4), task('M', 0, ['A'])]);
   check('mốc nằm trên đường găng', sortedCritical(result), ['A', 'M']);
   check('mốc không làm dài thêm lịch', result.length, 4);
+}
+
+// ──────────────────────────────────────────────
+section('5. Lựa chọn tiền nhiệm hợp lệ (chặn vòng lặp)');
+// ──────────────────────────────────────────────
+const sorted = (set) => [...set].sort();
+{
+  // A → B → C. Chọn tiền nhiệm cho A: B và C đều nằm sau A nên đều tạo vòng lặp.
+  const chain = [task('A', 3), task('B', 2, ['A']), task('C', 2, ['B'])];
+  check('chính nó luôn bị loại', invalidPredecessors(chain, 'A').has('A'), true);
+  check('loại cả hậu duệ trực tiếp và gián tiếp', sorted(invalidPredecessors(chain, 'A')), [
+    'A',
+    'B',
+    'C',
+  ]);
+  check('task cuối chuỗi chỉ loại chính nó', sorted(invalidPredecessors(chain, 'C')), ['C']);
+  check('task giữa chuỗi loại chính nó và hậu duệ', sorted(invalidPredecessors(chain, 'B')), [
+    'B',
+    'C',
+  ]);
+}
+{
+  // Nhánh rẽ: A → B, A → C, B → D. Với A thì mọi task còn lại đều là hậu duệ.
+  const branched = [
+    task('A', 1),
+    task('B', 1, ['A']),
+    task('C', 1, ['A']),
+    task('D', 1, ['B']),
+  ];
+  check('nhánh rẽ: loại toàn bộ hậu duệ', sorted(invalidPredecessors(branched, 'A')), [
+    'A',
+    'B',
+    'C',
+    'D',
+  ]);
+  check('hai nhánh độc lập không loại nhau', invalidPredecessors(branched, 'C').has('B'), false);
+}
+{
+  const isolated = [task('A', 1), task('B', 1)];
+  check('không có phụ thuộc: chỉ loại chính nó', sorted(invalidPredecessors(isolated, 'A')), ['A']);
+  check('không truyền taskId: không loại gì', sorted(invalidPredecessors(isolated, null)), []);
+}
+{
+  // Dependency đã populate thành object cũng phải lần được.
+  const populated = [task('A', 1), task('B', 1, [{ _id: 'A', title: 'Task A' }])];
+  check('nhận dependency đã populate', sorted(invalidPredecessors(populated, 'A')), ['A', 'B']);
 }
 
 // ──────────────────────────────────────────────

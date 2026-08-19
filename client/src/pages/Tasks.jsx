@@ -42,6 +42,7 @@ import taskService from '../services/taskService';
 import projectService from '../services/projectService';
 import resourceService from '../services/resourceService';
 import { TASK_STATUSES as STATUS_COLS, PRIORITY_OPTIONS, ROLES } from '../constants';
+import { invalidPredecessors } from '../utils/gantt';
 import { useAuth } from '../context/AuthContext';
 import './Tasks.css';
 
@@ -60,7 +61,11 @@ export default function Tasks() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [draggedTaskId, setDraggedTaskId] = useState(null);
+  // Công việc cùng dự án, dùng làm nguồn cho ô chọn tiền nhiệm. Tải riêng vì
+  // danh sách chính đang bị lọc/tìm kiếm nên không đủ để chọn.
+  const [projectTasks, setProjectTasks] = useState([]);
   const [form] = Form.useForm();
+  const selectedProject = Form.useWatch('project', form);
 
   // Khớp với phân quyền ở server: Admin/PM toàn quyền, Member chỉ cập nhật
   // tiến độ công việc được giao cho mình (xem middleware/taskAccess.js)
@@ -112,6 +117,37 @@ export default function Tasks() {
     return () => clearTimeout(timer);
   }, [loadTasks]);
 
+  useEffect(() => {
+    if (!modalOpen || !canManageTasks || !selectedProject) {
+      setProjectTasks([]);
+      return;
+    }
+    let cancelled = false;
+    taskService
+      .getAll({ project: selectedProject, limit: 100 })
+      .then((res) => {
+        if (!cancelled) setProjectTasks(res.data.data.tasks || []);
+      })
+      .catch(() => {
+        if (!cancelled) setProjectTasks([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [modalOpen, canManageTasks, selectedProject]);
+
+  // Loại chính công việc đang sửa và mọi công việc phụ thuộc vào nó — chọn chúng
+  // làm tiền nhiệm sẽ tạo vòng lặp. Server kiểm tra lại điều này khi lưu.
+  const dependencyOptions = useMemo(() => {
+    const blocked = invalidPredecessors(projectTasks, editingTask?._id);
+    return projectTasks
+      .filter((t) => !blocked.has(String(t._id)))
+      .map((t) => ({
+        value: t._id,
+        label: t.startDate ? `${t.title} · từ ${dayjs(t.startDate).format('DD/MM')}` : t.title,
+      }));
+  }, [projectTasks, editingTask]);
+
   const stats = useMemo(
     () => ({
       total: tasks.length,
@@ -143,6 +179,7 @@ export default function Tasks() {
       estimatedHours: 8,
       assignee: undefined,
       requiredSkills: '',
+      dependencies: [],
     });
     setModalOpen(true);
   };
@@ -159,6 +196,7 @@ export default function Tasks() {
       progress: task.progress || 0,
       assignee: assigneeId,
       requiredSkills: (task.requiredSkills || []).map((s) => (typeof s === 'string' ? s : s.name)).filter(Boolean).join(', '),
+      dependencies: (task.dependencies || []).map((d) => d?._id || d).filter(Boolean),
       dateRange:
         task.startDate && task.endDate ? [dayjs(task.startDate), dayjs(task.endDate)] : undefined,
       estimatedHours: task.estimatedHours || 8,
@@ -179,6 +217,7 @@ export default function Tasks() {
       estimatedHours: Number(values.estimatedHours) || 0,
       actualHours: Number(values.actualHours) || 0,
       assignee: values.assignee || null,
+      dependencies: values.dependencies || [],
       requiredSkills: values.requiredSkills
         ? values.requiredSkills
             .split(',')
@@ -620,6 +659,28 @@ export default function Tasks() {
           >
             <Input placeholder="React, Node.js, SQL" />
           </Form.Item>
+
+          {canManageTasks && (
+            <Form.Item
+              name="dependencies"
+              label="Công việc tiền nhiệm (Dependencies)"
+              extra={
+                selectedProject
+                  ? 'Những công việc phải xong trước. Danh sách đã loại sẵn các lựa chọn tạo thành vòng lặp. Sơ đồ Gantt sẽ vẽ mũi tên và tính đường găng theo quan hệ này.'
+                  : 'Chọn dự án trước để xem danh sách công việc có thể làm tiền nhiệm.'
+              }
+            >
+              <Select
+                mode="multiple"
+                allowClear
+                disabled={!selectedProject}
+                placeholder="-- Không phụ thuộc công việc nào --"
+                options={dependencyOptions}
+                notFoundContent="Dự án chưa có công việc nào khác có thể chọn"
+                optionFilterProp="label"
+              />
+            </Form.Item>
+          )}
 
           <Row gutter={16}>
             <Col span={8}>

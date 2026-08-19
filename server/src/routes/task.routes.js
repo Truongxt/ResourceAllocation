@@ -65,6 +65,7 @@ const createValidation = [
     .withMessage('Giờ ước tính phải >= 0'),
   body('assignee').optional({ nullable: true }).isMongoId().withMessage('ID nhân sự không hợp lệ'),
   body('dependencies').optional().isArray().withMessage('Dependencies phải là mảng'),
+  body('dependencies.*').optional().isMongoId().withMessage('ID công việc tiền nhiệm không hợp lệ'),
   body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
 ];
 
@@ -105,6 +106,7 @@ const updateValidation = [
     .withMessage('Tiến độ phải từ 0 đến 100'),
   body('assignee').optional({ nullable: true }).isMongoId().withMessage('ID nhân sự không hợp lệ'),
   body('dependencies').optional().isArray().withMessage('Dependencies phải là mảng'),
+  body('dependencies.*').optional().isMongoId().withMessage('ID công việc tiền nhiệm không hợp lệ'),
   body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
 ];
 
