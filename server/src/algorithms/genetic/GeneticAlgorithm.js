@@ -10,6 +10,15 @@
  * Chromosome: Array of resource indices [taskIndex → resourceIndex]
  */
 
+const {
+  DEFAULT_WEIGHTS,
+  buildSkillMatrix,
+  computeMaxCost,
+  computeFitness,
+  computeMetrics,
+  emptyMetrics,
+} = require('../scoring');
+
 class GeneticAlgorithm {
   constructor(options = {}) {
     this.populationSize = options.populationSize || 100;
@@ -22,10 +31,10 @@ class GeneticAlgorithm {
     this.targetFitness = options.targetFitness || 0.95;
 
     this.weights = {
-      workloadBalance: options.workloadWeight ?? 0.30,
-      skillMatch: options.skillWeight ?? 0.35,
-      cost: options.costWeight ?? 0.15,
-      overallocation: options.overallocationWeight ?? 0.20,
+      workloadBalance: options.workloadWeight ?? DEFAULT_WEIGHTS.workloadBalance,
+      skillMatch: options.skillWeight ?? DEFAULT_WEIGHTS.skillMatch,
+      cost: options.costWeight ?? DEFAULT_WEIGHTS.cost,
+      overallocation: options.overallocationWeight ?? DEFAULT_WEIGHTS.overallocation,
     };
   }
 
@@ -33,9 +42,14 @@ class GeneticAlgorithm {
    * Run the genetic algorithm optimization
    * @param {Array} tasks - [{ _id, estimatedHours, requiredSkills: [{name, level, weight}] }]
    * @param {Array} resources - [{ _id, maxCapacity, fte, hourlyRate, skills: [{name, level}], currentWorkload }]
+   * @param {Object} [options]
+   * @param {Array<Array<number>>} [options.domains] - miền giá trị cho từng task
+   *        (`domains[t] = [resourceIndex, ...]`). Dùng cho Hybrid: GA chỉ sinh và
+   *        đột biến gen trong miền đã được CSP lọc. Bỏ qua tham số này thì GA
+   *        chọn tự do trên toàn bộ nhân sự như trước.
    * @returns {Object} Best solution
    */
-  async optimize(tasks, resources) {
+  async optimize(tasks, resources, { domains } = {}) {
     if (!tasks.length || !resources.length) {
       return this._emptyResult('Không có dữ liệu tasks hoặc resources');
     }
@@ -44,17 +58,19 @@ class GeneticAlgorithm {
     const numTasks = tasks.length;
     const numResources = resources.length;
 
+    const domainReport = this._resolveDomains(domains, numTasks, numResources);
+    this._domains = domainReport.domains;
+
     // Precompute skill match matrix: skillMatrix[t][r] = match score 0..1
-    const skillMatrix = this._precomputeSkillMatrix(tasks, resources);
+    const skillMatrix = buildSkillMatrix(tasks, resources);
 
     // Precompute max values for normalization
-    const maxCost = resources.reduce((max, r) => Math.max(max, r.hourlyRate || 1), 1)
-      * tasks.reduce((sum, t) => sum + (t.estimatedHours || 1), 0);
+    const maxCost = computeMaxCost(tasks, resources);
 
-    // Initialize population
+    // Initialize population (trong miền đã lọc nếu có)
     let population = this._initializePopulation(numTasks, numResources);
     let fitnesses = population.map((ch) =>
-      this._evaluateFitness(ch, tasks, resources, skillMatrix, maxCost)
+      computeFitness(ch, tasks, resources, skillMatrix, maxCost, this.weights)
     );
 
     let bestIdx = fitnesses.indexOf(Math.max(...fitnesses));
@@ -101,7 +117,7 @@ class GeneticAlgorithm {
 
       population = newPopulation;
       fitnesses = population.map((ch) =>
-        this._evaluateFitness(ch, tasks, resources, skillMatrix, maxCost)
+        computeFitness(ch, tasks, resources, skillMatrix, maxCost, this.weights)
       );
 
       const genBestIdx = fitnesses.indexOf(Math.max(...fitnesses));
@@ -127,7 +143,7 @@ class GeneticAlgorithm {
 
     // Build result
     const assignments = this._buildAssignments(bestChromosome, tasks, resources, skillMatrix);
-    const metrics = this._computeMetrics(bestChromosome, tasks, resources, skillMatrix);
+    const metrics = computeMetrics(bestChromosome, tasks, resources, skillMatrix);
 
     return {
       success: true,
@@ -137,6 +153,12 @@ class GeneticAlgorithm {
       convergenceHistory,
       metrics,
       executionTime: Date.now() - startTime,
+      domainReduction: {
+        restricted: domainReport.domains !== null,
+        totalPairs: numTasks * numResources,
+        feasiblePairs: domainReport.feasiblePairs,
+        tasksReopened: domainReport.tasksReopened,
+      },
       parameters: {
         populationSize: this.populationSize,
         maxGenerations: this.maxGenerations,
@@ -148,33 +170,48 @@ class GeneticAlgorithm {
   }
 
   // ──────────────────────────────────────────────
-  // Precompute skill match matrix
+  // Miền giá trị (Hybrid)
   // ──────────────────────────────────────────────
-  _precomputeSkillMatrix(tasks, resources) {
-    return tasks.map((task) =>
-      resources.map((resource) => this._skillMatch(task, resource))
-    );
-  }
 
-  _skillMatch(task, resource) {
-    const required = task.requiredSkills || [];
-    if (!required.length) return 1; // No requirements → perfect match
-
-    let totalWeight = 0;
-    let totalMatch = 0;
-
-    for (const req of required) {
-      const weight = req.weight ?? 1;
-      totalWeight += weight * req.level;
-
-      const resSkill = (resource.skills || []).find(
-        (s) => s.name.toLowerCase() === req.name.toLowerCase()
-      );
-      const resLevel = resSkill ? resSkill.level : 0;
-      totalMatch += weight * Math.min(resLevel, req.level);
+  /**
+   * Chuẩn hóa miền giá trị nhận từ CSP.
+   *
+   * Task có miền rỗng — không nhân sự nào qua được H2/H3 — sẽ được mở lại toàn bộ
+   * nhân sự, vì để rỗng thì GA không sinh nổi gen nào cho task đó. Số lần mở lại
+   * được trả về để bên gọi báo cho người dùng thay vì im lặng bỏ qua ràng buộc.
+   */
+  _resolveDomains(domains, numTasks, numResources) {
+    const allResources = Array.from({ length: numResources }, (_, i) => i);
+    if (!Array.isArray(domains) || !domains.length) {
+      return { domains: null, tasksReopened: 0, feasiblePairs: numTasks * numResources };
     }
 
-    return totalWeight > 0 ? totalMatch / totalWeight : 0;
+    let tasksReopened = 0;
+    let feasiblePairs = 0;
+
+    const resolved = Array.from({ length: numTasks }, (_, t) => {
+      const domain = domains[t];
+      const usable = Array.isArray(domain) && domain.length
+        ? domain.filter((r) => r >= 0 && r < numResources)
+        : [];
+
+      if (!usable.length) {
+        tasksReopened++;
+        feasiblePairs += numResources;
+        return allResources;
+      }
+      feasiblePairs += usable.length;
+      return usable;
+    });
+
+    return { domains: resolved, tasksReopened, feasiblePairs };
+  }
+
+  /** Một resource index ngẫu nhiên hợp lệ cho task `t`. */
+  _randomResourceFor(t, numResources) {
+    const domain = this._domains?.[t];
+    if (domain?.length) return domain[Math.floor(Math.random() * domain.length)];
+    return Math.floor(Math.random() * numResources);
   }
 
   // ──────────────────────────────────────────────
@@ -185,63 +222,14 @@ class GeneticAlgorithm {
     for (let i = 0; i < this.populationSize; i++) {
       const chromosome = [];
       for (let t = 0; t < numTasks; t++) {
-        chromosome.push(Math.floor(Math.random() * numResources));
+        chromosome.push(this._randomResourceFor(t, numResources));
       }
       pop.push(chromosome);
     }
     return pop;
   }
 
-  // ──────────────────────────────────────────────
-  // Fitness Function (Multi-objective)
-  // ──────────────────────────────────────────────
-  _evaluateFitness(chromosome, tasks, resources, skillMatrix, maxCost) {
-    const numResources = resources.length;
-
-    // 1. Workload per resource
-    const workloads = new Array(numResources).fill(0);
-    for (let t = 0; t < chromosome.length; t++) {
-      workloads[chromosome[t]] += tasks[t].estimatedHours || 1;
-    }
-
-    // f_workload: 1 - normalized standard deviation
-    const avgWorkload = workloads.reduce((s, w) => s + w, 0) / numResources;
-    const variance = workloads.reduce((s, w) => s + (w - avgWorkload) ** 2, 0) / numResources;
-    const stdDev = Math.sqrt(variance);
-    const maxWorkload = Math.max(...workloads, 1);
-    const fWorkload = Math.max(0, 1 - stdDev / maxWorkload);
-
-    // 2. f_skill: average skill match
-    let totalSkillMatch = 0;
-    for (let t = 0; t < chromosome.length; t++) {
-      totalSkillMatch += skillMatrix[t][chromosome[t]];
-    }
-    const fSkill = totalSkillMatch / chromosome.length;
-
-    // 3. f_cost: normalized cost
-    let totalCost = 0;
-    for (let t = 0; t < chromosome.length; t++) {
-      totalCost += (resources[chromosome[t]].hourlyRate || 0) * (tasks[t].estimatedHours || 1);
-    }
-    const fCost = maxCost > 0 ? Math.max(0, 1 - totalCost / maxCost) : 1;
-
-    // 4. f_overalloc: penalty for overloaded resources
-    let overallocated = 0;
-    for (let r = 0; r < numResources; r++) {
-      const capacity = (resources[r].maxCapacity || 40) * (resources[r].fte || 1);
-      if (workloads[r] > capacity) overallocated++;
-    }
-    const fOveralloc = 1 - overallocated / numResources;
-
-    // Weighted sum
-    const fitness =
-      this.weights.workloadBalance * fWorkload +
-      this.weights.skillMatch * fSkill +
-      this.weights.cost * fCost +
-      this.weights.overallocation * fOveralloc;
-
-    return Math.max(0, Math.min(1, fitness));
-  }
+  // Fitness và metrics dùng chung với CSP — xem ../scoring.js
 
   // ──────────────────────────────────────────────
   // Selection: Tournament
@@ -259,6 +247,9 @@ class GeneticAlgorithm {
 
   // ──────────────────────────────────────────────
   // Crossover: Uniform
+  //
+  // Chỉ hoán đổi gen giữa hai cha mẹ tại cùng vị trí, mà gen tại vị trí t của cả
+  // hai đều đã nằm trong domains[t], nên con sinh ra luôn hợp lệ — không cần sửa lại.
   // ──────────────────────────────────────────────
   _crossover(parent1, parent2) {
     const child1 = [];
@@ -276,12 +267,12 @@ class GeneticAlgorithm {
   }
 
   // ──────────────────────────────────────────────
-  // Mutation: Random Reassignment
+  // Mutation: Random Reassignment (trong miền của task đó)
   // ──────────────────────────────────────────────
   _mutate(chromosome, numResources) {
     for (let i = 0; i < chromosome.length; i++) {
       if (Math.random() < this.mutationRate) {
-        chromosome[i] = Math.floor(Math.random() * numResources);
+        chromosome[i] = this._randomResourceFor(i, numResources);
       }
     }
   }
@@ -300,54 +291,6 @@ class GeneticAlgorithm {
     }));
   }
 
-  // ──────────────────────────────────────────────
-  // Compute final metrics
-  // ──────────────────────────────────────────────
-  _computeMetrics(chromosome, tasks, resources, skillMatrix) {
-    const numResources = resources.length;
-    const workloads = new Array(numResources).fill(0);
-
-    for (let t = 0; t < chromosome.length; t++) {
-      workloads[chromosome[t]] += tasks[t].estimatedHours || 1;
-    }
-
-    const avgWorkload = workloads.reduce((s, w) => s + w, 0) / numResources;
-    const variance = workloads.reduce((s, w) => s + (w - avgWorkload) ** 2, 0) / numResources;
-
-    let totalSkillMatch = 0;
-    let totalCost = 0;
-    for (let t = 0; t < chromosome.length; t++) {
-      totalSkillMatch += skillMatrix[t][chromosome[t]];
-      totalCost += (resources[chromosome[t]].hourlyRate || 0) * (tasks[t].estimatedHours || 1);
-    }
-
-    let overallocated = 0;
-    const resourceUtilization = resources.map((r, i) => {
-      const capacity = (r.maxCapacity || 40) * (r.fte || 1);
-      const util = capacity > 0 ? Math.round((workloads[i] / capacity) * 100) : 0;
-      if (workloads[i] > capacity) overallocated++;
-      return {
-        resource: r._id,
-        name: r.userName || r.position,
-        workload: Math.round(workloads[i] * 10) / 10,
-        capacity,
-        utilization: util,
-        isOverloaded: workloads[i] > capacity,
-      };
-    });
-
-    return {
-      workloadVariance: Math.round(Math.sqrt(variance) * 100) / 100,
-      averageSkillMatch: Math.round((totalSkillMatch / chromosome.length) * 100),
-      totalCost: Math.round(totalCost),
-      overallocatedResources: overallocated,
-      averageUtilization: Math.round(
-        resourceUtilization.reduce((s, r) => s + r.utilization, 0) / numResources
-      ),
-      resourceUtilization,
-    };
-  }
-
   _emptyResult(message) {
     return {
       success: false,
@@ -356,14 +299,7 @@ class GeneticAlgorithm {
       fitness: 0,
       generations: 0,
       convergenceHistory: [],
-      metrics: {
-        workloadVariance: 0,
-        averageSkillMatch: 0,
-        totalCost: 0,
-        overallocatedResources: 0,
-        averageUtilization: 0,
-        resourceUtilization: [],
-      },
+      metrics: emptyMetrics(),
       executionTime: 0,
     };
   }

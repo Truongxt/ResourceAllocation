@@ -7,6 +7,7 @@ const {
   runCSPSolver,
   runHybrid,
   getHistory,
+  compareResults,
   getResultById,
   applyResult,
 } = require('../controllers/optimization.controller');
@@ -25,7 +26,10 @@ router.post('/run/csp', runCSPSolver);
 router.post('/run/hybrid', runHybrid);
 
 // History & detail
+// `/compare` phải đứng trước `/:id`, nếu không Express khớp "compare" vào :id và
+// request chết ở tầng validate với thông báo "ID không hợp lệ".
 router.get('/history', getHistory);
+router.get('/compare', compareResults);
 router.get('/:id', resultIdValidation, validate, getResultById);
 
 // Apply result

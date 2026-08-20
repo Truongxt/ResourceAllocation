@@ -1,13 +1,17 @@
 const http = require('http');
+const path = require('path');
+const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
 const { Server } = require('socket.io');
+
+// Load environment variables trước khi require bất kỳ module nào đọc process.env
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const app = require('./app');
 const connectDB = require('./src/config/db');
 const { setIO } = require('./src/services/socket.service');
-
-// Load environment variables
-dotenv.config({ path: '../.env' });
+const { getJwtSecret, assertJwtConfig } = require('./src/config/jwt');
+const { logMailStatus } = require('./src/services/email.service');
 
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
@@ -29,8 +33,7 @@ io.use((socket, next) => {
       return next(new Error('Authentication error'));
     }
 
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret');
+    const decoded = jwt.verify(token, getJwtSecret());
     socket.user = { id: decoded.id };
     next();
   } catch (error) {
@@ -52,6 +55,10 @@ io.on('connection', (socket) => {
 // Connect to database and start server
 const startServer = async () => {
   try {
+    // Kiểm tra cấu hình trước khi kết nối DB, để lỗi thiếu JWT_SECRET lộ ra ngay
+    // thay vì chờ tới request đầu tiên rồi biến thành 401 khó chẩn đoán
+    assertJwtConfig();
+
     await connectDB();
 
     server.listen(PORT, () => {
@@ -65,6 +72,9 @@ const startServer = async () => {
 ║  Health:  http://localhost:${PORT}/api/health    ║
 ╚═══════════════════════════════════════════════╝
       `);
+      // In ngay trạng thái email: bật hay tắt, và nếu tắt thì vì sao. Không có
+      // dòng này thì "sao tôi không nhận được mail" phải đi đọc code mới biết.
+      logMailStatus();
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);

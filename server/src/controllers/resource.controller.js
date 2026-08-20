@@ -2,6 +2,7 @@ const Resource = require('../models/Resource');
 const Task = require('../models/Task');
 const User = require('../models/User');
 const Department = require('../models/Department');
+const { logActivity } = require('../services/activityLog.service');
 
 const EMPLOYEE_ID_PREFIX = 'NV';
 const EMPLOYEE_ID_LENGTH = 4;
@@ -256,7 +257,18 @@ const deleteResource = async (req, res, next) => {
       });
     }
 
+    const deletedName = resource.employeeId || resource.position;
     await resource.deleteOne();
+
+    await logActivity({
+      req,
+      action: 'DELETE_RESOURCE',
+      entityType: 'resource',
+      entityId: req.params.id,
+      entityTitle: deletedName,
+      description: `Xóa nhân sự ${deletedName}`,
+      details: { department: resource.department, position: resource.position },
+    });
 
     res.json({
       success: true,
@@ -334,6 +346,16 @@ const recalculateWorkload = async (req, res, next) => {
 
       await resource.save();
     }
+
+    // Thao tác này ghi đè `currentWorkload` của toàn bộ nhân sự đang hoạt động.
+    // Nếu con số sau đó trông lạ, phải tra được ai chạy và chạy lúc nào.
+    await logActivity({
+      req,
+      action: 'RECALCULATE_WORKLOAD',
+      entityType: 'resource',
+      description: `Tính lại workload cho ${resources.length} nhân sự`,
+      details: { resourceCount: resources.length },
+    });
 
     res.json({
       success: true,

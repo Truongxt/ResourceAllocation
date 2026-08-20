@@ -1,5 +1,6 @@
 const Department = require('../models/Department');
 const Resource = require('../models/Resource');
+const { logActivity } = require('../services/activityLog.service');
 
 const getDepartments = async (req, res, next) => {
   try {
@@ -83,6 +84,17 @@ const deleteDepartment = async (req, res, next) => {
     }
 
     await department.deleteOne();
+
+    await logActivity({
+      req,
+      action: 'DELETE_DEPARTMENT',
+      entityType: 'department',
+      entityId: req.params.id,
+      entityTitle: department.name,
+      description: `Xóa phòng ban ${department.name}`,
+      details: { code: department.code },
+    });
+
     res.json({
       success: true,
       data: { id: req.params.id },

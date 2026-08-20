@@ -1,23 +1,55 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from 'antd';
 import { useAuth } from './context/AuthContext';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import ProtectedRoute from './components/common/ProtectedRoute';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Projects from './pages/Projects';
-import Tasks from './pages/Tasks';
-import Resources from './pages/Resources';
-import Optimization from './pages/Optimization';
-import GanttChart from './pages/GanttChart';
-import Reports from './pages/Reports';
-import Settings from './pages/Settings';
-import ActivityLogs from './pages/ActivityLogs';
+
+// Mỗi trang là một chunk riêng: mở /login không phải tải theo cả sơ đồ Gantt,
+// trang tối ưu hóa và báo cáo. Sidebar/Header vẫn nằm trong chunk chính vì
+// khung layout hiện ngay từ khung hình đầu tiên.
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Projects = lazy(() => import('./pages/Projects'));
+const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
+const Tasks = lazy(() => import('./pages/Tasks'));
+const Resources = lazy(() => import('./pages/Resources'));
+const Optimization = lazy(() => import('./pages/Optimization'));
+const GanttChart = lazy(() => import('./pages/GanttChart'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Settings = lazy(() => import('./pages/Settings'));
+const ActivityLogs = lazy(() => import('./pages/ActivityLogs'));
 
 const { Content } = Layout;
+
+function FullPageSpinner() {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100vh',
+      background: 'var(--bg-primary, #0f172a)',
+    }}>
+      <div className="spinner" />
+    </div>
+  );
+}
+
+function ContentSpinner() {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 'calc(100vh - 200px)',
+    }}>
+      <div className="spinner" />
+    </div>
+  );
+}
 
 function AppLayout({ children }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -43,7 +75,9 @@ function AppLayout({ children }) {
             minHeight: 'calc(100vh - 104px)',
           }}
         >
-          {children}
+          {/* Ranh giới Suspense nằm trong Content nên khi đổi trang chỉ vùng nội
+              dung hiện spinner; sidebar và header không chớp mất rồi hiện lại. */}
+          <Suspense fallback={<ContentSpinner />}>{children}</Suspense>
         </Content>
       </Layout>
     </Layout>
@@ -54,35 +88,29 @@ export default function App() {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        background: 'var(--bg-primary, #0f172a)',
-      }}>
-        <div className="spinner" />
-      </div>
-    );
+    return <FullPageSpinner />;
   }
 
   return (
-    <Routes>
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <Register />} />
+    // Ranh giới ngoài cùng lo cho Login/Register, hai trang không nằm trong AppLayout.
+    <Suspense fallback={<FullPageSpinner />}>
+      <Routes>
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <Register />} />
 
-      <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-      <Route path="/projects" element={<ProtectedRoute><AppLayout><Projects /></AppLayout></ProtectedRoute>} />
-      <Route path="/tasks" element={<ProtectedRoute><AppLayout><Tasks /></AppLayout></ProtectedRoute>} />
-      <Route path="/resources" element={<ProtectedRoute><AppLayout><Resources /></AppLayout></ProtectedRoute>} />
-      <Route path="/optimization" element={<ProtectedRoute><AppLayout><Optimization /></AppLayout></ProtectedRoute>} />
-      <Route path="/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><AppLayout><Reports /></AppLayout></ProtectedRoute>} />
-      <Route path="/activity-logs" element={<ProtectedRoute><AppLayout><ActivityLogs /></AppLayout></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
+        <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+        <Route path="/projects" element={<ProtectedRoute><AppLayout><Projects /></AppLayout></ProtectedRoute>} />
+        <Route path="/projects/:id" element={<ProtectedRoute><AppLayout><ProjectDetail /></AppLayout></ProtectedRoute>} />
+        <Route path="/tasks" element={<ProtectedRoute><AppLayout><Tasks /></AppLayout></ProtectedRoute>} />
+        <Route path="/resources" element={<ProtectedRoute><AppLayout><Resources /></AppLayout></ProtectedRoute>} />
+        <Route path="/optimization" element={<ProtectedRoute><AppLayout><Optimization /></AppLayout></ProtectedRoute>} />
+        <Route path="/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><AppLayout><Reports /></AppLayout></ProtectedRoute>} />
+        <Route path="/activity-logs" element={<ProtectedRoute><AppLayout><ActivityLogs /></AppLayout></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }

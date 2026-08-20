@@ -1,3 +1,4 @@
+const path = require('path');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const User = require('../models/User');
@@ -5,25 +6,39 @@ const Project = require('../models/Project');
 const Task = require('../models/Task');
 const Resource = require('../models/Resource');
 const Department = require('../models/Department');
+const Notification = require('../models/Notification');
+const ActivityLog = require('../models/ActivityLog');
+const OptimizationResult = require('../models/OptimizationResult');
+const RefreshToken = require('../models/RefreshToken');
 
-dotenv.config();
+// .env nằm ở thư mục gốc dự án, không phải trong server/
+dotenv.config({ path: path.join(__dirname, '..', '..', '..', '.env') });
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/resource_allocation';
+// Phải trùng tên biến với src/config/db.js, nếu không seeder sẽ ghi vào DB mặc định
+const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/resource_allocation';
 
 async function seedData() {
   try {
     await mongoose.connect(MONGO_URI);
     console.log('Connected to MongoDB for seeding...');
 
-    // Clear existing data (optional)
+    // Xóa cả 8 collection. Trước đây chỉ xóa 5 cái đầu, nên notifications,
+    // activitylogs và optimizationresults tồn đọng qua mọi lần seed và trỏ tới
+    // những user/task đã bị xóa — dữ liệu mồ côi làm lệch mọi báo cáo.
     await Promise.all([
       User.deleteMany({}),
       Project.deleteMany({}),
       Task.deleteMany({}),
       Resource.deleteMany({}),
       Department.deleteMany({}),
+      Notification.deleteMany({}),
+      ActivityLog.deleteMany({}),
+      OptimizationResult.deleteMany({}),
+      // Seed xóa sạch User rồi tạo lại với _id mới, nên mọi refresh token cũ đều
+      // trỏ vào khoảng không. Bỏ sót thì chúng nằm lại tới khi TTL dọn.
+      RefreshToken.deleteMany({}),
     ]);
-    console.log('Cleared existing collections.');
+    console.log('Cleared all 8 collections.');
 
     // 1. Create Users
     const adminUser = await User.create({

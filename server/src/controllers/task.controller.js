@@ -94,6 +94,57 @@ const getTaskById = async (req, res, next) => {
 };
 
 /**
+ * Helper: kiểm tra danh sách công việc tiền nhiệm trước khi lưu.
+ *
+ * Giao diện đã lọc sẵn các lựa chọn hợp lệ, nhưng đây mới là chỗ bắt buộc phải
+ * chặn: một chu trình phụ thuộc lọt vào DB sẽ làm hỏng cả CPM trên sơ đồ Gantt
+ * lẫn ràng buộc H4 của CSP.
+ *
+ * @returns {String|null} thông báo lỗi, hoặc null nếu hợp lệ
+ */
+const validateDependencies = async (dependencies, { taskId, projectId }) => {
+  const ids = [...new Set((dependencies || []).map(String))];
+  if (!ids.length) return null;
+
+  if (taskId && ids.includes(String(taskId))) {
+    return 'Công việc không thể phụ thuộc vào chính nó';
+  }
+
+  const referenced = await Task.find({ _id: { $in: ids } }).select('project title');
+  if (referenced.length !== ids.length) {
+    return 'Có công việc tiền nhiệm không tồn tại';
+  }
+
+  const outsider = referenced.find((t) => String(t.project) !== String(projectId));
+  if (outsider) {
+    return `Công việc "${outsider.title}" thuộc dự án khác, không thể làm tiền nhiệm`;
+  }
+
+  // Cạnh trỏ từ công việc tới tiền nhiệm của nó. Chu trình xuất hiện khi chính
+  // task đang sửa lại nằm trong chuỗi tiền nhiệm của một trong các lựa chọn mới.
+  if (taskId) {
+    const all = await Task.find({ project: projectId }).select('dependencies');
+    const graph = new Map(all.map((t) => [String(t._id), (t.dependencies || []).map(String)]));
+
+    const queue = [...ids];
+    const seen = new Set(queue);
+    while (queue.length) {
+      const current = queue.shift();
+      if (current === String(taskId)) {
+        return 'Phụ thuộc này tạo thành vòng lặp giữa các công việc';
+      }
+      for (const next of graph.get(current) || []) {
+        if (seen.has(next)) continue;
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+  }
+
+  return null;
+};
+
+/**
  * @desc    Tạo task mới
  * @route   POST /api/tasks
  * @access  Private
@@ -107,6 +158,17 @@ const createTask = async (req, res, next) => {
         success: false,
         message: 'Không tìm thấy dự án',
       });
+    }
+
+    const depError = await validateDependencies(req.body.dependencies, {
+      taskId: null,
+      projectId: project._id,
+    });
+    if (depError) {
+      return res.status(400).json({ success: false, message: depError });
+    }
+    if (Array.isArray(req.body.dependencies)) {
+      req.body.dependencies = [...new Set(req.body.dependencies.map(String))];
     }
 
     const taskData = {
@@ -171,6 +233,17 @@ const updateTask = async (req, res, next) => {
         success: false,
         message: 'Không tìm thấy công việc',
       });
+    }
+
+    if (req.body.dependencies !== undefined) {
+      const depError = await validateDependencies(req.body.dependencies, {
+        taskId: task._id,
+        projectId: task.project,
+      });
+      if (depError) {
+        return res.status(400).json({ success: false, message: depError });
+      }
+      req.body.dependencies = [...new Set((req.body.dependencies || []).map(String))];
     }
 
     // Auto-set progress to 100 when status changed to done

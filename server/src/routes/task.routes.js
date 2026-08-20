@@ -1,7 +1,8 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
+const { canModifyTask } = require('../middleware/taskAccess');
 const {
   getTasks,
   getTaskById,
@@ -64,7 +65,11 @@ const createValidation = [
     .withMessage('Giờ ước tính phải >= 0'),
   body('assignee').optional({ nullable: true }).isMongoId().withMessage('ID nhân sự không hợp lệ'),
   body('dependencies').optional().isArray().withMessage('Dependencies phải là mảng'),
+  body('dependencies.*').optional().isMongoId().withMessage('ID công việc tiền nhiệm không hợp lệ'),
   body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
+  body('requiredSkills.*.name').trim().notEmpty().withMessage('Tên kỹ năng yêu cầu không được để trống'),
+  body('requiredSkills.*.level').optional().isInt({ min: 1, max: 4 }).withMessage('Level kỹ năng yêu cầu phải từ 1 đến 4'),
+  body('requiredSkills.*.weight').optional().isFloat({ min: 0, max: 1 }).withMessage('Trọng số kỹ năng phải từ 0 đến 1'),
 ];
 
 const updateValidation = [
@@ -104,7 +109,11 @@ const updateValidation = [
     .withMessage('Tiến độ phải từ 0 đến 100'),
   body('assignee').optional({ nullable: true }).isMongoId().withMessage('ID nhân sự không hợp lệ'),
   body('dependencies').optional().isArray().withMessage('Dependencies phải là mảng'),
+  body('dependencies.*').optional().isMongoId().withMessage('ID công việc tiền nhiệm không hợp lệ'),
   body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
+  body('requiredSkills.*.name').trim().notEmpty().withMessage('Tên kỹ năng yêu cầu không được để trống'),
+  body('requiredSkills.*.level').optional().isInt({ min: 1, max: 4 }).withMessage('Level kỹ năng yêu cầu phải từ 1 đến 4'),
+  body('requiredSkills.*.weight').optional().isFloat({ min: 0, max: 1 }).withMessage('Trọng số kỹ năng phải từ 0 đến 1'),
 ];
 
 const statusValidation = [
@@ -120,9 +129,20 @@ router.use(protect);
 router.get('/stats/summary', getTaskSummary);
 router.get('/', listValidation, validate, getTasks);
 router.get('/:id', taskIdValidation, validate, getTaskById);
-router.post('/', createValidation, validate, createTask);
-router.put('/:id', taskIdValidation, updateValidation, validate, updateTask);
-router.patch('/:id/status', taskIdValidation, statusValidation, validate, updateTaskStatus);
-router.delete('/:id', taskIdValidation, validate, deleteTask);
+
+router.post('/', authorize('admin', 'project_manager'), createValidation, validate, createTask);
+
+// Member sửa được task của chính mình, nhưng chỉ các trường về tiến độ
+router.put(
+  '/:id',
+  taskIdValidation,
+  updateValidation,
+  validate,
+  canModifyTask({ restrictFields: true }),
+  updateTask
+);
+router.patch('/:id/status', taskIdValidation, statusValidation, validate, canModifyTask(), updateTaskStatus);
+
+router.delete('/:id', authorize('admin', 'project_manager'), taskIdValidation, validate, deleteTask);
 
 module.exports = router;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Row,
   Col,
@@ -21,6 +22,7 @@ import {
   Spin,
   Empty,
   Divider,
+  Switch,
 } from 'antd';
 import {
   PlayCircleOutlined,
@@ -33,18 +35,36 @@ import {
   SlidersOutlined,
   WarningOutlined,
   CheckCircleOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import optimizationService from '../services/optimizationService';
 import projectService from '../services/projectService';
 import analyticsService from '../services/analyticsService';
+import { formatDateTime, formatNumber } from '../i18n/format';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
-const ALGO_OPTIONS = [
-  { value: 'genetic', label: '🧬 Genetic Algorithm', desc: 'Multi-objective GA, tìm giải pháp tối ưu toàn diện' },
-  { value: 'csp', label: '🔗 CSP Solver', desc: 'Backtracking + AC-3, đảm bảo thoả mãn ràng buộc cứng' },
-  { value: 'hybrid', label: '⚡ Hybrid (CSP → GA)', desc: 'Kết hợp CSP lọc miền giá trị + GA tối ưu hóa' },
-];
+const ALGO_VALUES = ['genetic', 'csp', 'hybrid'];
+
+const ALGO_META = {
+  genetic: { icon: '🧬', label: 'GA', color: 'purple' },
+  csp: { icon: '🔗', label: 'CSP', color: 'blue' },
+  hybrid: { icon: '⚡', label: 'Hybrid', color: 'gold' },
+};
+
+// Đơn vị đi kèm từng chỉ số so sánh. Nằm ở client vì "giờ"/"người" là câu chữ;
+// server chỉ gửi `key`, `digits` và `higherIsBetter`.
+const METRIC_UNIT_KEYS = {
+  averageSkillMatch: 'percent',
+  workloadVariance: 'hours',
+  overallocatedResources: 'people',
+  averageUtilization: 'percent',
+  executionTime: 'ms',
+};
+
+// Số phương án đặt cạnh nhau được. Trên 4 cột thì bảng tràn ngang và không đọc nổi,
+// server cũng từ chối ở cùng ngưỡng này.
+const MAX_COMPARE = 4;
 
 function formatTime(ms) {
   if (!ms) return '0ms';
@@ -52,7 +72,39 @@ function formatTime(ms) {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
+function formatMetric(value, metric, t) {
+  if (typeof value !== 'number') return '—';
+  const text = metric.digits > 0 ? value.toFixed(metric.digits) : formatNumber(Math.round(value));
+  const unitKey = METRIC_UNIT_KEYS[metric.key];
+  return unitKey ? `${text} ${t(`optimization.unit.${unitKey}`)}` : text;
+}
+
+/** Đầu cột trong bảng so sánh: cần đủ ngữ cảnh để biết đang so cái gì với cái gì. */
+function ResultHeader({ result, t }) {
+  const meta = ALGO_META[result.algorithm] || { icon: '•', label: result.algorithm, color: 'default' };
+  const scope =
+    result.projectFilter?.code || result.projectFilter?.name || t('optimization.wholeSystem');
+
+  return (
+    <Space direction="vertical" size={2} style={{ lineHeight: 1.35 }}>
+      <Space size={4}>
+        <Tag color={meta.color} style={{ margin: 0 }}>{meta.icon} {meta.label}</Tag>
+        {result.isApplied && (
+          <Tag color="cyan" style={{ margin: 0 }}>{t('optimization.applied')}</Tag>
+        )}
+      </Space>
+      <Text type="secondary" style={{ fontSize: 11, fontWeight: 400 }}>
+        {formatDateTime(result.createdAt)}
+      </Text>
+      <Text type="secondary" style={{ fontSize: 11, fontWeight: 400 }}>
+        {t('optimization.scopeSummary', { count: result.taskCount, scope })}
+      </Text>
+    </Space>
+  );
+}
+
 export default function Optimization() {
+  const { t } = useTranslation();
   const [algorithm, setAlgorithm] = useState('genetic');
   const [projects, setProjects] = useState([]);
   const [params, setParams] = useState({
@@ -72,6 +124,10 @@ export default function Optimization() {
   const [comparisonLoading, setComparisonLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('result');
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [benchmark, setBenchmark] = useState(null);
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
+  const [onlyDiff, setOnlyDiff] = useState(false);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -129,15 +185,15 @@ export default function Optimization() {
       setActiveTab('result');
 
       if (result.status === 'completed') {
-        message.success(`Tối ưu hóa hoàn thành trong ${formatTime(result.executionTime)}!`);
+        message.success(t('optimization.runDone', { time: formatTime(result.executionTime) }));
         loadComparison(result._id);
       } else {
-        message.error(result.errorMessage || 'Không tìm thấy giải pháp khả thi.');
+        message.error(result.errorMessage || t('optimization.noFeasible'));
       }
 
       await loadHistory();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Có lỗi xảy ra khi chạy tối ưu hóa.');
+      message.error(err.response?.data?.message || t('optimization.runFailed'));
     } finally {
       setRunning(false);
     }
@@ -146,13 +202,13 @@ export default function Optimization() {
   const handleApply = async (resultId) => {
     try {
       const res = await optimizationService.applyResult(resultId);
-      message.success(res.data.message || 'Đã áp dụng kết quả phân bổ thành công');
+      message.success(res.data.message || t('optimization.applySuccess'));
       await loadHistory();
       if (currentResult?._id === resultId) {
         setCurrentResult((prev) => ({ ...prev, isApplied: true }));
       }
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể áp dụng kết quả.');
+      message.error(err.response?.data?.message || t('optimization.applyFailed'));
     }
   };
 
@@ -170,9 +226,24 @@ export default function Optimization() {
     }
   };
 
+  const handleCompare = async () => {
+    if (selectedIds.length < 2) return;
+    setBenchmarkLoading(true);
+    setActiveTab('benchmark');
+    try {
+      const res = await optimizationService.compare(selectedIds);
+      setBenchmark(res.data.data.comparison);
+    } catch (err) {
+      message.error(err.response?.data?.message || t('optimization.compareFailed'));
+      setBenchmark(null);
+    } finally {
+      setBenchmarkLoading(false);
+    }
+  };
+
   const assignmentColumns = [
     {
-      title: 'Công việc (Task)',
+      title: t('nav.tasks'),
       key: 'task',
       render: (_, record) => (
         <div>
@@ -186,7 +257,7 @@ export default function Optimization() {
       ),
     },
     {
-      title: 'Nhân sự được gán',
+      title: t('optimization.assignedTo'),
       key: 'resource',
       render: (_, record) => (
         <Space>
@@ -196,11 +267,15 @@ export default function Optimization() {
       ),
     },
     {
-      title: 'Độ khớp kỹ năng (Skill Match)',
+      title: t('optimization.skillMatch'),
       key: 'skillMatch',
       width: 200,
       render: (_, record) => {
-        const score = record.skillMatchScore || (record.matchedSkills ? Math.min(record.matchedSkills.length * 25, 100) : 85);
+        // CSP không tính điểm khớp kỹ năng nên assignments của nó không có field này
+        if (typeof record.skillMatch !== 'number') {
+          return <Text type="secondary">—</Text>;
+        }
+        const score = record.skillMatch;
         return <Progress percent={score} size="small" status={score >= 80 ? 'success' : 'normal'} />;
       },
     },
@@ -208,7 +283,7 @@ export default function Optimization() {
 
   const historyColumns = [
     {
-      title: 'Thuật toán',
+      title: t('optimization.algorithm'),
       dataIndex: 'algorithm',
       key: 'algorithm',
       render: (algo) => {
@@ -223,48 +298,55 @@ export default function Optimization() {
       render: (fitness) => <Text strong style={{ color: '#6366f1' }}>{fitness || '—'}</Text>,
     },
     {
-      title: 'Quy mô',
+      title: t('optimization.scale'),
       key: 'scale',
       render: (_, record) => (
-        <Text type="secondary">{record.taskCount} Tasks / {record.resourceCount} Nhân sự</Text>
+        <Text type="secondary">
+          {t('dashboard.taskResourceCount', {
+            tasks: record.taskCount,
+            resources: record.resourceCount,
+          })}
+        </Text>
       ),
     },
     {
-      title: 'Thời gian chạy',
+      title: t('optimization.runtime'),
       dataIndex: 'executionTime',
       key: 'executionTime',
       render: (time) => formatTime(time || 0),
     },
     {
-      title: 'Trạng thái',
+      title: t('common.status'),
       key: 'status',
       render: (_, record) => (
         <Space>
           <Tag color={record.status === 'completed' ? 'success' : 'error'}>
-            {record.status === 'completed' ? 'Hoàn thành' : 'Thất bại'}
+            {record.status === 'completed'
+              ? t('enums.taskStatus.done')
+              : t('optimization.failed')}
           </Tag>
-          {record.isApplied && <Tag color="cyan">Đã áp dụng</Tag>}
+          {record.isApplied && <Tag color="cyan">{t('optimization.applied')}</Tag>}
         </Space>
       ),
     },
     {
-      title: 'Hành động',
+      title: t('common.actions'),
       key: 'actions',
       render: (_, record) => (
         <Space>
           <Button size="small" icon={<EyeOutlined />} onClick={() => viewResult(record._id)}>
-            Xem
+            {t('optimization.view')}
           </Button>
           {record.status === 'completed' && !record.isApplied && (
             <Popconfirm
-              title="Áp dụng phương án này?"
-              description="Hệ thống sẽ cập nhật người thực hiện cho tất cả công việc liên quan."
+              title={t('optimization.applyConfirm')}
+              description={t('optimization.applyConfirmBody')}
               onConfirm={() => handleApply(record._id)}
-              okText="Áp dụng"
-              cancelText="Hủy"
+              okText={t('common.apply')}
+              cancelText={t('common.cancel')}
             >
               <Button size="small" type="primary" icon={<CheckOutlined />}>
-                Áp dụng
+                {t('common.apply')}
               </Button>
             </Popconfirm>
           )}
@@ -273,39 +355,145 @@ export default function Optimization() {
     },
   ];
 
+  const resultColumns = benchmark?.results || [];
+
+  const metricColumns = [
+    {
+      title: t('optimization.metricColumn'),
+      dataIndex: 'key',
+      key: 'label',
+      width: 230,
+      render: (key, row) => (
+        <div style={{ lineHeight: 1.35 }}>
+          <Text strong style={{ fontSize: 13 }}>
+            {t(`optimization.metric.${key}`, { defaultValue: key })}
+          </Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {row.higherIsBetter === null
+              ? t('optimization.direction.neutral')
+              : row.higherIsBetter
+                ? t('optimization.direction.higher')
+                : t('optimization.direction.lower')}
+          </Text>
+        </div>
+      ),
+    },
+    ...resultColumns.map((result, index) => ({
+      title: <ResultHeader result={result} t={t} />,
+      key: result._id,
+      align: 'center',
+      render: (_, row) => {
+        const isBest = row.bestIndex === index;
+        return (
+          <Text
+            strong={isBest}
+            style={{ fontSize: 13, color: isBest ? '#10b981' : undefined }}
+          >
+            {formatMetric(row.values[index], row, t)}
+            {isBest && ' ★'}
+          </Text>
+        );
+      },
+    })),
+  ];
+
+  const diffRows = onlyDiff
+    ? (benchmark?.assignments.rows || []).filter((row) => !row.agreed)
+    : benchmark?.assignments.rows || [];
+
+  const diffColumns = [
+    {
+      title: t('nav.tasks'),
+      dataIndex: 'taskTitle',
+      key: 'task',
+      width: 230,
+      render: (title, row) => (
+        <Space size={6} align="start">
+          {!row.agreed && (
+            <Tag color={row.comparable ? 'orange' : 'default'} style={{ margin: 0 }}>
+              {row.comparable ? t('optimization.diffDiffers') : t('optimization.diffMissing')}
+            </Tag>
+          )}
+          <Text style={{ fontSize: 13 }}>{title}</Text>
+        </Space>
+      ),
+    },
+    ...resultColumns.map((result, index) => {
+      const meta = ALGO_META[result.algorithm] || { icon: '•', label: result.algorithm, color: 'default' };
+      return {
+        title: <Tag color={meta.color} style={{ margin: 0 }}>{meta.icon} {meta.label}</Tag>,
+        key: `${result._id}-assignment`,
+        render: (_, row) => {
+          const cell = row.cells[index];
+          if (!cell) {
+            return (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {t('optimization.notAssigned')}
+              </Text>
+            );
+          }
+          return (
+            <div style={{ lineHeight: 1.35 }}>
+              <Text style={{ fontSize: 13 }}>
+                {cell.resourceName || t('projectDetail.unknownUser')}
+              </Text>
+              {typeof cell.skillMatch === 'number' && (
+                <>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: 11 }}>
+                    {t('optimization.matchPercent', { percent: Math.round(cell.skillMatch) })}
+                  </Text>
+                </>
+              )}
+            </div>
+          );
+        },
+      };
+    }),
+  ];
+
   return (
     <div style={{ maxWidth: 1400 }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ marginBottom: 4 }}>Tối ưu hóa Phân bổ Nguồn lực</Title>
-        <Text type="secondary">
-          Áp dụng thuật toán Genetic Algorithm (GA) & CSP Solver để tự động phân bổ nhân sự cân bằng workload, tối đa skill match và hạn chế burnout
-        </Text>
+        <Title level={3} style={{ marginBottom: 4 }}>{t('optimization.title')}</Title>
+        <Text type="secondary">{t('optimization.subtitle')}</Text>
       </div>
 
       <Row gutter={[24, 24]}>
         {/* Left: Optimizer Config */}
         <Col xs={24} lg={8}>
-          <Card title={<span><SlidersOutlined /> Cấu hình Thuật toán</span>} styles={{ body: { padding: '20px' } }}>
+          <Card
+            title={<span><SlidersOutlined /> {t('optimization.config')}</span>}
+            styles={{ body: { padding: '20px' } }}
+          >
             <div style={{ marginBottom: 16 }}>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>Chọn thuật toán tối ưu</Text>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                {t('optimization.pickAlgorithm')}
+              </Text>
               <Select
                 style={{ width: '100%' }}
                 value={algorithm}
                 onChange={setAlgorithm}
-                options={ALGO_OPTIONS}
+                options={ALGO_VALUES.map((value) => ({
+                  value,
+                  label: t(`optimization.algo.${value}.label`),
+                }))}
                 size="large"
               />
               <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
-                {ALGO_OPTIONS.find((o) => o.value === algorithm)?.desc}
+                {t(`optimization.algo.${algorithm}.desc`)}
               </Text>
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>Lọc theo dự án (Tùy chọn)</Text>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                {t('optimization.filterByProject')}
+              </Text>
               <Select
                 style={{ width: '100%' }}
-                placeholder="Tất cả dự án"
+                placeholder={t('gantt.allProjects')}
                 value={params.projectId || undefined}
                 onChange={(val) => setParams((p) => ({ ...p, projectId: val || '' }))}
                 allowClear
@@ -315,7 +503,7 @@ export default function Optimization() {
 
             {algorithm !== 'csp' && (
               <>
-                <Divider style={{ margin: '16px 0' }}>Tham số thuật toán GA</Divider>
+                <Divider style={{ margin: '16px 0' }}>{t('optimization.gaParams')}</Divider>
                 <Row gutter={12} style={{ marginBottom: 12 }}>
                   <Col span={12}>
                     <Text style={{ fontSize: 12 }}>Population Size</Text>
@@ -364,11 +552,11 @@ export default function Optimization() {
                   </Col>
                 </Row>
 
-                <Divider style={{ margin: '16px 0' }}>Trọng số Fitness</Divider>
+                <Divider style={{ margin: '16px 0' }}>{t('optimization.fitnessWeights')}</Divider>
 
                 <div style={{ marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 12 }}>Cân bằng tải (Workload)</Text>
+                    <Text style={{ fontSize: 12 }}>{t('optimization.weightWorkload')}</Text>
                     <Text strong style={{ fontSize: 12 }}>{params.workloadWeight}</Text>
                   </div>
                   <Slider
@@ -382,7 +570,7 @@ export default function Optimization() {
 
                 <div style={{ marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 12 }}>Khớp kỹ năng (Skill Match)</Text>
+                    <Text style={{ fontSize: 12 }}>{t('optimization.weightSkill')}</Text>
                     <Text strong style={{ fontSize: 12 }}>{params.skillWeight}</Text>
                   </div>
                   <Slider
@@ -396,7 +584,7 @@ export default function Optimization() {
 
                 <div style={{ marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 12 }}>Tránh quá tải (Overload Penalty)</Text>
+                    <Text style={{ fontSize: 12 }}>{t('optimization.weightOverload')}</Text>
                     <Text strong style={{ fontSize: 12 }}>{params.overallocationWeight}</Text>
                   </div>
                   <Slider
@@ -419,7 +607,7 @@ export default function Optimization() {
               size="large"
               style={{ marginTop: 16, height: 44, borderRadius: 8 }}
             >
-              {running ? 'Đang chạy thuật toán...' : `Bắt đầu Tối ưu hóa`}
+              {running ? t('optimization.running') : t('optimization.run')}
             </Button>
           </Card>
         </Col>
@@ -435,7 +623,7 @@ export default function Optimization() {
                 key: 'result',
                 label: (
                   <span>
-                    <ThunderboltOutlined /> Kết quả tối ưu
+                    <ThunderboltOutlined /> {t('optimization.tabs.result')}
                   </span>
                 ),
                 children: currentResult ? (
@@ -445,7 +633,7 @@ export default function Optimization() {
                       <Col span={6}>
                         <Card hoverable styles={{ body: { padding: '16px' } }}>
                           <Statistic
-                            title="Fitness Score"
+                            title={t('optimization.fitnessScore')}
                             value={currentResult.fitness || '—'}
                             valueStyle={{ color: '#6366f1', fontWeight: 700 }}
                           />
@@ -453,18 +641,18 @@ export default function Optimization() {
                       </Col>
                       <Col span={6}>
                         <Card hoverable styles={{ body: { padding: '16px' } }}>
-                          <Statistic title="Thời gian chạy" value={formatTime(currentResult.executionTime || 0)} />
+                          <Statistic title={t('optimization.runtime')} value={formatTime(currentResult.executionTime || 0)} />
                         </Card>
                       </Col>
                       <Col span={6}>
                         <Card hoverable styles={{ body: { padding: '16px' } }}>
-                          <Statistic title="Số thế hệ (Gen)" value={currentResult.generations || currentResult.iterations || '—'} />
+                          <Statistic title={t('optimization.generations')} value={currentResult.generations || currentResult.iterations || '—'} />
                         </Card>
                       </Col>
                       <Col span={6}>
                         <Card hoverable styles={{ body: { padding: '16px' } }}>
                           <Statistic
-                            title="Quá tải (Overload)"
+                            title={t('resources.overloaded')}
                             value={currentResult.metrics?.overallocatedResources || 0}
                             valueStyle={{ color: (currentResult.metrics?.overallocatedResources || 0) > 0 ? '#ef4444' : '#10b981' }}
                           />
@@ -474,12 +662,18 @@ export default function Optimization() {
 
                     {/* Convergence History Mini Visualizer */}
                     {currentResult.convergenceHistory && currentResult.convergenceHistory.length > 1 && (
-                      <Card title="📈 Quá trình hội tụ (Convergence over Generations)" size="small">
+                      <Card title={`📈 ${t('optimization.convergence')}`} size="small">
                         <div style={{ display: 'flex', alignItems: 'flex-end', height: 80, gap: 3, padding: '10px 0' }}>
                           {currentResult.convergenceHistory.slice(-40).map((point, idx) => {
                             const heightPct = Math.max(10, Math.min(100, (point.bestFitness || point.fitness || 0) * 100));
                             return (
-                              <Tooltip key={idx} title={`Gen ${point.generation}: Fitness ${(point.bestFitness || point.fitness || 0).toFixed(4)}`}>
+                              <Tooltip
+                                key={idx}
+                                title={t('optimization.convergencePoint', {
+                                  gen: point.generation,
+                                  fitness: (point.bestFitness || point.fitness || 0).toFixed(4),
+                                })}
+                              >
                                 <div
                                   style={{
                                     flex: 1,
@@ -500,34 +694,117 @@ export default function Optimization() {
                     <Card styles={{ body: { padding: '16px 20px' } }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <Text strong>Phương án phân bổ tối ưu</Text>
+                          <Text strong>{t('optimization.bestPlan')}</Text>
                           <br />
                           <Text type="secondary" style={{ fontSize: 12 }}>
-                            Đã tìm thấy gán việc cho {currentResult.assignments?.length || 0} công việc
+                            {t('optimization.assignedFound', {
+                              count: currentResult.assignments?.length || 0,
+                            })}
                           </Text>
                         </div>
                         {!currentResult.isApplied ? (
                           <Popconfirm
-                            title="Xác nhận áp dụng phương án phân bổ?"
-                            description="Hệ thống sẽ cập nhật người thực hiện công việc vào database."
+                            title={t('optimization.applyConfirm')}
+                            description={t('optimization.applyConfirmDb')}
                             onConfirm={() => handleApply(currentResult._id)}
-                            okText="Đồng ý"
-                            cancelText="Hủy"
+                            okText={t('common.confirm')}
+                            cancelText={t('common.cancel')}
                           >
                             <Button type="primary" icon={<CheckOutlined />} size="large">
-                              Áp dụng phương án này
+                              {t('optimization.applyThis')}
                             </Button>
                           </Popconfirm>
                         ) : (
                           <Tag color="success" style={{ padding: '6px 12px', fontSize: 13 }}>
-                            <CheckCircleOutlined /> Đã áp dụng vào hệ thống
+                            <CheckCircleOutlined /> {t('optimization.appliedToSystem')}
                           </Tag>
                         )}
                       </div>
                     </Card>
 
+                    {/* Hybrid: pha CSP thu hẹp không gian tìm kiếm cho pha GA */}
+                    {currentResult.domainReduction?.restricted && (
+                      <Card size="small" title={`🔗 ${t('optimization.domain.title')}`}>
+                        <Space size={32} wrap>
+                          <Statistic
+                            title={t('optimization.domain.pairsLeft')}
+                            value={currentResult.domainReduction.feasiblePairs}
+                            suffix={`/ ${currentResult.domainReduction.totalPairs}`}
+                          />
+                          <Statistic
+                            title={t('optimization.domain.reducedBy')}
+                            value={Math.round(
+                              (1 -
+                                currentResult.domainReduction.feasiblePairs /
+                                  currentResult.domainReduction.totalPairs) *
+                                100
+                            )}
+                            suffix="%"
+                            valueStyle={{ color: '#10b981' }}
+                          />
+                        </Space>
+                        {currentResult.domainReduction.tasksReopened > 0 && (
+                          <Alert
+                            type="warning"
+                            showIcon
+                            style={{ marginTop: 12 }}
+                            message={t('optimization.domain.reopened', {
+                              count: currentResult.domainReduction.tasksReopened,
+                            })}
+                            description={t('optimization.domain.reopenedBody')}
+                          />
+                        )}
+                      </Card>
+                    )}
+
+                    {/* Ràng buộc bị vi phạm — CSP/Hybrid mới có báo cáo này */}
+                    {currentResult.constraintReport?.details?.violated?.length > 0 && (
+                      <Card
+                        size="small"
+                        title={
+                          <Space>
+                            <WarningOutlined style={{ color: '#f59e0b' }} />
+                            <span>
+                              {t('optimization.metric.violatedConstraints')} (
+                              {currentResult.constraintReport.details.violated.length})
+                            </span>
+                          </Space>
+                        }
+                        extra={
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {t('optimization.constraintsSatisfied', {
+                              count: currentResult.constraintReport.satisfied,
+                            })}
+                          </Text>
+                        }
+                      >
+                        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                          {currentResult.constraintReport.details.violated.map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                              <Tag color={item.type === 'dependency' ? 'orange' : 'red'} style={{ margin: 0 }}>
+                                {item.type === 'dependency'
+                                  ? t('optimization.violation.dependency')
+                                  : t('optimization.violation.workload')}
+                              </Tag>
+                              <Text strong style={{ fontSize: 13 }}>{item.subject}</Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>— {item.detail}</Text>
+                            </div>
+                          ))}
+                        </Space>
+                        {currentResult.constraintReport.details.violated.some((i) => i.type === 'dependency') && (
+                          <Alert
+                            type="info"
+                            showIcon
+                            style={{ marginTop: 12 }}
+                            message={t('optimization.datesNotice.title')}
+                            description={t('optimization.datesNotice.body')}
+                          />
+                        )}
+                      </Card>
+                    )}
+
                     {/* Assignments Table */}
-                    <Card title="Chi tiết Phân công (Task Assignments)" styles={{ body: { padding: 0 } }}>
+                    <Card title={t('optimization.assignmentDetail')} styles={{ body: { padding: 0 } }}>
                       <Table
                         columns={assignmentColumns}
                         dataSource={currentResult.assignments || []}
@@ -539,7 +816,7 @@ export default function Optimization() {
                 ) : (
                   <Card>
                     <Empty
-                      description="Chưa có kết quả tối ưu. Hãy chọn tham số và bấm 'Bắt đầu Tối ưu hóa' ở bên trái."
+                      description={t('optimization.noResult')}
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
                     />
                   </Card>
@@ -549,7 +826,7 @@ export default function Optimization() {
                 key: 'compare',
                 label: (
                   <span>
-                    <DiffOutlined /> So sánh Trước / Sau
+                    <DiffOutlined /> {t('optimization.tabs.compare')}
                   </span>
                 ),
                 disabled: !currentResult,
@@ -561,12 +838,12 @@ export default function Optimization() {
                           <Col span={8}>
                             <Card hoverable>
                               <Statistic
-                                title="Độ lệch tải (Workload StdDev)"
+                                title={t('optimization.metric.workloadVariance')}
                                 value={comparisonData.metrics?.after?.stdDev || 0}
                                 precision={2}
                                 suffix={
                                   <Text type="secondary" style={{ fontSize: 12 }}>
-                                    (Trước: {comparisonData.metrics?.before?.stdDev?.toFixed(2) || 0})
+                                    ({t('optimization.before')}: {comparisonData.metrics?.before?.stdDev?.toFixed(2) || 0})
                                   </Text>
                                 }
                               />
@@ -575,12 +852,12 @@ export default function Optimization() {
                           <Col span={8}>
                             <Card hoverable>
                               <Statistic
-                                title="Nhân sự quá tải"
+                                title={t('dashboard.overloadedResources')}
                                 value={comparisonData.metrics?.after?.overloadedCount || 0}
                                 valueStyle={{ color: '#10b981' }}
                                 suffix={
                                   <Text type="secondary" style={{ fontSize: 12 }}>
-                                    (Trước: {comparisonData.metrics?.before?.overloadedCount || 0})
+                                    ({t('optimization.before')}: {comparisonData.metrics?.before?.overloadedCount || 0})
                                   </Text>
                                 }
                               />
@@ -589,7 +866,7 @@ export default function Optimization() {
                           <Col span={8}>
                             <Card hoverable>
                               <Statistic
-                                title="Skill Match trung bình"
+                                title={t('optimization.metric.averageSkillMatch')}
                                 value={comparisonData.metrics?.after?.avgSkillMatch || 85}
                                 suffix="%"
                                 valueStyle={{ color: '#6366f1' }}
@@ -598,28 +875,28 @@ export default function Optimization() {
                           </Col>
                         </Row>
 
-                        <Card title="So sánh tải công việc từng nhân sự (Workload Distribution)" styles={{ body: { padding: 0 } }}>
+                        <Card title={t('optimization.workloadDistribution')} styles={{ body: { padding: 0 } }}>
                           <Table
                             dataSource={comparisonData.resources || []}
                             rowKey="resourceId"
                             pagination={false}
                             columns={[
-                              { title: 'Nhân sự', dataIndex: 'resourceName', key: 'name' },
-                              { title: 'Vị trí', dataIndex: 'position', key: 'pos' },
+                              { title: t('reports.columns.resource'), dataIndex: 'resourceName', key: 'name' },
+                              { title: t('resources.position'), dataIndex: 'position', key: 'pos' },
                               {
-                                title: 'Workload Trước (h)',
+                                title: t('optimization.workloadBefore'),
                                 dataIndex: 'beforeWorkload',
                                 key: 'before',
                                 render: (w) => <Text>{w || 0}h</Text>,
                               },
                               {
-                                title: 'Workload Sau tối ưu (h)',
+                                title: t('optimization.workloadAfter'),
                                 dataIndex: 'afterWorkload',
                                 key: 'after',
                                 render: (w) => <Text strong style={{ color: '#6366f1' }}>{w || 0}h</Text>,
                               },
                               {
-                                title: 'Thay đổi (Delta)',
+                                title: t('optimization.delta'),
                                 key: 'delta',
                                 render: (_, r) => {
                                   const delta = (r.afterWorkload || 0) - (r.beforeWorkload || 0);
@@ -636,7 +913,7 @@ export default function Optimization() {
                         </Card>
                       </Space>
                     ) : (
-                      <Empty description="Chưa có dữ liệu so sánh" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                      <Empty description={t('optimization.noComparison')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
                     )}
                   </Spin>
                 ),
@@ -645,18 +922,153 @@ export default function Optimization() {
                 key: 'history',
                 label: (
                   <span>
-                    <HistoryOutlined /> Lịch sử chạy ({history.length})
+                    <HistoryOutlined /> {t('optimization.tabs.history')} ({history.length})
                   </span>
                 ),
                 children: (
-                  <Card styles={{ body: { padding: 0 } }}>
+                  <Card
+                    styles={{ body: { padding: 0 } }}
+                    title={
+                      <Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>
+                        {t('optimization.pickHint', { max: MAX_COMPARE })}
+                      </Text>
+                    }
+                    extra={
+                      <Space>
+                        {selectedIds.length > 0 && (
+                          <Button size="small" onClick={() => setSelectedIds([])}>
+                            {t('optimization.clearSelection')}
+                          </Button>
+                        )}
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<ExperimentOutlined />}
+                          disabled={selectedIds.length < 2}
+                          loading={benchmarkLoading}
+                          onClick={handleCompare}
+                        >
+                          {t('optimization.compare')}
+                          {selectedIds.length > 0 ? ` (${selectedIds.length})` : ''}
+                        </Button>
+                      </Space>
+                    }
+                  >
                     <Table
                       columns={historyColumns}
                       dataSource={history}
                       rowKey="_id"
                       pagination={{ pageSize: 8 }}
+                      rowSelection={{
+                        selectedRowKeys: selectedIds,
+                        onChange: setSelectedIds,
+                        // Chặn ngay ở checkbox thay vì để người dùng chọn 6 cái rồi mới
+                        // nhận lỗi 400 từ server.
+                        getCheckboxProps: (record) => ({
+                          disabled:
+                            selectedIds.length >= MAX_COMPARE && !selectedIds.includes(record._id),
+                        }),
+                      }}
                     />
                   </Card>
+                ),
+              },
+              {
+                key: 'benchmark',
+                label: (
+                  <span>
+                    <ExperimentOutlined /> {t('optimization.tabs.benchmark')}
+                    {benchmark ? ` (${benchmark.results.length})` : ''}
+                  </span>
+                ),
+                children: (
+                  <Spin spinning={benchmarkLoading}>
+                    {benchmark ? (
+                      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                        {benchmark.warnings.map((warning, idx) => (
+                          <Alert
+                            key={idx}
+                            type="warning"
+                            showIcon
+                            message={t(`optimization.warning.${warning.code}`, {
+                              count: warning.count,
+                              counts: (warning.counts || []).join(' / '),
+                            })}
+                          />
+                        ))}
+
+                        <Card title={t('optimization.metricsTable')} styles={{ body: { padding: 0 } }}>
+                          <Table
+                            columns={metricColumns}
+                            dataSource={benchmark.metrics}
+                            rowKey="key"
+                            pagination={false}
+                            size="small"
+                            scroll={{ x: 'max-content' }}
+                          />
+                        </Card>
+
+                        <Card
+                          title={t('optimization.diffTitle')}
+                          extra={
+                            <Space size={8}>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                {t('optimization.onlyDiff')}
+                              </Text>
+                              <Switch size="small" checked={onlyDiff} onChange={setOnlyDiff} />
+                            </Space>
+                          }
+                          styles={{ body: { padding: 0 } }}
+                        >
+                          <div style={{ padding: '12px 16px' }}>
+                            {benchmark.assignments.agreementRate === null ? (
+                              <Text type="secondary" style={{ fontSize: 13 }}>
+                                {t('optimization.noAgreement', { count: benchmark.results.length })}
+                              </Text>
+                            ) : (
+                              <Text style={{ fontSize: 13 }}>
+                                {t('optimization.agreement', {
+                                  agreed: benchmark.assignments.agreed,
+                                  comparable: benchmark.assignments.comparable,
+                                  rate: benchmark.assignments.agreementRate,
+                                })}
+                                {benchmark.assignments.total > benchmark.assignments.comparable && (
+                                  <Text type="secondary">
+                                    {' '}
+                                    {t('optimization.excludedTasks', {
+                                      count:
+                                        benchmark.assignments.total -
+                                        benchmark.assignments.comparable,
+                                    })}
+                                  </Text>
+                                )}
+                              </Text>
+                            )}
+                          </div>
+                          <Table
+                            columns={diffColumns}
+                            dataSource={diffRows}
+                            rowKey="task"
+                            size="small"
+                            pagination={{ pageSize: 10, showSizeChanger: false }}
+                            scroll={{ x: 'max-content' }}
+                            locale={{
+                              emptyText: onlyDiff
+                                ? t('optimization.identicalPlans')
+                                : t('optimization.noAssignments'),
+                            }}
+                          />
+                        </Card>
+                      </Space>
+                    ) : (
+                      <Card>
+                        <Empty
+                          description={t('optimization.benchmarkHint', { max: MAX_COMPARE })}
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                      </Card>
+                    )}
+                  </Spin>
                 ),
               },
             ]}

@@ -2,19 +2,20 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, Alert, Select, Divider } from 'antd';
 import { LockOutlined, MailOutlined, UserOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { ROLES } from '../constants';
+import { roleLabel } from '../i18n/enums';
 
 const { Title, Text } = Typography;
 
-const roleOptions = [
-  { value: 'member', label: 'Thành viên (Member)' },
-  { value: 'project_manager', label: 'Project Manager' },
-  { value: 'admin', label: 'Quản trị viên (Admin)' },
-];
+// Nhãn vai trò lấy từ i18n; danh sách giá trị lấy từ constants để không lệch enum server.
 
 export default function Register() {
   const navigate = useNavigate();
   const { register, error, clearError } = useAuth();
+  const { t } = useTranslation();
+  const roleOptions = Object.values(ROLES).map((value) => ({ value, label: roleLabel(value) }));
   const [loading, setLoading] = useState(false);
 
   const onFinish = async (values) => {
@@ -57,8 +58,8 @@ export default function Register() {
           }}>
             <ThunderboltOutlined style={{ fontSize: 28, color: '#fff' }} />
           </div>
-          <Title level={3} style={{ marginBottom: 4 }}>Tạo tài khoản</Title>
-          <Text type="secondary">Đăng ký tham gia hệ thống RAO</Text>
+          <Title level={3} style={{ marginBottom: 4 }}>{t('auth.registerTitle')}</Title>
+          <Text type="secondary">{t('auth.subtitle')}</Text>
         </div>
 
         {error && (
@@ -68,46 +69,46 @@ export default function Register() {
         <Form layout="vertical" onFinish={onFinish} size="large" requiredMark={false}
           initialValues={{ role: 'member' }}
         >
-          <Form.Item name="name" label="Họ và tên"
-            rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
+          <Form.Item name="name" label={t('auth.name')}
+            rules={[{ required: true, message: t('auth.required.name') }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Nguyễn Văn A" autoFocus />
+            <Input prefix={<UserOutlined />} placeholder={t('auth.namePlaceholder')} autoFocus />
           </Form.Item>
 
-          <Form.Item name="email" label="Email"
+          <Form.Item name="email" label={t('auth.email')}
             rules={[
-              { required: true, message: 'Vui lòng nhập email' },
-              { type: 'email', message: 'Email không hợp lệ' },
+              { required: true, message: t('auth.required.email') },
+              { type: 'email', message: t('auth.required.emailInvalid') },
             ]}
           >
             <Input prefix={<MailOutlined />} placeholder="email@rao.com" />
           </Form.Item>
 
-          <Form.Item name="password" label="Mật khẩu"
+          <Form.Item name="password" label={t('auth.password')}
             rules={[
-              { required: true, message: 'Vui lòng nhập mật khẩu' },
-              { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự' },
+              { required: true, message: t('auth.required.password') },
+              { min: 6, message: t('auth.required.passwordMin') },
             ]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="Tối thiểu 6 ký tự" />
+            <Input.Password prefix={<LockOutlined />} placeholder={t('auth.required.passwordMin')} />
           </Form.Item>
 
-          <Form.Item name="confirmPassword" label="Xác nhận mật khẩu"
+          <Form.Item name="confirmPassword" label={t('auth.confirmPassword')}
             dependencies={['password']}
             rules={[
-              { required: true, message: 'Vui lòng xác nhận mật khẩu' },
+              { required: true, message: t('auth.required.confirm') },
               ({ getFieldValue }) => ({
                 validator(_, value) {
                   if (!value || getFieldValue('password') === value) return Promise.resolve();
-                  return Promise.reject(new Error('Mật khẩu xác nhận không khớp'));
+                  return Promise.reject(new Error(t('auth.required.confirmMismatch')));
                 },
               }),
             ]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="Nhập lại mật khẩu" />
+            <Input.Password prefix={<LockOutlined />} placeholder={t('auth.confirmPassword')} />
           </Form.Item>
 
-          <Form.Item name="role" label="Vai trò trong hệ thống">
+          <Form.Item name="role" label={t('auth.roleLabel')}>
             <Select options={roleOptions} />
           </Form.Item>
 
@@ -115,18 +116,18 @@ export default function Register() {
             <Button type="primary" htmlType="submit" loading={loading} block
               style={{ height: 44, fontWeight: 600, borderRadius: 10 }}
             >
-              Tạo tài khoản
+              {t('auth.createAccount')}
             </Button>
           </Form.Item>
         </Form>
 
         <Divider plain>
-          <Text type="secondary" style={{ fontSize: 13 }}>Đã có tài khoản?</Text>
+          <Text type="secondary" style={{ fontSize: 13 }}>{t('auth.haveAccount')}</Text>
         </Divider>
 
         <div style={{ textAlign: 'center' }}>
           <Link to="/login">
-            <Button type="default" style={{ borderRadius: 10 }}>Đăng nhập</Button>
+            <Button type="default" style={{ borderRadius: 10 }}>{t('auth.login')}</Button>
           </Link>
         </div>
       </Card>

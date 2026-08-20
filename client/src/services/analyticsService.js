@@ -13,6 +13,11 @@ const analyticsService = {
     return api.get('/analytics/tasks');
   },
 
+  // params: { from, to, granularity: 'day'|'week', projectId }
+  getWorkloadTrend(params = {}) {
+    return api.get('/analytics/workload-trend', { params });
+  },
+
   getOptimizationComparison(id) {
     return api.get(`/analytics/optimization-comparison/${id}`);
   },

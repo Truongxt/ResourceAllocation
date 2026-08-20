@@ -5,15 +5,37 @@
  *   H1: Capacity - Nhân sự không vượt quá FTE capacity
  *   H2: Skill - Nhân sự phải có đủ kỹ năng yêu cầu
  *   H3: Availability - Nhân sự phải available
+ *   H4: Dependency - Hai công việc có quan hệ phụ thuộc mà lịch chồng nhau
+ *       thì không được giao cho cùng một người
  *
- * Algorithm: Backtracking + AC-3 + MRV + LCV heuristics
+ * Ghi chú về H4: biến quyết định của bài toán này là "task nào giao cho ai",
+ * ngày tháng là dữ liệu đầu vào cố định. Vì vậy vi phạm thứ tự thuần túy về
+ * ngày — end(A) > start(B) khi B phụ thuộc A — không thể sửa bằng cách đổi
+ * người, và được báo trong constraintReport thay vì làm bài toán vô nghiệm.
+ * Phần thực sự ràng buộc được lời giải là: một người không thể vừa làm A vừa
+ * làm B khi hai việc phụ thuộc nhau và khoảng thời gian chồng lên nhau.
+ *
+ * Algorithm: lọc miền (H2/H3) → node consistency theo capacity → AC-3 trên đồ thị
+ * ràng buộc nhị phân H4 → Backtracking với MRV + LCV.
  */
+
+const {
+  DEFAULT_WEIGHTS,
+  computeSkillMatch,
+  buildSkillMatrix,
+  computeMaxCost,
+  computeFitness,
+  computeMetrics,
+  emptyMetrics,
+} = require('../scoring');
 
 class CSPSolver {
   constructor(options = {}) {
     this.maxIterations = options.maxIterations || 10000;
     this.timeout = options.timeout || 30000; // 30 seconds
     this.minSkillMatchThreshold = options.minSkillMatchThreshold ?? 0.5;
+    // Dùng để chấm điểm lời giải bằng cùng thang đo với GA
+    this.weights = options.weights || DEFAULT_WEIGHTS;
   }
 
   /**
@@ -29,42 +51,28 @@ class CSPSolver {
       return this._emptyResult('Không có dữ liệu tasks hoặc resources');
     }
 
-    // Build domains for each task (feasible resources)
-    const domains = this._buildDomains(tasks, resources);
+    const prepared = this._prepareDomains(tasks, resources);
+    this._conflicts = prepared.conflicts;
 
-    // Check if any task has empty domain
-    const emptyDomainTasks = [];
-    for (let t = 0; t < tasks.length; t++) {
-      if (domains[t].length === 0) {
-        emptyDomainTasks.push(tasks[t].title || `Task ${t}`);
-      }
-    }
-
-    if (emptyDomainTasks.length > 0) {
+    // Không nhân sự nào qua được H2/H3 cho một task nào đó
+    if (prepared.emptyAfterFiltering.length) {
       return {
         ...this._emptyResult('Một số công việc không có nhân sự phù hợp'),
-        infeasibleTasks: emptyDomainTasks,
+        infeasibleTasks: prepared.emptyAfterFiltering.map((t) => tasks[t].title || `Task ${t}`),
         solveTime: Date.now() - startTime,
       };
     }
 
-    // Apply AC-3 for domain reduction
-    const reducedDomains = this._arcConsistency(tasks, domains, resources);
-
-    // Check again after AC-3
-    for (let t = 0; t < tasks.length; t++) {
-      if (reducedDomains[t].length === 0) {
-        emptyDomainTasks.push(tasks[t].title || `Task ${t}`);
-      }
-    }
-
-    if (emptyDomainTasks.length > 0) {
+    // Còn nhân sự phù hợp, nhưng lan truyền ràng buộc cho thấy không thể xếp được
+    if (prepared.emptyAfterPropagation.length) {
       return {
         ...this._emptyResult('Ràng buộc quá chặt, không tìm thấy giải pháp'),
-        infeasibleTasks: emptyDomainTasks,
+        infeasibleTasks: prepared.emptyAfterPropagation.map((t) => tasks[t].title || `Task ${t}`),
         solveTime: Date.now() - startTime,
       };
     }
+
+    const reducedDomains = prepared.domains;
 
     // Backtracking search
     this._iterations = 0;
@@ -85,22 +93,86 @@ class CSPSolver {
       };
     }
 
-    // Build assignments
-    const assignments = this._buildAssignments(result, tasks, resources);
+    // Chuyển lời giải {taskIndex: resourceIndex} về dạng mảng để dùng chung hàm chấm điểm
+    const solution = tasks.map((_, tIdx) => result[tIdx]);
+    const skillMatrix = buildSkillMatrix(tasks, resources);
+
+    const assignments = this._buildAssignments(result, tasks, resources, skillMatrix);
     const constraintReport = this._validateConstraints(result, tasks, resources);
+    const fitness = computeFitness(
+      solution, tasks, resources, skillMatrix, computeMaxCost(tasks, resources), this.weights
+    );
+    const metrics = computeMetrics(solution, tasks, resources, skillMatrix);
 
     return {
       success: true,
       feasible: true,
       assignments,
       constraintReport,
+      fitness: Math.round(fitness * 10000) / 10000,
+      metrics,
       iterations: this._iterations,
       solveTime,
+      propagation: prepared.propagation,
       domainSizes: reducedDomains.map((d, i) => ({
         task: tasks[i].title,
-        originalSize: domains[i] ? domains[i].length : 0,
+        originalSize: prepared.initialDomains[i].length,
         reducedSize: d.length,
       })),
+    };
+  }
+
+  /**
+   * Miền giá trị khả thi của từng task — `domains[taskIndex] = [resourceIndex, ...]`.
+   *
+   * Đây là thứ Hybrid cần: GA chỉ sinh gen trong miền này thay vì trên toàn bộ
+   * nhân sự. Tách riêng khỏi `solve()` vì miền vẫn dùng được kể cả khi backtracking
+   * không tìm ra lời giải đầy đủ (hết thời gian, hoặc ràng buộc quá chặt).
+   *
+   * Miền rỗng nghĩa là không nhân sự nào đủ điều kiện cho task đó; bên gọi tự
+   * quyết định xử lý ra sao chứ hàm này không tự ý mở rộng.
+   */
+  buildFeasibleDomains(tasks, resources) {
+    if (!tasks.length || !resources.length) return [];
+    return this._prepareDomains(tasks, resources).domains;
+  }
+
+  /**
+   * Ba bước thu hẹp miền, dùng chung cho `solve()` và `buildFeasibleDomains()` để
+   * hai đường không bao giờ lệch nhau:
+   *
+   *   1. Lọc theo ràng buộc **đơn phân** trên từng biến: H2 (kỹ năng) và H3 (lịch nghỉ).
+   *   2. Node consistency: bỏ nhân sự không đủ capacity cho riêng task đó.
+   *   3. **AC-3** trên đồ thị ràng buộc **nhị phân** H4.
+   *
+   * Trả về cả miền ban đầu và số giá trị bị AC-3 cắt, để báo cáo lại được.
+   */
+  _prepareDomains(tasks, resources) {
+    const conflicts = this._buildDependencyConflicts(tasks);
+
+    const initialDomains = this._buildDomains(tasks, resources);
+    const emptyAfterFiltering = initialDomains
+      .map((d, t) => (d.length ? -1 : t))
+      .filter((t) => t >= 0);
+
+    const nodeConsistent = this._nodeConsistency(tasks, initialDomains, resources);
+    const { domains, prunedValues, revisions } = this._arcConsistency(nodeConsistent, conflicts);
+
+    const emptyAfterPropagation = domains
+      .map((d, t) => (d.length || emptyAfterFiltering.includes(t) ? -1 : t))
+      .filter((t) => t >= 0);
+
+    return {
+      conflicts,
+      initialDomains,
+      domains,
+      emptyAfterFiltering,
+      emptyAfterPropagation,
+      propagation: {
+        prunedValues,
+        revisions,
+        arcs: conflicts.reduce((sum, set) => sum + set.size, 0),
+      },
     };
   }
 
@@ -124,25 +196,8 @@ class CSPSolver {
   // Constraint Checks
   // ──────────────────────────────────────────────
   _checkSkillConstraint(resource, task) {
-    const required = task.requiredSkills || [];
-    if (!required.length) return true;
-
-    let totalWeight = 0;
-    let totalMatch = 0;
-
-    for (const req of required) {
-      const weight = req.weight ?? 1;
-      totalWeight += weight * req.level;
-
-      const resSkill = (resource.skills || []).find(
-        (s) => s.name.toLowerCase() === req.name.toLowerCase()
-      );
-      const resLevel = resSkill ? resSkill.level : 0;
-      totalMatch += weight * Math.min(resLevel, req.level);
-    }
-
-    const matchScore = totalWeight > 0 ? totalMatch / totalWeight : 1;
-    return matchScore >= this.minSkillMatchThreshold;
+    // Dùng chung công thức với GA để hai thuật toán đánh giá kỹ năng như nhau
+    return computeSkillMatch(task, resource) >= this.minSkillMatchThreshold;
   }
 
   _checkAvailabilityConstraint(resource, task) {
@@ -172,37 +227,116 @@ class CSPSolver {
   }
 
   // ──────────────────────────────────────────────
+  // H4: Dependency
+  // ──────────────────────────────────────────────
+
+  /** Hai khoảng thời gian có phần chung thực sự (chạm nhau ở mốc không tính là chồng). */
+  _overlaps(a, b) {
+    if (!a.startDate || !a.endDate || !b.startDate || !b.endDate) return false;
+    return new Date(a.startDate) < new Date(b.endDate) && new Date(b.startDate) < new Date(a.endDate);
+  }
+
+  /** Danh sách các cặp phụ thuộc (chỉ số) mà lịch chồng nhau, tra cứu hai chiều. */
+  _buildDependencyConflicts(tasks) {
+    const indexById = new Map(tasks.map((t, i) => [String(t._id), i]));
+    const conflicts = tasks.map(() => new Set());
+
+    tasks.forEach((task, i) => {
+      (task.dependencies || []).forEach((dep) => {
+        const j = indexById.get(String(dep?._id || dep));
+        // Bỏ qua tiền nhiệm nằm ngoài tập đang tối ưu (đã xong, hoặc khác dự án)
+        if (j === undefined || j === i) return;
+        if (!this._overlaps(task, tasks[j])) return;
+        conflicts[i].add(j);
+        conflicts[j].add(i);
+      });
+    });
+
+    return conflicts;
+  }
+
+  _checkDependencyConstraint(taskIdx, resourceIdx, assignment) {
+    for (const other of this._conflicts[taskIdx]) {
+      if (assignment[other] === resourceIdx) return false;
+    }
+    return true;
+  }
+
+  // ──────────────────────────────────────────────
+  // Node consistency: ràng buộc đơn phân theo capacity
+  // ──────────────────────────────────────────────
+
+  /**
+   * Bỏ khỏi miền những nhân sự không đủ capacity cho riêng task đó — dù có được
+   * giao mỗi việc này thôi thì cũng đã vượt. Đây là **node consistency** (ràng
+   * buộc chỉ liên quan tới một biến), không phải arc consistency; trước đây phần
+   * này bị đặt nhầm tên là AC-3.
+   */
+  _nodeConsistency(tasks, domains, resources) {
+    return domains.map((domain, t) => {
+      const taskHours = tasks[t].estimatedHours || 1;
+      return domain.filter((rIdx) => {
+        const capacity = (resources[rIdx].maxCapacity || 40) * (resources[rIdx].fte || 1);
+        return taskHours <= capacity;
+      });
+    });
+  }
+
+  // ──────────────────────────────────────────────
   // AC-3: Arc Consistency
   // ──────────────────────────────────────────────
-  _arcConsistency(tasks, domains, resources) {
-    // Deep copy domains
+
+  /**
+   * AC-3 trên đồ thị ràng buộc nhị phân H4 (hai công việc phụ thuộc nhau và chồng
+   * lịch thì không được cùng người → `x_i ≠ x_j`).
+   *
+   *   queue ← mọi cung (i, j) có ràng buộc
+   *   while queue:
+   *     (i, j) ← queue.pop()
+   *     if REVISE(i, j):
+   *        nếu D_i rỗng → thất bại
+   *        đẩy lại mọi cung (k, i) với k là hàng xóm của i, k ≠ j
+   *
+   * Với ràng buộc `≠`, một giá trị x ∈ D_i mất chỗ dựa khi và chỉ khi D_j = {x}.
+   * Nghĩa là AC-3 chỉ lan truyền được từ những biến đã bị ép về một giá trị duy
+   * nhất — đó là giới hạn cố hữu của arc consistency trên `≠`, muốn cắt mạnh hơn
+   * phải dùng ràng buộc all-different (thuật toán Régin) chứ không phải AC-3.
+   * Đổi lại, nó phát hiện sớm những nhánh vô nghiệm mà backtracking phải dò tới
+   * lúc hết thời gian mới biết.
+   */
+  _arcConsistency(domains, conflicts) {
     const reduced = domains.map((d) => [...d]);
 
-    // For capacity constraints, we can prune resources that are clearly
-    // unable to handle even the smallest tasks
-    // This is a simplified AC-3 for the resource allocation domain
-    let changed = true;
-    let iterations = 0;
+    const queue = [];
+    conflicts.forEach((neighbours, i) => {
+      neighbours.forEach((j) => queue.push([i, j]));
+    });
 
-    while (changed && iterations < 100) {
-      changed = false;
-      iterations++;
+    let prunedValues = 0;
+    let revisions = 0;
 
-      for (let t = 0; t < tasks.length; t++) {
-        const taskHours = tasks[t].estimatedHours || 1;
-        const newDomain = reduced[t].filter((rIdx) => {
-          const capacity = (resources[rIdx].maxCapacity || 40) * (resources[rIdx].fte || 1);
-          return taskHours <= capacity; // At minimum, resource can handle this single task
-        });
+    while (queue.length) {
+      const [i, j] = queue.shift();
+      revisions++;
 
-        if (newDomain.length < reduced[t].length) {
-          reduced[t] = newDomain;
-          changed = true;
-        }
-      }
+      // REVISE: với ràng buộc ≠, chỉ cắt được khi hàng xóm còn đúng một giá trị
+      if (reduced[j].length !== 1) continue;
+
+      const onlyValue = reduced[j][0];
+      const before = reduced[i].length;
+      reduced[i] = reduced[i].filter((value) => value !== onlyValue);
+      if (reduced[i].length === before) continue;
+
+      prunedValues += before - reduced[i].length;
+      if (!reduced[i].length) break; // miền rỗng — dừng, bên gọi sẽ báo vô nghiệm
+
+      // Miền của i vừa đổi → xét lại mọi cung trỏ về i
+      conflicts[i].forEach((k) => {
+        if (k !== j) queue.push([k, i]);
+      });
     }
 
-    return reduced;
+    return { domains: reduced, prunedValues, revisions };
   }
 
   // ──────────────────────────────────────────────
@@ -241,6 +375,11 @@ class CSPSolver {
         continue;
       }
 
+      // H4: không giao hai việc phụ thuộc nhau, chồng lịch cho cùng một người
+      if (!this._checkDependencyConstraint(varIdx, rIdx, assignment)) {
+        continue;
+      }
+
       // Assign
       assignment[varIdx] = rIdx;
       workloads[rIdx] += taskHours;
@@ -272,15 +411,17 @@ class CSPSolver {
   // ──────────────────────────────────────────────
   // Build result assignments
   // ──────────────────────────────────────────────
-  _buildAssignments(assignment, tasks, resources) {
+  _buildAssignments(assignment, tasks, resources, skillMatrix) {
     return Object.entries(assignment).map(([tIdx, rIdx]) => {
-      const task = tasks[parseInt(tIdx)];
+      const taskIndex = parseInt(tIdx, 10);
+      const task = tasks[taskIndex];
       const resource = resources[rIdx];
       return {
         task: task._id,
         taskTitle: task.title,
         resource: resource._id,
         resourceName: resource.userName || resource.position,
+        skillMatch: Math.round(skillMatrix[taskIndex][rIdx] * 100),
         estimatedHours: task.estimatedHours || 0,
       };
     });
@@ -305,10 +446,39 @@ class CSPSolver {
     resources.forEach((r, i) => {
       const capacity = (r.maxCapacity || 40) * (r.fte || 1);
       if (workloads[i] <= capacity) {
-        satisfied.push({ type: 'capacity', resource: r.userName || r.position, detail: `${workloads[i]}/${capacity}h` });
+        satisfied.push({ type: 'capacity', subject: r.userName || r.position, detail: `${workloads[i]}/${capacity}h` });
       } else {
-        violated.push({ type: 'capacity', resource: r.userName || r.position, detail: `${workloads[i]}/${capacity}h (vượt ${Math.round(workloads[i] - capacity)}h)` });
+        violated.push({ type: 'capacity', subject: r.userName || r.position, detail: `${workloads[i]}/${capacity}h (vượt ${Math.round(workloads[i] - capacity)}h)` });
       }
+    });
+
+    // H4: thứ tự theo ngày là dữ liệu đầu vào, thuật toán không sửa được nên chỉ báo lại
+    const indexById = new Map(tasks.map((t, i) => [String(t._id), i]));
+    tasks.forEach((task, i) => {
+      (task.dependencies || []).forEach((dep) => {
+        const j = indexById.get(String(dep?._id || dep));
+        if (j === undefined || j === i) return;
+
+        const predecessor = tasks[j];
+        if (!predecessor.endDate || !task.startDate) return;
+
+        const entry = {
+          type: 'dependency',
+          subject: `${predecessor.title} → ${task.title}`,
+        };
+
+        if (new Date(predecessor.endDate) > new Date(task.startDate)) {
+          const days = Math.ceil(
+            (new Date(predecessor.endDate) - new Date(task.startDate)) / 86400000
+          );
+          violated.push({
+            ...entry,
+            detail: `công việc sau bắt đầu sớm hơn ${days} ngày so với lúc công việc trước kết thúc`,
+          });
+        } else {
+          satisfied.push({ ...entry, detail: 'đúng thứ tự trước/sau' });
+        }
+      });
     });
 
     return { satisfied: satisfied.length, violated: violated.length, details: { satisfied, violated } };
@@ -321,6 +491,8 @@ class CSPSolver {
       message,
       assignments: [],
       constraintReport: { satisfied: 0, violated: 0, details: { satisfied: [], violated: [] } },
+      fitness: 0,
+      metrics: emptyMetrics(),
       iterations: 0,
       solveTime: 0,
     };

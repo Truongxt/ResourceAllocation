@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Row,
   Col,
@@ -8,7 +9,6 @@ import {
   Button,
   Typography,
   message,
-  Space,
   Tag,
   Avatar,
 } from 'antd';
@@ -21,16 +21,12 @@ import {
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
+import { roleLabel } from '../i18n/enums';
 
 const { Title, Text } = Typography;
 
-const ROLE_LABELS = {
-  admin: 'Quản trị viên (Admin)',
-  project_manager: 'Project Manager',
-  member: 'Thành viên (Member)',
-};
-
 export default function Settings() {
+  const { t } = useTranslation();
   const { user, updateProfile, changePassword } = useAuth();
   const [profileForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
@@ -51,12 +47,12 @@ export default function Settings() {
     try {
       const result = await updateProfile(values);
       if (result.success) {
-        message.success(result.message || 'Cập nhật thông tin thành công');
+        message.success(result.message || t('settings.profileSaved'));
       } else {
-        message.error(result.message || 'Cập nhật thất bại');
+        message.error(result.message || t('settings.profileFailed'));
       }
     } catch {
-      message.error('Có lỗi xảy ra khi cập nhật thông tin');
+      message.error(t('settings.profileError'));
     } finally {
       setUpdatingProfile(false);
     }
@@ -70,13 +66,13 @@ export default function Settings() {
         newPassword: values.newPassword,
       });
       if (result.success) {
-        message.success('Đổi mật khẩu thành công');
+        message.success(t('settings.passwordChanged'));
         passwordForm.resetFields();
       } else {
-        message.error(result.message || 'Đổi mật khẩu thất bại');
+        message.error(result.message || t('settings.passwordFailed'));
       }
     } catch {
-      message.error('Có lỗi xảy ra khi đổi mật khẩu');
+      message.error(t('settings.passwordError'));
     } finally {
       setUpdatingPassword(false);
     }
@@ -86,14 +82,14 @@ export default function Settings() {
     <div style={{ maxWidth: 1000 }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ marginBottom: 4 }}>Cài đặt tài khoản</Title>
-        <Text type="secondary">Quản lý thông tin hồ sơ cá nhân và bảo mật tài khoản</Text>
+        <Title level={3} style={{ marginBottom: 4 }}>{t('settings.title')}</Title>
+        <Text type="secondary">{t('settings.subtitle')}</Text>
       </div>
 
       <Row gutter={[24, 24]}>
         {/* Profile Card */}
         <Col xs={24} md={12}>
-          <Card title={<span><UserOutlined /> Hồ sơ cá nhân</span>}>
+          <Card title={<span><UserOutlined /> {t('settings.profile')}</span>}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
               <Avatar
                 size={56}
@@ -105,7 +101,7 @@ export default function Settings() {
               <div>
                 <Text strong style={{ fontSize: 16, display: 'block' }}>{user?.name}</Text>
                 <Tag color="purple" style={{ marginTop: 4 }}>
-                  {ROLE_LABELS[user?.role] || user?.role}
+                  {user?.role ? roleLabel(user.role) : ''}
                 </Tag>
               </div>
             </div>
@@ -115,20 +111,20 @@ export default function Settings() {
               layout="vertical"
               onFinish={handleProfileSubmit}
             >
-              <Form.Item label="Email đăng nhập">
+              <Form.Item label={t('settings.loginEmail')}>
                 <Input prefix={<MailOutlined />} value={user?.email || ''} disabled />
               </Form.Item>
 
               <Form.Item
                 name="name"
-                label="Họ và tên"
-                rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
+                label={t('auth.name')}
+                rules={[{ required: true, message: t('auth.required.name') }]}
               >
-                <Input prefix={<UserOutlined />} placeholder="Nguyễn Văn A" />
+                <Input prefix={<UserOutlined />} placeholder={t('auth.namePlaceholder')} />
               </Form.Item>
 
-              <Form.Item name="department" label="Bộ phận / Phòng ban">
-                <Input prefix={<ApartmentOutlined />} placeholder="VD: Engineering, Design, QA" />
+              <Form.Item name="department" label={t('settings.department')}>
+                <Input prefix={<ApartmentOutlined />} placeholder={t('settings.departmentPlaceholder')} />
               </Form.Item>
 
               <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
@@ -138,7 +134,7 @@ export default function Settings() {
                   icon={<SaveOutlined />}
                   loading={updatingProfile}
                 >
-                  Lưu thay đổi
+                  {t('common.saveChanges')}
                 </Button>
               </Form.Item>
             </Form>
@@ -147,7 +143,7 @@ export default function Settings() {
 
         {/* Security / Password Card */}
         <Col xs={24} md={12}>
-          <Card title={<span><SafetyCertificateOutlined /> Đổi mật khẩu</span>}>
+          <Card title={<span><SafetyCertificateOutlined /> {t('settings.changePassword')}</span>}>
             <Form
               form={passwordForm}
               layout="vertical"
@@ -155,40 +151,40 @@ export default function Settings() {
             >
               <Form.Item
                 name="currentPassword"
-                label="Mật khẩu hiện tại"
-                rules={[{ required: true, message: 'Vui lòng nhập mật khẩu hiện tại' }]}
+                label={t('settings.currentPassword')}
+                rules={[{ required: true, message: t('settings.required.current') }]}
               >
                 <Input.Password prefix={<LockOutlined />} placeholder="••••••••" />
               </Form.Item>
 
               <Form.Item
                 name="newPassword"
-                label="Mật khẩu mới"
+                label={t('settings.newPassword')}
                 rules={[
-                  { required: true, message: 'Vui lòng nhập mật khẩu mới' },
-                  { min: 6, message: 'Mật khẩu tối thiểu 6 ký tự' },
+                  { required: true, message: t('settings.required.new') },
+                  { min: 6, message: t('auth.required.passwordMin') },
                 ]}
               >
-                <Input.Password prefix={<LockOutlined />} placeholder="Tối thiểu 6 ký tự" />
+                <Input.Password prefix={<LockOutlined />} placeholder={t('settings.minChars')} />
               </Form.Item>
 
               <Form.Item
                 name="confirmPassword"
-                label="Xác nhận mật khẩu mới"
+                label={t('settings.confirmNewPassword')}
                 dependencies={['newPassword']}
                 rules={[
-                  { required: true, message: 'Vui lòng xác nhận mật khẩu mới' },
+                  { required: true, message: t('settings.required.confirm') },
                   ({ getFieldValue }) => ({
                     validator(_, value) {
                       if (!value || getFieldValue('newPassword') === value) {
                         return Promise.resolve();
                       }
-                      return Promise.reject(new Error('Mật khẩu xác nhận không khớp'));
+                      return Promise.reject(new Error(t('auth.required.confirmMismatch')));
                     },
                   }),
                 ]}
               >
-                <Input.Password prefix={<LockOutlined />} placeholder="Nhập lại mật khẩu mới" />
+                <Input.Password prefix={<LockOutlined />} placeholder={t('settings.confirmPlaceholder')} />
               </Form.Item>
 
               <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
@@ -198,7 +194,7 @@ export default function Settings() {
                   icon={<LockOutlined />}
                   loading={updatingPassword}
                 >
-                  Cập nhật mật khẩu
+                  {t('settings.updatePassword')}
                 </Button>
               </Form.Item>
             </Form>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Row,
   Col,
@@ -13,6 +14,10 @@ import {
   Typography,
   Spin,
   Empty,
+  Alert,
+  Segmented,
+  Select,
+  Tooltip,
 } from 'antd';
 import {
   DownloadOutlined,
@@ -22,23 +27,66 @@ import {
   PieChartOutlined,
   ProjectOutlined,
   WarningOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
 import analyticsService from '../services/analyticsService';
+import { formatDayMonth } from '../i18n/format';
 import './Reports.css';
 
 const { Title, Text } = Typography;
 
-const BURNOUT_MAP = {
-  high: { label: 'Cao (Nguy cơ)', color: 'error' },
-  medium: { label: 'Trung bình', color: 'warning' },
-  low: { label: 'Thấp (An toàn)', color: 'success' },
+const BURNOUT_COLORS = { high: 'error', medium: 'warning', low: 'success' };
+
+/**
+ * Nhãn một mốc thời gian.
+ *
+ * Server chỉ trả `start`; nhãn dựng ở đây vì "Tuần" và "Week" là chuyện hiển thị.
+ * `bare` bỏ tiền tố khi nhãn nằm dày đặc dưới trục — chỗ đó không đủ chỗ, mà
+ * lặp lại "Tuần" trên từng cột cũng không thêm thông tin gì.
+ */
+const bucketLabel = (bucket, granularity, t, { bare = false } = {}) => {
+  const date = formatDayMonth(bucket.start);
+  if (granularity !== 'week' || bare) return date;
+  return t('reports.weekOf', { date });
+};
+
+/**
+ * Màu một ô trong dải nhiệt theo thời gian.
+ * Capacity bằng 0 mà vẫn có tải là trường hợp riêng — không phải "quá tải nhiều phần
+ * trăm" mà là được giao việc rơi vào ngày nghỉ, nên tô màu khác hẳn.
+ */
+function heatColor(load, capacity) {
+  if (capacity <= 0) return load > 0 ? '#7f1d1d' : '#f1f5f9';
+  const ratio = load / capacity;
+  if (ratio === 0) return '#f1f5f9';
+  if (ratio <= 0.7) return '#a7f3d0';
+  if (ratio <= 1) return '#34d399';
+  if (ratio <= 1.2) return '#fbbf24';
+  return '#ef4444';
+}
+
+const heatTitle = (label, load, capacity, t) => {
+  if (capacity <= 0) {
+    return load > 0 ? t('reports.heat.noWorkday', { label, load }) : t('reports.heat.off', { label });
+  }
+  return t('reports.heat.normal', {
+    label,
+    load,
+    capacity,
+    percent: Math.round((load / capacity) * 100),
+  });
 };
 
 export default function Reports() {
+  const { t } = useTranslation();
   const [utilData, setUtilData] = useState(null);
   const [taskData, setTaskData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('utilization');
+  const [trend, setTrend] = useState(null);
+  const [trendLoading, setTrendLoading] = useState(false);
+  const [granularity, setGranularity] = useState('week');
+  const [trendProject, setTrendProject] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,22 +104,57 @@ export default function Reports() {
     }
   }, []);
 
+  const loadTrend = useCallback(async () => {
+    setTrendLoading(true);
+    try {
+      const res = await analyticsService.getWorkloadTrend({
+        granularity,
+        ...(trendProject ? { projectId: trendProject } : {}),
+      });
+      setTrend(res.data.data.trend);
+    } catch {
+      setTrend(null);
+    } finally {
+      setTrendLoading(false);
+    }
+  }, [granularity, trendProject]);
+
   useEffect(() => {
     load();
   }, [load]);
 
+  useEffect(() => {
+    loadTrend();
+  }, [loadTrend]);
+
   const exportCSV = (type) => {
     let csv = '';
     if (type === 'utilization' && utilData?.resources) {
-      csv = 'Tên,Phòng ban,Vị trí,Capacity,Workload,Utilization(%),Burnout Risk,Số task\n';
+      csv = `${t('reports.csv.utilHeader')}\n`;
       for (const r of utilData.resources) {
-        csv += `"${r.name}","${r.department}","${r.position}",${r.capacity},${r.workload},${r.utilization},${BURNOUT_MAP[r.burnoutRisk]?.label || r.burnoutRisk},${r.taskCount}\n`;
+        const risk = t(`reports.burnout.${r.burnoutRisk}`, { defaultValue: r.burnoutRisk });
+        csv += `"${r.name}","${r.department}","${r.position}",${r.capacity},${r.workload},${r.utilization},${risk},${r.taskCount}\n`;
       }
     } else if (type === 'projects' && taskData?.byProject) {
-      csv = 'Dự án,Tổng tasks,Hoàn thành,Tổng giờ,% Completion\n';
+      csv = `${t('reports.csv.projectHeader')}\n`;
       for (const p of taskData.byProject) {
         csv += `"${p.projectName}",${p.count},${p.done},${p.totalHours},${Math.round(p.completion)}%\n`;
       }
+    } else if (type === 'trend' && trend?.buckets?.length) {
+      // Mỗi mốc thời gian một cột, để dán thẳng vào Excel rồi vẽ lại được.
+      const header = trend.buckets
+        .map((b) => bucketLabel(b, trend.granularity, t))
+        .join(',');
+      const loadRow = t('reports.csv.loadRow');
+      const capacityRow = t('reports.csv.capacityRow');
+      csv = `${t('reports.csv.trendHeader')},${header}\n`;
+      for (const row of trend.resources) {
+        csv += `"${row.name}",${loadRow},${row.load.join(',')}\n`;
+        csv += `"${row.name}",${capacityRow},${row.capacity.join(',')}\n`;
+      }
+      const totalRow = t('reports.csv.totalRow');
+      csv += `${totalRow},${loadRow},${trend.totals.map((point) => point.load).join(',')}\n`;
+      csv += `${totalRow},${capacityRow},${trend.totals.map((point) => point.capacity).join(',')}\n`;
     }
 
     if (!csv) return;
@@ -86,7 +169,7 @@ export default function Reports() {
 
   const resourceColumns = [
     {
-      title: 'Nhân sự',
+      title: t('reports.columns.resource'),
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
@@ -98,7 +181,7 @@ export default function Reports() {
       ),
     },
     {
-      title: 'Phòng ban',
+      title: t('reports.columns.department'),
       dataIndex: 'department',
       key: 'department',
       render: (dept) => (dept ? <Tag color="blue">{dept}</Tag> : '—'),
@@ -113,7 +196,7 @@ export default function Reports() {
       ),
     },
     {
-      title: 'Mức sử dụng (Utilization)',
+      title: t('reports.columns.utilization'),
       dataIndex: 'utilization',
       key: 'utilization',
       width: 220,
@@ -130,16 +213,17 @@ export default function Reports() {
       },
     },
     {
-      title: 'Nguy cơ Burnout',
+      title: t('reports.columns.burnout'),
       dataIndex: 'burnoutRisk',
       key: 'burnoutRisk',
-      render: (risk) => {
-        const item = BURNOUT_MAP[risk] || { label: risk, color: 'default' };
-        return <Tag color={item.color}>{item.label}</Tag>;
-      },
+      render: (risk) => (
+        <Tag color={BURNOUT_COLORS[risk] || 'default'}>
+          {t(`reports.burnout.${risk}`, { defaultValue: risk })}
+        </Tag>
+      ),
     },
     {
-      title: 'Tasks đảm nhiệm',
+      title: t('reports.columns.taskCount'),
       dataIndex: 'taskCount',
       key: 'taskCount',
       render: (count) => <Tag color="purple">{count || 0} tasks</Tag>,
@@ -148,30 +232,30 @@ export default function Reports() {
 
   const projectColumns = [
     {
-      title: 'Dự án',
+      title: t('common.project'),
       dataIndex: 'projectName',
       key: 'name',
       render: (name) => <Text strong>{name}</Text>,
     },
     {
-      title: 'Số công việc',
+      title: t('reports.columns.taskTotal'),
       dataIndex: 'count',
       key: 'count',
     },
     {
-      title: 'Đã hoàn thành',
+      title: t('reports.columns.completed'),
       dataIndex: 'done',
       key: 'done',
       render: (done, r) => `${done} / ${r.count}`,
     },
     {
-      title: 'Tổng giờ công',
+      title: t('reports.columns.totalHours'),
       dataIndex: 'totalHours',
       key: 'totalHours',
       render: (h) => `${h || 0}h`,
     },
     {
-      title: 'Tiến độ hoàn thành',
+      title: t('reports.columns.completion'),
       dataIndex: 'completion',
       key: 'completion',
       width: 200,
@@ -186,19 +270,17 @@ export default function Reports() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ marginBottom: 4 }}>Báo cáo & Thống kê Nguồn lực</Title>
-          <Text type="secondary">
-            Phân tích Resource Histogram, Nguy cơ kiệt sức (Burnout Risk) và Báo cáo tiến độ đa dự án
-          </Text>
+          <Title level={3} style={{ marginBottom: 4 }}>{t('reports.title')}</Title>
+          <Text type="secondary">{t('reports.subtitle')}</Text>
         </div>
         <Space>
           <Button icon={<DownloadOutlined />} onClick={() => exportCSV(activeTab)}>
-            Xuất CSV
+            {t('reports.exportCsv')}
           </Button>
           <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-            In / PDF
+            {t('reports.printPdf')}
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={load} title="Tải lại" />
+          <Button icon={<ReloadOutlined />} onClick={load} title={t('common.reload')} />
         </Space>
       </div>
 
@@ -209,7 +291,7 @@ export default function Reports() {
             <Col xs={12} sm={6}>
               <Card hoverable>
                 <Statistic
-                  title="Tổng nhân sự"
+                  title={t('reports.stats.totalResources')}
                   value={utilData.summary.totalResources}
                   prefix={<TeamOutlined style={{ color: '#6366f1' }} />}
                 />
@@ -218,7 +300,7 @@ export default function Reports() {
             <Col xs={12} sm={6}>
               <Card hoverable>
                 <Statistic
-                  title="Utilization Trung bình"
+                  title={t('reports.stats.avgUtilization')}
                   value={utilData.summary.avgUtilization}
                   suffix="%"
                   valueStyle={{
@@ -230,7 +312,7 @@ export default function Reports() {
             <Col xs={12} sm={6}>
               <Card hoverable>
                 <Statistic
-                  title="Nhân sự quá tải"
+                  title={t('dashboard.overloadedResources')}
                   value={utilData.summary.overloaded}
                   valueStyle={{
                     color: utilData.summary.overloaded > 0 ? '#ef4444' : '#10b981',
@@ -242,10 +324,10 @@ export default function Reports() {
             <Col xs={12} sm={6}>
               <Card hoverable>
                 <Statistic
-                  title="Nguy cơ Burnout cao"
-                  value={utilData.summary.highBurnoutRisk || 0}
+                  title={t('reports.stats.highBurnout')}
+                  value={utilData.summary.highBurnout || 0}
                   valueStyle={{
-                    color: (utilData.summary.highBurnoutRisk || 0) > 0 ? '#ef4444' : '#10b981',
+                    color: (utilData.summary.highBurnout || 0) > 0 ? '#ef4444' : '#10b981',
                   }}
                 />
               </Card>
@@ -262,7 +344,7 @@ export default function Reports() {
               key: 'utilization',
               label: (
                 <span>
-                  <TeamOutlined /> Resource Histogram ({utilData?.resources?.length || 0})
+                  <TeamOutlined /> {t('reports.tabs.utilization')} ({utilData?.resources?.length || 0})
                 </span>
               ),
               children: (
@@ -280,7 +362,7 @@ export default function Reports() {
               key: 'departments',
               label: (
                 <span>
-                  <PieChartOutlined /> Phân bổ theo Phòng ban ({utilData?.byDepartment?.length || 0})
+                  <PieChartOutlined /> {t('reports.tabs.departments')} ({utilData?.byDepartment?.length || 0})
                 </span>
               ),
               children: (
@@ -290,11 +372,11 @@ export default function Reports() {
                       <Card title={dept.name} hoverable>
                         <Space direction="vertical" style={{ width: '100%' }} size="small">
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Text type="secondary">Nhân sự:</Text>
-                            <Text strong>{dept.count} người</Text>
+                            <Text type="secondary">{t('reports.columns.resource')}:</Text>
+                            <Text strong>{t('reports.peopleCount', { count: dept.count })}</Text>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Text type="secondary">Utilization TB:</Text>
+                            <Text type="secondary">{t('reports.avgUtilShort')}:</Text>
                             <Text strong style={{ color: dept.avgUtil > 100 ? '#ef4444' : '#10b981' }}>
                               {dept.avgUtil}%
                             </Text>
@@ -315,7 +397,7 @@ export default function Reports() {
               key: 'projects',
               label: (
                 <span>
-                  <ProjectOutlined /> Báo cáo Dự án ({taskData?.byProject?.length || 0})
+                  <ProjectOutlined /> {t('reports.tabs.projects')} ({taskData?.byProject?.length || 0})
                 </span>
               ),
               children: (
@@ -327,6 +409,263 @@ export default function Reports() {
                     pagination={{ pageSize: 10 }}
                   />
                 </Card>
+              ),
+            },
+            {
+              key: 'trend',
+              label: (
+                <span>
+                  <LineChartOutlined /> {t('reports.tabs.trend')}
+                </span>
+              ),
+              children: (
+                <Spin spinning={trendLoading}>
+                  <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                    <Card styles={{ body: { padding: '12px 16px' } }}>
+                      <Space wrap size={16}>
+                        <Segmented
+                          value={granularity}
+                          onChange={setGranularity}
+                          options={[
+                            { label: t('reports.byDay'), value: 'day' },
+                            { label: t('reports.byWeek'), value: 'week' },
+                          ]}
+                        />
+                        <Select
+                          style={{ minWidth: 240 }}
+                          placeholder={t('gantt.allProjects')}
+                          value={trendProject || undefined}
+                          onChange={(value) => setTrendProject(value || '')}
+                          allowClear
+                          options={(taskData?.byProject || []).map((p) => ({
+                            value: p._id,
+                            label: p.projectCode ? `${p.projectCode} — ${p.projectName}` : p.projectName,
+                          }))}
+                        />
+                      </Space>
+                    </Card>
+
+                    <Alert
+                      type="info"
+                      showIcon
+                      message={t('reports.commitmentNotice.title')}
+                      description={t('reports.commitmentNotice.body')}
+                    />
+
+                    {trend?.buckets?.length ? (
+                      <>
+                        {trend.truncated && (
+                          <Alert
+                            type="warning"
+                            showIcon
+                            message={t('reports.truncated.title')}
+                            description={t('reports.truncated.body')}
+                          />
+                        )}
+                        {(trend.excluded.unscheduledHours > 0 || trend.excluded.unassignedHours > 0) && (
+                          <Alert
+                            type="warning"
+                            showIcon
+                            message={t('reports.excluded.title')}
+                            description={
+                              <>
+                                {trend.excluded.unscheduledHours > 0 && (
+                                  <div>
+                                    {t('reports.excluded.unscheduled', {
+                                      hours: trend.excluded.unscheduledHours,
+                                      count: trend.excluded.unscheduledTasks,
+                                    })}
+                                  </div>
+                                )}
+                                {trend.excluded.unassignedHours > 0 && (
+                                  <div>
+                                    {t('reports.excluded.unassigned', {
+                                      hours: trend.excluded.unassignedHours,
+                                      count: trend.excluded.unassignedTasks,
+                                    })}
+                                  </div>
+                                )}
+                                {t('reports.excluded.footer')}
+                              </>
+                            }
+                          />
+                        )}
+
+                        <Card
+                          title={t('reports.loadVsCapacity')}
+                          extra={
+                            <Space size={16}>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                {t('reports.legendBars')}
+                              </Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                {trend.granularity === 'week'
+                                  ? t('reports.groupedByWeek')
+                                  : t('reports.groupedByDay')}
+                              </Text>
+                            </Space>
+                          }
+                        >
+                          {(() => {
+                            const peak = Math.max(
+                              1,
+                              ...trend.totals.map((point) => Math.max(point.load, point.capacity))
+                            );
+                            // Nhiều mốc quá thì nhãn chồng lên nhau, chỉ in thưa ra.
+                            const labelEvery = Math.ceil(trend.buckets.length / 12);
+
+                            return (
+                              <>
+                                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 200 }}>
+                                  {trend.totals.map((point, index) => {
+                                    const over =
+                                      point.capacity > 0 ? point.load > point.capacity : point.load > 0;
+                                    return (
+                                      <Tooltip
+                                        key={trend.buckets[index].key}
+                                        title={heatTitle(
+                                          bucketLabel(trend.buckets[index], trend.granularity, t),
+                                          point.load,
+                                          point.capacity,
+                                          t
+                                        )}
+                                      >
+                                        <div
+                                          style={{
+                                            flex: 1,
+                                            minWidth: 4,
+                                            height: '100%',
+                                            position: 'relative',
+                                            display: 'flex',
+                                            alignItems: 'flex-end',
+                                          }}
+                                        >
+                                          <div
+                                            style={{
+                                              width: '100%',
+                                              height: `${(point.load / peak) * 100}%`,
+                                              background: over ? '#ef4444' : '#6366f1',
+                                              borderRadius: '2px 2px 0 0',
+                                            }}
+                                          />
+                                          {point.capacity > 0 && (
+                                            <div
+                                              style={{
+                                                position: 'absolute',
+                                                left: 0,
+                                                right: 0,
+                                                bottom: `${(point.capacity / peak) * 100}%`,
+                                                borderTop: '2px dashed #94a3b8',
+                                              }}
+                                            />
+                                          )}
+                                        </div>
+                                      </Tooltip>
+                                    );
+                                  })}
+                                </div>
+                                <div style={{ display: 'flex', gap: 2, marginTop: 6 }}>
+                                  {trend.buckets.map((bucket, index) => (
+                                    <div
+                                      key={bucket.key}
+                                      style={{
+                                        flex: 1,
+                                        minWidth: 4,
+                                        fontSize: 10,
+                                        color: '#94a3b8',
+                                        textAlign: 'center',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                      }}
+                                    >
+                                      {index % labelEvery === 0
+                                        ? bucketLabel(bucket, trend.granularity, t, { bare: true })
+                                        : ''}
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </Card>
+
+                        <Card styles={{ body: { padding: 0 } }} title={t('reports.perPerson')}>
+                          <Table
+                            size="small"
+                            rowKey="_id"
+                            dataSource={trend.resources}
+                            pagination={{ pageSize: 10, showSizeChanger: false }}
+                            scroll={{ x: 'max-content' }}
+                            columns={[
+                              {
+                                title: t('reports.columns.resource'),
+                                dataIndex: 'name',
+                                key: 'name',
+                                width: 190,
+                                render: (name, row) => (
+                                  <div style={{ lineHeight: 1.35 }}>
+                                    <Text strong style={{ fontSize: 13 }}>{name}</Text>
+                                    <br />
+                                    <Text type="secondary" style={{ fontSize: 11 }}>{row.position}</Text>
+                                  </div>
+                                ),
+                              },
+                              {
+                                title: t('reports.columns.peak'),
+                                dataIndex: 'peakUtilization',
+                                key: 'peak',
+                                width: 110,
+                                render: (peak, row) =>
+                                  row.worksWhileUnavailable ? (
+                                    <Tag color="error">{t('reports.assignedOnDayOff')}</Tag>
+                                  ) : (
+                                    <Tag color={peak > 120 ? 'error' : peak > 100 ? 'warning' : 'success'}>
+                                      {peak}%
+                                    </Tag>
+                                  ),
+                              },
+                              {
+                                title: t('reports.columns.strip', { count: trend.buckets.length }),
+                                key: 'strip',
+                                render: (_, row) => (
+                                  <div style={{ display: 'flex', gap: 1 }}>
+                                    {row.load.map((load, index) => (
+                                      <Tooltip
+                                        key={trend.buckets[index].key}
+                                        title={heatTitle(
+                                          bucketLabel(trend.buckets[index], trend.granularity, t),
+                                          load,
+                                          row.capacity[index],
+                                          t
+                                        )}
+                                      >
+                                        <div
+                                          style={{
+                                            width: 10,
+                                            height: 22,
+                                            borderRadius: 2,
+                                            background: heatColor(load, row.capacity[index]),
+                                          }}
+                                        />
+                                      </Tooltip>
+                                    ))}
+                                  </div>
+                                ),
+                              },
+                            ]}
+                          />
+                        </Card>
+                      </>
+                    ) : (
+                      <Card>
+                        <Empty
+                          description={t('reports.noTrend')}
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                      </Card>
+                    )}
+                  </Space>
+                </Spin>
               ),
             },
           ]}

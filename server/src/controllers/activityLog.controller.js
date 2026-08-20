@@ -1,4 +1,5 @@
 const ActivityLog = require('../models/ActivityLog');
+const { logActivity } = require('../services/activityLog.service');
 
 /**
  * @desc    Lấy danh sách nhật ký hoạt động có lọc và phân trang
@@ -117,6 +118,18 @@ const getActivityStats = async (req, res, next) => {
 const clearActivityLogs = async (req, res, next) => {
   try {
     const result = await ActivityLog.deleteMany({});
+
+    // Ghi SAU khi xóa, không phải trước — ghi trước thì chính `deleteMany` ở trên
+    // cuốn luôn bản ghi vừa tạo, và việc xóa sạch nhật ký trở thành thao tác duy
+    // nhất trong hệ thống không để lại vết. Đây là hành động cần vết nhất.
+    await logActivity({
+      req,
+      action: 'CLEAR_ACTIVITY_LOGS',
+      entityType: 'system',
+      description: `Xóa toàn bộ nhật ký hoạt động (${result.deletedCount} bản ghi)`,
+      details: { deletedCount: result.deletedCount },
+    });
+
     res.json({
       success: true,
       message: `Đã xóa toàn bộ ${result.deletedCount} bản ghi nhật ký hoạt động`,

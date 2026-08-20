@@ -8,7 +8,7 @@ const SocketContext = createContext(null);
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 
 export function SocketProvider({ children }) {
-  const { user, token } = useAuth();
+  const { user, getToken } = useAuth();
   const [socket, setSocket] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -40,9 +40,12 @@ export function SocketProvider({ children }) {
 
     fetchNotifications();
 
-    const authToken = token || localStorage.getItem('rao_token');
+    // `auth` là hàm chứ không phải object: Socket.IO gọi lại nó ở **mỗi lần thử
+    // kết nối**, nên khi access token đã xoay sang cái mới thì lần kết nối lại
+    // dùng token mới. Truyền object thì giá trị bị chốt tại thời điểm tạo socket
+    // và mọi lần reconnect sau 15 phút đều trình ra token đã hết hạn.
     const newSocket = io(SOCKET_URL, {
-      auth: { token: authToken },
+      auth: (cb) => cb({ token: getToken() }),
       transports: ['websocket', 'polling'],
     });
 
@@ -81,7 +84,10 @@ export function SocketProvider({ children }) {
     return () => {
       newSocket.disconnect();
     };
-  }, [user, token, fetchNotifications]);
+    // Cố ý KHÔNG phụ thuộc vào token: nó xoay 15 phút một lần, mà dựng lại socket
+    // mỗi lần xoay thì mất kết nối realtime định kỳ không vì lý do gì. Token mới
+    // được đọc qua `getToken()` ngay tại lúc kết nối lại.
+  }, [user, fetchNotifications]);
 
   const markAsRead = async (id) => {
     try {
