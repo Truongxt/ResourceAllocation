@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Table,
   Card,
@@ -34,15 +35,20 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import projectService from '../services/projectService';
-import { PROJECT_STATUSES as STATUS_OPTIONS, PRIORITY_OPTIONS } from '../constants';
+import { PROJECT_STATUSES, PRIORITY_OPTIONS } from '../constants';
+import {
+  projectStatusLabel,
+  projectStatusOptions,
+  priorityLabel,
+  priorityOptions,
+} from '../i18n/enums';
+import { formatCurrency } from '../i18n/format';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
-const formatMoney = (value) =>
-  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
-
 export default function Projects() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [filters, setFilters] = useState({ search: '', status: '', priority: '' });
@@ -61,7 +67,7 @@ export default function Projects() {
       const response = await projectService.getAll(params);
       setProjects(response.data.data.projects || []);
     } catch (error) {
-      message.error(error.response?.data?.message || 'Không thể tải danh sách dự án');
+      message.error(error.response?.data?.message || t('projects.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -116,7 +122,7 @@ export default function Projects() {
         priority: values.priority,
         budget: Number(values.budget) || 0,
         tags: values.tags
-          ? values.tags.split(',').map((t) => t.trim()).filter(Boolean)
+          ? values.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
           : [],
       };
 
@@ -127,15 +133,15 @@ export default function Projects() {
 
       if (editingProject) {
         await projectService.update(editingProject._id, payload);
-        message.success('Cập nhật dự án thành công');
+        message.success(t('projects.updated'));
       } else {
         await projectService.create(payload);
-        message.success('Tạo dự án thành công');
+        message.success(t('projects.created'));
       }
       setModalOpen(false);
       await loadProjects();
     } catch (error) {
-      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi lưu dự án');
+      message.error(error.response?.data?.message || t('projects.saveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -144,16 +150,16 @@ export default function Projects() {
   const handleDelete = async (id) => {
     try {
       await projectService.remove(id, true);
-      message.success('Xóa dự án thành công');
+      message.success(t('projects.deleted'));
       await loadProjects();
     } catch (error) {
-      message.error(error.response?.data?.message || 'Không thể xóa dự án');
+      message.error(error.response?.data?.message || t('projects.deleteFailed'));
     }
   };
 
   const handleImportCSV = async () => {
     if (!csvContent.trim()) {
-      message.warning('Vui lòng nhập nội dung CSV');
+      message.warning(t('projects.csvEmpty'));
       return;
     }
 
@@ -165,7 +171,10 @@ export default function Projects() {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      if (!line || (i === 0 && line.toLowerCase().includes('tên'))) continue;
+      // Dòng đầu là tiêu đề thì bỏ qua. Nhận cả hai ngôn ngữ vì file mẫu người
+      // dùng dán vào có thể xuất từ giao diện tiếng Việt lẫn tiếng Anh.
+      const looksLikeHeader = /(^|,)\s*"?(tên|name)\b/i.test(line);
+      if (!line || (i === 0 && looksLikeHeader)) continue;
 
       const parts = line.split(',').map((p) => p.trim().replace(/^["']|["']$/g, ''));
       if (!parts[0]) continue;
@@ -187,7 +196,7 @@ export default function Projects() {
       }
     }
 
-    message.success(`Đã nhập thành công ${successCount} dự án từ CSV.`);
+    message.success(t('projects.csvImported', { count: successCount }));
     setSubmitting(false);
     setCsvModalOpen(false);
     setCsvContent('');
@@ -196,7 +205,7 @@ export default function Projects() {
 
   const columns = [
     {
-      title: 'Dự án',
+      title: t('common.project'),
       dataIndex: 'name',
       key: 'name',
       render: (text, record) => (
@@ -220,27 +229,27 @@ export default function Projects() {
       ),
     },
     {
-      title: 'Trạng thái',
+      title: t('common.status'),
       dataIndex: 'status',
       key: 'status',
       width: 140,
       render: (status) => {
-        const option = STATUS_OPTIONS.find((o) => o.value === status) || { label: status, color: 'default' };
-        return <Tag color={option.color}>{option.label}</Tag>;
+        const option = PROJECT_STATUSES.find((o) => o.value === status);
+        return <Tag color={option?.color || 'default'}>{projectStatusLabel(status)}</Tag>;
       },
     },
     {
-      title: 'Mức ưu tiên',
+      title: t('common.priority'),
       dataIndex: 'priority',
       key: 'priority',
       width: 120,
       render: (priority) => {
-        const option = PRIORITY_OPTIONS.find((o) => o.value === priority) || { label: priority, color: 'default' };
-        return <Tag color={option.color}>{option.label}</Tag>;
+        const option = PRIORITY_OPTIONS.find((o) => o.value === priority);
+        return <Tag color={option?.color || 'default'}>{priorityLabel(priority)}</Tag>;
       },
     },
     {
-      title: 'Tiến độ',
+      title: t('gantt.progress'),
       dataIndex: 'progress',
       key: 'progress',
       width: 150,
@@ -249,14 +258,14 @@ export default function Projects() {
       ),
     },
     {
-      title: 'Ngân sách',
+      title: t('projects.budget'),
       dataIndex: 'budget',
       key: 'budget',
       width: 140,
-      render: (budget) => <Text>{formatMoney(budget)}</Text>,
+      render: (budget) => <Text>{formatCurrency(budget)}</Text>,
     },
     {
-      title: 'Thời gian',
+      title: t('gantt.period'),
       key: 'dates',
       width: 180,
       render: (_, record) => (
@@ -268,21 +277,21 @@ export default function Projects() {
       ),
     },
     {
-      title: 'Hành động',
+      title: t('common.actions'),
       key: 'actions',
       width: 100,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="Chỉnh sửa">
+          <Tooltip title={t('common.edit')}>
             <Button type="text" icon={<EditOutlined />} onClick={() => openEdit(record)} />
           </Tooltip>
-          <Tooltip title="Xóa">
+          <Tooltip title={t('common.delete')}>
             <Popconfirm
-              title="Xác nhận xóa dự án?"
-              description="Các công việc liên quan cũng sẽ bị xóa vĩnh viễn."
+              title={t('projects.deleteConfirm')}
+              description={t('projects.deleteWarning')}
               onConfirm={() => handleDelete(record._id)}
-              okText="Xóa"
-              cancelText="Hủy"
+              okText={t('common.delete')}
+              cancelText={t('common.cancel')}
               okButtonProps={{ danger: true }}
             >
               <Button type="text" danger icon={<DeleteOutlined />} />
@@ -298,15 +307,15 @@ export default function Projects() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ marginBottom: 4 }}>Quản lý Dự án</Title>
-          <Text type="secondary">Theo dõi tiến độ, ngân sách và trạng thái các dự án của tổ chức</Text>
+          <Title level={3} style={{ marginBottom: 4 }}>{t('pageTitle./projects')}</Title>
+          <Text type="secondary">{t('projects.subtitle')}</Text>
         </div>
         <Space>
           <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>
-            Nhập CSV
+            {t('projects.importCsv')}
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} id="btn-create-project">
-            Tạo dự án
+            {t('projects.create')}
           </Button>
         </Space>
       </div>
@@ -316,7 +325,7 @@ export default function Projects() {
         <Col xs={24} sm={8}>
           <Card hoverable>
             <Statistic
-              title="Tổng dự án"
+              title={t('projects.stats.total')}
               value={projectStats.total}
               prefix={<ProjectOutlined style={{ color: '#6366f1' }} />}
             />
@@ -325,7 +334,7 @@ export default function Projects() {
         <Col xs={24} sm={8}>
           <Card hoverable>
             <Statistic
-              title="Đang thực hiện"
+              title={t('enums.projectStatus.in_progress')}
               value={projectStats.active}
               prefix={<SyncOutlined spin style={{ color: '#3b82f6' }} />}
             />
@@ -334,7 +343,7 @@ export default function Projects() {
         <Col xs={24} sm={8}>
           <Card hoverable>
             <Statistic
-              title="Đã hoàn thành"
+              title={t('reports.columns.completed')}
               value={projectStats.completed}
               prefix={<CheckCircleOutlined style={{ color: '#10b981' }} />}
             />
@@ -348,7 +357,7 @@ export default function Projects() {
           <Col xs={24} md={10}>
             <Input
               prefix={<SearchOutlined />}
-              placeholder="Tìm theo tên, mã hoặc mô tả..."
+              placeholder={t('projects.searchPlaceholder')}
               value={filters.search}
               onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
               allowClear
@@ -357,25 +366,25 @@ export default function Projects() {
           <Col xs={12} md={6}>
             <Select
               style={{ width: '100%' }}
-              placeholder="Trạng thái"
+              placeholder={t('common.status')}
               value={filters.status || undefined}
               onChange={(val) => setFilters((p) => ({ ...p, status: val || '' }))}
               allowClear
-              options={STATUS_OPTIONS}
+              options={projectStatusOptions()}
             />
           </Col>
           <Col xs={12} md={6}>
             <Select
               style={{ width: '100%' }}
-              placeholder="Mức ưu tiên"
+              placeholder={t('common.priority')}
               value={filters.priority || undefined}
               onChange={(val) => setFilters((p) => ({ ...p, priority: val || '' }))}
               allowClear
-              options={PRIORITY_OPTIONS}
+              options={priorityOptions()}
             />
           </Col>
           <Col xs={24} md={2} style={{ textAlign: 'right' }}>
-            <Button icon={<ReloadOutlined />} onClick={loadProjects} title="Tải lại" />
+            <Button icon={<ReloadOutlined />} onClick={loadProjects} title={t('common.reload')} />
           </Col>
         </Row>
       </Card>
@@ -387,13 +396,17 @@ export default function Projects() {
           dataSource={projects}
           rowKey="_id"
           loading={loading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Tổng số ${total} dự án` }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (count) => t('projects.totalCount', { count }),
+          }}
         />
       </Card>
 
       {/* Project Form Modal */}
       <Modal
-        title={editingProject ? 'Cập nhật dự án' : 'Tạo dự án mới'}
+        title={editingProject ? t('projects.editTitle') : t('projects.createTitle')}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         footer={null}
@@ -410,44 +423,44 @@ export default function Projects() {
             <Col span={16}>
               <Form.Item
                 name="name"
-                label="Tên dự án"
-                rules={[{ required: true, message: 'Vui lòng nhập tên dự án' }]}
+                label={t('projects.form.name')}
+                rules={[{ required: true, message: t('projects.form.nameRequired') }]}
               >
-                <Input placeholder="Ví dụ: Nâng cấp hệ thống Core Banking" />
+                <Input placeholder={t('projects.form.namePlaceholder')} />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="code" label="Mã dự án">
-                <Input placeholder="VD: CB-2026" />
+              <Form.Item name="code" label={t('projects.form.code')}>
+                <Input placeholder={t('projects.form.codePlaceholder')} />
               </Form.Item>
             </Col>
           </Row>
 
-          <Form.Item name="description" label="Mô tả dự án">
-            <TextArea rows={3} placeholder="Mô tả mục tiêu, phạm vi của dự án..." />
+          <Form.Item name="description" label={t('projects.form.description')}>
+            <TextArea rows={3} placeholder={t('projects.form.descriptionPlaceholder')} />
           </Form.Item>
 
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
-                <Select options={STATUS_OPTIONS} />
+              <Form.Item name="status" label={t('common.status')} rules={[{ required: true }]}>
+                <Select options={projectStatusOptions()} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="priority" label="Mức ưu tiên" rules={[{ required: true }]}>
-                <Select options={PRIORITY_OPTIONS} />
+              <Form.Item name="priority" label={t('common.priority')} rules={[{ required: true }]}>
+                <Select options={priorityOptions()} />
               </Form.Item>
             </Col>
           </Row>
 
           <Row gutter={16}>
             <Col span={14}>
-              <Form.Item name="dateRange" label="Thời gian thực hiện">
+              <Form.Item name="dateRange" label={t('projects.form.dateRange')}>
                 <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
               </Form.Item>
             </Col>
             <Col span={10}>
-              <Form.Item name="budget" label="Ngân sách (VND)">
+              <Form.Item name="budget" label={t('projects.form.budget')}>
                 <InputNumber
                   style={{ width: '100%' }}
                   formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
@@ -458,15 +471,15 @@ export default function Projects() {
             </Col>
           </Row>
 
-          <Form.Item name="tags" label="Thẻ (Tags)" extra="Phân cách bằng dấu phẩy, ví dụ: AI, Backend, Web">
+          <Form.Item name="tags" label={t('projects.form.tags')} extra={t('projects.form.tagsHint')}>
             <Input placeholder="AI, Fintech, Microservices" />
           </Form.Item>
 
           <div style={{ textAlign: 'right', marginTop: 24 }}>
             <Space>
-              <Button onClick={() => setModalOpen(false)}>Hủy</Button>
+              <Button onClick={() => setModalOpen(false)}>{t('common.cancel')}</Button>
               <Button type="primary" htmlType="submit" loading={submitting}>
-                {editingProject ? 'Lưu thay đổi' : 'Tạo dự án'}
+                {editingProject ? t('common.saveChanges') : t('projects.create')}
               </Button>
             </Space>
           </div>
@@ -475,23 +488,23 @@ export default function Projects() {
 
       {/* CSV Import Modal */}
       <Modal
-        title="Nhập dự án từ file CSV"
+        title={t('projects.csvTitle')}
         open={csvModalOpen}
         onCancel={() => setCsvModalOpen(false)}
         onOk={handleImportCSV}
         confirmLoading={submitting}
-        okText="Bắt đầu nhập"
-        cancelText="Hủy"
+        okText={t('projects.csvStart')}
+        cancelText={t('common.cancel')}
         width={600}
       >
         <Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 12 }}>
-          Định dạng dữ liệu: <code>Tên dự án, Mã dự án, Mô tả, Trạng thái, Ưu tiên, Ngân sách, Ngày bắt đầu, Ngày kết thúc</code>
+          {t('projects.csvFormat')} <code>{t('projects.csvColumns')}</code>
         </Paragraph>
         <TextArea
           rows={8}
           value={csvContent}
           onChange={(e) => setCsvContent(e.target.value)}
-          placeholder={`Hệ thống HRM, HRM-01, Quản lý nhân sự, in_progress, high, 500000000, 2026-01-01, 2026-06-30\nCổng thanh toán, PAY-02, Tích hợp Napas, planning, critical, 800000000, 2026-03-01, 2026-09-30`}
+          placeholder={t('projects.csvExample')}
           style={{ fontFamily: 'monospace', fontSize: 12 }}
         />
       </Modal>

@@ -522,7 +522,7 @@ trước khi đếm, nên `?ids=X,X` là **400** chứ không phải "hai phươ
     "comparison": {
       "results": [ /* bản rút gọn của từng phương án, GIỮ ĐÚNG THỨ TỰ trong ?ids */ ],
       "metrics": [
-        { "key": "fitness", "label": "Điểm fitness", "unit": "", "digits": 4,
+        { "key": "fitness", "digits": 4,
           "higherIsBetter": true, "values": [0.8734, 0.8102, 0.8734], "bestIndex": null }
       ],
       "assignments": {
@@ -532,7 +532,7 @@ trước khi đếm, nên `?ids=X,X` là **400** chứ không phải "hai phươ
             "cells": [ { "resource": "...", "resourceName": "...", "skillMatch": 100 }, null ] }
         ]
       },
-      "warnings": ["..."]
+      "warnings": [{ "code": "mixedTaskCount", "counts": [12, 8] }]
     }
   }
 }
@@ -541,6 +541,10 @@ trước khi đếm, nên `?ids=X,X` là **400** chứ không phải "hai phươ
 9 chỉ số: `fitness`, `assignedCount`, `averageSkillMatch`, `workloadVariance`,
 `overallocatedResources`, `totalCost`, `averageUtilization`, `violatedConstraints`,
 `executionTime`.
+
+`metrics[].key` và `warnings[].code` là **mã, không phải câu chữ** — client tra nhãn và
+đơn vị theo ngôn ngữ đang chọn. Ba mã cảnh báo: `mixedScope`, `mixedTaskCount` (kèm
+`counts`), `unfinished` (kèm `count`).
 
 **Quy ước quan trọng khi đọc kết quả:**
 
@@ -552,7 +556,7 @@ trước khi đếm, nên `?ids=X,X` là **400** chứ không phải "hai phươ
   0. GA không kiểm tra ràng buộc nên `violatedConstraints` của nó là `null`, không phải
   "0 vi phạm"; `constraintReport` của nó cũng là `null`.
 - `workloadVariance` giữ nguyên tên field vì dữ liệu cũ đã lưu vậy, nhưng giá trị thực tế là
-  **độ lệch chuẩn** (`scoring.js` lấy căn bậc hai của phương sai). Nhãn trả về ghi đúng bản chất.
+  **độ lệch chuẩn** (`scoring.js` lấy căn bậc hai của phương sai) — client gọi đúng tên đó.
 - Một công việc chỉ tính vào `agreed`/`comparable` khi **mọi** phương án đều phân công nó.
   Công việc có phương án bỏ trống bị loại khỏi mẫu số thay vì bị tính là bất đồng, nên
   `agreementRate` có thể là `null` nếu không công việc nào so được.
@@ -621,7 +625,7 @@ Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
       "from": "2026-03-02T00:00:00.000Z",
       "to": "2026-03-13T00:00:00.000Z",
       "truncated": false,
-      "buckets": [ { "key": "2026-03-02", "start": "...", "end": "...", "label": "Tuần 02/03" } ],
+      "buckets": [ { "key": "2026-03-02", "start": "...", "end": "..." } ],
       "totals": [ { "load": 40, "capacity": 40, "utilization": 100, "overloaded": 0 } ],
       "resources": [
         { "_id": "...", "name": "...", "position": "...",
@@ -643,6 +647,8 @@ cam kết rơi vào lúc nào", **không** trả lời "tháng trước ai đã 
 Các quy ước cần biết để không đọc sai:
 
 - `load` và `capacity` là hai mảng **song song với `buckets`**, cùng độ dài, index khớp nhau.
+- Mốc chỉ mang `key`, `start`, `end` — **không có nhãn dựng sẵn**. "Tuần 02/03" hay
+  "Week 02/03" là chuyện hiển thị, client dựng từ `start` và `granularity`.
 - Capacity ngày = `maxCapacity × fte / 5` (`maxCapacity` là giờ mỗi **tuần**). Bằng **0** vào
   cuối tuần và trong `unavailablePeriods`.
 - `Resource.availability` **cố tình không được dùng**: đó là trạng thái hiện tại, không gắn

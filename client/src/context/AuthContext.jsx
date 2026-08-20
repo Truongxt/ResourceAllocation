@@ -1,6 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
 import { setToken, clearToken, getToken } from '../services/tokenStore';
+// Dùng thẳng i18n thay vì hook: các câu dưới đây chỉ là phương án dự phòng khi
+// server không trả về `message`, và chúng được dựng lúc gọi hàm chứ không phải
+// lúc render, nên không có gì để hook theo dõi.
+import i18n from '../i18n';
 
 const AuthContext = createContext(null);
 
@@ -41,7 +45,7 @@ export function AuthProvider({ children }) {
       setUser(newUser);
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.message || 'Đăng ký thất bại';
+      const message = err.response?.data?.message || i18n.t('auth.registerFailed');
       setError(message);
       return { success: false, message };
     }
@@ -57,7 +61,7 @@ export function AuthProvider({ children }) {
       setUser(loggedInUser);
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.message || 'Đăng nhập thất bại';
+      const message = err.response?.data?.message || i18n.t('auth.loginFailed');
       setError(message);
       return { success: false, message };
     }
@@ -87,7 +91,7 @@ export function AuthProvider({ children }) {
       setUser(updatedUser);
       return { success: true, message: response.message };
     } catch (err) {
-      const message = err.response?.data?.message || 'Cập nhật thất bại';
+      const message = err.response?.data?.message || i18n.t('settings.profileFailed');
       setError(message);
       return { success: false, message };
     }
@@ -104,7 +108,7 @@ export function AuthProvider({ children }) {
       }
       return { success: true, message: response.message };
     } catch (err) {
-      const message = err.response?.data?.message || 'Đổi mật khẩu thất bại';
+      const message = err.response?.data?.message || i18n.t('settings.passwordFailed');
       setError(message);
       return { success: false, message };
     }

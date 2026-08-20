@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Table,
   Card,
@@ -52,13 +53,21 @@ import {
 } from '../constants';
 import { invalidPredecessors } from '../utils/gantt';
 import { useAuth } from '../context/AuthContext';
-import { requiredSkillLevelOptions } from '../i18n/enums';
+import {
+  requiredSkillLevelOptions,
+  taskStatusLabel,
+  taskStatusOptions,
+  priorityLabel,
+  priorityOptions,
+} from '../i18n/enums';
+import { currentLocale } from '../i18n/format';
 import './Tasks.css';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 export default function Tasks() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -92,11 +101,11 @@ export default function Tasks() {
       const res = await taskService.getAll(params);
       setTasks(res.data.data.tasks || []);
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể tải danh sách công việc');
+      message.error(err.response?.data?.message || t('tasks.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, t]);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -150,7 +159,9 @@ export default function Tasks() {
   const knownSkillOptions = useMemo(() => {
     const names = new Set();
     resources.forEach((r) => (r.skills || []).forEach((s) => s?.name && names.add(s.name.trim())));
-    return [...names].sort((a, b) => a.localeCompare(b, 'vi')).map((value) => ({ value }));
+    return [...names]
+      .sort((a, b) => a.localeCompare(b, currentLocale()))
+      .map((value) => ({ value }));
   }, [resources]);
 
   // Loại chính công việc đang sửa và mọi công việc phụ thuộc vào nó — chọn chúng
@@ -158,19 +169,25 @@ export default function Tasks() {
   const dependencyOptions = useMemo(() => {
     const blocked = invalidPredecessors(projectTasks, editingTask?._id);
     return projectTasks
-      .filter((t) => !blocked.has(String(t._id)))
-      .map((t) => ({
-        value: t._id,
-        label: t.startDate ? `${t.title} · từ ${dayjs(t.startDate).format('DD/MM')}` : t.title,
+      .filter((item) => !blocked.has(String(item._id)))
+      .map((item) => ({
+        value: item._id,
+        label: item.startDate
+          ? t('tasks.dependencyFrom', {
+              title: item.title,
+              date: dayjs(item.startDate).format('DD/MM'),
+            })
+          : item.title,
       }));
-  }, [projectTasks, editingTask]);
+  }, [projectTasks, editingTask, t]);
 
   const stats = useMemo(
     () => ({
       total: tasks.length,
-      done: tasks.filter((t) => t.status === 'done').length,
-      inProgress: tasks.filter((t) => t.status === 'in_progress' || t.status === 'review').length,
-      blocked: tasks.filter((t) => t.status === 'blocked').length,
+      done: tasks.filter((item) => item.status === 'done').length,
+      inProgress: tasks.filter((item) => item.status === 'in_progress' || item.status === 'review')
+        .length,
+      blocked: tasks.filter((item) => item.status === 'blocked').length,
     }),
     [tasks]
   );
@@ -180,8 +197,8 @@ export default function Tasks() {
     STATUS_COLS.forEach((col) => {
       grouped[col.key] = [];
     });
-    tasks.forEach((t) => {
-      if (grouped[t.status]) grouped[t.status].push(t);
+    tasks.forEach((item) => {
+      if (grouped[item.status]) grouped[item.status].push(item);
     });
     return grouped;
   }, [tasks]);
@@ -267,15 +284,15 @@ export default function Tasks() {
               actualHours: payload.actualHours,
             };
         await taskService.update(editingTask._id, updatePayload);
-        message.success('Cập nhật công việc thành công');
+        message.success(t('tasks.updated'));
       } else {
         await taskService.create(payload);
-        message.success('Tạo công việc thành công');
+        message.success(t('tasks.created'));
       }
       setModalOpen(false);
       await loadTasks();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Có lỗi xảy ra khi lưu công việc');
+      message.error(err.response?.data?.message || t('tasks.saveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -284,10 +301,10 @@ export default function Tasks() {
   const handleDelete = async (id) => {
     try {
       await taskService.remove(id);
-      message.success('Xóa công việc thành công');
+      message.success(t('tasks.deleted'));
       await loadTasks();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể xóa công việc');
+      message.error(err.response?.data?.message || t('tasks.deleteFailed'));
     }
   };
 
@@ -305,28 +322,28 @@ export default function Tasks() {
   const handleDrop = async (e, newStatus) => {
     e.preventDefault();
     if (!draggedTaskId) return;
-    const task = tasks.find((t) => t._id === draggedTaskId);
+    const task = tasks.find((item) => item._id === draggedTaskId);
     if (!task || task.status === newStatus) {
       setDraggedTaskId(null);
       return;
     }
 
     setTasks((prev) =>
-      prev.map((t) => (t._id === draggedTaskId ? { ...t, status: newStatus } : t))
+      prev.map((item) => (item._id === draggedTaskId ? { ...item, status: newStatus } : item))
     );
     setDraggedTaskId(null);
 
     try {
       await taskService.updateStatus(draggedTaskId, newStatus);
-    } catch (err) {
-      message.error('Không thể cập nhật trạng thái công việc');
+    } catch {
+      message.error(t('tasks.statusUpdateFailed'));
       await loadTasks();
     }
   };
 
   const tableColumns = [
     {
-      title: 'Công việc',
+      title: t('nav.tasks'),
       dataIndex: 'title',
       key: 'title',
       render: (text, record) => (
@@ -347,7 +364,10 @@ export default function Tasks() {
               {record.requiredSkills.map((skill, idx) => (
                 <Tooltip
                   key={idx}
-                  title={`Mức yêu cầu ${skill.level ?? 3}/4 · trọng số ${skill.weight ?? 1}`}
+                  title={t('tasks.skillTooltip', {
+                    level: skill.level ?? 3,
+                    weight: skill.weight ?? 1,
+                  })}
                 >
                   <Tag color="cyan" style={{ fontSize: 10, margin: 0 }}>
                     {skill.name} Lv.{skill.level ?? 3}
@@ -361,39 +381,43 @@ export default function Tasks() {
       ),
     },
     {
-      title: 'Trạng thái',
+      title: t('common.status'),
       dataIndex: 'status',
       key: 'status',
       width: 130,
-      render: (status) => {
-        const col = STATUS_COLS.find((c) => c.key === status) || { label: status, badgeColor: 'default' };
-        return <Tag color={col.badgeColor}>{col.label}</Tag>;
-      },
+      render: (status) => (
+        <Tag color={STATUS_COLS.find((c) => c.key === status)?.badgeColor || 'default'}>
+          {taskStatusLabel(status)}
+        </Tag>
+      ),
     },
     {
-      title: 'Ưu tiên',
+      title: t('common.priority'),
       dataIndex: 'priority',
       key: 'priority',
       width: 110,
-      render: (priority) => {
-        const opt = PRIORITY_OPTIONS.find((p) => p.value === priority) || { label: priority, color: 'default' };
-        return <Tag color={opt.color}>{opt.label}</Tag>;
-      },
+      render: (priority) => (
+        <Tag color={PRIORITY_OPTIONS.find((p) => p.value === priority)?.color || 'default'}>
+          {priorityLabel(priority)}
+        </Tag>
+      ),
     },
     {
-      title: 'Người thực hiện',
+      title: t('projectDetail.assignee'),
       dataIndex: 'assignee',
       key: 'assignee',
       width: 180,
       render: (assignee) => (
         <Space>
           <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
-          <Text style={{ fontSize: 13, fontWeight: 500 }}>{assignee?.name || 'Chưa gán'}</Text>
+          <Text style={{ fontSize: 13, fontWeight: 500 }}>
+            {assignee?.name || t('common.unassigned')}
+          </Text>
         </Space>
       ),
     },
     {
-      title: 'Tiến độ',
+      title: t('gantt.progress'),
       dataIndex: 'progress',
       key: 'progress',
       width: 140,
@@ -402,7 +426,7 @@ export default function Tasks() {
       ),
     },
     {
-      title: 'Giờ ước tính / thực tế',
+      title: t('tasks.hoursColumn'),
       key: 'hours',
       width: 160,
       render: (_, record) => (
@@ -412,12 +436,12 @@ export default function Tasks() {
       ),
     },
     {
-      title: 'Hành động',
+      title: t('common.actions'),
       key: 'actions',
       width: 100,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title={canEditTask(record) ? 'Chỉnh sửa' : 'Chỉ người được giao hoặc quản lý mới sửa được'}>
+          <Tooltip title={canEditTask(record) ? t('common.edit') : t('tasks.editForbidden')}>
             <Button
               type="text"
               icon={<EditOutlined />}
@@ -426,12 +450,12 @@ export default function Tasks() {
             />
           </Tooltip>
           {canManageTasks && (
-            <Tooltip title="Xóa">
+            <Tooltip title={t('common.delete')}>
               <Popconfirm
-                title="Xác nhận xóa công việc?"
+                title={t('tasks.deleteConfirm')}
                 onConfirm={() => handleDelete(record._id)}
-                okText="Xóa"
-                cancelText="Hủy"
+                okText={t('common.delete')}
+                cancelText={t('common.cancel')}
                 okButtonProps={{ danger: true }}
               >
                 <Button type="text" danger icon={<DeleteOutlined />} />
@@ -448,8 +472,8 @@ export default function Tasks() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ marginBottom: 4 }}>Quản lý Công việc</Title>
-          <Text type="secondary">Tạo, phân công, theo dõi và quản lý công việc theo bảng Kanban hoặc danh sách</Text>
+          <Title level={3} style={{ marginBottom: 4 }}>{t('pageTitle./tasks')}</Title>
+          <Text type="secondary">{t('tasks.subtitle')}</Text>
         </div>
         <Space>
           <Segmented
@@ -457,12 +481,12 @@ export default function Tasks() {
             onChange={setView}
             options={[
               { value: 'kanban', icon: <AppstoreOutlined />, label: 'Kanban' },
-              { value: 'list', icon: <UnorderedListOutlined />, label: 'Danh sách' },
+              { value: 'list', icon: <UnorderedListOutlined />, label: t('tasks.listView') },
             ]}
           />
           {canManageTasks && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} id="btn-create-task">
-              Tạo công việc
+              {t('tasks.create')}
             </Button>
           )}
         </Space>
@@ -472,23 +496,23 @@ export default function Tasks() {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card hoverable>
-            <Statistic title="Tổng công việc" value={stats.total} prefix={<ClockCircleOutlined style={{ color: '#4f46e5' }} />} />
+            <Statistic title={t('tasks.stats.total')} value={stats.total} prefix={<ClockCircleOutlined style={{ color: '#4f46e5' }} />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card hoverable>
-            <Statistic title="Đang thực hiện" value={stats.inProgress} prefix={<SyncOutlined spin style={{ color: '#2563eb' }} />} />
+            <Statistic title={t('enums.taskStatus.in_progress')} value={stats.inProgress} prefix={<SyncOutlined spin style={{ color: '#2563eb' }} />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card hoverable>
-            <Statistic title="Hoàn thành" value={stats.done} prefix={<CheckCircleOutlined style={{ color: '#059669' }} />} />
+            <Statistic title={t('enums.taskStatus.done')} value={stats.done} prefix={<CheckCircleOutlined style={{ color: '#059669' }} />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card hoverable>
             <Statistic
-              title="Bị chặn (Blocked)"
+              title={t('enums.taskStatus.blocked')}
               value={stats.blocked}
               valueStyle={{ color: stats.blocked > 0 ? '#dc2626' : undefined }}
               prefix={<CloseCircleOutlined style={{ color: stats.blocked > 0 ? '#dc2626' : '#94a3b8' }} />}
@@ -503,7 +527,7 @@ export default function Tasks() {
           <Col xs={24} md={10}>
             <Input
               prefix={<SearchOutlined />}
-              placeholder="Tìm theo tiêu đề công việc..."
+              placeholder={t('tasks.searchPlaceholder')}
               value={filters.search}
               onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
               allowClear
@@ -512,7 +536,7 @@ export default function Tasks() {
           <Col xs={12} md={6}>
             <Select
               style={{ width: '100%' }}
-              placeholder="Tất cả dự án"
+              placeholder={t('gantt.allProjects')}
               value={filters.project || undefined}
               onChange={(val) => setFilters((p) => ({ ...p, project: val || '' }))}
               allowClear
@@ -522,15 +546,15 @@ export default function Tasks() {
           <Col xs={12} md={6}>
             <Select
               style={{ width: '100%' }}
-              placeholder="Mức ưu tiên"
+              placeholder={t('common.priority')}
               value={filters.priority || undefined}
               onChange={(val) => setFilters((p) => ({ ...p, priority: val || '' }))}
               allowClear
-              options={PRIORITY_OPTIONS}
+              options={priorityOptions()}
             />
           </Col>
           <Col xs={24} md={2} style={{ textAlign: 'right' }}>
-            <Button icon={<ReloadOutlined />} onClick={loadTasks} title="Tải lại" />
+            <Button icon={<ReloadOutlined />} onClick={loadTasks} title={t('common.reload')} />
           </Col>
         </Row>
       </Card>
@@ -543,7 +567,11 @@ export default function Tasks() {
             dataSource={tasks}
             rowKey="_id"
             loading={loading}
-            pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Tổng số ${total} công việc` }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (count) => t('tasks.totalCount', { count }),
+            }}
           />
         </Card>
       ) : (
@@ -560,7 +588,7 @@ export default function Tasks() {
               >
                 <div className="kanban-column-header-antd" style={{ borderTop: `3px solid ${col.color}` }}>
                   <Space>
-                    <Text strong>{col.label}</Text>
+                    <Text strong>{taskStatusLabel(col.key)}</Text>
                     <Tag>{colTasks.length}</Tag>
                   </Space>
                 </div>
@@ -568,7 +596,7 @@ export default function Tasks() {
                 <div className="kanban-column-body-antd">
                   {colTasks.length === 0 ? (
                     <div className="kanban-empty-antd">
-                      <Text type="secondary" style={{ fontSize: 12 }}>Kéo thả công việc vào đây</Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>{t('tasks.dropHere')}</Text>
                     </div>
                   ) : (
                     colTasks.map((task) => (
@@ -605,7 +633,9 @@ export default function Tasks() {
                           <Space size={6}>
                             <Avatar size={20} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
                             <Text style={{ fontSize: 12, fontWeight: 500 }}>
-                              {task.assignee?.name ? task.assignee.name.split(' ').slice(-1)[0] : 'Chưa gán'}
+                              {task.assignee?.name
+                                ? task.assignee.name.split(' ').slice(-1)[0]
+                                : t('common.unassigned')}
                             </Text>
                           </Space>
                           <Text type="secondary" style={{ fontSize: 11 }}>
@@ -624,7 +654,7 @@ export default function Tasks() {
 
       {/* Task Modal */}
       <Modal
-        title={editingTask ? 'Cập nhật công việc' : 'Tạo công việc mới'}
+        title={editingTask ? t('tasks.editTitle') : t('tasks.createTitle')}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         footer={null}
@@ -636,19 +666,19 @@ export default function Tasks() {
             type="info"
             showIcon
             style={{ marginTop: 8 }}
-            message="Bạn chỉ sửa được tiến độ công việc của mình"
-            description="Trạng thái, tiến độ và giờ thực tế là ba trường bạn được phép đổi. Những ô còn lại bị khóa vì server sẽ từ chối — muốn đổi, hãy báo Quản lý dự án."
+            message={t('tasks.memberNotice.title')}
+            description={t('tasks.memberNotice.body')}
           />
         )}
 
         <Form form={form} layout="vertical" onFinish={handleFormSubmit} style={{ marginTop: 16 }}>
           <Form.Item
             name="title"
-            label="Tiêu đề công việc"
-            rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}
+            label={t('tasks.form.title')}
+            rules={[{ required: true, message: t('tasks.form.titleRequired') }]}
           >
             <Input
-              placeholder="Ví dụ: Thiết kế cơ sở dữ liệu cho Module Auth"
+              placeholder={t('tasks.form.titlePlaceholder')}
               disabled={!canManageTasks}
             />
           </Form.Item>
@@ -657,28 +687,28 @@ export default function Tasks() {
             <Col span={12}>
               <Form.Item
                 name="project"
-                label="Dự án"
-                rules={[{ required: true, message: 'Vui lòng chọn dự án' }]}
+                label={t('common.project')}
+                rules={[{ required: true, message: t('tasks.form.projectRequired') }]}
               >
                 <Select
-                  placeholder="Chọn dự án"
+                  placeholder={t('tasks.form.projectPlaceholder')}
                   disabled={!canManageTasks}
                   options={projects.map((p) => ({ value: p._id, label: `${p.code ? p.code + ' - ' : ''}${p.name}` }))}
                 />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
-                <Select options={STATUS_COLS.map((c) => ({ value: c.key, label: c.label }))} />
+              <Form.Item name="status" label={t('common.status')} rules={[{ required: true }]}>
+                <Select options={taskStatusOptions().map((s) => ({ value: s.key, label: s.label }))} />
               </Form.Item>
             </Col>
           </Row>
 
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="assignee" label="Người thực hiện (Assignee)">
+              <Form.Item name="assignee" label={t('projectDetail.assignee')}>
                 <Select
-                  placeholder="-- Chưa gán người thực hiện --"
+                  placeholder={t('tasks.form.assigneePlaceholder')}
                   allowClear
                   disabled={!canManageTasks}
                   options={resources.map((r) => ({
@@ -695,23 +725,23 @@ export default function Tasks() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="priority" label="Mức ưu tiên" rules={[{ required: true }]}>
-                <Select options={PRIORITY_OPTIONS} disabled={!canManageTasks} />
+              <Form.Item name="priority" label={t('common.priority')} rules={[{ required: true }]}>
+                <Select options={priorityOptions()} disabled={!canManageTasks} />
               </Form.Item>
             </Col>
           </Row>
 
-          <Form.Item name="description" label="Mô tả chi tiết">
+          <Form.Item name="description" label={t('tasks.form.description')}>
             <TextArea
               rows={3}
-              placeholder="Mô tả yêu cầu và kết quả đầu ra của công việc..."
+              placeholder={t('tasks.form.descriptionPlaceholder')}
               disabled={!canManageTasks}
             />
           </Form.Item>
 
           <Form.Item
-            label="Kỹ năng yêu cầu (Required Skills)"
-            extra="Thuật toán chấm điểm theo công thức Σ(weight × min(level_nhân_sự, level_yêu_cầu)) / Σ(weight × level_yêu_cầu). Tên kỹ năng phải trùng với tên trong Skill Matrix của nhân sự (không phân biệt hoa thường)."
+            label={t('tasks.form.requiredSkills')}
+            extra={t('tasks.form.requiredSkillsHint')}
             style={{ marginBottom: 12 }}
           >
             <Form.List name="requiredSkills">
@@ -722,11 +752,11 @@ export default function Tasks() {
                       <Form.Item
                         {...restField}
                         name={[name, 'name']}
-                        rules={[{ required: true, message: 'Nhập tên kỹ năng' }]}
+                        rules={[{ required: true, message: t('tasks.form.skillNameRequired') }]}
                         style={{ width: 210, marginBottom: 0 }}
                       >
                         <AutoComplete
-                          placeholder="Tên kỹ năng (VD: React)"
+                          placeholder={t('tasks.form.skillNamePlaceholder')}
                           options={knownSkillOptions}
                           filterOption={(input, option) =>
                             option.value.toLowerCase().includes(input.toLowerCase())
@@ -739,16 +769,25 @@ export default function Tasks() {
                         name={[name, 'level']}
                         style={{ width: 210, marginBottom: 0 }}
                       >
-                        <Select options={requiredSkillLevelOptions()} placeholder="Mức yêu cầu" />
+                        <Select
+                          options={requiredSkillLevelOptions()}
+                          placeholder={t('tasks.form.skillLevel')}
+                        />
                       </Form.Item>
 
                       <Form.Item
                         {...restField}
                         name={[name, 'weight']}
                         style={{ width: 130, marginBottom: 0 }}
-                        tooltip="Trọng số 0-1: kỹ năng càng quan trọng thì đặt càng gần 1"
+                        tooltip={t('tasks.form.weightTooltip')}
                       >
-                        <InputNumber min={0} max={1} step={0.1} addonBefore="TS" style={{ width: '100%' }} />
+                        <InputNumber
+                          min={0}
+                          max={1}
+                          step={0.1}
+                          addonBefore={t('tasks.form.weightShort')}
+                          style={{ width: '100%' }}
+                        />
                       </Form.Item>
 
                       <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ef4444' }} />
@@ -760,7 +799,7 @@ export default function Tasks() {
                     block
                     icon={<PlusOutlined />}
                   >
-                    Thêm kỹ năng yêu cầu
+                    {t('tasks.form.addSkill')}
                   </Button>
                 </>
               )}
@@ -770,20 +809,20 @@ export default function Tasks() {
           {canManageTasks && (
             <Form.Item
               name="dependencies"
-              label="Công việc tiền nhiệm (Dependencies)"
+              label={t('tasks.form.dependencies')}
               extra={
                 selectedProject
-                  ? 'Những công việc phải xong trước. Danh sách đã loại sẵn các lựa chọn tạo thành vòng lặp. Sơ đồ Gantt sẽ vẽ mũi tên và tính đường găng theo quan hệ này.'
-                  : 'Chọn dự án trước để xem danh sách công việc có thể làm tiền nhiệm.'
+                  ? t('tasks.form.dependenciesHint')
+                  : t('tasks.form.dependenciesPickProject')
               }
             >
               <Select
                 mode="multiple"
                 allowClear
                 disabled={!selectedProject}
-                placeholder="-- Không phụ thuộc công việc nào --"
+                placeholder={t('tasks.form.dependenciesPlaceholder')}
                 options={dependencyOptions}
-                notFoundContent="Dự án chưa có công việc nào khác có thể chọn"
+                notFoundContent={t('tasks.form.dependenciesEmpty')}
                 optionFilterProp="label"
               />
             </Form.Item>
@@ -791,23 +830,23 @@ export default function Tasks() {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="progress" label="Tiến độ hoàn thành (%)">
+              <Form.Item name="progress" label={t('tasks.form.progress')}>
                 <InputNumber min={0} max={100} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="estimatedHours" label="Giờ ước tính (h)">
+              <Form.Item name="estimatedHours" label={t('tasks.form.estimatedHours')}>
                 <InputNumber min={0} style={{ width: '100%' }} disabled={!canManageTasks} />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="actualHours" label="Giờ thực tế (h)">
+              <Form.Item name="actualHours" label={t('tasks.form.actualHours')}>
                 <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>
 
-          <Form.Item name="dateRange" label="Thời gian thực hiện">
+          <Form.Item name="dateRange" label={t('projects.form.dateRange')}>
             <DatePicker.RangePicker
               style={{ width: '100%' }}
               format="DD/MM/YYYY"
@@ -817,9 +856,9 @@ export default function Tasks() {
 
           <div style={{ textAlign: 'right', marginTop: 24 }}>
             <Space>
-              <Button onClick={() => setModalOpen(false)}>Hủy</Button>
+              <Button onClick={() => setModalOpen(false)}>{t('common.cancel')}</Button>
               <Button type="primary" htmlType="submit" loading={submitting}>
-                {editingTask ? 'Lưu thay đổi' : 'Tạo công việc'}
+                {editingTask ? t('common.saveChanges') : t('tasks.create')}
               </Button>
             </Space>
           </div>

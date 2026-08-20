@@ -77,10 +77,10 @@ ResourceAllocation/
 │   │   ├── context/           # AuthContext, SocketContext, ThemeContext
 │   │   ├── services/          # 10 API service module (Axios)
 │   │   ├── constants/         # Enum dùng chung, khớp schema Mongoose (không chứa câu chữ)
-│   │   ├── i18n/              # i18next + locales vi/en + nhãn enum
+│   │   ├── i18n/              # i18next + locales vi/en + nhãn enum + định dạng ngày/số/tiền
 │   │   ├── utils/             # gantt.js — logic thuần (CPM, thời lượng, mốc)
 │   │   └── styles/            # index.css + antdTheme.js
-│   ├── tests/                 # Kiểm thử logic thuần chạy bằng node (npm test)
+│   ├── tests/                 # Logic thuần chạy bằng node + component chạy bằng vitest
 │   └── vite.config.js         # Dev server port 5173 + proxy /api → :5000
 ├── server/                    # Backend
 │   ├── server.js              # HTTP server + Socket.IO + start

@@ -269,19 +269,23 @@ const getHistory = async (req, res, next) => {
  * con số kia nếu chỉ nhìn một mình nó.
  *
  * `workloadVariance` giữ nguyên tên field vì dữ liệu cũ đã lưu như vậy, nhưng giá trị
- * thực tế là ĐỘ LỆCH CHUẨN (scoring.js lấy căn bậc hai của phương sai), nên nhãn ở đây
- * ghi đúng bản chất thay vì dịch sát tên field.
+ * thực tế là ĐỘ LỆCH CHUẨN (scoring.js lấy căn bậc hai của phương sai) — client gọi
+ * đúng tên đó khi hiển thị.
+ *
+ * Không có `label` và `unit` ở đây: cả hai là câu chữ, mà client có hai ngôn ngữ.
+ * `key` đủ để client tra nhãn; `digits` và `higherIsBetter` mới là phần thuộc về
+ * server vì chúng nói cách đọc con số, không phụ thuộc tiếng nào.
  */
 const COMPARISON_METRICS = [
-  { key: 'fitness', label: 'Điểm fitness', unit: '', digits: 4, higherIsBetter: true, pick: (r) => r.fitness },
-  { key: 'assignedCount', label: 'Công việc được phân công', unit: '', digits: 0, higherIsBetter: true, pick: (r) => (r.assignments || []).length },
-  { key: 'averageSkillMatch', label: 'Độ khớp kỹ năng trung bình', unit: '%', digits: 0, higherIsBetter: true, pick: (r) => r.metrics?.averageSkillMatch },
-  { key: 'workloadVariance', label: 'Độ lệch chuẩn khối lượng', unit: 'giờ', digits: 2, higherIsBetter: false, pick: (r) => r.metrics?.workloadVariance },
-  { key: 'overallocatedResources', label: 'Nhân sự quá tải', unit: 'người', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.overallocatedResources },
-  { key: 'totalCost', label: 'Tổng chi phí ước tính', unit: '', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.totalCost },
-  { key: 'averageUtilization', label: 'Tỉ lệ sử dụng trung bình', unit: '%', digits: 0, higherIsBetter: null, pick: (r) => r.metrics?.averageUtilization },
-  { key: 'violatedConstraints', label: 'Ràng buộc bị vi phạm', unit: '', digits: 0, higherIsBetter: false, pick: (r) => r.constraintReport?.violated },
-  { key: 'executionTime', label: 'Thời gian chạy', unit: 'ms', digits: 0, higherIsBetter: false, pick: (r) => r.executionTime },
+  { key: 'fitness', digits: 4, higherIsBetter: true, pick: (r) => r.fitness },
+  { key: 'assignedCount', digits: 0, higherIsBetter: true, pick: (r) => (r.assignments || []).length },
+  { key: 'averageSkillMatch', digits: 0, higherIsBetter: true, pick: (r) => r.metrics?.averageSkillMatch },
+  { key: 'workloadVariance', digits: 2, higherIsBetter: false, pick: (r) => r.metrics?.workloadVariance },
+  { key: 'overallocatedResources', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.overallocatedResources },
+  { key: 'totalCost', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.totalCost },
+  { key: 'averageUtilization', digits: 0, higherIsBetter: null, pick: (r) => r.metrics?.averageUtilization },
+  { key: 'violatedConstraints', digits: 0, higherIsBetter: false, pick: (r) => r.constraintReport?.violated },
+  { key: 'executionTime', digits: 0, higherIsBetter: false, pick: (r) => r.executionTime },
 ];
 
 /**
@@ -370,31 +374,26 @@ const buildAssignmentDiff = (results) => {
  * Cảnh báo khi các phương án không thực sự đặt cạnh nhau được.
  * So một lần chạy trên 20 công việc với một lần chạy trên 8 công việc rồi kết luận
  * thuật toán nào hơn là kết luận sai; người đọc cần biết điều đó trước khi nhìn số.
+ *
+ * Trả về mã kèm tham số chứ không phải câu đã viết sẵn — client dựng câu theo ngôn
+ * ngữ đang chọn.
  */
 const comparisonWarnings = (results) => {
   const warnings = [];
 
-  const scopes = new Set(
-    results.map((r) => String(r.projectFilter?._id || r.projectFilter || 'Toàn hệ thống'))
-  );
+  const scopes = new Set(results.map((r) => String(r.projectFilter?._id || r.projectFilter || '*')));
   if (scopes.size > 1) {
-    warnings.push(
-      'Các phương án chạy trên phạm vi dự án khác nhau — chỉ số của chúng không so trực tiếp được.'
-    );
+    warnings.push({ code: 'mixedScope' });
   }
 
   const taskCounts = [...new Set(results.map((r) => r.taskCount))];
   if (taskCounts.length > 1) {
-    warnings.push(
-      `Số công việc đầu vào khác nhau (${taskCounts.join(' / ')}). Các chỉ số cộng dồn như tổng chi phí sẽ lệch theo quy mô chứ không theo chất lượng lời giải.`
-    );
+    warnings.push({ code: 'mixedTaskCount', counts: taskCounts });
   }
 
   const unfinished = results.filter((r) => r.status !== 'completed');
   if (unfinished.length) {
-    warnings.push(
-      `${unfinished.length} phương án không ở trạng thái "completed", số liệu có thể thiếu.`
-    );
+    warnings.push({ code: 'unfinished', count: unfinished.length });
   }
 
   return warnings;

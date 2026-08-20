@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Table,
   Card,
@@ -43,15 +44,16 @@ import {
 import dayjs from 'dayjs';
 import resourceService from '../services/resourceService';
 import departmentService from '../services/departmentService';
-import { AVAILABILITY_OPTIONS, ROLES, SKILL_LEVEL_KEYS } from '../constants';
-import { availabilityLabel, skillLevelLabel, requiredSkillLevelOptions } from '../i18n/enums';
+import { AVAILABILITY_OPTIONS, ROLES } from '../constants';
+import {
+  availabilityLabel,
+  availabilityOptions,
+  requiredSkillLevelOptions,
+} from '../i18n/enums';
+import { formatNumber } from '../i18n/format';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
-
-// Thang level của Resource là enum 1-4 ở schema; nhãn lấy từ constants để trang này
-// và ô chọn kỹ năng yêu cầu trong form Task không bao giờ nói hai kiểu khác nhau.
-const SKILL_LEVELS = requiredSkillLevelOptions();
 
 /** Kỳ nghỉ đang diễn ra hôm nay, nếu có. */
 function currentLeave(resource) {
@@ -70,6 +72,7 @@ function nextLeave(resource) {
 }
 
 export default function Resources() {
+  const { t } = useTranslation();
   const [resources, setResources] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +94,12 @@ export default function Resources() {
   const [leaveForm] = Form.useForm();
   const [departmentForm] = Form.useForm();
 
+  // Thang level của Resource là enum 1-4 ở schema; dùng chung nguồn nhãn với ô
+  // chọn kỹ năng yêu cầu trong form Task để hai nơi không bao giờ nói khác nhau.
+  // Phải dựng trong render chứ không phải ở cấp module: hằng số cấp module chỉ
+  // chạy một lần lúc import nên nhãn sẽ đứng nguyên ở ngôn ngữ ban đầu.
+  const skillLevelOptions = useMemo(() => requiredSkillLevelOptions(), [t]);
+
   // Load resources & departments
   const loadResources = useCallback(async () => {
     setLoading(true);
@@ -99,28 +108,28 @@ export default function Resources() {
       const res = await resourceService.getAll(params);
       setResources(res.data.data.resources || []);
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể tải danh sách nhân sự');
+      message.error(err.response?.data?.message || t('resources.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, t]);
 
   const loadDepartments = useCallback(async () => {
     try {
       const res = await departmentService.getAll();
       setDepartments(res.data.data.departments || []);
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể tải danh sách phòng ban');
+      message.error(err.response?.data?.message || t('resources.deptLoadFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadDepartments();
   }, [loadDepartments]);
 
   useEffect(() => {
-    const t = setTimeout(loadResources, filters.search ? 300 : 0);
-    return () => clearTimeout(t);
+    const timer = setTimeout(loadResources, filters.search ? 300 : 0);
+    return () => clearTimeout(timer);
   }, [loadResources, filters.department, filters.availability]);
 
   const activeDepartments = useMemo(() => departments.filter((d) => d.isActive), [departments]);
@@ -130,7 +139,9 @@ export default function Resources() {
     const available = resources.filter((r) => r.availability === 'available').length;
     const overloaded = resources.filter((r) => r.isOverloaded).length;
     const avgUtil =
-      total > 0 ? Math.round(resources.reduce((s, r) => s + (r.utilizationRate || 0), 0) / total) : 0;
+      total > 0
+        ? Math.round(resources.reduce((sum, r) => sum + (r.utilizationRate || 0), 0) / total)
+        : 0;
     return { total, available, overloaded, avgUtil };
   }, [resources]);
 
@@ -200,11 +211,11 @@ export default function Resources() {
         }));
 
       await resourceService.update(editingResource._id, { unavailablePeriods });
-      message.success('Cập nhật lịch nghỉ thành công');
+      message.success(t('resources.leaveSaved'));
       setLeaveModalOpen(false);
       await loadResources();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể cập nhật lịch nghỉ');
+      message.error(err.response?.data?.message || t('resources.leaveSaveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -223,7 +234,7 @@ export default function Resources() {
 
       if (editingResource) {
         await resourceService.update(editingResource._id, payload);
-        message.success('Cập nhật nhân sự thành công');
+        message.success(t('resources.updated'));
       } else {
         payload.newUser = {
           name: values.newUserName,
@@ -232,13 +243,13 @@ export default function Resources() {
           role: values.newUserRole,
         };
         await resourceService.create(payload);
-        message.success('Thêm nhân sự và tạo tài khoản thành công');
+        message.success(t('resources.createdWithAccount'));
       }
       setResourceModalOpen(false);
       await loadResources();
       await loadDepartments();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Có lỗi xảy ra khi lưu nhân sự');
+      message.error(err.response?.data?.message || t('resources.saveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -249,11 +260,11 @@ export default function Resources() {
     setSubmitting(true);
     try {
       await resourceService.updateSkills(editingResource._id, values.skills || []);
-      message.success('Cập nhật Skill Matrix thành công');
+      message.success(t('resources.skillsSaved'));
       setSkillsModalOpen(false);
       await loadResources();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể cập nhật kỹ năng');
+      message.error(err.response?.data?.message || t('resources.skillsSaveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -262,11 +273,11 @@ export default function Resources() {
   const handleDeleteResource = async (id) => {
     try {
       await resourceService.remove(id);
-      message.success('Xóa nhân sự thành công');
+      message.success(t('resources.deleted'));
       await loadResources();
       await loadDepartments();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể xóa nhân sự');
+      message.error(err.response?.data?.message || t('resources.deleteFailed'));
     }
   };
 
@@ -279,16 +290,16 @@ export default function Resources() {
 
       if (editingDepartment) {
         await departmentService.update(editingDepartment._id, payload);
-        message.success('Cập nhật phòng ban thành công');
+        message.success(t('resources.deptUpdated'));
       } else {
         await departmentService.create(payload);
-        message.success('Thêm phòng ban mới thành công');
+        message.success(t('resources.deptCreated'));
       }
       departmentForm.resetFields();
       setEditingDepartment(null);
       await loadDepartments();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể lưu phòng ban');
+      message.error(err.response?.data?.message || t('resources.deptSaveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -308,16 +319,16 @@ export default function Resources() {
   const handleDeleteDepartment = async (id) => {
     try {
       await departmentService.remove(id);
-      message.success('Xóa phòng ban thành công');
+      message.success(t('resources.deptDeleted'));
       await loadDepartments();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể xóa phòng ban');
+      message.error(err.response?.data?.message || t('resources.deptDeleteFailed'));
     }
   };
 
   const handleImportCSV = async () => {
     if (!csvContent.trim()) {
-      message.warning('Vui lòng nhập dữ liệu CSV');
+      message.warning(t('projects.csvEmpty'));
       return;
     }
     setSubmitting(true);
@@ -350,7 +361,7 @@ export default function Resources() {
       }
     }
 
-    message.success(`Đã nhập thành công ${count} nhân sự từ CSV`);
+    message.success(t('resources.csvImported', { count }));
     setSubmitting(false);
     setCsvModalOpen(false);
     setCsvContent('');
@@ -360,7 +371,7 @@ export default function Resources() {
 
   const resourceColumns = [
     {
-      title: 'Nhân sự',
+      title: t('reports.columns.resource'),
       key: 'name',
       render: (_, record) => (
         <Space orientation="horizontal" size="middle">
@@ -372,7 +383,7 @@ export default function Resources() {
             {(record.user?.name || record.position || 'U')[0].toUpperCase()}
           </Avatar>
           <div>
-            <Text strong style={{ fontSize: 14 }}>{record.user?.name || 'Chưa gán user'}</Text>
+            <Text strong style={{ fontSize: 14 }}>{record.user?.name || t('resources.noUser')}</Text>
             <br />
             <Text type="secondary" style={{ fontSize: 12 }}>{record.position}</Text>
           </div>
@@ -380,33 +391,37 @@ export default function Resources() {
       ),
     },
     {
-      title: 'Phòng ban',
+      title: t('reports.columns.department'),
       dataIndex: 'department',
       key: 'department',
       render: (dept) => dept ? <Tag color="blue">{dept}</Tag> : <Text type="secondary">—</Text>,
     },
     {
-      title: 'Trạng thái',
+      title: t('common.status'),
       dataIndex: 'availability',
       key: 'availability',
       render: (avail, record) => {
-        const opt = AVAILABILITY_OPTIONS.find((a) => a.value === avail) || { label: avail, color: 'default' };
         const now = currentLeave(record);
         const next = nextLeave(record);
         return (
           <Space direction="vertical" size={2}>
-            <Tag color={opt.color} style={{ margin: 0 }}>{opt.label}</Tag>
+            <Tag
+              color={AVAILABILITY_OPTIONS.find((a) => a.value === avail)?.color || 'default'}
+              style={{ margin: 0 }}
+            >
+              {availabilityLabel(avail)}
+            </Tag>
             {now && (
-              <Tooltip title={now.reason || 'Không ghi lý do'}>
+              <Tooltip title={now.reason || t('resources.noReason')}>
                 <Tag color="error" style={{ margin: 0, fontSize: 11 }}>
-                  Đang nghỉ tới {dayjs(now.endDate).format('DD/MM')}
+                  {t('resources.onLeaveUntil', { date: dayjs(now.endDate).format('DD/MM') })}
                 </Tag>
               </Tooltip>
             )}
             {!now && next && (
-              <Tooltip title={next.reason || 'Không ghi lý do'}>
+              <Tooltip title={next.reason || t('resources.noReason')}>
                 <Tag color="warning" style={{ margin: 0, fontSize: 11 }}>
-                  Nghỉ từ {dayjs(next.startDate).format('DD/MM')}
+                  {t('resources.leaveFrom', { date: dayjs(next.startDate).format('DD/MM') })}
                 </Tag>
               </Tooltip>
             )}
@@ -415,7 +430,7 @@ export default function Resources() {
       },
     },
     {
-      title: 'Công suất (Workload)',
+      title: t('resources.workloadColumn'),
       key: 'workload',
       width: 220,
       render: (_, record) => {
@@ -453,28 +468,33 @@ export default function Resources() {
               icon={<ThunderboltOutlined />}
               onClick={() => openSkillsModal(record)}
             >
-              Matrix ({skills.length})
+              {t('resources.matrixButton', { count: skills.length })}
             </Button>
           </Space>
         );
       },
     },
     {
-      title: 'FTE / Lương (h)',
+      title: t('resources.rateColumn'),
       key: 'rate',
       render: (_, record) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
-          FTE: {record.fte || 1} • {record.hourlyRate ? `${record.hourlyRate.toLocaleString('vi-VN')} đ/h` : '—'}
+          FTE: {record.fte || 1} •{' '}
+          {record.hourlyRate ? t('resources.perHour', { amount: formatNumber(record.hourlyRate) }) : '—'}
         </Text>
       ),
     },
     {
-      title: 'Hành động',
+      title: t('common.actions'),
       key: 'actions',
       width: 140,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title={`Lịch nghỉ (${(record.unavailablePeriods || []).length} kỳ)`}>
+          <Tooltip
+            title={t('resources.leaveTooltip', {
+              count: (record.unavailablePeriods || []).length,
+            })}
+          >
             <Button
               type="text"
               icon={<CalendarOutlined />}
@@ -482,15 +502,15 @@ export default function Resources() {
               style={(record.unavailablePeriods || []).length ? { color: '#f59e0b' } : undefined}
             />
           </Tooltip>
-          <Tooltip title="Chỉnh sửa thông tin">
+          <Tooltip title={t('common.edit')}>
             <Button type="text" icon={<EditOutlined />} onClick={() => openEditResource(record)} />
           </Tooltip>
-          <Tooltip title="Xóa nhân sự">
+          <Tooltip title={t('resources.delete')}>
             <Popconfirm
-              title="Xác nhận xóa nhân sự?"
+              title={t('resources.deleteConfirm')}
               onConfirm={() => handleDeleteResource(record._id)}
-              okText="Xóa"
-              cancelText="Hủy"
+              okText={t('common.delete')}
+              cancelText={t('common.cancel')}
               okButtonProps={{ danger: true }}
             >
               <Button type="text" danger icon={<DeleteOutlined />} />
@@ -503,7 +523,7 @@ export default function Resources() {
 
   const departmentColumns = [
     {
-      title: 'Tên phòng ban',
+      title: t('resources.dept.name'),
       key: 'name',
       render: (_, record) => (
         <div>
@@ -517,47 +537,49 @@ export default function Resources() {
       ),
     },
     {
-      title: 'Mã phòng ban',
+      title: t('resources.dept.code'),
       dataIndex: 'code',
       key: 'code',
       render: (code) => code ? <Tag color="cyan">{code}</Tag> : <Text type="secondary">—</Text>,
     },
     {
-      title: 'Người quản lý',
+      title: t('resources.dept.manager'),
       dataIndex: 'managerName',
       key: 'managerName',
       render: (manager) => manager || <Text type="secondary">—</Text>,
     },
     {
-      title: 'Số nhân sự',
+      title: t('resources.dept.headcount'),
       dataIndex: 'resourceCount',
       key: 'resourceCount',
-      render: (count = 0) => <Tag color="blue">{count} nhân sự</Tag>,
+      render: (count = 0) => <Tag color="blue">{t('reports.peopleCount', { count })}</Tag>,
     },
     {
-      title: 'Trạng thái',
+      title: t('common.status'),
       dataIndex: 'isActive',
       key: 'isActive',
       render: (active) => (
-        <Tag color={active ? 'success' : 'default'}>{active ? 'Hoạt động' : 'Tạm ẩn'}</Tag>
+        <Tag color={active ? 'success' : 'default'}>
+          {active ? t('resources.dept.active') : t('resources.dept.hidden')}
+        </Tag>
       ),
     },
     {
-      title: 'Hành động',
+      title: t('common.actions'),
       key: 'actions',
       width: 100,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="Chỉnh sửa">
+          <Tooltip title={t('common.edit')}>
             <Button type="text" icon={<EditOutlined />} onClick={() => openEditDepartment(record)} />
           </Tooltip>
-          <Tooltip title="Xóa phòng ban">
+          <Tooltip title={t('resources.dept.delete')}>
             <Popconfirm
-              title="Xác nhận xóa phòng ban?"
-              description="Không thể xóa phòng ban nếu vẫn còn nhân sự."
+              title={t('resources.dept.deleteConfirm')}
+              description={t('resources.dept.deleteWarning')}
               onConfirm={() => handleDeleteDepartment(record._id)}
-              okText="Xóa"
-              cancelText="Hủy"
+              okText={t('common.delete')}
+              cancelText={t('common.cancel')}
               okButtonProps={{ danger: true }}
             >
               <Button type="text" danger icon={<DeleteOutlined />} />
@@ -573,16 +595,16 @@ export default function Resources() {
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ marginBottom: 4 }}>Quản lý Nhân sự & Phòng ban</Title>
-          <Text type="secondary">Quản lý đội ngũ nhân sự, ma trận kỹ năng và phân bổ phòng ban</Text>
+          <Title level={3} style={{ marginBottom: 4 }}>{t('resources.title')}</Title>
+          <Text type="secondary">{t('resources.subtitle')}</Text>
         </div>
         {activeTab === 'resources' && (
           <Space>
             <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>
-              Nhập CSV
+              {t('projects.importCsv')}
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreateResource} id="btn-create-resource">
-              Thêm nhân sự
+              {t('resources.add')}
             </Button>
           </Space>
         )}
@@ -597,7 +619,7 @@ export default function Resources() {
             key: 'resources',
             label: (
               <span>
-                <TeamOutlined /> Nhân sự ({resources.length})
+                <TeamOutlined /> {t('nav.resources')} ({resources.length})
               </span>
             ),
             children: (
@@ -606,23 +628,23 @@ export default function Resources() {
                 <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                   <Col xs={12} sm={6}>
                     <Card hoverable>
-                      <Statistic title="Tổng nhân sự" value={stats.total} prefix={<TeamOutlined style={{ color: '#6366f1' }} />} />
+                      <Statistic title={t('reports.stats.totalResources')} value={stats.total} prefix={<TeamOutlined style={{ color: '#6366f1' }} />} />
                     </Card>
                   </Col>
                   <Col xs={12} sm={6}>
                     <Card hoverable>
-                      <Statistic title="Sẵn sàng" value={stats.available} prefix={<UserOutlined style={{ color: '#10b981' }} />} />
+                      <Statistic title={t('enums.availability.available')} value={stats.available} prefix={<UserOutlined style={{ color: '#10b981' }} />} />
                     </Card>
                   </Col>
                   <Col xs={12} sm={6}>
                     <Card hoverable>
-                      <Statistic title="Utilization TB" value={stats.avgUtil} suffix="%" />
+                      <Statistic title={t('reports.avgUtilShort')} value={stats.avgUtil} suffix="%" />
                     </Card>
                   </Col>
                   <Col xs={12} sm={6}>
                     <Card hoverable>
                       <Statistic
-                        title="Quá tải"
+                        title={t('resources.overloaded')}
                         value={stats.overloaded}
                         valueStyle={{ color: stats.overloaded > 0 ? '#ef4444' : '#10b981' }}
                         prefix={<WarningOutlined style={{ color: stats.overloaded > 0 ? '#ef4444' : '#10b981' }} />}
@@ -637,7 +659,7 @@ export default function Resources() {
                     <Col xs={24} md={10}>
                       <Input
                         prefix={<SearchOutlined />}
-                        placeholder="Tìm theo tên, vị trí nhân sự..."
+                        placeholder={t('resources.searchPlaceholder')}
                         value={filters.search}
                         onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
                         allowClear
@@ -646,7 +668,7 @@ export default function Resources() {
                     <Col xs={12} md={6}>
                       <Select
                         style={{ width: '100%' }}
-                        placeholder="Tất cả phòng ban"
+                        placeholder={t('resources.allDepartments')}
                         value={filters.department || undefined}
                         onChange={(val) => setFilters((p) => ({ ...p, department: val || '' }))}
                         allowClear
@@ -656,15 +678,15 @@ export default function Resources() {
                     <Col xs={12} md={6}>
                       <Select
                         style={{ width: '100%' }}
-                        placeholder="Tất cả trạng thái"
+                        placeholder={t('resources.allStatuses')}
                         value={filters.availability || undefined}
                         onChange={(val) => setFilters((p) => ({ ...p, availability: val || '' }))}
                         allowClear
-                        options={AVAILABILITY_OPTIONS}
+                        options={availabilityOptions()}
                       />
                     </Col>
                     <Col xs={24} md={2} style={{ textAlign: 'right' }}>
-                      <Button icon={<ReloadOutlined />} onClick={loadResources} title="Tải lại" />
+                      <Button icon={<ReloadOutlined />} onClick={loadResources} title={t('common.reload')} />
                     </Col>
                   </Row>
                 </Card>
@@ -676,7 +698,11 @@ export default function Resources() {
                     dataSource={resources}
                     rowKey="_id"
                     loading={loading}
-                    pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Tổng số ${total} nhân sự` }}
+                    pagination={{
+                      pageSize: 10,
+                      showSizeChanger: true,
+                      showTotal: (count) => t('resources.totalCount', { count }),
+                    }}
                   />
                 </Card>
               </>
@@ -686,14 +712,14 @@ export default function Resources() {
             key: 'departments',
             label: (
               <span>
-                <ApartmentOutlined /> Phòng ban ({departments.length})
+                <ApartmentOutlined /> {t('resources.dept.tab')} ({departments.length})
               </span>
             ),
             children: (
               <Row gutter={[24, 24]}>
                 {/* Department Form */}
                 <Col xs={24} lg={8}>
-                  <Card title={editingDepartment ? 'Cập nhật phòng ban' : 'Thêm phòng ban mới'}>
+                  <Card title={editingDepartment ? t('resources.dept.editTitle') : t('resources.dept.createTitle')}>
                     <Form
                       form={departmentForm}
                       layout="vertical"
@@ -702,26 +728,29 @@ export default function Resources() {
                     >
                       <Form.Item
                         name="name"
-                        label="Tên phòng ban"
-                        rules={[{ required: true, message: 'Vui lòng nhập tên phòng ban' }]}
+                        label={t('resources.dept.name')}
+                        rules={[{ required: true, message: t('resources.dept.nameRequired') }]}
                       >
-                        <Input placeholder="Ví dụ: Engineering, Design, QA" />
+                        <Input placeholder={t('settings.departmentPlaceholder')} />
                       </Form.Item>
 
-                      <Form.Item name="code" label="Mã phòng ban">
-                        <Input placeholder="Ví dụ: ENG, DES, QA" />
+                      <Form.Item name="code" label={t('resources.dept.code')}>
+                        <Input placeholder={t('resources.dept.codePlaceholder')} />
                       </Form.Item>
 
-                      <Form.Item name="managerName" label="Trưởng phòng (Quản lý)">
-                        <Input placeholder="Ví dụ: Nguyễn Văn A" />
+                      <Form.Item name="managerName" label={t('resources.dept.manager')}>
+                        <Input placeholder={t('auth.namePlaceholder')} />
                       </Form.Item>
 
-                      <Form.Item name="description" label="Mô tả chức năng">
-                        <TextArea rows={3} placeholder="Phạm vi công việc của phòng ban..." />
+                      <Form.Item name="description" label={t('resources.dept.description')}>
+                        <TextArea rows={3} placeholder={t('resources.dept.descriptionPlaceholder')} />
                       </Form.Item>
 
-                      <Form.Item name="isActive" label="Trạng thái hoạt động" valuePropName="checked">
-                        <Switch checkedChildren="Hoạt động" unCheckedChildren="Tạm ẩn" />
+                      <Form.Item name="isActive" label={t('resources.dept.activeLabel')} valuePropName="checked">
+                        <Switch
+                          checkedChildren={t('resources.dept.active')}
+                          unCheckedChildren={t('resources.dept.hidden')}
+                        />
                       </Form.Item>
 
                       <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
@@ -732,11 +761,11 @@ export default function Resources() {
                               departmentForm.resetFields();
                             }}
                           >
-                            Hủy sửa
+                            {t('resources.dept.cancelEdit')}
                           </Button>
                         )}
                         <Button type="primary" htmlType="submit" loading={submitting}>
-                          {editingDepartment ? 'Lưu phòng ban' : 'Thêm phòng ban'}
+                          {editingDepartment ? t('resources.dept.save') : t('resources.dept.add')}
                         </Button>
                       </Space>
                     </Form>
@@ -745,7 +774,7 @@ export default function Resources() {
 
                 {/* Department List */}
                 <Col xs={24} lg={16}>
-                  <Card title="Danh sách phòng ban" styles={{ body: { padding: 0 } }}>
+                  <Card title={t('resources.dept.list')} styles={{ body: { padding: 0 } }}>
                     <Table
                       columns={departmentColumns}
                       dataSource={departments}
@@ -762,7 +791,7 @@ export default function Resources() {
 
       {/* Resource Modal */}
       <Modal
-        title={editingResource ? 'Cập nhật nhân sự' : 'Thêm nhân sự mới'}
+        title={editingResource ? t('resources.editTitle') : t('resources.createTitle')}
         open={resourceModalOpen}
         onCancel={() => setResourceModalOpen(false)}
         footer={null}
@@ -771,24 +800,24 @@ export default function Resources() {
       >
         <Form form={resourceForm} layout="vertical" onFinish={handleResourceSubmit} style={{ marginTop: 16 }}>
           {!editingResource && (
-            <Card title="Tài khoản đăng nhập" size="small" style={{ marginBottom: 16 }}>
+            <Card title={t('resources.account')} size="small" style={{ marginBottom: 16 }}>
               <Row gutter={16}>
                 <Col span={12}>
                   <Form.Item
                     name="newUserName"
-                    label="Họ và tên"
-                    rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
+                    label={t('auth.name')}
+                    rules={[{ required: true, message: t('auth.required.name') }]}
                   >
-                    <Input placeholder="Nguyễn Văn A" />
+                    <Input placeholder={t('auth.namePlaceholder')} />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
                   <Form.Item
                     name="newUserEmail"
-                    label="Email đăng nhập"
+                    label={t('settings.loginEmail')}
                     rules={[
-                      { required: true, message: 'Vui lòng nhập email' },
-                      { type: 'email', message: 'Email không hợp lệ' },
+                      { required: true, message: t('auth.required.email') },
+                      { type: 'email', message: t('auth.required.emailInvalid') },
                     ]}
                   >
                     <Input placeholder="user@rao.com" />
@@ -800,18 +829,18 @@ export default function Resources() {
                 <Col span={12}>
                   <Form.Item
                     name="newUserPassword"
-                    label="Mật khẩu khởi tạo"
-                    rules={[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự' }]}
+                    label={t('resources.initialPassword')}
+                    rules={[{ required: true, min: 6, message: t('settings.minChars') }]}
                   >
                     <Input.Password placeholder="••••••••" />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="newUserRole" label="Vai trò">
+                  <Form.Item name="newUserRole" label={t('projectDetail.role')}>
                     <Select
                       options={[
-                        { value: ROLES.MEMBER, label: 'Thành viên (Member)' },
-                        { value: ROLES.PM, label: 'Project Manager' },
+                        { value: ROLES.MEMBER, label: t('enums.role.member') },
+                        { value: ROLES.PM, label: t('enums.role.project_manager') },
                       ]}
                     />
                   </Form.Item>
@@ -824,20 +853,20 @@ export default function Resources() {
             <Col span={12}>
               <Form.Item
                 name="position"
-                label="Vị trí chuyên môn"
-                rules={[{ required: true, message: 'Vui lòng nhập vị trí' }]}
+                label={t('resources.position')}
+                rules={[{ required: true, message: t('resources.positionRequired') }]}
               >
-                <Input placeholder="VD: Senior React Developer" />
+                <Input placeholder={t('resources.positionPlaceholder')} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="department"
-                label="Phòng ban"
-                rules={[{ required: true, message: 'Vui lòng chọn phòng ban' }]}
+                label={t('reports.columns.department')}
+                rules={[{ required: true, message: t('resources.deptRequired') }]}
               >
                 <Select
-                  placeholder="Chọn phòng ban"
+                  placeholder={t('resources.pickDepartment')}
                   options={activeDepartments.map((d) => ({ value: d.name, label: d.name }))}
                 />
               </Form.Item>
@@ -846,7 +875,7 @@ export default function Resources() {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="maxCapacity" label="Capacity (h/tuần)">
+              <Form.Item name="maxCapacity" label={t('resources.capacityLabel')}>
                 <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
@@ -856,7 +885,7 @@ export default function Resources() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="hourlyRate" label="Lương/giờ (VND)">
+              <Form.Item name="hourlyRate" label={t('resources.hourlyRateLabel')}>
                 <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
@@ -864,9 +893,9 @@ export default function Resources() {
 
           <div style={{ textAlign: 'right', marginTop: 24 }}>
             <Space>
-              <Button onClick={() => setResourceModalOpen(false)}>Hủy</Button>
+              <Button onClick={() => setResourceModalOpen(false)}>{t('common.cancel')}</Button>
               <Button type="primary" htmlType="submit" loading={submitting}>
-                {editingResource ? 'Lưu thay đổi' : 'Thêm nhân sự'}
+                {editingResource ? t('common.saveChanges') : t('resources.add')}
               </Button>
             </Space>
           </div>
@@ -891,10 +920,10 @@ export default function Resources() {
                     <Form.Item
                       {...restField}
                       name={[name, 'name']}
-                      rules={[{ required: true, message: 'Nhập tên kỹ năng' }]}
+                      rules={[{ required: true, message: t('tasks.form.skillNameRequired') }]}
                       style={{ width: 180 }}
                     >
-                      <Input placeholder="Tên kỹ năng (VD: React)" />
+                      <Input placeholder={t('tasks.form.skillNamePlaceholder')} />
                     </Form.Item>
 
                     <Form.Item
@@ -903,7 +932,7 @@ export default function Resources() {
                       rules={[{ required: true }]}
                       style={{ width: 190 }}
                     >
-                      <Select options={SKILL_LEVELS} />
+                      <Select options={skillLevelOptions} />
                     </Form.Item>
 
                     <Form.Item
@@ -911,7 +940,11 @@ export default function Resources() {
                       name={[name, 'yearsOfExperience']}
                       style={{ width: 100 }}
                     >
-                      <InputNumber min={0} placeholder="Năm KN" addonAfter="năm" />
+                      <InputNumber
+                        min={0}
+                        placeholder={t('resources.yearsShort')}
+                        addonAfter={t('resources.yearsUnit')}
+                      />
                     </Form.Item>
 
                     <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ef4444' }} />
@@ -919,7 +952,7 @@ export default function Resources() {
                 ))}
                 <Form.Item>
                   <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                    Thêm kỹ năng
+                    {t('resources.addSkill')}
                   </Button>
                 </Form.Item>
               </>
@@ -928,9 +961,9 @@ export default function Resources() {
 
           <div style={{ textAlign: 'right', marginTop: 16 }}>
             <Space>
-              <Button onClick={() => setSkillsModalOpen(false)}>Hủy</Button>
+              <Button onClick={() => setSkillsModalOpen(false)}>{t('common.cancel')}</Button>
               <Button type="primary" htmlType="submit" loading={submitting}>
-                Lưu Skill Matrix
+                {t('resources.saveMatrix')}
               </Button>
             </Space>
           </div>
@@ -939,7 +972,7 @@ export default function Resources() {
 
       {/* Lịch nghỉ / Unavailable Periods */}
       <Modal
-        title={`Lịch nghỉ — ${editingResource?.user?.name || editingResource?.position}`}
+        title={`${t('resources.leaveTitle')} — ${editingResource?.user?.name || editingResource?.position}`}
         open={leaveModalOpen}
         onCancel={() => setLeaveModalOpen(false)}
         footer={null}
@@ -950,8 +983,8 @@ export default function Resources() {
           type="info"
           showIcon
           style={{ marginTop: 8 }}
-          message="Lịch nghỉ ảnh hưởng trực tiếp tới kết quả tối ưu hóa"
-          description="CSP Solver loại nhân sự khỏi những công việc có thời gian giao với kỳ nghỉ (ràng buộc H3). Các kỳ nghỉ không được chồng lên nhau."
+          message={t('resources.leaveNotice.title')}
+          description={t('resources.leaveNotice.body')}
         />
 
         <Form form={leaveForm} layout="vertical" onFinish={handleLeaveSubmit} style={{ marginTop: 16 }}>
@@ -963,7 +996,7 @@ export default function Resources() {
                     <Form.Item
                       {...restField}
                       name={[name, 'range']}
-                      rules={[{ required: true, message: 'Chọn khoảng thời gian nghỉ' }]}
+                      rules={[{ required: true, message: t('resources.leaveRangeRequired') }]}
                       style={{ width: 280, marginBottom: 0 }}
                     >
                       <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
@@ -974,7 +1007,7 @@ export default function Resources() {
                       name={[name, 'reason']}
                       style={{ width: 240, marginBottom: 0 }}
                     >
-                      <Input placeholder="Lý do (nghỉ phép, công tác…)" maxLength={200} />
+                      <Input placeholder={t('resources.leaveReasonPlaceholder')} maxLength={200} />
                     </Form.Item>
 
                     <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ef4444' }} />
@@ -982,12 +1015,12 @@ export default function Resources() {
                 ))}
                 <Form.Item style={{ marginTop: 12 }}>
                   <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                    Thêm kỳ nghỉ
+                    {t('resources.addLeave')}
                   </Button>
                 </Form.Item>
                 {fields.length === 0 && (
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Chưa có kỳ nghỉ nào — nhân sự này khả dụng trong toàn bộ thời gian.
+                    {t('resources.noLeave')}
                   </Text>
                 )}
               </>
@@ -996,9 +1029,9 @@ export default function Resources() {
 
           <div style={{ textAlign: 'right', marginTop: 16 }}>
             <Space>
-              <Button onClick={() => setLeaveModalOpen(false)}>Hủy</Button>
+              <Button onClick={() => setLeaveModalOpen(false)}>{t('common.cancel')}</Button>
               <Button type="primary" htmlType="submit" loading={submitting}>
-                Lưu lịch nghỉ
+                {t('resources.saveLeave')}
               </Button>
             </Space>
           </div>
@@ -1007,23 +1040,23 @@ export default function Resources() {
 
       {/* CSV Import Modal */}
       <Modal
-        title="Nhập nhân sự từ file CSV"
+        title={t('resources.csvTitle')}
         open={csvModalOpen}
         onCancel={() => setCsvModalOpen(false)}
         onOk={handleImportCSV}
         confirmLoading={submitting}
-        okText="Bắt đầu nhập"
-        cancelText="Hủy"
+        okText={t('projects.csvStart')}
+        cancelText={t('common.cancel')}
         width={600}
       >
         <Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 12 }}>
-          Định dạng: <code>Họ tên, Email, Mật khẩu, Vị trí, Phòng ban, FTE, Max Capacity, Lương theo giờ</code>
+          {t('projects.csvFormat')} <code>{t('resources.csvColumns')}</code>
         </Paragraph>
         <TextArea
           rows={8}
           value={csvContent}
           onChange={(e) => setCsvContent(e.target.value)}
-          placeholder={`Nguyễn Văn A, vana@rao.com, password123, Senior React Dev, Engineering, 1, 40, 250000\nTrần Thị B, thib@rao.com, password123, QA Engineer, QA, 1, 40, 180000`}
+          placeholder={t('resources.csvExample')}
           style={{ fontFamily: 'monospace', fontSize: 12 }}
         />
       </Modal>

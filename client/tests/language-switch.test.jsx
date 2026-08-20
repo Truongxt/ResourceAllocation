@@ -36,6 +36,7 @@ vi.mock('../src/context/SocketContext', async (importOriginal) => ({
 
 const { default: Header } = await import('../src/components/layout/Header.jsx');
 const { default: Sidebar } = await import('../src/components/layout/Sidebar.jsx');
+const { default: Settings } = await import('../src/pages/Settings.jsx');
 
 function renderChrome() {
   return renderWithProviders(
@@ -98,5 +99,33 @@ describe('Đổi ngôn ngữ', () => {
     expect(screen.getByText('Quản trị viên')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'EN' }));
     expect(screen.getByText('Administrator')).toBeInTheDocument();
+  });
+
+  // Bốn ca trên chỉ chạm vào khung ứng dụng. Ca này chạm vào một trang nghiệp vụ
+  // thật: tiêu đề thẻ, nhãn form, và thông báo lỗi validation — nhóm cuối dễ bị
+  // bỏ sót nhất vì chúng không hiện ra cho tới khi người dùng thao tác sai.
+  it('trang nghiệp vụ đổi cả nhãn form lẫn thông báo lỗi', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Settings />, { route: '/settings' });
+
+    expect(screen.getByText('Hồ sơ cá nhân')).toBeInTheDocument();
+    expect(screen.getByLabelText('Họ và tên')).toBeInTheDocument();
+
+    // Bỏ trống ô bắt buộc để ép thông báo validation hiện ra.
+    await user.clear(screen.getByLabelText('Họ và tên'));
+    await user.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    expect(await screen.findByText('Vui lòng nhập họ tên')).toBeInTheDocument();
+
+    await i18n.changeLanguage('en');
+
+    expect(await screen.findByText('Profile')).toBeInTheDocument();
+    expect(screen.getByLabelText('Full name')).toBeInTheDocument();
+
+    // Antd giữ nguyên chuỗi lỗi từ lần kiểm trước, đổi ngôn ngữ không viết lại nó.
+    // Trong app thật điều này không lộ ra vì `key={i18n.language}` dựng lại cả cây
+    // nên form bị xóa trắng. Ở đây phải kiểm lại để luật validation sinh câu mới.
+    await user.click(screen.getByRole('button', { name: /Save changes/ }));
+    expect(await screen.findByText('Please enter your name')).toBeInTheDocument();
+    expect(screen.queryByText('Vui lòng nhập họ tên')).toBeNull();
   });
 });

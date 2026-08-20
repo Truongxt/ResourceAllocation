@@ -185,7 +185,7 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 |---|----------|-------|-----------|---------|
 | 10.1 | Real-time Notifications | Socket.IO notifications | ✅ | WebSocket có xác thực JWT, room `user:<id>`, Notification Center, Toast |
 | 10.2 | Dark/Light Theme Toggle | Chuyển đổi theme Sáng/Tối | ✅ | Switch ở Header + CSS `data-theme` |
-| 10.3 | Multi-language | Hỗ trợ Tiếng Việt + English | 🔨 | Hạ tầng i18next xong, nút đổi ngôn ngữ ở Header, nhớ lựa chọn, locale Ant Design đổi theo. **Đã dịch**: sidebar, header, đăng nhập, đăng ký, chặn quyền, và toàn bộ nhãn enum (trạng thái, ưu tiên, vai trò, mức kỹ năng, tình trạng nhân sự) — nên mọi bảng và thẻ trong ứng dụng đều đổi. **Chưa dịch**: nội dung riêng của 10 trang nghiệp vụ, còn ~500 chuỗi — xem bảng trong ghi chú dưới |
+| 10.3 | Multi-language | Hỗ trợ Tiếng Việt + English | ✅ | i18next + nút đổi ngôn ngữ ở Header, nhớ lựa chọn, locale Ant Design đổi theo. Toàn bộ **12 trang** và khung ứng dụng đã dịch (605 khóa mỗi ngôn ngữ), kể cả nhãn enum, thông báo lỗi và tiêu đề cột CSV. Ngày/số/tiền định dạng theo ngôn ngữ. **Không dịch**: nội dung thông báo đã lưu trong DB và câu lỗi do server trả về — xem ghi chú dưới |
 | 10.4 | Import Data | Import dự án/nhân sự từ CSV | ✅ | Modal **dán nội dung CSV** (chưa hỗ trợ chọn file) trong Projects & Resources |
 | 10.5 | Activity Log | Nhật ký hoạt động hệ thống | ✅ | Model + service + controller + trang ActivityLogs, lọc theo entity/action/user/thời gian |
 | 10.6 | Email Notifications | Gửi email khi được assign task | ✅ | **Mặc định tắt**, chỉ bật khi khai báo đủ `SMTP_HOST` + `MAIL_FROM`; trạng thái in ra lúc khởi động. Chỉ loại `task_assigned` được gửi mail — gửi mọi loại thì hộp thư ngập ngay ngày đầu. Lỗi SMTP không làm hỏng luồng giao việc |
@@ -205,33 +205,33 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 7. Analytics | 7 | 7 | 0 | 0 |
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
-| 10. Bổ sung | 6 | 5 | 1 | 0 |
-| **Tổng** | **79** | **78 (98.7%)** | **1 (1.3%)** | **0** |
+| 10. Bổ sung | 6 | 6 | 0 | 0 |
+| **Tổng** | **79** | **79 (100%)** | **0** | **0** |
 
-Mục đang dở là đa ngôn ngữ (10.3).
+### Đa ngôn ngữ — phạm vi và giới hạn
 
-### Đa ngôn ngữ — còn lại những gì
+**Đã dịch**: toàn bộ giao diện client — 12 trang, sidebar, header, form, thông báo lỗi
+validation, tiêu đề cột file CSV xuất ra, và mọi nhãn enum. 605 khóa mỗi ngôn ngữ, hai
+file khớp nhau về khóa lẫn biến nội suy (có bộ test canh, xem dưới).
 
-Hạ tầng và lớp dùng chung đã xong; phần còn lại là dịch nội dung riêng của từng trang.
-Số chuỗi tiếng Việt còn trong mã (đếm bằng regex, con số thật cao hơn vì bỏ sót chuỗi
-không dấu và text nằm thẳng trong JSX):
+Ngày, số và tiền cũng đổi theo ngôn ngữ (`src/i18n/format.js`). Đơn vị tiền **không**
+đổi: dữ liệu lưu bằng VND, đổi ngôn ngữ là đổi cách đọc chứ không quy đổi tỷ giá — người
+dùng tiếng Anh thấy `₫1,500,000`.
 
-| Trang | Chuỗi còn lại |
-|-------|---------------|
-| Resources | ~109 |
-| Optimization | ~82 |
-| Tasks | ~68 |
-| ProjectDetail | ~58 |
-| Projects | ~50 |
-| Reports | ~44 |
-| ActivityLogs | ~31 |
-| Settings | ~24 |
-| Dashboard | ~21 |
-| GanttChart | ~17 |
+**Không dịch — và vì sao**:
 
-Chuyển ngôn ngữ vẫn dùng được ngay: khung ứng dụng, hai trang xác thực và mọi nhãn enum
-đều đổi. Các trang trên hiện vẫn hiện tiếng Việt khi chọn English — thiếu bản dịch thì
-`fallbackLng` trả về tiếng Việt, cố ý như vậy để không bao giờ hiện khóa dịch ra màn hình.
+| Chỗ | Lý do |
+|-----|-------|
+| Nội dung thông báo đã lưu (`Notification.title`, `.message`) | Câu đã viết sẵn nằm trong MongoDB từ lúc sự kiện xảy ra. Dịch được thì phải lưu `{type, params}` rồi dựng câu ở client — đổi schema và phải migrate cả lịch sử cũ |
+| Câu lỗi từ API (`err.response.data.message`) | Cần một bảng mã lỗi phía server; hiện mỗi controller tự viết câu tại chỗ |
+
+Hai chỗ này hiện ra tiếng Việt kể cả khi đang chọn English. Không phải bỏ sót — chúng là
+**dữ liệu server**, không phải câu chữ giao diện, nên nằm ngoài phạm vi lớp i18n của client.
+
+`fallbackLng: 'vi'` giữ nguyên: thiếu bản dịch thì hiện tiếng Việt chứ không bao giờ hiện
+khóa trần (`tasks.form.title`) ra màn hình. Vì fallback che lỗi rất giỏi — thêm khóa vào
+`vi.json` mà quên `en.json` thì không có lỗi nào nổ ra — có bộ `tests/locales.test.mjs`
+đối chiếu hai file: khóa, biến nội suy, bản dịch rỗng, và đủ giá trị enum khớp schema.
 
 ---
 
@@ -242,7 +242,8 @@ Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 1. **Ảnh chụp workload định kỳ** — 7.7 hiện suy ra chuỗi thời gian từ lịch công việc, đủ để
    nhìn về phía trước nhưng không phải số liệu lịch sử. Muốn trả lời "tháng trước đội thực
    sự chạy ở mức nào" thì phải chụp và lưu theo ngày.
-2. Đa ngôn ngữ (10.3).
+2. **Bảng mã cho thông báo và câu lỗi phía server** — điều kiện để hai chỗ cuối cùng còn
+   nói tiếng Việt (xem phần Đa ngôn ngữ) dịch được. Kèm migrate thông báo đã lưu.
 3. **Ràng buộc all-different trong CSP** — AC-3 trên `≠` không suy luận được kiểu chuồng
    bồ câu; muốn phát hiện sớm những trường hợp đó cần thuật toán Régin.
 

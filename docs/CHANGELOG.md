@@ -197,6 +197,14 @@ Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code ch�
 
 ### Fixed
 
+- **Bốn trang hiện thẻ trạng thái trống** — đợt dựng nền i18n gỡ nhãn khỏi `constants` nhưng
+  bốn trang vẫn đọc `option.label` từ đó: Projects, ProjectDetail, Tasks và Resources render
+  Tag rỗng và Select không có chữ. Đã chuyển hết sang `src/i18n/enums.js` khi dịch từng trang.
+  Bài học: gỡ một field khỏi module dùng chung thì phải quét hết chỗ đọc nó ngay trong cùng
+  một lần sửa, đừng để sang lần sau.
+- **Ô chọn mức kỹ năng trong Resources không đổi ngôn ngữ** — danh sách được dựng bằng
+  `requiredSkillLevelOptions()` ở **cấp module**, chạy đúng một lần lúc import nên `key=` trên
+  cây ứng dụng không cứu được: remount không đánh giá lại hằng số module. Nay dựng trong render.
 - **Áp dụng kết quả tối ưu hóa không báo cho ai** — chỗ này gọi `sendNotification` với
   `recipient: null` kèm ý định "gửi cho tất cả user", nhưng hàm đó bỏ qua ngay khi thiếu
   recipient. Nghĩa là giao việc hàng loạt xong không một ai được thông báo, dù FEATURES 5.7
@@ -212,12 +220,12 @@ Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code ch�
 - **Đa ngôn ngữ Việt/Anh** (10.3) — i18next + react-i18next, nút đổi ngôn ngữ ở Header, lựa
   chọn nhớ trong `localStorage` (`rao_lang`), locale Ant Design đổi theo nên DatePicker và
   Table cũng nói đúng thứ tiếng.
-  Đã dịch: sidebar, header, đăng nhập, đăng ký, màn chặn quyền, **và toàn bộ nhãn enum** —
-  trạng thái dự án/công việc, mức ưu tiên, vai trò, mức kỹ năng, tình trạng nhân sự. Nhãn
-  enum xuất hiện ở mọi bảng và thẻ trong ứng dụng nên đây là phần lan tỏa rộng nhất.
-  Nội dung riêng của 10 trang nghiệp vụ **chưa dịch** (~500 chuỗi) — bảng chi tiết trong
-  FEATURES.md. `fallbackLng: 'vi'` nên chỗ chưa dịch hiện tiếng Việt chứ không hiện khóa.
-  Hai quyết định đáng ghi:
+  Đã dịch **toàn bộ 12 trang** cùng khung ứng dụng: sidebar, header, hai trang xác thực,
+  màn chặn quyền, mọi form và thông báo lỗi validation, tiêu đề cột file CSV xuất ra, và
+  toàn bộ nhãn enum. 605 khóa mỗi ngôn ngữ.
+  `fallbackLng: 'vi'` giữ nguyên: thiếu bản dịch thì hiện tiếng Việt chứ không bao giờ hiện
+  khóa trần ra màn hình.
+  Các quyết định đáng ghi:
   - Nhãn enum chuyển từ `constants/index.js` sang `src/i18n/enums.js`. `constants` quay về
     đúng vai trò khai báo giá trị khớp schema Mongoose — mã trạng thái, màu, thứ tự — chứ
     không giữ câu chữ.
@@ -225,6 +233,18 @@ Từ một đợt rà soát riêng, kiểm chứng từng mục bằng code ch�
     bộ. Thô, nhưng nhiều chỗ lấy nhãn ngoài vòng render của React (cột Table dựng trong
     `useMemo`, option truyền vào Select) và chúng không tự cập nhật — kết quả là màn hình
     lẫn hai thứ tiếng. Đổi ngôn ngữ là thao tác hiếm, mất một lần dựng lại là đáng.
+  - `src/i18n/format.js` gom việc định dạng ngày, số và tiền. Trước đó bảy chỗ gọi thẳng
+    `toLocaleString('vi-VN')`, chốt cứng như vậy thì dịch chữ xong màn hình vẫn còn nửa
+    tiếng Việt. Đơn vị tiền **không** đổi theo ngôn ngữ: dữ liệu lưu bằng VND, đổi ngôn ngữ
+    là đổi cách đọc chứ không quy đổi tỷ giá.
+  - `formatTimeAgo` gộp về một chỗ; trước đó Header và ActivityLogs mỗi nơi một bản.
+  - **Ba chỗ server nhét chuỗi tiếng Việt vào payload API đã bỏ**, vì nhãn là chuyện hiển
+    thị mà client có hai ngôn ngữ: nhãn mốc thời gian trong chuỗi workload (`"Tuần dd/mm"`),
+    nhãn + đơn vị của bảng so sánh phương án, và ba câu cảnh báo khi so sánh. Cả ba nay trả
+    về mã trung tính (`start`, `key`, `{ code, params }`) và client dựng câu.
+  Hai chỗ **cố ý không dịch**, vì chúng là dữ liệu server chứ không phải câu chữ giao diện:
+  nội dung thông báo đã lưu trong MongoDB, và câu lỗi do API trả về. Lý do và điều kiện để
+  dịch được ghi trong FEATURES.md.
 - **Kiểm thử render component** (vitest + jsdom + Testing Library) — 15 test, 3 bộ:
   `ProtectedRoute` (ranh giới đăng nhập và vai trò), `app-routing` (12 trang nạp theo chunk
   `React.lazy` và ranh giới `Suspense` giữ được sidebar/header), `notification-link` (chặn

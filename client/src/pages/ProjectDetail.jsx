@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Card,
   Row,
@@ -46,30 +47,29 @@ import {
   TASK_STATUSES,
   ROLES,
 } from '../constants';
+import { projectStatusLabel, priorityLabel, taskStatusLabel } from '../i18n/enums';
+import { formatCurrency } from '../i18n/format';
 import './ProjectDetail.css';
 
 const { Title, Text, Paragraph } = Typography;
 
-// Vai trò thành viên — khớp enum Project.members[].role ở server
+// Vai trò thành viên — khớp enum Project.members[].role ở server.
+// Nhãn ở `projectDetail.memberRole.*`; ở đây chỉ giữ giá trị và màu.
 const MEMBER_ROLES = [
-  { value: 'lead', label: 'Trưởng nhóm', color: 'gold' },
-  { value: 'developer', label: 'Lập trình viên', color: 'blue' },
-  { value: 'designer', label: 'Thiết kế', color: 'purple' },
-  { value: 'tester', label: 'Kiểm thử', color: 'cyan' },
-  { value: 'devops', label: 'DevOps', color: 'geekblue' },
+  { value: 'lead', color: 'gold' },
+  { value: 'developer', color: 'blue' },
+  { value: 'designer', color: 'purple' },
+  { value: 'tester', color: 'cyan' },
+  { value: 'devops', color: 'geekblue' },
 ];
-
-const formatMoney = (value) =>
-  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
 
 const formatDate = (value) => (value ? dayjs(value).format('DD/MM/YYYY') : '—');
 
-const tagFor = (options, value, key = 'value') => {
-  const found = options.find((o) => o[key] === value);
-  return found || { label: value || '—', color: 'default' };
-};
+const colorOf = (options, value, key = 'value') =>
+  options.find((o) => o[key] === value)?.color || 'default';
 
 export default function ProjectDetail() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -92,11 +92,11 @@ export default function ProjectDetail() {
       const res = await projectService.getById(id);
       setProject(res.data.data.project);
     } catch (error) {
-      setLoadError(error.response?.data?.message || 'Không thể tải dự án');
+      setLoadError(error.response?.data?.message || t('projectDetail.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, t]);
 
   // Danh sách nhân sự dùng làm nguồn chọn thành viên. Lấy từ /resources vì
   // GET /auth/users chỉ dành cho admin, trong khi PM cũng cần thêm thành viên.
@@ -118,9 +118,9 @@ export default function ProjectDetail() {
   const members = project?.members || [];
 
   const taskStats = useMemo(() => {
-    const done = tasks.filter((t) => t.status === 'done').length;
-    const totalEstimated = tasks.reduce((s, t) => s + (t.estimatedHours || 0), 0);
-    const totalActual = tasks.reduce((s, t) => s + (t.actualHours || 0), 0);
+    const done = tasks.filter((item) => item.status === 'done').length;
+    const totalEstimated = tasks.reduce((sum, item) => sum + (item.estimatedHours || 0), 0);
+    const totalActual = tasks.reduce((sum, item) => sum + (item.actualHours || 0), 0);
     return { total: tasks.length, done, totalEstimated, totalActual };
   }, [tasks]);
 
@@ -156,7 +156,7 @@ export default function ProjectDetail() {
           allocation: values.allocation,
         });
         setProject((prev) => ({ ...prev, members: res.data.data.project.members }));
-        message.success('Cập nhật thành viên thành công');
+        message.success(t('projectDetail.memberUpdated'));
       } else {
         const res = await projectService.addMember(id, {
           user: values.user,
@@ -164,11 +164,11 @@ export default function ProjectDetail() {
           allocation: values.allocation,
         });
         setProject((prev) => ({ ...prev, members: res.data.data.project.members }));
-        message.success('Thêm thành viên thành công');
+        message.success(t('projectDetail.memberAdded'));
       }
       setMemberModalOpen(false);
     } catch (error) {
-      message.error(error.response?.data?.message || 'Không thể lưu thành viên');
+      message.error(error.response?.data?.message || t('projectDetail.memberSaveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -179,9 +179,9 @@ export default function ProjectDetail() {
     try {
       const res = await projectService.removeMember(id, userId);
       setProject((prev) => ({ ...prev, members: res.data.data.project.members }));
-      message.success('Đã xóa thành viên khỏi dự án');
+      message.success(t('projectDetail.memberRemoved'));
     } catch (error) {
-      message.error(error.response?.data?.message || 'Không thể xóa thành viên');
+      message.error(error.response?.data?.message || t('projectDetail.memberRemoveFailed'));
     }
   };
 
@@ -197,42 +197,47 @@ export default function ProjectDetail() {
     return (
       <div style={{ maxWidth: 1400 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/projects')} style={{ marginBottom: 16 }}>
-          Quay lại danh sách
+          {t('projectDetail.backToList')}
         </Button>
-        <Alert type="error" showIcon message="Không mở được dự án" description={loadError || 'Dự án không tồn tại'} />
+        <Alert
+          type="error"
+          showIcon
+          message={t('projectDetail.cannotOpen')}
+          description={loadError || t('projectDetail.notFound')}
+        />
       </div>
     );
   }
 
-  const statusTag = tagFor(PROJECT_STATUSES, project.status);
-  const priorityTag = tagFor(PRIORITY_OPTIONS, project.priority);
-
   const memberColumns = [
     {
-      title: 'Thành viên',
+      title: t('projectDetail.member'),
       key: 'user',
       render: (_, record) => (
         <Space>
           <Avatar src={record.user?.avatar || undefined} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
           <div>
-            <Text strong style={{ display: 'block', fontSize: 13 }}>{record.user?.name || 'Không rõ'}</Text>
+            <Text strong style={{ display: 'block', fontSize: 13 }}>
+              {record.user?.name || t('projectDetail.unknownUser')}
+            </Text>
             <Text type="secondary" style={{ fontSize: 12 }}>{record.user?.email || ''}</Text>
           </div>
         </Space>
       ),
     },
     {
-      title: 'Vai trò',
+      title: t('projectDetail.role'),
       dataIndex: 'role',
       key: 'role',
       width: 160,
-      render: (role) => {
-        const t = tagFor(MEMBER_ROLES, role);
-        return <Tag color={t.color}>{t.label}</Tag>;
-      },
+      render: (role) => (
+        <Tag color={colorOf(MEMBER_ROLES, role)}>
+          {t(`projectDetail.memberRole.${role}`, { defaultValue: role || '—' })}
+        </Tag>
+      ),
     },
     {
-      title: 'Phân bổ (Allocation)',
+      title: t('projectDetail.allocation'),
       dataIndex: 'allocation',
       key: 'allocation',
       width: 200,
@@ -246,7 +251,7 @@ export default function ProjectDetail() {
       ),
     },
     {
-      title: 'Tham gia từ',
+      title: t('projectDetail.joinedAt'),
       dataIndex: 'joinedAt',
       key: 'joinedAt',
       width: 130,
@@ -254,17 +259,17 @@ export default function ProjectDetail() {
     },
     ...(canManage
       ? [{
-          title: 'Hành động',
+          title: t('common.actions'),
           key: 'actions',
           width: 100,
           render: (_, record) => (
             <Space size="small">
               <Button type="text" icon={<EditOutlined />} onClick={() => openEditMember(record)} />
               <Popconfirm
-                title="Xóa thành viên khỏi dự án?"
+                title={t('projectDetail.removeMemberConfirm')}
                 onConfirm={() => handleRemoveMember(record)}
-                okText="Xóa"
-                cancelText="Hủy"
+                okText={t('common.delete')}
+                cancelText={t('common.cancel')}
                 okButtonProps={{ danger: true }}
               >
                 <Button type="text" danger icon={<DeleteOutlined />} />
@@ -277,33 +282,33 @@ export default function ProjectDetail() {
 
   const taskColumns = [
     {
-      title: 'Công việc',
+      title: t('nav.tasks'),
       dataIndex: 'title',
       key: 'title',
       render: (title) => <Text strong style={{ fontSize: 13 }}>{title}</Text>,
     },
     {
-      title: 'Trạng thái',
+      title: t('common.status'),
       dataIndex: 'status',
       key: 'status',
       width: 130,
-      render: (status) => {
-        const s = tagFor(TASK_STATUSES, status, 'key');
-        return <Tag color={s.badgeColor}>{s.label}</Tag>;
-      },
+      render: (status) => (
+        <Tag color={TASK_STATUSES.find((s) => s.key === status)?.badgeColor || 'default'}>
+          {taskStatusLabel(status)}
+        </Tag>
+      ),
     },
     {
-      title: 'Ưu tiên',
+      title: t('common.priority'),
       dataIndex: 'priority',
       key: 'priority',
       width: 120,
-      render: (priority) => {
-        const p = tagFor(PRIORITY_OPTIONS, priority);
-        return <Tag color={p.color}>{p.label}</Tag>;
-      },
+      render: (priority) => (
+        <Tag color={colorOf(PRIORITY_OPTIONS, priority)}>{priorityLabel(priority)}</Tag>
+      ),
     },
     {
-      title: 'Người thực hiện',
+      title: t('projectDetail.assignee'),
       dataIndex: 'assignee',
       key: 'assignee',
       width: 190,
@@ -314,11 +319,11 @@ export default function ProjectDetail() {
             <Text style={{ fontSize: 13 }}>{assignee.name}</Text>
           </Space>
         ) : (
-          <Text type="secondary" style={{ fontSize: 12 }}>Chưa gán</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>{t('common.unassigned')}</Text>
         ),
     },
     {
-      title: 'Giờ (ƯT / TT)',
+      title: t('projectDetail.hoursColumn'),
       key: 'hours',
       width: 120,
       render: (_, r) => (
@@ -328,7 +333,7 @@ export default function ProjectDetail() {
       ),
     },
     {
-      title: 'Tiến độ',
+      title: t('gantt.progress'),
       dataIndex: 'progress',
       key: 'progress',
       width: 140,
@@ -347,13 +352,17 @@ export default function ProjectDetail() {
             onClick={() => navigate('/projects')}
             style={{ paddingLeft: 0, marginBottom: 4 }}
           >
-            Danh sách dự án
+            {t('projectDetail.projectList')}
           </Button>
           <Space align="center" wrap>
             <Title level={3} style={{ margin: 0 }}>{project.name}</Title>
             {project.code && <Tag color="purple">{project.code}</Tag>}
-            <Tag color={statusTag.color}>{statusTag.label}</Tag>
-            <Tag color={priorityTag.color}>{priorityTag.label}</Tag>
+            <Tag color={colorOf(PROJECT_STATUSES, project.status)}>
+              {projectStatusLabel(project.status)}
+            </Tag>
+            <Tag color={colorOf(PRIORITY_OPTIONS, project.priority)}>
+              {priorityLabel(project.priority)}
+            </Tag>
           </Space>
           {project.description && (
             <Paragraph type="secondary" style={{ margin: '6px 0 0', maxWidth: 720 }}>
@@ -361,7 +370,7 @@ export default function ProjectDetail() {
             </Paragraph>
           )}
         </div>
-        <Button icon={<ReloadOutlined />} onClick={load}>Tải lại</Button>
+        <Button icon={<ReloadOutlined />} onClick={load}>{t('common.reload')}</Button>
       </div>
 
       {/* Stats */}
@@ -369,7 +378,7 @@ export default function ProjectDetail() {
         <Col xs={12} md={6}>
           <Card hoverable>
             <Statistic
-              title="Tiến độ dự án"
+              title={t('projectDetail.projectProgress')}
               value={project.progress || 0}
               suffix="%"
               prefix={<ProjectOutlined style={{ color: '#6366f1' }} />}
@@ -379,7 +388,7 @@ export default function ProjectDetail() {
         <Col xs={12} md={6}>
           <Card hoverable>
             <Statistic
-              title="Công việc"
+              title={t('nav.tasks')}
               value={taskStats.done}
               suffix={`/ ${taskStats.total}`}
               prefix={<ClockCircleOutlined style={{ color: '#10b981' }} />}
@@ -389,7 +398,7 @@ export default function ProjectDetail() {
         <Col xs={12} md={6}>
           <Card hoverable>
             <Statistic
-              title="Thành viên"
+              title={t('projectDetail.members')}
               value={members.length}
               prefix={<TeamOutlined style={{ color: '#f59e0b' }} />}
             />
@@ -398,8 +407,8 @@ export default function ProjectDetail() {
         <Col xs={12} md={6}>
           <Card hoverable>
             <Statistic
-              title="Ngân sách"
-              value={formatMoney(project.budget)}
+              title={t('projects.budget')}
+              value={formatCurrency(project.budget)}
               valueStyle={{ fontSize: 18 }}
               prefix={<DollarOutlined style={{ color: '#3b82f6' }} />}
             />
@@ -412,14 +421,14 @@ export default function ProjectDetail() {
         items={[
           {
             key: 'overview',
-            label: 'Tổng quan',
+            label: t('projectDetail.overview'),
             children: (
               <Row gutter={[16, 16]}>
                 <Col xs={24} lg={14}>
-                  <Card title="Thông tin dự án">
+                  <Card title={t('projectDetail.projectInfo')}>
                     <Descriptions column={1} size="small" bordered>
-                      <Descriptions.Item label="Mã dự án">{project.code || '—'}</Descriptions.Item>
-                      <Descriptions.Item label="Quản lý">
+                      <Descriptions.Item label={t('projects.form.code')}>{project.code || '—'}</Descriptions.Item>
+                      <Descriptions.Item label={t('projectDetail.manager')}>
                         {project.manager ? (
                           <Space size={6}>
                             <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
@@ -428,36 +437,40 @@ export default function ProjectDetail() {
                           </Space>
                         ) : '—'}
                       </Descriptions.Item>
-                      <Descriptions.Item label="Thời gian">
+                      <Descriptions.Item label={t('gantt.period')}>
                         {formatDate(project.startDate)} → {formatDate(project.endDate)}
                       </Descriptions.Item>
-                      <Descriptions.Item label="Ngân sách">{formatMoney(project.budget)}</Descriptions.Item>
+                      <Descriptions.Item label={t('projects.budget')}>
+                        {formatCurrency(project.budget)}
+                      </Descriptions.Item>
                       <Descriptions.Item label="Tags">
                         {project.tags?.length
-                          ? project.tags.map((t) => <Tag key={t}>{t}</Tag>)
-                          : <Text type="secondary">Không có</Text>}
+                          ? project.tags.map((tag) => <Tag key={tag}>{tag}</Tag>)
+                          : <Text type="secondary">{t('common.none')}</Text>}
                       </Descriptions.Item>
-                      <Descriptions.Item label="Tạo lúc">{formatDate(project.createdAt)}</Descriptions.Item>
+                      <Descriptions.Item label={t('projectDetail.createdAt')}>
+                        {formatDate(project.createdAt)}
+                      </Descriptions.Item>
                     </Descriptions>
                   </Card>
                 </Col>
                 <Col xs={24} lg={10}>
-                  <Card title="Khối lượng công việc">
+                  <Card title={t('projectDetail.workload')}>
                     <Space direction="vertical" style={{ width: '100%' }} size="middle">
                       <div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Tiến độ tổng thể</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{t('projectDetail.overallProgress')}</Text>
                         <Progress percent={project.progress || 0} status={project.progress === 100 ? 'success' : 'active'} />
                       </div>
                       <Row gutter={16}>
                         <Col span={12}>
-                          <Statistic title="Giờ ước tính" value={taskStats.totalEstimated} suffix="h" valueStyle={{ fontSize: 20 }} />
+                          <Statistic title={t('projectDetail.estimatedHours')} value={taskStats.totalEstimated} suffix="h" valueStyle={{ fontSize: 20 }} />
                         </Col>
                         <Col span={12}>
-                          <Statistic title="Giờ thực tế" value={taskStats.totalActual} suffix="h" valueStyle={{ fontSize: 20 }} />
+                          <Statistic title={t('projectDetail.actualHours')} value={taskStats.totalActual} suffix="h" valueStyle={{ fontSize: 20 }} />
                         </Col>
                       </Row>
                       <div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Công việc hoàn thành</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{t('projectDetail.tasksCompleted')}</Text>
                         <Progress
                           percent={taskStats.total ? Math.round((taskStats.done / taskStats.total) * 100) : 0}
                           strokeColor="#10b981"
@@ -471,11 +484,11 @@ export default function ProjectDetail() {
           },
           {
             key: 'tasks',
-            label: `Công việc (${tasks.length})`,
+            label: `${t('nav.tasks')} (${tasks.length})`,
             children: (
               <Card styles={{ body: { padding: 0 } }}>
                 {tasks.length === 0 ? (
-                  <Empty description="Dự án chưa có công việc nào" style={{ padding: 48 }} />
+                  <Empty description={t('projectDetail.noTasks')} style={{ padding: 48 }} />
                 ) : (
                   <Table
                     rowKey="_id"
@@ -489,21 +502,21 @@ export default function ProjectDetail() {
           },
           {
             key: 'members',
-            label: `Thành viên (${members.length})`,
+            label: `${t('projectDetail.members')} (${members.length})`,
             children: (
               <Card
                 styles={{ body: { padding: 0 } }}
-                title={canManage ? undefined : 'Danh sách thành viên'}
+                title={canManage ? undefined : t('projectDetail.memberList')}
                 extra={
                   canManage && (
                     <Button type="primary" icon={<PlusOutlined />} onClick={openAddMember}>
-                      Thêm thành viên
+                      {t('projectDetail.addMember')}
                     </Button>
                   )
                 }
               >
                 {members.length === 0 ? (
-                  <Empty description="Dự án chưa có thành viên nào" style={{ padding: 48 }} />
+                  <Empty description={t('projectDetail.noMembers')} style={{ padding: 48 }} />
                 ) : (
                   <Table
                     rowKey={(r) => r.user?._id || r._id}
@@ -520,7 +533,7 @@ export default function ProjectDetail() {
 
       {/* Modal thêm / sửa thành viên */}
       <Modal
-        title={editingMember ? 'Cập nhật thành viên' : 'Thêm thành viên vào dự án'}
+        title={editingMember ? t('projectDetail.editMember') : t('projectDetail.addMemberTitle')}
         open={memberModalOpen}
         onCancel={() => setMemberModalOpen(false)}
         footer={null}
@@ -528,7 +541,7 @@ export default function ProjectDetail() {
       >
         <Form form={memberForm} layout="vertical" onFinish={handleMemberSubmit} style={{ marginTop: 12 }}>
           {editingMember ? (
-            <Form.Item label="Thành viên">
+            <Form.Item label={t('projectDetail.member')}>
               <Space>
                 <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
                 <Text strong>{editingMember.user?.name}</Text>
@@ -537,11 +550,15 @@ export default function ProjectDetail() {
           ) : (
             <Form.Item
               name="user"
-              label="Nhân sự"
-              rules={[{ required: true, message: 'Vui lòng chọn nhân sự' }]}
+              label={t('nav.resources')}
+              rules={[{ required: true, message: t('projectDetail.pickStaffRequired') }]}
             >
               <Select
-                placeholder={availableStaff.length ? 'Chọn nhân sự' : 'Tất cả nhân sự đã ở trong dự án'}
+                placeholder={
+                  availableStaff.length
+                    ? t('projectDetail.pickStaff')
+                    : t('projectDetail.allStaffAlreadyIn')
+                }
                 disabled={!availableStaff.length}
                 showSearch
                 optionFilterProp="label"
@@ -553,23 +570,28 @@ export default function ProjectDetail() {
             </Form.Item>
           )}
 
-          <Form.Item name="role" label="Vai trò trong dự án" rules={[{ required: true }]}>
-            <Select options={MEMBER_ROLES.map((r) => ({ value: r.value, label: r.label }))} />
+          <Form.Item name="role" label={t('projectDetail.roleInProject')} rules={[{ required: true }]}>
+            <Select
+              options={MEMBER_ROLES.map((r) => ({
+                value: r.value,
+                label: t(`projectDetail.memberRole.${r.value}`),
+              }))}
+            />
           </Form.Item>
 
           <Form.Item
             name="allocation"
-            label="Phân bổ (% thời gian dành cho dự án)"
-            rules={[{ required: true, message: 'Vui lòng nhập mức phân bổ' }]}
+            label={t('projectDetail.allocationLabel')}
+            rules={[{ required: true, message: t('projectDetail.allocationRequired') }]}
           >
             <InputNumber min={0} max={100} step={10} style={{ width: '100%' }} addonAfter="%" />
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
-              <Button onClick={() => setMemberModalOpen(false)}>Hủy</Button>
+              <Button onClick={() => setMemberModalOpen(false)}>{t('common.cancel')}</Button>
               <Button type="primary" htmlType="submit" loading={submitting}>
-                {editingMember ? 'Lưu thay đổi' : 'Thêm thành viên'}
+                {editingMember ? t('common.saveChanges') : t('projectDetail.addMember')}
               </Button>
             </Space>
           </Form.Item>
