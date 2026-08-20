@@ -12,9 +12,9 @@ export function daysBetween(d1, d2) {
   return Math.ceil((new Date(d2) - new Date(d1)) / 86400000);
 }
 
-export function formatDate(date) {
-  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(new Date(date));
-}
+// Định dạng ngày đã chuyển sang src/i18n/format.js (`formatDayMonth`): nó phụ
+// thuộc ngôn ngữ đang chọn, còn file này cố ý không phụ thuộc gì để chạy được
+// bằng node trần.
 
 /**
  * Quy ước Gantt thông dụng: task có thời lượng bằng 0 (bắt đầu và kết thúc cùng

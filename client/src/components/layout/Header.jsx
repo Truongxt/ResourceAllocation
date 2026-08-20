@@ -16,6 +16,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, changeLanguage } from '../../i18n';
+import { formatTimeAgo } from '../../i18n/format';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useSocket } from '../../context/SocketContext';
@@ -24,17 +25,6 @@ const { Header: AntHeader } = Layout;
 const { Text, Title } = Typography;
 
 // Tiêu đề trang và nhãn vai trò lấy từ i18n (`pageTitle.*`, `enums.role.*`).
-
-function formatTimeAgo(dateString, t) {
-  if (!dateString) return '';
-  const now = new Date();
-  const past = new Date(dateString);
-  const diffSec = Math.floor((now - past) / 1000);
-  if (diffSec < 60) return t('header.justNow');
-  if (diffSec < 3600) return t('header.minutesAgo', { count: Math.floor(diffSec / 60) });
-  if (diffSec < 86400) return t('header.hoursAgo', { count: Math.floor(diffSec / 3600) });
-  return t('header.daysAgo', { count: Math.floor(diffSec / 86400) });
-}
 
 function getNotifIcon(type) {
   if (type?.includes('task')) return <FileTextOutlined style={{ color: '#4f46e5' }} />;

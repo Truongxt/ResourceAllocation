@@ -18,7 +18,35 @@
     "yes": "Yes",
     "no": "No",
     "all": "All",
-    "language": "Language"
+    "language": "Language",
+    "saveChanges": "Save changes",
+    "viewAll": "View all",
+    "cannotUndo": "This action cannot be undone.",
+    "create": "Create",
+    "update": "Update",
+    "detail": "Details",
+    "back": "Back",
+    "export": "Export",
+    "apply": "Apply",
+    "reset": "Reset",
+    "none": "None",
+    "unassigned": "Unassigned",
+    "notSet": "Not set",
+    "hours": "hours",
+    "days": "days",
+    "day": "day",
+    "task": "task",
+    "tasks": "tasks",
+    "of": "of",
+    "status": "Status",
+    "priority": "Priority",
+    "name": "Name",
+    "description": "Description",
+    "project": "Project",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "deleteConfirm": "Confirm delete?",
+    "required": "This field is required"
   },
   "enums": {
     "role": {
@@ -126,5 +154,205 @@
   "protectedRoute": {
     "forbiddenTitle": "Access denied",
     "forbiddenText": "You do not have permission to view this page. Please contact an administrator."
+  },
+  "settings": {
+    "title": "Account settings",
+    "subtitle": "Manage your profile information and account security",
+    "profile": "Profile",
+    "loginEmail": "Sign-in email",
+    "department": "Department",
+    "departmentPlaceholder": "e.g. Engineering, Design, QA",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "confirmPlaceholder": "Re-enter the new password",
+    "minChars": "At least 6 characters",
+    "updatePassword": "Update password",
+    "profileSaved": "Profile updated",
+    "profileFailed": "Update failed",
+    "profileError": "Something went wrong while updating your profile",
+    "passwordChanged": "Password changed",
+    "passwordFailed": "Could not change password",
+    "passwordError": "Something went wrong while changing your password",
+    "required": {
+      "current": "Please enter your current password",
+      "new": "Please enter a new password",
+      "confirm": "Please confirm the new password"
+    }
+  },
+  "dashboard": {
+    "subtitle": "Overview of resource management and allocation across the system",
+    "activeProjects": "Active projects",
+    "runningTasks": "Tasks in flight",
+    "activeResources": "Active people",
+    "overloadedResources": "Overloaded people",
+    "completedCount": "{{count}} completed",
+    "avgUtilization": "{{value}}% average utilization",
+    "needsOptimizing": "Needs optimizing",
+    "allFine": "All within capacity",
+    "quickActions": "Quick actions",
+    "manageProjects": "Manage projects",
+    "optimizeAllocation": "Optimize allocation",
+    "manageResources": "Manage people",
+    "recentActivity": "Recent activity",
+    "noActivity": "No activity yet",
+    "taskDistribution": "Task distribution",
+    "noTasks": "No tasks yet",
+    "workHours": "Work hours",
+    "estimated": "Estimated",
+    "actual": "Actual",
+    "totalCapacity": "Total capacity",
+    "currentWorkload": "Current workload",
+    "recentOptimizations": "Recent optimizations",
+    "taskResourceCount": "{{tasks}}T / {{resources}}R"
+  },
+  "reports": {
+    "title": "Resource reports & analytics",
+    "subtitle": "Resource histogram, burnout risk, and cross-project progress reporting",
+    "exportCsv": "Export CSV",
+    "printPdf": "Print / PDF",
+    "peopleCount": "{{count}} people",
+    "avgUtilShort": "Avg. utilization",
+    "byDay": "By day",
+    "byWeek": "By week",
+    "weekOf": "Week of {{date}}",
+    "loadVsCapacity": "Total load vs. capacity",
+    "legendBars": "▇ load   ┄ capacity",
+    "groupedByWeek": "grouped by week",
+    "groupedByDay": "by day",
+    "perPerson": "Per person over time",
+    "assignedOnDayOff": "assigned on a day off",
+    "noTrend": "No task has both dates and an assignee yet, so there is no time series to build.",
+    "burnout": {
+      "high": "High (at risk)",
+      "medium": "Medium",
+      "low": "Low (safe)"
+    },
+    "tabs": {
+      "utilization": "Resource histogram",
+      "departments": "By department",
+      "projects": "Project report",
+      "trend": "Trend over time"
+    },
+    "stats": {
+      "totalResources": "Total people",
+      "avgUtilization": "Average utilization",
+      "highBurnout": "High burnout risk"
+    },
+    "columns": {
+      "resource": "Person",
+      "department": "Department",
+      "utilization": "Utilization",
+      "burnout": "Burnout risk",
+      "taskCount": "Tasks owned",
+      "taskTotal": "Tasks",
+      "completed": "Completed",
+      "totalHours": "Total hours",
+      "completion": "Completion",
+      "peak": "Peak",
+      "strip": "Timeline ({{count}} buckets)"
+    },
+    "heat": {
+      "noWorkday": "{{label}}: {{load}}h assigned but no working day available",
+      "off": "{{label}}: day off",
+      "normal": "{{label}}: {{load}}h / {{capacity}}h ({{percent}}%)"
+    },
+    "commitmentNotice": {
+      "title": "This is committed workload, not a historical log",
+      "body": "The chart spreads each task's estimated hours across its working days and sums them per person, so it shows which weeks someone will be overloaded. The system does not store daily workload snapshots, so it cannot tell you how many hours anyone actually worked last month."
+    },
+    "truncated": {
+      "title": "The date range is too long, so the chart was truncated",
+      "body": "Filter by a single project to see the whole range."
+    },
+    "excluded": {
+      "title": "Some hours could not be placed on the timeline",
+      "unscheduled": "{{hours}} hours across {{count}} tasks have no start/end date (or the end date precedes the start date).",
+      "unassigned": "{{hours}} hours across {{count}} tasks are unassigned, or their assignee is no longer an active resource.",
+      "footer": "These hours do not appear in the chart below."
+    },
+    "csv": {
+      "utilHeader": "Name,Department,Position,Capacity,Workload,Utilization(%),Burnout risk,Tasks",
+      "projectHeader": "Project,Total tasks,Completed,Total hours,% completion",
+      "trendHeader": "Person,Series",
+      "loadRow": "Load (hours)",
+      "capacityRow": "Capacity (hours)",
+      "totalRow": "TOTAL"
+    }
+  },
+  "gantt": {
+    "title": "Gantt chart",
+    "subtitle": "A visual view of the timeline, progress, and workload distribution over time",
+    "print": "Print",
+    "searchPlaceholder": "Search tasks on the chart...",
+    "allProjects": "All projects",
+    "empty": "No task has a schedule yet.",
+    "noProject": "No project",
+    "noAssignee": "No assignee",
+    "milestone": "Milestone",
+    "criticalPath": "Critical path",
+    "period": "Dates",
+    "progress": "Progress",
+    "monthShort": "M{{month}}",
+    "showDeps": "Dependency arrows",
+    "showCritical": "Critical path (CPM)",
+    "dragHint": "Drag a bar to move it; drag either edge to change the start or end date.",
+    "criticalSummary": "Critical path: {{count}} tasks · {{days}} days long",
+    "cyclicWarning": "Task dependencies form a cycle — the critical path cannot be determined.",
+    "violatedDeps": "{{count}} dependencies are violated (dashed red arrows): the later task starts before the earlier one finishes.",
+    "rescheduled": "Rescheduled \"{{title}}\": {{from}} → {{to}}",
+    "rescheduleFailed": "Could not update the task schedule",
+    "groupSpan": "{{label}} · {{count}} tasks · {{from}} → {{to}}",
+    "legendMilestone": "Milestone (single-day task)",
+    "legendCritical": "On the critical path",
+    "zoom": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month"
+    },
+    "groupBy": {
+      "none": "Flat list",
+      "project": "By project",
+      "resource": "By person"
+    }
+  },
+  "activityLogs": {
+    "title": "Activity log & audit trail",
+    "subtitle": "A record of every operation, assignment, and optimization run, traceable back to the user who made it",
+    "loadFailed": "Could not load the activity log",
+    "cleared": "Activity log cleared",
+    "clearFailed": "Could not clear the activity log",
+    "clear": "Clear log",
+    "clearOk": "Clear everything",
+    "clearConfirm": "Clear the entire activity log?",
+    "system": "System",
+    "searchPlaceholder": "Search by description, actor, or entity name...",
+    "allCategories": "All modules",
+    "totalLogs": "{{count}} entries recorded",
+    "entity": {
+      "project": "Project",
+      "task": "Task",
+      "resource": "Resource",
+      "department": "Department",
+      "optimization": "Optimization",
+      "auth": "Auth",
+      "system": "System"
+    },
+    "columns": {
+      "time": "Time",
+      "actor": "Actor",
+      "category": "Module",
+      "action": "Action",
+      "detail": "Details"
+    },
+    "stats": {
+      "total": "Total activity",
+      "today": "Activity today",
+      "topUser": "Most active user",
+      "topCategory": "Most common module",
+      "timesCount": "{{count}} times",
+      "logsCount": "{{count}} logs"
+    }
   }
 }

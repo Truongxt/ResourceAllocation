@@ -106,7 +106,9 @@ S('Chuỗi theo ngày');
   const trend = buildWorkloadTrend([task('t1', 2, 6, 40)], resources, { granularity: 'day' });
 
   ok(trend.granularity === 'day' && trend.buckets.length === 5, '5 mốc cho tuần 2→6');
-  ok(trend.buckets[0].label === '02/03', 'Nhãn mốc theo ngày/tháng');
+  // Mốc chỉ mang ngày bắt đầu; nhãn hiển thị do client dựng theo ngôn ngữ đang chọn.
+  ok(trend.buckets[0].key === '2026-03-02' && +trend.buckets[0].start === +day(2),
+    'Mốc mang ngày bắt đầu, không mang nhãn dựng sẵn');
   ok(trend.totals.every((t) => t.load === 8), 'Mỗi ngày 8 giờ tải');
 
   // Người không được giao việc nào vẫn phải góp capacity, nếu không đường capacity tổng
@@ -177,8 +179,8 @@ S('Gộp theo tuần');
   const trend = buildWorkloadTrend([task('t1', 2, 13, 80)], resources, { granularity: 'week' });
 
   ok(trend.buckets.length === 2, 'Hai tuần làm việc → 2 mốc');
-  ok(trend.buckets[0].label === 'Tuần 02/03' && trend.buckets[1].label === 'Tuần 09/03',
-    'Nhãn tuần lấy theo thứ Hai đầu tuần');
+  ok(+trend.buckets[0].start === +day(2) && +trend.buckets[1].start === +day(9),
+    'Mốc tuần bắt đầu từ thứ Hai');
   ok(trend.totals.every((t) => t.capacity === 40), 'Capacity một tuần là 40 giờ');
   ok(sum(trend.totals.map((t) => t.load)) === 80, 'Tổng tải giữ nguyên khi gộp tuần');
   ok(trend.totals.every((t) => t.utilization === 100), 'Đúng bằng capacity → 100%');

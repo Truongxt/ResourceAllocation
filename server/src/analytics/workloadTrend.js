@@ -87,11 +87,10 @@ const dailyCapacity = (resource, day) => {
   return (weekly * fte) / WORKING_DAYS_PER_WEEK;
 };
 
-const bucketLabel = (start, granularity) => {
-  const d = String(start.getDate()).padStart(2, '0');
-  const m = String(start.getMonth() + 1).padStart(2, '0');
-  return granularity === 'week' ? `Tuần ${d}/${m}` : `${d}/${m}`;
-};
+// Không trả về nhãn dựng sẵn: nhãn là chuyện hiển thị, mà client có hai ngôn ngữ.
+// Mỗi mốc đã có `start` và cả chuỗi đã có `granularity` — đủ để client tự viết
+// "Tuần 05/08" hay "Week 05/08". Trước đây hàm bucketLabel ở đây ghi cứng tiếng
+// Việt vào payload API, khiến trang tiếng Anh vẫn hiện chữ "Tuần".
 
 /**
  * @param {Object[]} tasks     công việc, cần startDate/endDate/estimatedHours/assignee
@@ -265,7 +264,6 @@ function buildWorkloadTrend(tasks = [], resources = [], options = {}) {
       key: bucket.key,
       start: bucket.start,
       end: bucket.end,
-      label: bucketLabel(bucket.start, granularity),
     })),
     totals,
     resources: rows.sort(

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Card,
   Row,
@@ -34,22 +35,19 @@ import {
   PRIORITY_COLORS,
 } from '../constants';
 import { taskStatusLabel, priorityLabel } from '../i18n/enums';
-import { addDays, computeCriticalPath, daysBetween, formatDate, isMilestone } from '../utils/gantt';
+import { currentLocale, formatDayMonth as formatDate } from '../i18n/format';
+import { addDays, computeCriticalPath, daysBetween, isMilestone } from '../utils/gantt';
 import './GanttChart.css';
 
 const { Title, Text } = Typography;
 
 const ZOOM_LEVELS = [
-  { key: 'day', label: 'Ngày', dayWidth: 40, format: 'dd' },
-  { key: 'week', label: 'Tuần', dayWidth: 20, format: 'Wk' },
-  { key: 'month', label: 'Tháng', dayWidth: 8, format: 'MMM' },
+  { key: 'day', dayWidth: 40 },
+  { key: 'week', dayWidth: 20 },
+  { key: 'month', dayWidth: 8 },
 ];
 
-const GROUP_MODES = [
-  { value: 'none', label: 'Danh sách' },
-  { value: 'project', label: 'Theo dự án' },
-  { value: 'resource', label: 'Theo nhân sự' },
-];
+const GROUP_MODES = ['none', 'project', 'resource'];
 
 const UNGROUPED_KEY = '__ungrouped__';
 
@@ -76,6 +74,7 @@ function shiftedDates(task, mode, deltaDays) {
 }
 
 export default function GanttChart() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -118,20 +117,20 @@ export default function GanttChart() {
   }, [filters]);
 
   useEffect(() => {
-    const t = setTimeout(load, filters.search ? 350 : 0);
-    return () => clearTimeout(t);
+    const timer = setTimeout(load, filters.search ? 350 : 0);
+    return () => clearTimeout(timer);
   }, [load]);
 
   // Compute timeline range
   const { timelineStart, totalDays } = useMemo(() => {
-    const valid = tasks.filter((t) => t.startDate && t.endDate);
+    const valid = tasks.filter((item) => item.startDate && item.endDate);
     if (!valid.length) {
       const now = new Date();
       return { timelineStart: addDays(now, -7), totalDays: 52 };
     }
 
-    const minDate = new Date(Math.min(...valid.map((t) => new Date(t.startDate))));
-    const maxDate = new Date(Math.max(...valid.map((t) => new Date(t.endDate))));
+    const minDate = new Date(Math.min(...valid.map((item) => new Date(item.startDate))));
+    const maxDate = new Date(Math.max(...valid.map((item) => new Date(item.endDate))));
 
     const start = addDays(minDate, -4);
     const end = addDays(maxDate, 10);
@@ -163,12 +162,14 @@ export default function GanttChart() {
   const groups = useMemo(() => {
     if (groupBy === 'none') return null;
 
-    const keyOf = (t) =>
-      groupBy === 'project' ? t.project?._id || UNGROUPED_KEY : t.assignee?._id || UNGROUPED_KEY;
-    const labelOf = (t) =>
+    const keyOf = (item) =>
       groupBy === 'project'
-        ? t.project?.name || 'Không thuộc dự án'
-        : t.assignee?.name || 'Chưa gán người thực hiện';
+        ? item.project?._id || UNGROUPED_KEY
+        : item.assignee?._id || UNGROUPED_KEY;
+    const labelOf = (item) =>
+      groupBy === 'project'
+        ? item.project?.name || t('gantt.noProject')
+        : item.assignee?.name || t('gantt.noAssignee');
 
     const map = new Map();
     tasks.forEach((task) => {
@@ -181,15 +182,18 @@ export default function GanttChart() {
     list.forEach((g) => {
       g.tasks.sort((a, b) => new Date(a.startDate || 0) - new Date(b.startDate || 0));
 
-      const dated = g.tasks.filter((t) => t.startDate && t.endDate);
+      const dated = g.tasks.filter((item) => item.startDate && item.endDate);
       g.span = dated.length
         ? {
-            start: new Date(Math.min(...dated.map((t) => new Date(t.startDate)))),
-            end: new Date(Math.max(...dated.map((t) => new Date(t.endDate)))),
+            start: new Date(Math.min(...dated.map((item) => new Date(item.startDate)))),
+            end: new Date(Math.max(...dated.map((item) => new Date(item.endDate)))),
           }
         : null;
       g.progress = g.tasks.length
-        ? Math.round(g.tasks.reduce((s, t) => s + (t.status === 'done' ? 100 : t.progress || 0), 0) / g.tasks.length)
+        ? Math.round(
+            g.tasks.reduce((sum, item) => sum + (item.status === 'done' ? 100 : item.progress || 0), 0) /
+              g.tasks.length
+          )
         : 0;
     });
 
@@ -197,9 +201,9 @@ export default function GanttChart() {
     return list.sort((a, b) => {
       if (a.key === UNGROUPED_KEY) return 1;
       if (b.key === UNGROUPED_KEY) return -1;
-      return a.label.localeCompare(b.label, 'vi');
+      return a.label.localeCompare(b.label, currentLocale());
     });
-  }, [tasks, groupBy]);
+  }, [tasks, groupBy, t]);
 
   const rows = useMemo(() => {
     if (!groups) return tasks.map((task) => ({ key: task._id, type: 'task', task }));
@@ -303,26 +307,37 @@ export default function GanttChart() {
   // ──────────────────────────────────────────────
   // Kéo thả để đổi lịch
   // ──────────────────────────────────────────────
-  const commitDrag = useCallback(async ({ task, mode, deltaDays }) => {
-    const { startDate, endDate } = shiftedDates(task, mode, deltaDays);
-    if (+startDate === +new Date(task.startDate) && +endDate === +new Date(task.endDate)) return;
+  const commitDrag = useCallback(
+    async ({ task, mode, deltaDays }) => {
+      const { startDate, endDate } = shiftedDates(task, mode, deltaDays);
+      if (+startDate === +new Date(task.startDate) && +endDate === +new Date(task.endDate)) return;
 
-    const payload = { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
-    setTasks((list) => list.map((t) => (t._id === task._id ? { ...t, ...payload } : t)));
+      const payload = { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
+      setTasks((list) => list.map((item) => (item._id === task._id ? { ...item, ...payload } : item)));
 
-    try {
-      await taskService.update(task._id, payload);
-      message.success(`Đã đổi lịch "${task.title}": ${formatDate(startDate)} → ${formatDate(endDate)}`);
-    } catch (error) {
-      // Trả lại lịch cũ nếu server từ chối.
-      setTasks((list) =>
-        list.map((t) =>
-          t._id === task._id ? { ...t, startDate: task.startDate, endDate: task.endDate } : t
-        )
-      );
-      message.error(error.response?.data?.message || 'Không cập nhật được lịch công việc');
-    }
-  }, []);
+      try {
+        await taskService.update(task._id, payload);
+        message.success(
+          t('gantt.rescheduled', {
+            title: task.title,
+            from: formatDate(startDate),
+            to: formatDate(endDate),
+          })
+        );
+      } catch (error) {
+        // Trả lại lịch cũ nếu server từ chối.
+        setTasks((list) =>
+          list.map((item) =>
+            item._id === task._id
+              ? { ...item, startDate: task.startDate, endDate: task.endDate }
+              : item
+          )
+        );
+        message.error(error.response?.data?.message || t('gantt.rescheduleFailed'));
+      }
+    },
+    [t]
+  );
 
   const beginDrag = (event, task, mode) => {
     if (!canReschedule || !task.startDate || !task.endDate) return;
@@ -367,20 +382,20 @@ export default function GanttChart() {
   const taskTooltip = (task) => (
     <div>
       <strong>{task.title}</strong>
-      {isMilestone(task) && <Tag color="gold" style={{ marginLeft: 6 }}>Mốc</Tag>}
+      {isMilestone(task) && <Tag color="gold" style={{ marginLeft: 6 }}>{t('gantt.milestone')}</Tag>}
       {showCritical && critical.has(task._id) && (
-        <Tag color="warning" style={{ marginLeft: 6 }}>Đường găng</Tag>
+        <Tag color="warning" style={{ marginLeft: 6 }}>{t('gantt.criticalPath')}</Tag>
       )}
       <br />
-      <span>Trạng thái: {taskStatusLabel(task.status)}</span>
+      <span>{t('common.status')}: {taskStatusLabel(task.status)}</span>
       <br />
-      <span>Ưu tiên: {priorityLabel(task.priority)}</span>
+      <span>{t('common.priority')}: {priorityLabel(task.priority)}</span>
       <br />
       <span>
-        Thời gian: {formatDate(task.startDate)} → {formatDate(task.endDate)}
+        {t('gantt.period')}: {formatDate(task.startDate)} → {formatDate(task.endDate)}
       </span>
       <br />
-      <span>Tiến độ: {task.progress || 0}%</span>
+      <span>{t('gantt.progress')}: {task.progress || 0}%</span>
     </div>
   );
 
@@ -456,9 +471,12 @@ export default function GanttChart() {
     const duration = Math.max(1, daysBetween(group.span.start, group.span.end));
     return (
       <Tooltip
-        title={`${group.label} · ${group.tasks.length} công việc · ${formatDate(group.span.start)} → ${formatDate(
-          group.span.end
-        )}`}
+        title={t('gantt.groupSpan', {
+          label: group.label,
+          count: group.tasks.length,
+          from: formatDate(group.span.start),
+          to: formatDate(group.span.end),
+        })}
       >
         <div
           className="gantt-group-band"
@@ -481,17 +499,17 @@ export default function GanttChart() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ marginBottom: 4 }}>Sơ đồ Gantt (Gantt Chart)</Title>
-          <Text type="secondary">Theo dõi trực quan timeline, tiến độ và phân bổ công việc theo thời gian thực</Text>
+          <Title level={3} style={{ marginBottom: 4 }}>{t('gantt.title')}</Title>
+          <Text type="secondary">{t('gantt.subtitle')}</Text>
         </div>
         <Space>
           <Segmented
             value={zoomKey}
             onChange={setZoomKey}
-            options={ZOOM_LEVELS.map((z) => ({ value: z.key, label: z.label }))}
+            options={ZOOM_LEVELS.map((z) => ({ value: z.key, label: t(`gantt.zoom.${z.key}`) }))}
           />
           <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-            In báo cáo
+            {t('gantt.print')}
           </Button>
         </Space>
       </div>
@@ -502,7 +520,7 @@ export default function GanttChart() {
           <Col xs={24} md={8}>
             <Input
               prefix={<SearchOutlined />}
-              placeholder="Tìm kiếm công việc trên Gantt..."
+              placeholder={t('gantt.searchPlaceholder')}
               value={filters.search}
               onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
               allowClear
@@ -511,7 +529,7 @@ export default function GanttChart() {
           <Col xs={12} md={7}>
             <Select
               style={{ width: '100%' }}
-              placeholder="Tất cả dự án"
+              placeholder={t('gantt.allProjects')}
               value={filters.project || undefined}
               onChange={(val) => setFilters((p) => ({ ...p, project: val || '' }))}
               allowClear
@@ -520,38 +538,40 @@ export default function GanttChart() {
           </Col>
           <Col xs={12} md={9} style={{ textAlign: 'right' }}>
             <Space>
-              <Segmented value={groupBy} onChange={setGroupBy} options={GROUP_MODES} />
-              <Button icon={<ReloadOutlined />} onClick={load} title="Tải lại" />
+              <Segmented
+                value={groupBy}
+                onChange={setGroupBy}
+                options={GROUP_MODES.map((value) => ({ value, label: t(`gantt.groupBy.${value}`) }))}
+              />
+              <Button icon={<ReloadOutlined />} onClick={load} title={t('common.reload')} />
             </Space>
           </Col>
           <Col xs={24}>
             <Space size={16} wrap>
               <Checkbox checked={showDeps} onChange={(e) => setShowDeps(e.target.checked)}>
-                Mũi tên phụ thuộc
+                {t('gantt.showDeps')}
               </Checkbox>
               <Checkbox checked={showCritical} onChange={(e) => setShowCritical(e.target.checked)}>
-                Đường găng (CPM)
+                {t('gantt.showCritical')}
               </Checkbox>
               {canReschedule && (
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  Kéo thanh để dời lịch, kéo hai mép để đổi ngày bắt đầu / kết thúc.
+                  {t('gantt.dragHint')}
                 </Text>
               )}
               {showCritical && !cyclic && (
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  Đường găng: <strong>{critical.size}</strong> công việc · độ dài{' '}
-                  <strong>{criticalLength}</strong> ngày
+                  {t('gantt.criticalSummary', { count: critical.size, days: criticalLength })}
                 </Text>
               )}
               {showCritical && cyclic && (
                 <Text type="danger" style={{ fontSize: 12 }}>
-                  Phụ thuộc giữa các công việc tạo thành vòng lặp — không xác định được đường găng.
+                  {t('gantt.cyclicWarning')}
                 </Text>
               )}
               {arrows.some((a) => a.violated) && (
                 <Text type="danger" style={{ fontSize: 12 }}>
-                  {arrows.filter((a) => a.violated).length} phụ thuộc đang bị vi phạm (mũi tên đỏ đứt nét):
-                  công việc sau bắt đầu trước khi công việc trước kết thúc.
+                  {t('gantt.violatedDeps', { count: arrows.filter((a) => a.violated).length })}
                 </Text>
               )}
             </Space>
@@ -563,13 +583,13 @@ export default function GanttChart() {
       <Card styles={{ body: { padding: 0 } }}>
         <Spin spinning={loading}>
           {tasks.length === 0 ? (
-            <Empty description="Chưa có công việc nào có lịch trình." style={{ padding: 48 }} />
+            <Empty description={t('gantt.empty')} style={{ padding: 48 }} />
           ) : (
             <div className="gantt-viewport">
               {/* Task Names Sidebar */}
               <div className="gantt-sidebar">
                 <div className="gantt-sidebar-header">
-                  <Text strong>Công việc ({taskCount})</Text>
+                  <Text strong>{t('nav.tasks')} ({taskCount})</Text>
                 </div>
                 <div className="gantt-sidebar-body">
                   {rows.map((row) =>
@@ -599,7 +619,7 @@ export default function GanttChart() {
                             </Tag>
                           )}
                           <Text type="secondary" style={{ fontSize: 11 }}>
-                            {row.task.assignee?.name || 'Chưa gán'}
+                            {row.task.assignee?.name || t('common.unassigned')}
                           </Text>
                         </Space>
                       </div>
@@ -620,7 +640,9 @@ export default function GanttChart() {
                         style={{ width: zoom.dayWidth }}
                       >
                         <span className="day-num">{day.dayNum}</span>
-                        {zoomKey === 'day' && <span className="day-m">T{day.month}</span>}
+                        {zoomKey === 'day' && (
+                          <span className="day-m">{t('gantt.monthShort', { month: day.month })}</span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -691,7 +713,7 @@ export default function GanttChart() {
       <Card style={{ marginTop: 16 }} styles={{ body: { padding: '12px 20px' } }}>
         <Space size={[24, 8]} wrap>
           <Space size={8} wrap>
-            <Text type="secondary" style={{ fontSize: 12 }}>Trạng thái:</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>{t('common.status')}:</Text>
             {TASK_STATUSES.map((s) => (
               <Space key={s.key} size={4}>
                 <span className="gantt-legend-swatch" style={{ backgroundColor: s.color }} />
@@ -700,7 +722,7 @@ export default function GanttChart() {
             ))}
           </Space>
           <Space size={8} wrap>
-            <Text type="secondary" style={{ fontSize: 12 }}>Ưu tiên:</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>{t('common.priority')}:</Text>
             {PRIORITY_OPTIONS.map(({ value }) => (
               <Space key={value} size={4}>
                 <span className="gantt-legend-dot" style={{ backgroundColor: PRIORITY_COLORS[value] }} />
@@ -710,11 +732,11 @@ export default function GanttChart() {
           </Space>
           <Space size={4}>
             <span className="gantt-legend-diamond" />
-            <Text style={{ fontSize: 12 }}>Mốc (task trong ngày)</Text>
+            <Text style={{ fontSize: 12 }}>{t('gantt.legendMilestone')}</Text>
           </Space>
           <Space size={4}>
             <span className="gantt-legend-critical" />
-            <Text style={{ fontSize: 12 }}>Trên đường găng</Text>
+            <Text style={{ fontSize: 12 }}>{t('gantt.legendCritical')}</Text>
           </Space>
         </Space>
       </Card>

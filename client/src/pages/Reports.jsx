@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Row,
   Col,
@@ -29,14 +30,24 @@ import {
   LineChartOutlined,
 } from '@ant-design/icons';
 import analyticsService from '../services/analyticsService';
+import { formatDayMonth } from '../i18n/format';
 import './Reports.css';
 
 const { Title, Text } = Typography;
 
-const BURNOUT_MAP = {
-  high: { label: 'Cao (Nguy cơ)', color: 'error' },
-  medium: { label: 'Trung bình', color: 'warning' },
-  low: { label: 'Thấp (An toàn)', color: 'success' },
+const BURNOUT_COLORS = { high: 'error', medium: 'warning', low: 'success' };
+
+/**
+ * Nhãn một mốc thời gian.
+ *
+ * Server chỉ trả `start`; nhãn dựng ở đây vì "Tuần" và "Week" là chuyện hiển thị.
+ * `bare` bỏ tiền tố khi nhãn nằm dày đặc dưới trục — chỗ đó không đủ chỗ, mà
+ * lặp lại "Tuần" trên từng cột cũng không thêm thông tin gì.
+ */
+const bucketLabel = (bucket, granularity, t, { bare = false } = {}) => {
+  const date = formatDayMonth(bucket.start);
+  if (granularity !== 'week' || bare) return date;
+  return t('reports.weekOf', { date });
 };
 
 /**
@@ -54,16 +65,20 @@ function heatColor(load, capacity) {
   return '#ef4444';
 }
 
-const heatTitle = (label, load, capacity) => {
+const heatTitle = (label, load, capacity, t) => {
   if (capacity <= 0) {
-    return load > 0
-      ? `${label}: ${load}h được giao nhưng không có ngày làm việc nào`
-      : `${label}: ngày nghỉ`;
+    return load > 0 ? t('reports.heat.noWorkday', { label, load }) : t('reports.heat.off', { label });
   }
-  return `${label}: ${load}h / ${capacity}h (${Math.round((load / capacity) * 100)}%)`;
+  return t('reports.heat.normal', {
+    label,
+    load,
+    capacity,
+    percent: Math.round((load / capacity) * 100),
+  });
 };
 
 export default function Reports() {
+  const { t } = useTranslation();
   const [utilData, setUtilData] = useState(null);
   const [taskData, setTaskData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -115,25 +130,31 @@ export default function Reports() {
   const exportCSV = (type) => {
     let csv = '';
     if (type === 'utilization' && utilData?.resources) {
-      csv = 'Tên,Phòng ban,Vị trí,Capacity,Workload,Utilization(%),Burnout Risk,Số task\n';
+      csv = `${t('reports.csv.utilHeader')}\n`;
       for (const r of utilData.resources) {
-        csv += `"${r.name}","${r.department}","${r.position}",${r.capacity},${r.workload},${r.utilization},${BURNOUT_MAP[r.burnoutRisk]?.label || r.burnoutRisk},${r.taskCount}\n`;
+        const risk = t(`reports.burnout.${r.burnoutRisk}`, { defaultValue: r.burnoutRisk });
+        csv += `"${r.name}","${r.department}","${r.position}",${r.capacity},${r.workload},${r.utilization},${risk},${r.taskCount}\n`;
       }
     } else if (type === 'projects' && taskData?.byProject) {
-      csv = 'Dự án,Tổng tasks,Hoàn thành,Tổng giờ,% Completion\n';
+      csv = `${t('reports.csv.projectHeader')}\n`;
       for (const p of taskData.byProject) {
         csv += `"${p.projectName}",${p.count},${p.done},${p.totalHours},${Math.round(p.completion)}%\n`;
       }
     } else if (type === 'trend' && trend?.buckets?.length) {
       // Mỗi mốc thời gian một cột, để dán thẳng vào Excel rồi vẽ lại được.
-      const header = trend.buckets.map((b) => b.label).join(',');
-      csv = `Nhân sự,Loại,${header}\n`;
+      const header = trend.buckets
+        .map((b) => bucketLabel(b, trend.granularity, t))
+        .join(',');
+      const loadRow = t('reports.csv.loadRow');
+      const capacityRow = t('reports.csv.capacityRow');
+      csv = `${t('reports.csv.trendHeader')},${header}\n`;
       for (const row of trend.resources) {
-        csv += `"${row.name}",Tải (giờ),${row.load.join(',')}\n`;
-        csv += `"${row.name}",Năng lực (giờ),${row.capacity.join(',')}\n`;
+        csv += `"${row.name}",${loadRow},${row.load.join(',')}\n`;
+        csv += `"${row.name}",${capacityRow},${row.capacity.join(',')}\n`;
       }
-      csv += `TỔNG,Tải (giờ),${trend.totals.map((t) => t.load).join(',')}\n`;
-      csv += `TỔNG,Năng lực (giờ),${trend.totals.map((t) => t.capacity).join(',')}\n`;
+      const totalRow = t('reports.csv.totalRow');
+      csv += `${totalRow},${loadRow},${trend.totals.map((point) => point.load).join(',')}\n`;
+      csv += `${totalRow},${capacityRow},${trend.totals.map((point) => point.capacity).join(',')}\n`;
     }
 
     if (!csv) return;
@@ -148,7 +169,7 @@ export default function Reports() {
 
   const resourceColumns = [
     {
-      title: 'Nhân sự',
+      title: t('reports.columns.resource'),
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
@@ -160,7 +181,7 @@ export default function Reports() {
       ),
     },
     {
-      title: 'Phòng ban',
+      title: t('reports.columns.department'),
       dataIndex: 'department',
       key: 'department',
       render: (dept) => (dept ? <Tag color="blue">{dept}</Tag> : '—'),
@@ -175,7 +196,7 @@ export default function Reports() {
       ),
     },
     {
-      title: 'Mức sử dụng (Utilization)',
+      title: t('reports.columns.utilization'),
       dataIndex: 'utilization',
       key: 'utilization',
       width: 220,
@@ -192,16 +213,17 @@ export default function Reports() {
       },
     },
     {
-      title: 'Nguy cơ Burnout',
+      title: t('reports.columns.burnout'),
       dataIndex: 'burnoutRisk',
       key: 'burnoutRisk',
-      render: (risk) => {
-        const item = BURNOUT_MAP[risk] || { label: risk, color: 'default' };
-        return <Tag color={item.color}>{item.label}</Tag>;
-      },
+      render: (risk) => (
+        <Tag color={BURNOUT_COLORS[risk] || 'default'}>
+          {t(`reports.burnout.${risk}`, { defaultValue: risk })}
+        </Tag>
+      ),
     },
     {
-      title: 'Tasks đảm nhiệm',
+      title: t('reports.columns.taskCount'),
       dataIndex: 'taskCount',
       key: 'taskCount',
       render: (count) => <Tag color="purple">{count || 0} tasks</Tag>,
@@ -210,30 +232,30 @@ export default function Reports() {
 
   const projectColumns = [
     {
-      title: 'Dự án',
+      title: t('common.project'),
       dataIndex: 'projectName',
       key: 'name',
       render: (name) => <Text strong>{name}</Text>,
     },
     {
-      title: 'Số công việc',
+      title: t('reports.columns.taskTotal'),
       dataIndex: 'count',
       key: 'count',
     },
     {
-      title: 'Đã hoàn thành',
+      title: t('reports.columns.completed'),
       dataIndex: 'done',
       key: 'done',
       render: (done, r) => `${done} / ${r.count}`,
     },
     {
-      title: 'Tổng giờ công',
+      title: t('reports.columns.totalHours'),
       dataIndex: 'totalHours',
       key: 'totalHours',
       render: (h) => `${h || 0}h`,
     },
     {
-      title: 'Tiến độ hoàn thành',
+      title: t('reports.columns.completion'),
       dataIndex: 'completion',
       key: 'completion',
       width: 200,
@@ -248,19 +270,17 @@ export default function Reports() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <Title level={3} style={{ marginBottom: 4 }}>Báo cáo & Thống kê Nguồn lực</Title>
-          <Text type="secondary">
-            Phân tích Resource Histogram, Nguy cơ kiệt sức (Burnout Risk) và Báo cáo tiến độ đa dự án
-          </Text>
+          <Title level={3} style={{ marginBottom: 4 }}>{t('reports.title')}</Title>
+          <Text type="secondary">{t('reports.subtitle')}</Text>
         </div>
         <Space>
           <Button icon={<DownloadOutlined />} onClick={() => exportCSV(activeTab)}>
-            Xuất CSV
+            {t('reports.exportCsv')}
           </Button>
           <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-            In / PDF
+            {t('reports.printPdf')}
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={load} title="Tải lại" />
+          <Button icon={<ReloadOutlined />} onClick={load} title={t('common.reload')} />
         </Space>
       </div>
 
@@ -271,7 +291,7 @@ export default function Reports() {
             <Col xs={12} sm={6}>
               <Card hoverable>
                 <Statistic
-                  title="Tổng nhân sự"
+                  title={t('reports.stats.totalResources')}
                   value={utilData.summary.totalResources}
                   prefix={<TeamOutlined style={{ color: '#6366f1' }} />}
                 />
@@ -280,7 +300,7 @@ export default function Reports() {
             <Col xs={12} sm={6}>
               <Card hoverable>
                 <Statistic
-                  title="Utilization Trung bình"
+                  title={t('reports.stats.avgUtilization')}
                   value={utilData.summary.avgUtilization}
                   suffix="%"
                   valueStyle={{
@@ -292,7 +312,7 @@ export default function Reports() {
             <Col xs={12} sm={6}>
               <Card hoverable>
                 <Statistic
-                  title="Nhân sự quá tải"
+                  title={t('dashboard.overloadedResources')}
                   value={utilData.summary.overloaded}
                   valueStyle={{
                     color: utilData.summary.overloaded > 0 ? '#ef4444' : '#10b981',
@@ -304,7 +324,7 @@ export default function Reports() {
             <Col xs={12} sm={6}>
               <Card hoverable>
                 <Statistic
-                  title="Nguy cơ Burnout cao"
+                  title={t('reports.stats.highBurnout')}
                   value={utilData.summary.highBurnout || 0}
                   valueStyle={{
                     color: (utilData.summary.highBurnout || 0) > 0 ? '#ef4444' : '#10b981',
@@ -324,7 +344,7 @@ export default function Reports() {
               key: 'utilization',
               label: (
                 <span>
-                  <TeamOutlined /> Resource Histogram ({utilData?.resources?.length || 0})
+                  <TeamOutlined /> {t('reports.tabs.utilization')} ({utilData?.resources?.length || 0})
                 </span>
               ),
               children: (
@@ -342,7 +362,7 @@ export default function Reports() {
               key: 'departments',
               label: (
                 <span>
-                  <PieChartOutlined /> Phân bổ theo Phòng ban ({utilData?.byDepartment?.length || 0})
+                  <PieChartOutlined /> {t('reports.tabs.departments')} ({utilData?.byDepartment?.length || 0})
                 </span>
               ),
               children: (
@@ -352,11 +372,11 @@ export default function Reports() {
                       <Card title={dept.name} hoverable>
                         <Space direction="vertical" style={{ width: '100%' }} size="small">
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Text type="secondary">Nhân sự:</Text>
-                            <Text strong>{dept.count} người</Text>
+                            <Text type="secondary">{t('reports.columns.resource')}:</Text>
+                            <Text strong>{t('reports.peopleCount', { count: dept.count })}</Text>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Text type="secondary">Utilization TB:</Text>
+                            <Text type="secondary">{t('reports.avgUtilShort')}:</Text>
                             <Text strong style={{ color: dept.avgUtil > 100 ? '#ef4444' : '#10b981' }}>
                               {dept.avgUtil}%
                             </Text>
@@ -377,7 +397,7 @@ export default function Reports() {
               key: 'projects',
               label: (
                 <span>
-                  <ProjectOutlined /> Báo cáo Dự án ({taskData?.byProject?.length || 0})
+                  <ProjectOutlined /> {t('reports.tabs.projects')} ({taskData?.byProject?.length || 0})
                 </span>
               ),
               children: (
@@ -395,7 +415,7 @@ export default function Reports() {
               key: 'trend',
               label: (
                 <span>
-                  <LineChartOutlined /> Xu hướng theo thời gian
+                  <LineChartOutlined /> {t('reports.tabs.trend')}
                 </span>
               ),
               children: (
@@ -407,13 +427,13 @@ export default function Reports() {
                           value={granularity}
                           onChange={setGranularity}
                           options={[
-                            { label: 'Theo ngày', value: 'day' },
-                            { label: 'Theo tuần', value: 'week' },
+                            { label: t('reports.byDay'), value: 'day' },
+                            { label: t('reports.byWeek'), value: 'week' },
                           ]}
                         />
                         <Select
                           style={{ minWidth: 240 }}
-                          placeholder="Tất cả dự án"
+                          placeholder={t('gantt.allProjects')}
                           value={trendProject || undefined}
                           onChange={(value) => setTrendProject(value || '')}
                           allowClear
@@ -428,8 +448,8 @@ export default function Reports() {
                     <Alert
                       type="info"
                       showIcon
-                      message="Đây là khối lượng đã cam kết, không phải nhật ký quá khứ"
-                      description="Biểu đồ trải số giờ ước tính của từng công việc lên khoảng ngày làm việc của nó rồi cộng theo từng người, nên dùng để thấy trước tuần nào ai sẽ quá tải. Hệ thống không lưu ảnh chụp workload theo ngày, nên nó không cho biết tháng trước ai đã thực sự làm bao nhiêu giờ."
+                      message={t('reports.commitmentNotice.title')}
+                      description={t('reports.commitmentNotice.body')}
                     />
 
                     {trend?.buckets?.length ? (
@@ -438,46 +458,50 @@ export default function Reports() {
                           <Alert
                             type="warning"
                             showIcon
-                            message="Khoảng thời gian quá dài nên biểu đồ đã bị cắt bớt"
-                            description="Hãy lọc theo một dự án để xem trọn vẹn."
+                            message={t('reports.truncated.title')}
+                            description={t('reports.truncated.body')}
                           />
                         )}
                         {(trend.excluded.unscheduledHours > 0 || trend.excluded.unassignedHours > 0) && (
                           <Alert
                             type="warning"
                             showIcon
-                            message="Có giờ công không đặt được lên trục thời gian"
+                            message={t('reports.excluded.title')}
                             description={
                               <>
                                 {trend.excluded.unscheduledHours > 0 && (
                                   <div>
-                                    <Text strong>{trend.excluded.unscheduledHours} giờ</Text> thuộc{' '}
-                                    {trend.excluded.unscheduledTasks} công việc chưa có ngày bắt đầu/kết
-                                    thúc (hoặc ngày kết thúc đứng trước ngày bắt đầu).
+                                    {t('reports.excluded.unscheduled', {
+                                      hours: trend.excluded.unscheduledHours,
+                                      count: trend.excluded.unscheduledTasks,
+                                    })}
                                   </div>
                                 )}
                                 {trend.excluded.unassignedHours > 0 && (
                                   <div>
-                                    <Text strong>{trend.excluded.unassignedHours} giờ</Text> thuộc{' '}
-                                    {trend.excluded.unassignedTasks} công việc chưa giao cho ai, hoặc
-                                    người được giao không còn là nhân sự đang hoạt động.
+                                    {t('reports.excluded.unassigned', {
+                                      hours: trend.excluded.unassignedHours,
+                                      count: trend.excluded.unassignedTasks,
+                                    })}
                                   </div>
                                 )}
-                                Số giờ này không xuất hiện trong biểu đồ bên dưới.
+                                {t('reports.excluded.footer')}
                               </>
                             }
                           />
                         )}
 
                         <Card
-                          title="Tổng tải so với năng lực"
+                          title={t('reports.loadVsCapacity')}
                           extra={
                             <Space size={16}>
                               <Text type="secondary" style={{ fontSize: 12 }}>
-                                ▇ tải &nbsp; ┄ năng lực
+                                {t('reports.legendBars')}
                               </Text>
                               <Text type="secondary" style={{ fontSize: 12 }}>
-                                {trend.granularity === 'week' ? 'gộp theo tuần' : 'theo ngày'}
+                                {trend.granularity === 'week'
+                                  ? t('reports.groupedByWeek')
+                                  : t('reports.groupedByDay')}
                               </Text>
                             </Space>
                           }
@@ -485,7 +509,7 @@ export default function Reports() {
                           {(() => {
                             const peak = Math.max(
                               1,
-                              ...trend.totals.map((t) => Math.max(t.load, t.capacity))
+                              ...trend.totals.map((point) => Math.max(point.load, point.capacity))
                             );
                             // Nhiều mốc quá thì nhãn chồng lên nhau, chỉ in thưa ra.
                             const labelEvery = Math.ceil(trend.buckets.length / 12);
@@ -500,9 +524,10 @@ export default function Reports() {
                                       <Tooltip
                                         key={trend.buckets[index].key}
                                         title={heatTitle(
-                                          trend.buckets[index].label,
+                                          bucketLabel(trend.buckets[index], trend.granularity, t),
                                           point.load,
-                                          point.capacity
+                                          point.capacity,
+                                          t
                                         )}
                                       >
                                         <div
@@ -553,7 +578,9 @@ export default function Reports() {
                                         overflow: 'hidden',
                                       }}
                                     >
-                                      {index % labelEvery === 0 ? bucket.label.replace('Tuần ', '') : ''}
+                                      {index % labelEvery === 0
+                                        ? bucketLabel(bucket, trend.granularity, t, { bare: true })
+                                        : ''}
                                     </div>
                                   ))}
                                 </div>
@@ -562,7 +589,7 @@ export default function Reports() {
                           })()}
                         </Card>
 
-                        <Card styles={{ body: { padding: 0 } }} title="Từng nhân sự theo thời gian">
+                        <Card styles={{ body: { padding: 0 } }} title={t('reports.perPerson')}>
                           <Table
                             size="small"
                             rowKey="_id"
@@ -571,7 +598,7 @@ export default function Reports() {
                             scroll={{ x: 'max-content' }}
                             columns={[
                               {
-                                title: 'Nhân sự',
+                                title: t('reports.columns.resource'),
                                 dataIndex: 'name',
                                 key: 'name',
                                 width: 190,
@@ -584,13 +611,13 @@ export default function Reports() {
                                 ),
                               },
                               {
-                                title: 'Đỉnh',
+                                title: t('reports.columns.peak'),
                                 dataIndex: 'peakUtilization',
                                 key: 'peak',
                                 width: 110,
                                 render: (peak, row) =>
                                   row.worksWhileUnavailable ? (
-                                    <Tag color="error">giao vào ngày nghỉ</Tag>
+                                    <Tag color="error">{t('reports.assignedOnDayOff')}</Tag>
                                   ) : (
                                     <Tag color={peak > 120 ? 'error' : peak > 100 ? 'warning' : 'success'}>
                                       {peak}%
@@ -598,7 +625,7 @@ export default function Reports() {
                                   ),
                               },
                               {
-                                title: `Dải theo thời gian (${trend.buckets.length} mốc)`,
+                                title: t('reports.columns.strip', { count: trend.buckets.length }),
                                 key: 'strip',
                                 render: (_, row) => (
                                   <div style={{ display: 'flex', gap: 1 }}>
@@ -606,9 +633,10 @@ export default function Reports() {
                                       <Tooltip
                                         key={trend.buckets[index].key}
                                         title={heatTitle(
-                                          trend.buckets[index].label,
+                                          bucketLabel(trend.buckets[index], trend.granularity, t),
                                           load,
-                                          row.capacity[index]
+                                          row.capacity[index],
+                                          t
                                         )}
                                       >
                                         <div
@@ -631,7 +659,7 @@ export default function Reports() {
                     ) : (
                       <Card>
                         <Empty
-                          description="Chưa có công việc nào vừa có ngày tháng vừa có người thực hiện, nên chưa dựng được chuỗi thời gian."
+                          description={t('reports.noTrend')}
                           image={Empty.PRESENTED_IMAGE_SIMPLE}
                         />
                       </Card>

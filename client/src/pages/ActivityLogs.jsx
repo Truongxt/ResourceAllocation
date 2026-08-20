@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Table,
   Card,
@@ -15,9 +16,6 @@ import {
   Popconfirm,
   message,
   Avatar,
-  Spin,
-  Empty,
-  Tooltip,
 } from 'antd';
 import {
   HistoryOutlined,
@@ -36,17 +34,19 @@ import {
 import dayjs from 'dayjs';
 import activityLogService from '../services/activityLogService';
 import { useAuth } from '../context/AuthContext';
+import { formatTimeAgo } from '../i18n/format';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
-const ENTITY_TYPE_OPTIONS = [
-  { value: 'project', label: 'Dự án (Project)', icon: <ProjectOutlined />, color: 'purple' },
-  { value: 'task', label: 'Công việc (Task)', icon: <CheckCircleOutlined />, color: 'blue' },
-  { value: 'resource', label: 'Nhân sự (Resource)', icon: <TeamOutlined />, color: 'cyan' },
-  { value: 'department', label: 'Phòng ban (Department)', icon: <ApartmentOutlined />, color: 'geekblue' },
-  { value: 'optimization', label: 'Tối ưu hóa (Optimization)', icon: <ThunderboltOutlined />, color: 'gold' },
-  { value: 'auth', label: 'Xác thực (Auth)', icon: <SafetyCertificateOutlined />, color: 'green' },
-  { value: 'system', label: 'Hệ thống (System)', icon: <HistoryOutlined />, color: 'default' },
+// Giá trị và biểu tượng cố định; nhãn lấy từ `activityLogs.entity.*` lúc render.
+const ENTITY_TYPES = [
+  { value: 'project', icon: <ProjectOutlined />, color: 'purple' },
+  { value: 'task', icon: <CheckCircleOutlined />, color: 'blue' },
+  { value: 'resource', icon: <TeamOutlined />, color: 'cyan' },
+  { value: 'department', icon: <ApartmentOutlined />, color: 'geekblue' },
+  { value: 'optimization', icon: <ThunderboltOutlined />, color: 'gold' },
+  { value: 'auth', icon: <SafetyCertificateOutlined />, color: 'green' },
+  { value: 'system', icon: <HistoryOutlined />, color: 'default' },
 ];
 
 const ACTION_COLOR_MAP = {
@@ -65,18 +65,8 @@ const ACTION_COLOR_MAP = {
   LOGIN: 'purple',
 };
 
-function formatTimeAgo(dateString) {
-  if (!dateString) return '';
-  const now = new Date();
-  const past = new Date(dateString);
-  const diffSec = Math.floor((now - past) / 1000);
-  if (diffSec < 60) return 'Vừa xong';
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
-  return `${Math.floor(diffSec / 86400)} ngày trước`;
-}
-
 export default function ActivityLogs() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState(null);
@@ -91,6 +81,15 @@ export default function ActivityLogs() {
     startDate: '',
     endDate: '',
   });
+
+  const entityOptions = useMemo(
+    () =>
+      ENTITY_TYPES.map((o) => ({
+        ...o,
+        label: `${t(`activityLogs.entity.${o.value}`)} (${o.value})`,
+      })),
+    [t]
+  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -113,25 +112,25 @@ export default function ActivityLogs() {
       setTotal(logsRes.data.total || 0);
       setStats(statsRes.data.data);
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể tải nhật ký hoạt động');
+      message.error(err.response?.data?.message || t('activityLogs.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, filters]);
+  }, [page, pageSize, filters, t]);
 
   useEffect(() => {
-    const t = setTimeout(loadData, filters.search ? 300 : 0);
-    return () => clearTimeout(t);
+    const timer = setTimeout(loadData, filters.search ? 300 : 0);
+    return () => clearTimeout(timer);
   }, [loadData]);
 
   const handleClearLogs = async () => {
     setClearing(true);
     try {
       const res = await activityLogService.clear();
-      message.success(res.data.message || 'Đã xóa toàn bộ nhật ký');
+      message.success(res.data.message || t('activityLogs.cleared'));
       await loadData();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể xóa nhật ký');
+      message.error(err.response?.data?.message || t('activityLogs.clearFailed'));
     } finally {
       setClearing(false);
     }
@@ -139,7 +138,7 @@ export default function ActivityLogs() {
 
   const columns = [
     {
-      title: 'Thời gian',
+      title: t('activityLogs.columns.time'),
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 170,
@@ -149,13 +148,13 @@ export default function ActivityLogs() {
             {dayjs(date).format('DD/MM/YYYY HH:mm:ss')}
           </Text>
           <Text type="secondary" style={{ fontSize: 11 }}>
-            {formatTimeAgo(date)}
+            {formatTimeAgo(date, t)}
           </Text>
         </div>
       ),
     },
     {
-      title: 'Người thực hiện',
+      title: t('activityLogs.columns.actor'),
       key: 'user',
       width: 190,
       render: (_, record) => (
@@ -167,7 +166,7 @@ export default function ActivityLogs() {
           />
           <div>
             <Text strong style={{ fontSize: 13, display: 'block' }}>
-              {record.userName || record.user?.name || 'Hệ thống'}
+              {record.userName || record.user?.name || t('activityLogs.system')}
             </Text>
             {record.userEmail && (
               <Text type="secondary" style={{ fontSize: 11 }}>
@@ -179,20 +178,21 @@ export default function ActivityLogs() {
       ),
     },
     {
-      title: 'Phân loại',
+      title: t('activityLogs.columns.category'),
       dataIndex: 'entityType',
       key: 'entityType',
       width: 130,
       render: (type) => {
-        const item = ENTITY_TYPE_OPTIONS.find((o) => o.value === type) || {
-          label: type,
-          color: 'default',
-        };
-        return <Tag color={item.color}>{item.label.split(' ')[0]}</Tag>;
+        const item = ENTITY_TYPES.find((o) => o.value === type);
+        return (
+          <Tag color={item?.color || 'default'}>
+            {item ? t(`activityLogs.entity.${type}`) : type}
+          </Tag>
+        );
       },
     },
     {
-      title: 'Hành động',
+      title: t('activityLogs.columns.action'),
       dataIndex: 'action',
       key: 'action',
       width: 160,
@@ -201,7 +201,7 @@ export default function ActivityLogs() {
       ),
     },
     {
-      title: 'Nội dung chi tiết',
+      title: t('activityLogs.columns.detail'),
       dataIndex: 'description',
       key: 'description',
       render: (desc, record) => (
@@ -230,27 +230,25 @@ export default function ActivityLogs() {
       >
         <div>
           <Title level={3} style={{ marginBottom: 4 }}>
-            Nhật ký Hoạt động (Activity Logs & Audit Trail)
+            {t('activityLogs.title')}
           </Title>
-          <Text type="secondary">
-            Ghi lại toàn bộ lịch sử thao tác, phân công nhiệm vụ, tối ưu hóa và truy vết người dùng trong hệ thống
-          </Text>
+          <Text type="secondary">{t('activityLogs.subtitle')}</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadData}>
-            Tải lại
+            {t('common.reload')}
           </Button>
           {user?.role === 'admin' && (
             <Popconfirm
-              title="Xác nhận xóa sạch toàn bộ nhật ký hoạt động?"
-              description="Hành động này không thể hoàn tác."
+              title={t('activityLogs.clearConfirm')}
+              description={t('common.cannotUndo')}
               onConfirm={handleClearLogs}
-              okText="Xóa sạch"
-              cancelText="Hủy"
+              okText={t('activityLogs.clearOk')}
+              cancelText={t('common.cancel')}
               okButtonProps={{ danger: true }}
             >
               <Button danger icon={<DeleteOutlined />} loading={clearing}>
-                Xóa nhật ký
+                {t('activityLogs.clear')}
               </Button>
             </Popconfirm>
           )}
@@ -263,7 +261,7 @@ export default function ActivityLogs() {
           <Col xs={12} sm={6}>
             <Card hoverable>
               <Statistic
-                title="Tổng số hoạt động"
+                title={t('activityLogs.stats.total')}
                 value={stats.total}
                 prefix={<HistoryOutlined style={{ color: '#4f46e5' }} />}
               />
@@ -272,7 +270,7 @@ export default function ActivityLogs() {
           <Col xs={12} sm={6}>
             <Card hoverable>
               <Statistic
-                title="Hoạt động hôm nay"
+                title={t('activityLogs.stats.today')}
                 value={stats.todayCount}
                 valueStyle={{ color: '#059669' }}
                 prefix={<ClockCircleOutlined style={{ color: '#059669' }} />}
@@ -282,13 +280,13 @@ export default function ActivityLogs() {
           <Col xs={12} sm={6}>
             <Card hoverable>
               <Statistic
-                title="Người thao tác nhiều nhất"
+                title={t('activityLogs.stats.topUser')}
                 value={stats.topUsers?.[0]?.userName || '—'}
                 valueStyle={{ fontSize: 18, color: '#2563eb' }}
                 suffix={
                   stats.topUsers?.[0]?.count ? (
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      ({stats.topUsers[0].count} lần)
+                      ({t('activityLogs.stats.timesCount', { count: stats.topUsers[0].count })})
                     </Text>
                   ) : null
                 }
@@ -298,13 +296,13 @@ export default function ActivityLogs() {
           <Col xs={12} sm={6}>
             <Card hoverable>
               <Statistic
-                title="Phân loại phổ biến nhất"
+                title={t('activityLogs.stats.topCategory')}
                 value={stats.byEntityType?.[0]?.type?.toUpperCase() || '—'}
                 valueStyle={{ fontSize: 18, color: '#f59e0b' }}
                 suffix={
                   stats.byEntityType?.[0]?.count ? (
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      ({stats.byEntityType[0].count} logs)
+                      ({t('activityLogs.stats.logsCount', { count: stats.byEntityType[0].count })})
                     </Text>
                   ) : null
                 }
@@ -320,7 +318,7 @@ export default function ActivityLogs() {
           <Col xs={24} md={10}>
             <Input
               prefix={<SearchOutlined />}
-              placeholder="Tìm theo mô tả, người thực hiện hoặc tên đối tượng..."
+              placeholder={t('activityLogs.searchPlaceholder')}
               value={filters.search}
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, search: e.target.value }))
@@ -331,13 +329,13 @@ export default function ActivityLogs() {
           <Col xs={12} md={6}>
             <Select
               style={{ width: '100%' }}
-              placeholder="Tất cả phân loại (Module)"
+              placeholder={t('activityLogs.allCategories')}
               value={filters.entityType || undefined}
               onChange={(val) =>
                 setFilters((prev) => ({ ...prev, entityType: val || '' }))
               }
               allowClear
-              options={ENTITY_TYPE_OPTIONS}
+              options={entityOptions}
             />
           </Col>
           <Col xs={12} md={8}>
@@ -372,7 +370,7 @@ export default function ActivityLogs() {
               setPage(p);
               setPageSize(ps);
             },
-            showTotal: (t) => `Tổng số ${t} nhật ký ghi nhận`,
+            showTotal: (count) => t('activityLogs.totalLogs', { count }),
           }}
         />
       </Card>

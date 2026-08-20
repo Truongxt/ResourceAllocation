@@ -18,7 +18,35 @@
     "yes": "Có",
     "no": "Không",
     "all": "Tất cả",
-    "language": "Ngôn ngữ"
+    "language": "Ngôn ngữ",
+    "saveChanges": "Lưu thay đổi",
+    "viewAll": "Xem tất cả",
+    "cannotUndo": "Hành động này không thể hoàn tác.",
+    "create": "Tạo mới",
+    "update": "Cập nhật",
+    "detail": "Chi tiết",
+    "back": "Quay lại",
+    "export": "Xuất dữ liệu",
+    "apply": "Áp dụng",
+    "reset": "Đặt lại",
+    "none": "Chưa có",
+    "unassigned": "Chưa phân công",
+    "notSet": "Chưa đặt",
+    "hours": "giờ",
+    "days": "ngày",
+    "day": "ngày",
+    "task": "công việc",
+    "tasks": "công việc",
+    "of": "trên",
+    "status": "Trạng thái",
+    "priority": "Mức ưu tiên",
+    "name": "Tên",
+    "description": "Mô tả",
+    "project": "Dự án",
+    "startDate": "Ngày bắt đầu",
+    "endDate": "Ngày kết thúc",
+    "deleteConfirm": "Xác nhận xóa?",
+    "required": "Bắt buộc nhập"
   },
   "enums": {
     "role": {
@@ -126,5 +154,205 @@
   "protectedRoute": {
     "forbiddenTitle": "Không có quyền truy cập",
     "forbiddenText": "Bạn không có quyền truy cập trang này. Vui lòng liên hệ Admin."
+  },
+  "settings": {
+    "title": "Cài đặt tài khoản",
+    "subtitle": "Quản lý thông tin hồ sơ cá nhân và bảo mật tài khoản",
+    "profile": "Hồ sơ cá nhân",
+    "loginEmail": "Email đăng nhập",
+    "department": "Bộ phận / Phòng ban",
+    "departmentPlaceholder": "VD: Engineering, Design, QA",
+    "changePassword": "Đổi mật khẩu",
+    "currentPassword": "Mật khẩu hiện tại",
+    "newPassword": "Mật khẩu mới",
+    "confirmNewPassword": "Xác nhận mật khẩu mới",
+    "confirmPlaceholder": "Nhập lại mật khẩu mới",
+    "minChars": "Tối thiểu 6 ký tự",
+    "updatePassword": "Cập nhật mật khẩu",
+    "profileSaved": "Cập nhật thông tin thành công",
+    "profileFailed": "Cập nhật thất bại",
+    "profileError": "Có lỗi xảy ra khi cập nhật thông tin",
+    "passwordChanged": "Đổi mật khẩu thành công",
+    "passwordFailed": "Đổi mật khẩu thất bại",
+    "passwordError": "Có lỗi xảy ra khi đổi mật khẩu",
+    "required": {
+      "current": "Vui lòng nhập mật khẩu hiện tại",
+      "new": "Vui lòng nhập mật khẩu mới",
+      "confirm": "Vui lòng xác nhận mật khẩu mới"
+    }
+  },
+  "dashboard": {
+    "subtitle": "Tổng quan hệ thống quản lý nguồn lực và phân bổ nhân sự",
+    "activeProjects": "Dự án hoạt động",
+    "runningTasks": "Công việc đang chạy",
+    "activeResources": "Nhân sự hoạt động",
+    "overloadedResources": "Nhân sự quá tải",
+    "completedCount": "{{count}} hoàn thành",
+    "avgUtilization": "{{value}}% utilization trung bình",
+    "needsOptimizing": "Cần tối ưu hóa",
+    "allFine": "Tất cả đều ổn",
+    "quickActions": "Hành động nhanh",
+    "manageProjects": "Quản lý dự án",
+    "optimizeAllocation": "Tối ưu hóa phân bổ",
+    "manageResources": "Quản lý nhân sự",
+    "recentActivity": "Hoạt động gần đây",
+    "noActivity": "Chưa có hoạt động",
+    "taskDistribution": "Phân bổ công việc",
+    "noTasks": "Chưa có công việc",
+    "workHours": "Giờ công",
+    "estimated": "Ước tính",
+    "actual": "Thực tế",
+    "totalCapacity": "Capacity tổng",
+    "currentWorkload": "Workload hiện tại",
+    "recentOptimizations": "Tối ưu hóa gần đây",
+    "taskResourceCount": "{{tasks}}T / {{resources}}R"
+  },
+  "reports": {
+    "title": "Báo cáo & Thống kê Nguồn lực",
+    "subtitle": "Phân tích Resource Histogram, Nguy cơ kiệt sức (Burnout Risk) và Báo cáo tiến độ đa dự án",
+    "exportCsv": "Xuất CSV",
+    "printPdf": "In / PDF",
+    "peopleCount": "{{count}} người",
+    "avgUtilShort": "Utilization TB",
+    "byDay": "Theo ngày",
+    "byWeek": "Theo tuần",
+    "weekOf": "Tuần {{date}}",
+    "loadVsCapacity": "Tổng tải so với năng lực",
+    "legendBars": "▇ tải   ┄ năng lực",
+    "groupedByWeek": "gộp theo tuần",
+    "groupedByDay": "theo ngày",
+    "perPerson": "Từng nhân sự theo thời gian",
+    "assignedOnDayOff": "giao vào ngày nghỉ",
+    "noTrend": "Chưa có công việc nào vừa có ngày tháng vừa có người thực hiện, nên chưa dựng được chuỗi thời gian.",
+    "burnout": {
+      "high": "Cao (Nguy cơ)",
+      "medium": "Trung bình",
+      "low": "Thấp (An toàn)"
+    },
+    "tabs": {
+      "utilization": "Resource Histogram",
+      "departments": "Phân bổ theo Phòng ban",
+      "projects": "Báo cáo Dự án",
+      "trend": "Xu hướng theo thời gian"
+    },
+    "stats": {
+      "totalResources": "Tổng nhân sự",
+      "avgUtilization": "Utilization Trung bình",
+      "highBurnout": "Nguy cơ Burnout cao"
+    },
+    "columns": {
+      "resource": "Nhân sự",
+      "department": "Phòng ban",
+      "utilization": "Mức sử dụng (Utilization)",
+      "burnout": "Nguy cơ Burnout",
+      "taskCount": "Tasks đảm nhiệm",
+      "taskTotal": "Số công việc",
+      "completed": "Đã hoàn thành",
+      "totalHours": "Tổng giờ công",
+      "completion": "Tiến độ hoàn thành",
+      "peak": "Đỉnh",
+      "strip": "Dải theo thời gian ({{count}} mốc)"
+    },
+    "heat": {
+      "noWorkday": "{{label}}: {{load}}h được giao nhưng không có ngày làm việc nào",
+      "off": "{{label}}: ngày nghỉ",
+      "normal": "{{label}}: {{load}}h / {{capacity}}h ({{percent}}%)"
+    },
+    "commitmentNotice": {
+      "title": "Đây là khối lượng đã cam kết, không phải nhật ký quá khứ",
+      "body": "Biểu đồ trải số giờ ước tính của từng công việc lên khoảng ngày làm việc của nó rồi cộng theo từng người, nên dùng để thấy trước tuần nào ai sẽ quá tải. Hệ thống không lưu ảnh chụp workload theo ngày, nên nó không cho biết tháng trước ai đã thực sự làm bao nhiêu giờ."
+    },
+    "truncated": {
+      "title": "Khoảng thời gian quá dài nên biểu đồ đã bị cắt bớt",
+      "body": "Hãy lọc theo một dự án để xem trọn vẹn."
+    },
+    "excluded": {
+      "title": "Có giờ công không đặt được lên trục thời gian",
+      "unscheduled": "{{hours}} giờ thuộc {{count}} công việc chưa có ngày bắt đầu/kết thúc (hoặc ngày kết thúc đứng trước ngày bắt đầu).",
+      "unassigned": "{{hours}} giờ thuộc {{count}} công việc chưa giao cho ai, hoặc người được giao không còn là nhân sự đang hoạt động.",
+      "footer": "Số giờ này không xuất hiện trong biểu đồ bên dưới."
+    },
+    "csv": {
+      "utilHeader": "Tên,Phòng ban,Vị trí,Capacity,Workload,Utilization(%),Burnout Risk,Số task",
+      "projectHeader": "Dự án,Tổng tasks,Hoàn thành,Tổng giờ,% Completion",
+      "trendHeader": "Nhân sự,Loại",
+      "loadRow": "Tải (giờ)",
+      "capacityRow": "Năng lực (giờ)",
+      "totalRow": "TỔNG"
+    }
+  },
+  "gantt": {
+    "title": "Sơ đồ Gantt (Gantt Chart)",
+    "subtitle": "Theo dõi trực quan timeline, tiến độ và phân bổ công việc theo thời gian thực",
+    "print": "In báo cáo",
+    "searchPlaceholder": "Tìm kiếm công việc trên Gantt...",
+    "allProjects": "Tất cả dự án",
+    "empty": "Chưa có công việc nào có lịch trình.",
+    "noProject": "Không thuộc dự án",
+    "noAssignee": "Chưa gán người thực hiện",
+    "milestone": "Mốc",
+    "criticalPath": "Đường găng",
+    "period": "Thời gian",
+    "progress": "Tiến độ",
+    "monthShort": "T{{month}}",
+    "showDeps": "Mũi tên phụ thuộc",
+    "showCritical": "Đường găng (CPM)",
+    "dragHint": "Kéo thanh để dời lịch, kéo hai mép để đổi ngày bắt đầu / kết thúc.",
+    "criticalSummary": "Đường găng: {{count}} công việc · độ dài {{days}} ngày",
+    "cyclicWarning": "Phụ thuộc giữa các công việc tạo thành vòng lặp — không xác định được đường găng.",
+    "violatedDeps": "{{count}} phụ thuộc đang bị vi phạm (mũi tên đỏ đứt nét): công việc sau bắt đầu trước khi công việc trước kết thúc.",
+    "rescheduled": "Đã đổi lịch \"{{title}}\": {{from}} → {{to}}",
+    "rescheduleFailed": "Không cập nhật được lịch công việc",
+    "groupSpan": "{{label}} · {{count}} công việc · {{from}} → {{to}}",
+    "legendMilestone": "Mốc (task trong ngày)",
+    "legendCritical": "Trên đường găng",
+    "zoom": {
+      "day": "Ngày",
+      "week": "Tuần",
+      "month": "Tháng"
+    },
+    "groupBy": {
+      "none": "Danh sách",
+      "project": "Theo dự án",
+      "resource": "Theo nhân sự"
+    }
+  },
+  "activityLogs": {
+    "title": "Nhật ký Hoạt động (Activity Logs & Audit Trail)",
+    "subtitle": "Ghi lại toàn bộ lịch sử thao tác, phân công nhiệm vụ, tối ưu hóa và truy vết người dùng trong hệ thống",
+    "loadFailed": "Không thể tải nhật ký hoạt động",
+    "cleared": "Đã xóa toàn bộ nhật ký",
+    "clearFailed": "Không thể xóa nhật ký",
+    "clear": "Xóa nhật ký",
+    "clearOk": "Xóa sạch",
+    "clearConfirm": "Xác nhận xóa sạch toàn bộ nhật ký hoạt động?",
+    "system": "Hệ thống",
+    "searchPlaceholder": "Tìm theo mô tả, người thực hiện hoặc tên đối tượng...",
+    "allCategories": "Tất cả phân loại (Module)",
+    "totalLogs": "Tổng số {{count}} nhật ký ghi nhận",
+    "entity": {
+      "project": "Dự án",
+      "task": "Công việc",
+      "resource": "Nhân sự",
+      "department": "Phòng ban",
+      "optimization": "Tối ưu hóa",
+      "auth": "Xác thực",
+      "system": "Hệ thống"
+    },
+    "columns": {
+      "time": "Thời gian",
+      "actor": "Người thực hiện",
+      "category": "Phân loại",
+      "action": "Hành động",
+      "detail": "Nội dung chi tiết"
+    },
+    "stats": {
+      "total": "Tổng số hoạt động",
+      "today": "Hoạt động hôm nay",
+      "topUser": "Người thao tác nhiều nhất",
+      "topCategory": "Phân loại phổ biến nhất",
+      "timesCount": "{{count}} lần",
+      "logsCount": "{{count}} logs"
+    }
   }
 }
