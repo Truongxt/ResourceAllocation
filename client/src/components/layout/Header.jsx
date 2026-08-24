@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Badge, Dropdown, Avatar, Switch, List, Typography, Button, Space, Tooltip, Empty } from 'antd';
+import { Layout, Badge, Dropdown, Avatar, Switch, List, Typography, Button, Space, Tooltip, Empty, Breadcrumb } from 'antd';
 import {
   BellOutlined,
   UserOutlined,
@@ -13,6 +12,7 @@ import {
   ThunderboltOutlined,
   ProjectOutlined,
   CloseOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, changeLanguage } from '../../i18n';
@@ -24,13 +24,11 @@ import { useSocket } from '../../context/SocketContext';
 const { Header: AntHeader } = Layout;
 const { Text, Title } = Typography;
 
-// Tiêu đề trang và nhãn vai trò lấy từ i18n (`pageTitle.*`, `enums.role.*`).
-
 function getNotifIcon(type) {
-  if (type?.includes('task')) return <FileTextOutlined style={{ color: '#4f46e5' }} />;
-  if (type?.includes('optimization')) return <ThunderboltOutlined style={{ color: '#f59e0b' }} />;
-  if (type?.includes('project')) return <ProjectOutlined style={{ color: '#059669' }} />;
-  return <BellOutlined style={{ color: '#64748b' }} />;
+  if (type?.includes('task')) return <FileTextOutlined style={{ color: '#818cf8', fontSize: 16 }} />;
+  if (type?.includes('optimization')) return <ThunderboltOutlined style={{ color: '#f59e0b', fontSize: 16 }} />;
+  if (type?.includes('project')) return <ProjectOutlined style={{ color: '#10b981', fontSize: 16 }} />;
+  return <BellOutlined style={{ color: '#94a3b8', fontSize: 16 }} />;
 }
 
 export default function Header({ collapsed }) {
@@ -48,21 +46,15 @@ export default function Header({ collapsed }) {
   } = useSocket();
 
   const { t, i18n } = useTranslation();
-  const currentTitle = t(`pageTitle.${location.pathname}`, { defaultValue: 'RAO' });
-  const nextLanguage =
-    LANGUAGES.find((l) => l.code !== i18n.language) || LANGUAGES[0];
+  const currentTitle = t(`pageTitle.${location.pathname}`, { defaultValue: 'Tổng quan' });
+  const nextLanguage = LANGUAGES.find((l) => l.code !== i18n.language) || LANGUAGES[0];
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  // Đây là đích điều hướng duy nhất không phải hằng số trong toàn bộ client: nó
-  // đến từ trường `link` của Notification trong database. Hiện server chỉ ghi
-  // đường dẫn cố định, nhưng schema không ràng buộc, nên chặn tại đây: chỉ nhận
-  // đường dẫn nội bộ, loại "//host" và "/\host" (dạng open redirect).
-  const isInternalPath = (link) =>
-    typeof link === 'string' && /^\/(?![/\\])/.test(link);
+  const isInternalPath = (link) => typeof link === 'string' && /^\/(?![/\\])/.test(link);
 
   const handleNotifClick = (notif) => {
     if (!notif.readAt) markAsRead(notif._id);
@@ -73,9 +65,23 @@ export default function Header({ collapsed }) {
     {
       key: 'info',
       label: (
-        <div style={{ padding: '6px 4px' }}>
-          <Text strong style={{ display: 'block', fontSize: 14 }}>{user?.name}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>{user?.email}</Text>
+        <div style={{ padding: '8px 6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Text strong style={{ fontSize: 14 }}>{user?.name}</Text>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '1px 6px',
+                borderRadius: 4,
+                background: 'rgba(99, 102, 241, 0.15)',
+                color: '#818cf8',
+              }}
+            >
+              {user?.role ? t(`enums.role.${user.role}`) : 'MEMBER'}
+            </span>
+          </div>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>{user?.email}</Text>
         </div>
       ),
       disabled: true,
@@ -84,13 +90,13 @@ export default function Header({ collapsed }) {
     {
       key: 'settings',
       icon: <SettingOutlined />,
-      label: t('header.settings'),
+      label: t('header.settings') || 'Cài đặt tài khoản',
       onClick: () => navigate('/settings'),
     },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: t('header.logout'),
+      label: t('header.logout') || 'Đăng xuất',
       danger: true,
       onClick: handleLogout,
     },
@@ -99,11 +105,11 @@ export default function Header({ collapsed }) {
   const notifContent = (
     <div
       style={{
-        width: 360,
-        background: isDark ? '#1e293b' : '#ffffff',
-        border: isDark ? '1px solid rgba(148,163,184,0.2)' : '1px solid #cbd5e1',
-        borderRadius: 12,
-        boxShadow: isDark ? '0 10px 25px rgba(0,0,0,0.5)' : '0 10px 25px rgba(0,0,0,0.12)',
+        width: 380,
+        background: isDark ? '#101726' : '#ffffff',
+        border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e2e8f0',
+        borderRadius: 14,
+        boxShadow: isDark ? '0 20px 40px rgba(0,0,0,0.6)' : '0 12px 32px rgba(0,0,0,0.1)',
         overflow: 'hidden',
       }}
     >
@@ -112,26 +118,26 @@ export default function Header({ collapsed }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '14px 16px',
-          borderBottom: isDark ? '1px solid rgba(148,163,184,0.15)' : '1px solid #e2e8f0',
-          background: isDark ? '#0f172a' : '#f8fafc',
+          padding: '14px 18px',
+          borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #f1f5f9',
+          background: isDark ? '#0c121e' : '#f8fafc',
         }}
       >
         <Space>
-          <Text strong style={{ fontSize: 14 }}>{t('header.notifications')}</Text>
+          <Text strong style={{ fontSize: 14 }}>{t('header.notifications') || 'Thông báo'}</Text>
           {unreadCount > 0 && (
-            <Badge count={t('header.unreadBadge', { count: unreadCount })} style={{ backgroundColor: '#4f46e5' }} />
+            <Badge count={unreadCount} style={{ backgroundColor: '#6366f1' }} />
           )}
         </Space>
         {unreadCount > 0 && (
-          <Button type="link" size="small" icon={<CheckOutlined />} onClick={markAllAsRead}>
-            {t('header.markAllRead')}
+          <Button type="link" size="small" icon={<CheckOutlined />} onClick={markAllAsRead} style={{ color: '#818cf8', padding: 0 }}>
+            {t('header.markAllRead') || 'Đọc tất cả'}
           </Button>
         )}
       </div>
       <div style={{ maxHeight: 380, overflowY: 'auto' }}>
         {notifications.length === 0 ? (
-          <Empty description={t('header.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '28px 0' }} />
+          <Empty description={t('header.empty') || 'Không có thông báo mới'} image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '32px 0' }} />
         ) : (
           <List
             dataSource={notifications}
@@ -140,19 +146,19 @@ export default function Header({ collapsed }) {
                 onClick={() => handleNotifClick(n)}
                 style={{
                   cursor: 'pointer',
-                  padding: '12px 16px',
-                  background: n.readAt ? 'transparent' : (isDark ? 'rgba(99, 102, 241, 0.08)' : 'rgba(79, 70, 229, 0.05)'),
-                  borderBottom: isDark ? '1px solid rgba(148,163,184,0.08)' : '1px solid #f1f5f9',
+                  padding: '12px 18px',
+                  background: n.readAt ? 'transparent' : (isDark ? 'rgba(99, 102, 241, 0.08)' : 'rgba(79, 70, 229, 0.04)'),
+                  borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid #f8fafc',
+                  transition: 'background 0.15s ease',
                 }}
               >
                 <List.Item.Meta
-                  avatar={getNotifIcon(n.type)}
-                  title={<Text strong style={{ fontSize: 13 }}>{n.title}</Text>}
+                  avatar={<div style={{ marginTop: 2 }}>{getNotifIcon(n.type)}</div>}
+                  title={<Text strong style={{ fontSize: 13, color: isDark ? '#f8fafc' : '#0f172a' }}>{n.title}</Text>}
                   description={
                     <>
-                      <Text style={{ fontSize: 12, color: isDark ? '#cbd5e1' : '#475569' }}>{n.message}</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 11 }}>{formatTimeAgo(n.createdAt, t)}</Text>
+                      <Text style={{ fontSize: 12, color: isDark ? '#cbd5e1' : '#475569', display: 'block', lineHeight: 1.4 }}>{n.message}</Text>
+                      <Text type="secondary" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>{formatTimeAgo(n.createdAt, t)}</Text>
                     </>
                   }
                 />
@@ -162,7 +168,8 @@ export default function Header({ collapsed }) {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      background: '#4f46e5',
+                      background: '#6366f1',
+                      boxShadow: '0 0 8px rgba(99, 102, 241, 0.6)',
                       flexShrink: 0,
                     }}
                   />
@@ -189,38 +196,61 @@ export default function Header({ collapsed }) {
           justifyContent: 'space-between',
           padding: '0 28px',
           backdropFilter: 'blur(16px)',
-          background: isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.95)',
-          borderBottom: isDark ? '1px solid rgba(148,163,184,0.15)' : '1px solid #e2e8f0',
-          boxShadow: isDark ? 'none' : '0 1px 4px rgba(0, 0, 0, 0.04)',
-          transition: 'left 0.2s ease',
+          WebkitBackdropFilter: 'blur(16px)',
+          background: isDark ? 'rgba(9, 13, 22, 0.85)' : 'rgba(255, 255, 255, 0.9)',
+          borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
+          boxShadow: isDark ? 'none' : '0 1px 3px rgba(0, 0, 0, 0.03)',
+          transition: 'left 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        <Title level={4} style={{ margin: 0, fontWeight: 700 }}>
-          {currentTitle}
-        </Title>
+        {/* Left: Page Title with Subtle Breadcrumb */}
+        <div>
+          <Title level={4} style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.02em' }}>
+            {currentTitle}
+          </Title>
+        </div>
 
-        <Space size="large">
-          {/* Language Toggle — bấm để chuyển sang ngôn ngữ còn lại. Hai ngôn ngữ
-              thì nút bập bênh gọn hơn dropdown; thêm ngôn ngữ thứ ba thì đổi. */}
-          <Tooltip title={`${t('header.switchLanguage')}: ${nextLanguage.label}`}>
+        {/* Right: Quick Controls & Profile */}
+        <Space size="middle" align="center">
+          {/* Language Switch */}
+          <Tooltip title={`${t('header.switchLanguage') || 'Đổi ngôn ngữ'}: ${nextLanguage.label}`}>
             <Button
               type="text"
               size="small"
               onClick={() => changeLanguage(nextLanguage.code)}
-              style={{ fontWeight: 600, letterSpacing: 0.5 }}
+              icon={<GlobalOutlined style={{ fontSize: 14 }} />}
+              style={{
+                fontWeight: 600,
+                fontSize: 12,
+                borderRadius: 8,
+                padding: '4px 10px',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
+              }}
             >
               {nextLanguage.short}
             </Button>
           </Tooltip>
 
           {/* Theme Toggle */}
-          <Tooltip title={t('header.toggleTheme')}>
-            <Switch
-              checked={isDark}
-              onChange={toggleTheme}
-              checkedChildren={<MoonOutlined />}
-              unCheckedChildren={<SunOutlined />}
-            />
+          <Tooltip title={t('header.toggleTheme') || 'Chuyển giao diện'}>
+            <div
+              onClick={toggleTheme}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                background: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
+                color: isDark ? '#fbbf24' : '#6366f1',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {isDark ? <SunOutlined style={{ fontSize: 16 }} /> : <MoonOutlined style={{ fontSize: 16 }} />}
+            </div>
           </Tooltip>
 
           {/* Notification Bell */}
@@ -229,31 +259,66 @@ export default function Header({ collapsed }) {
             trigger={['click']}
             placement="bottomRight"
           >
-            <Badge count={unreadCount} size="small" offset={[-2, 4]}>
-              <Button
-                type="text"
-                icon={<BellOutlined style={{ fontSize: 18, color: isDark ? '#cbd5e1' : '#334155' }} />}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              />
-            </Badge>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                background: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
+                color: isDark ? '#cbd5e1' : '#334155',
+                position: 'relative',
+              }}
+            >
+              <Badge count={unreadCount} size="small" offset={[2, -2]}>
+                <BellOutlined style={{ fontSize: 16 }} />
+              </Badge>
+            </div>
           </Dropdown>
 
-          {/* User Menu */}
+          {/* User Menu Chip */}
           <Dropdown menu={{ items: userMenuItems }} trigger={['click']} placement="bottomRight">
-            <Space style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 8 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                cursor: 'pointer',
+                padding: '4px 10px 4px 6px',
+                borderRadius: 20,
+                background: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
+                transition: 'all 0.2s ease',
+              }}
+            >
               <Avatar
+                size={26}
                 icon={<UserOutlined />}
-                style={{ background: 'linear-gradient(135deg, #4f46e5, #0d9488)', fontWeight: 600 }}
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                  fontWeight: 600,
+                  fontSize: 12,
+                }}
               />
-              <div style={{ lineHeight: 1.25 }}>
-                <Text strong style={{ fontSize: 13, display: 'block' }}>
+              <div style={{ lineHeight: 1.2 }}>
+                <Text strong style={{ fontSize: 13, display: 'block', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {user?.name || 'User'}
                 </Text>
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 500 }}>
-                  {user?.role ? t(`enums.role.${user.role}`) : ''}
-                </Text>
               </div>
-            </Space>
+              <div
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: '#10b981',
+                  boxShadow: '0 0 6px #10b981',
+                }}
+              />
+            </div>
           </Dropdown>
         </Space>
       </AntHeader>
@@ -267,12 +332,12 @@ export default function Header({ collapsed }) {
           }}
           style={{
             position: 'fixed',
-            top: 80,
+            top: 76,
             right: 24,
             zIndex: 1000,
-            background: isDark ? '#1e293b' : '#ffffff',
-            border: '1px solid #4f46e5',
-            borderRadius: 12,
+            background: isDark ? '#101726' : '#ffffff',
+            border: '1px solid #6366f1',
+            borderRadius: 14,
             padding: '14px 18px',
             display: 'flex',
             alignItems: 'flex-start',
@@ -281,13 +346,13 @@ export default function Header({ collapsed }) {
             maxWidth: 'calc(100vw - 32px)',
             cursor: 'pointer',
             boxShadow: isDark
-              ? '0 10px 25px rgba(0,0,0,0.5), 0 0 20px rgba(99,102,241,0.2)'
-              : '0 10px 25px rgba(0,0,0,0.12), 0 0 20px rgba(79,70,229,0.1)',
-            animation: 'slideInDown 0.3s ease-out',
+              ? '0 10px 30px rgba(0,0,0,0.6), 0 0 20px rgba(99,102,241,0.25)'
+              : '0 10px 30px rgba(0,0,0,0.12), 0 0 20px rgba(79,70,229,0.15)',
+            animation: 'slideInDown 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
             backdropFilter: 'blur(16px)',
           }}
         >
-          <div style={{ fontSize: 22, marginTop: 2 }}>{getNotifIcon(toastNotification.type)}</div>
+          <div style={{ fontSize: 20, marginTop: 2 }}>{getNotifIcon(toastNotification.type)}</div>
           <div style={{ flex: 1 }}>
             <Text strong style={{ display: 'block', fontSize: 13 }}>{toastNotification.title}</Text>
             <Text style={{ fontSize: 12, color: isDark ? '#cbd5e1' : '#475569' }}>

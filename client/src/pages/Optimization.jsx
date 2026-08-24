@@ -452,8 +452,7 @@ export default function Optimization() {
       };
     }),
   ];
-
-  return (
+return (
     <div style={{ maxWidth: 1400 }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -462,29 +461,57 @@ export default function Optimization() {
       </div>
 
       <Row gutter={[24, 24]}>
-        {/* Left: Optimizer Config */}
+        {/* Left: Configuration Panel */}
         <Col xs={24} lg={8}>
-          <Card
-            title={<span><SlidersOutlined /> {t('optimization.config')}</span>}
-            styles={{ body: { padding: '20px' } }}
-          >
+          <div className="saas-card" style={{ padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <span style={{ fontSize: 18 }}>⚙️</span>
+              <Title level={5} style={{ margin: 0, fontWeight: 700 }}>
+                {t('optimization.configTitle') || 'Cấu hình Thuật toán'}
+              </Title>
+            </div>
+
+            {/* Presets Quick Selector */}
             <div style={{ marginBottom: 16 }}>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                {t('optimization.pickAlgorithm')}
+              <Text type="secondary" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                ⚡ Chọn cấu hình mẫu (Preset)
+              </Text>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <Button
+                  size="small"
+                  onClick={() => setParams((p) => ({ ...p, workloadWeight: 0.5, skillWeight: 0.2, overallocationWeight: 0.3 }))}
+                  style={{ fontSize: 11, fontWeight: 500 }}
+                >
+                  ⚖️ Cân bằng tải
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => setParams((p) => ({ ...p, workloadWeight: 0.2, skillWeight: 0.6, overallocationWeight: 0.2 }))}
+                  style={{ fontSize: 11, fontWeight: 500 }}
+                >
+                  🎯 Khớp kỹ năng
+                </Button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                {t('optimization.chooseAlgo') || 'Thuật toán tối ưu'}
               </Text>
               <Select
-                style={{ width: '100%' }}
                 value={algorithm}
                 onChange={setAlgorithm}
-                options={ALGO_VALUES.map((value) => ({
-                  value,
-                  label: t(`optimization.algo.${value}.label`),
+                style={{ width: '100%' }}
+                options={ALGO_VALUES.map((v) => ({
+                  value: v,
+                  label: (
+                    <Space>
+                      <span>{ALGO_META[v].icon}</span>
+                      <span>{t(`optimization.algo.${v}.label`) || ALGO_META[v].label}</span>
+                    </Space>
+                  ),
                 }))}
-                size="large"
               />
-              <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
-                {t(`optimization.algo.${algorithm}.desc`)}
-              </Text>
             </div>
 
             <div style={{ marginBottom: 16 }}>
@@ -609,7 +636,7 @@ export default function Optimization() {
             >
               {running ? t('optimization.running') : t('optimization.run')}
             </Button>
-          </Card>
+          </div>
         </Col>
 
         {/* Right: Output & Results */}

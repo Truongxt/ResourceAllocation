@@ -515,12 +515,12 @@ export default function GanttChart() {
       </div>
 
       {/* Toolbar */}
-      <Card style={{ marginBottom: 16 }} styles={{ body: { padding: '16px 20px' } }}>
-        <Row gutter={[16, 16]} align="middle">
+      <div className="saas-card" style={{ padding: '14px 18px', marginBottom: 20 }}>
+        <Row gutter={[12, 12]} align="middle">
           <Col xs={24} md={8}>
             <Input
-              prefix={<SearchOutlined />}
-              placeholder={t('gantt.searchPlaceholder')}
+              prefix={<SearchOutlined style={{ color: '#64748b' }} />}
+              placeholder={t('gantt.searchPlaceholder') || 'Tìm kiếm công việc...'}
               value={filters.search}
               onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
               allowClear
@@ -529,7 +529,7 @@ export default function GanttChart() {
           <Col xs={12} md={7}>
             <Select
               style={{ width: '100%' }}
-              placeholder={t('gantt.allProjects')}
+              placeholder={t('gantt.allProjects') || 'Tất cả dự án'}
               value={filters.project || undefined}
               onChange={(val) => setFilters((p) => ({ ...p, project: val || '' }))}
               allowClear
@@ -543,16 +543,16 @@ export default function GanttChart() {
                 onChange={setGroupBy}
                 options={GROUP_MODES.map((value) => ({ value, label: t(`gantt.groupBy.${value}`) }))}
               />
-              <Button icon={<ReloadOutlined />} onClick={load} title={t('common.reload')} />
+              <Button icon={<ReloadOutlined />} onClick={load} title={t('common.reload') || 'Tải lại'} />
             </Space>
           </Col>
           <Col xs={24}>
             <Space size={16} wrap>
               <Checkbox checked={showDeps} onChange={(e) => setShowDeps(e.target.checked)}>
-                {t('gantt.showDeps')}
+                {t('gantt.showDeps') || 'Hiện phụ thuộc'}
               </Checkbox>
               <Checkbox checked={showCritical} onChange={(e) => setShowCritical(e.target.checked)}>
-                {t('gantt.showCritical')}
+                {t('gantt.showCritical') || 'Đường găng (Critical Path)'}
               </Checkbox>
               {canReschedule && (
                 <Text type="secondary" style={{ fontSize: 12 }}>
@@ -577,10 +577,10 @@ export default function GanttChart() {
             </Space>
           </Col>
         </Row>
-      </Card>
+      </div>
 
       {/* Gantt View Container */}
-      <Card styles={{ body: { padding: 0 } }}>
+      <div className="saas-card" style={{ overflow: 'hidden' }}>
         <Spin spinning={loading}>
           {tasks.length === 0 ? (
             <Empty description={t('gantt.empty')} style={{ padding: 48 }} />
@@ -707,10 +707,10 @@ export default function GanttChart() {
             </div>
           )}
         </Spin>
-      </Card>
+      </div>
 
       {/* Chú giải */}
-      <Card style={{ marginTop: 16 }} styles={{ body: { padding: '12px 20px' } }}>
+      <div className="saas-card" style={{ marginTop: 16, padding: '14px 20px' }}>
         <Space size={[24, 8]} wrap>
           <Space size={8} wrap>
             <Text type="secondary" style={{ fontSize: 12 }}>{t('common.status')}:</Text>
@@ -739,7 +739,7 @@ export default function GanttChart() {
             <Text style={{ fontSize: 12 }}>{t('gantt.legendCritical')}</Text>
           </Space>
         </Space>
-      </Card>
+      </div>
     </div>
   );
 }

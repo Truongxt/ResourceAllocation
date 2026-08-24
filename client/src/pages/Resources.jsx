@@ -51,6 +51,7 @@ import {
   requiredSkillLevelOptions,
 } from '../i18n/enums';
 import { formatNumber } from '../i18n/format';
+import { useTheme } from '../context/ThemeContext';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -73,6 +74,7 @@ function nextLeave(resource) {
 
 export default function Resources() {
   const { t } = useTranslation();
+  const { isDark } = useTheme();
   const [resources, setResources] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -624,42 +626,82 @@ export default function Resources() {
             ),
             children: (
               <>
-                {/* Stats Cards */}
-                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                  <Col xs={12} sm={6}>
-                    <Card hoverable>
-                      <Statistic title={t('reports.stats.totalResources')} value={stats.total} prefix={<TeamOutlined style={{ color: '#6366f1' }} />} />
-                    </Card>
-                  </Col>
-                  <Col xs={12} sm={6}>
-                    <Card hoverable>
-                      <Statistic title={t('enums.availability.available')} value={stats.available} prefix={<UserOutlined style={{ color: '#10b981' }} />} />
-                    </Card>
-                  </Col>
-                  <Col xs={12} sm={6}>
-                    <Card hoverable>
-                      <Statistic title={t('reports.avgUtilShort')} value={stats.avgUtil} suffix="%" />
-                    </Card>
-                  </Col>
-                  <Col xs={12} sm={6}>
-                    <Card hoverable>
-                      <Statistic
-                        title={t('resources.overloaded')}
-                        value={stats.overloaded}
-                        valueStyle={{ color: stats.overloaded > 0 ? '#ef4444' : '#10b981' }}
-                        prefix={<WarningOutlined style={{ color: stats.overloaded > 0 ? '#ef4444' : '#10b981' }} />}
-                      />
-                    </Card>
-                  </Col>
-                </Row>
+      {/* 4 Top Metric KPI Chips */}
+      {activeTab === 'resources' && (
+        <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+          <Col xs={12} sm={6}>
+            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="icon-chip icon-chip-primary">
+                <TeamOutlined />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                  {t('reports.stats.totalResources') || 'Tổng nhân sự'}
+                </Text>
+                <div style={{ fontSize: 22, fontWeight: 800, color: isDark ? '#f8fafc' : '#0f172a' }} className="tabular-nums">
+                  {stats.total}
+                </div>
+              </div>
+            </div>
+          </Col>
+
+          <Col xs={12} sm={6}>
+            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="icon-chip icon-chip-success">
+                <UserOutlined />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                  {t('enums.availability.available') || 'Sẵn sàng'}
+                </Text>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981' }} className="tabular-nums">
+                  {stats.available}
+                </div>
+              </div>
+            </div>
+          </Col>
+
+          <Col xs={12} sm={6}>
+            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="icon-chip icon-chip-info">
+                <ThunderboltOutlined />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                  {t('reports.avgUtilShort') || 'Utilization TB'}
+                </Text>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#06b6d4' }} className="tabular-nums">
+                  {stats.avgUtil}%
+                </div>
+              </div>
+            </div>
+          </Col>
+
+          <Col xs={12} sm={6}>
+            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className={`icon-chip ${stats.overloaded > 0 ? 'icon-chip-danger' : 'icon-chip-primary'}`}>
+                <WarningOutlined />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                  {t('resources.overloaded') || 'Quá tải'}
+                </Text>
+                <div style={{ fontSize: 22, fontWeight: 800, color: stats.overloaded > 0 ? '#ef4444' : isDark ? '#f8fafc' : '#0f172a' }} className="tabular-nums">
+                  {stats.overloaded}
+                </div>
+              </div>
+            </div>
+          </Col>
+        </Row>
+      )}
 
                 {/* Filters */}
-                <Card style={{ marginBottom: 16 }} styles={{ body: { padding: '16px 20px' } }}>
-                  <Row gutter={[16, 16]} align="middle">
+                <div className="saas-card" style={{ padding: '14px 18px', marginBottom: 20 }}>
+                  <Row gutter={[12, 12]} align="middle">
                     <Col xs={24} md={10}>
                       <Input
-                        prefix={<SearchOutlined />}
-                        placeholder={t('resources.searchPlaceholder')}
+                        prefix={<SearchOutlined style={{ color: '#64748b' }} />}
+                        placeholder={t('resources.searchPlaceholder') || 'Tìm theo tên, vị trí nhân sự...'}
                         value={filters.search}
                         onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
                         allowClear
@@ -668,7 +710,7 @@ export default function Resources() {
                     <Col xs={12} md={6}>
                       <Select
                         style={{ width: '100%' }}
-                        placeholder={t('resources.allDepartments')}
+                        placeholder={t('resources.allDepartments') || 'Tất cả phòng ban'}
                         value={filters.department || undefined}
                         onChange={(val) => setFilters((p) => ({ ...p, department: val || '' }))}
                         allowClear
@@ -678,7 +720,7 @@ export default function Resources() {
                     <Col xs={12} md={6}>
                       <Select
                         style={{ width: '100%' }}
-                        placeholder={t('resources.allStatuses')}
+                        placeholder={t('resources.allStatuses') || 'Tất cả trạng thái'}
                         value={filters.availability || undefined}
                         onChange={(val) => setFilters((p) => ({ ...p, availability: val || '' }))}
                         allowClear
@@ -686,13 +728,13 @@ export default function Resources() {
                       />
                     </Col>
                     <Col xs={24} md={2} style={{ textAlign: 'right' }}>
-                      <Button icon={<ReloadOutlined />} onClick={loadResources} title={t('common.reload')} />
+                      <Button icon={<ReloadOutlined />} onClick={loadResources} title={t('common.reload') || 'Tải lại'} />
                     </Col>
                   </Row>
-                </Card>
+                </div>
 
                 {/* Table */}
-                <Card styles={{ body: { padding: 0 } }}>
+                <div className="saas-card" style={{ overflow: 'hidden' }}>
                   <Table
                     columns={resourceColumns}
                     dataSource={resources}
@@ -701,10 +743,10 @@ export default function Resources() {
                     pagination={{
                       pageSize: 10,
                       showSizeChanger: true,
-                      showTotal: (count) => t('resources.totalCount', { count }),
+                      showTotal: (count) => t('resources.totalCount', { count }) || `Tổng số: ${count} nhân sự`,
                     }}
                   />
-                </Card>
+                </div>
               </>
             ),
           },

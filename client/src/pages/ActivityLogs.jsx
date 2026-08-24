@@ -2,10 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Table,
-  Card,
   Row,
   Col,
-  Statistic,
   Button,
   Input,
   Select,
@@ -63,7 +61,10 @@ const ACTION_COLOR_MAP = {
   UPDATE_RESOURCE: 'blue',
   DELETE_RESOURCE: 'red',
   LOGIN: 'purple',
+  LOGOUT: 'default',
 };
+
+const ACTION_OPTIONS = Object.keys(ACTION_COLOR_MAP);
 
 export default function ActivityLogs() {
   const { t } = useTranslation();
@@ -78,18 +79,10 @@ export default function ActivityLogs() {
   const [filters, setFilters] = useState({
     search: '',
     entityType: '',
+    action: '',
     startDate: '',
     endDate: '',
   });
-
-  const entityOptions = useMemo(
-    () =>
-      ENTITY_TYPES.map((o) => ({
-        ...o,
-        label: `${t(`activityLogs.entity.${o.value}`)} (${o.value})`,
-      })),
-    [t]
-  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -100,6 +93,7 @@ export default function ActivityLogs() {
       };
       if (filters.search) params.search = filters.search;
       if (filters.entityType) params.entityType = filters.entityType;
+      if (filters.action) params.action = filters.action;
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
 
@@ -186,7 +180,7 @@ export default function ActivityLogs() {
         const item = ENTITY_TYPES.find((o) => o.value === type);
         return (
           <Tag color={item?.color || 'default'}>
-            {item ? t(`activityLogs.entity.${type}`) : type}
+            {item ? t(`activityLogs.entity.${type}`, type) : type}
           </Tag>
         );
       },
@@ -195,9 +189,11 @@ export default function ActivityLogs() {
       title: t('activityLogs.columns.action'),
       dataIndex: 'action',
       key: 'action',
-      width: 160,
+      width: 170,
       render: (action) => (
-        <Tag color={ACTION_COLOR_MAP[action] || 'blue'}>{action}</Tag>
+        <Tag color={ACTION_COLOR_MAP[action] || 'blue'}>
+          {t(`activityLogs.action.${action}`, action)}
+        </Tag>
       ),
     },
     {
@@ -257,91 +253,121 @@ export default function ActivityLogs() {
 
       {/* KPI Stats */}
       {stats && (
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
           <Col xs={12} sm={6}>
-            <Card hoverable>
-              <Statistic
-                title={t('activityLogs.stats.total')}
-                value={stats.total}
-                prefix={<HistoryOutlined style={{ color: '#4f46e5' }} />}
-              />
-            </Card>
+            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="icon-chip icon-chip-primary">
+                <HistoryOutlined />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                  {t('activityLogs.stats.total', 'Tổng hoạt động')}
+                </Text>
+                <div style={{ fontSize: 22, fontWeight: 800 }} className="tabular-nums">
+                  {stats.total}
+                </div>
+              </div>
+            </div>
           </Col>
+
           <Col xs={12} sm={6}>
-            <Card hoverable>
-              <Statistic
-                title={t('activityLogs.stats.today')}
-                value={stats.todayCount}
-                valueStyle={{ color: '#059669' }}
-                prefix={<ClockCircleOutlined style={{ color: '#059669' }} />}
-              />
-            </Card>
+            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="icon-chip icon-chip-success">
+                <ClockCircleOutlined />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                  {t('activityLogs.stats.today', 'Hôm nay')}
+                </Text>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981' }} className="tabular-nums">
+                  {stats.todayCount}
+                </div>
+              </div>
+            </div>
           </Col>
+
           <Col xs={12} sm={6}>
-            <Card hoverable>
-              <Statistic
-                title={t('activityLogs.stats.topUser')}
-                value={stats.topUsers?.[0]?.userName || '—'}
-                valueStyle={{ fontSize: 18, color: '#2563eb' }}
-                suffix={
-                  stats.topUsers?.[0]?.count ? (
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      ({t('activityLogs.stats.timesCount', { count: stats.topUsers[0].count })})
-                    </Text>
-                  ) : null
-                }
-              />
-            </Card>
+            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="icon-chip icon-chip-info">
+                <UserOutlined />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                  {t('activityLogs.stats.topUser', 'Thao tác nhiều nhất')}
+                </Text>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#06b6d4' }}>
+                  {stats.topUsers?.[0]?.userName || '—'}
+                </div>
+              </div>
+            </div>
           </Col>
+
           <Col xs={12} sm={6}>
-            <Card hoverable>
-              <Statistic
-                title={t('activityLogs.stats.topCategory')}
-                value={stats.byEntityType?.[0]?.type?.toUpperCase() || '—'}
-                valueStyle={{ fontSize: 18, color: '#f59e0b' }}
-                suffix={
-                  stats.byEntityType?.[0]?.count ? (
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      ({t('activityLogs.stats.logsCount', { count: stats.byEntityType[0].count })})
-                    </Text>
-                  ) : null
-                }
-              />
-            </Card>
+            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="icon-chip icon-chip-warning">
+                <ApartmentOutlined />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                  {t('activityLogs.stats.topCategory', 'Module sôi nổi')}
+                </Text>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#f59e0b' }}>
+                  {stats.byEntityType?.[0]?.type?.toUpperCase() || '—'}
+                </div>
+              </div>
+            </div>
           </Col>
         </Row>
       )}
 
-      {/* Toolbar / Filters */}
-      <Card style={{ marginBottom: 16 }} styles={{ body: { padding: '16px 20px' } }}>
-        <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} md={10}>
+      {/* Filter Toolbar */}
+      <div className="saas-card" style={{ padding: '14px 18px', marginBottom: 20 }}>
+        <Row gutter={[12, 12]} align="middle">
+          <Col xs={24} md={8}>
             <Input
-              prefix={<SearchOutlined />}
-              placeholder={t('activityLogs.searchPlaceholder')}
+              prefix={<SearchOutlined style={{ color: '#64748b' }} />}
+              placeholder={t('activityLogs.searchPlaceholder', 'Tìm theo mô tả, người dùng, IP...')}
               value={filters.search}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, search: e.target.value }))
-              }
+              onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
               allowClear
             />
           </Col>
-          <Col xs={12} md={6}>
+          <Col xs={12} md={5}>
             <Select
               style={{ width: '100%' }}
-              placeholder={t('activityLogs.allCategories')}
+              placeholder={t('activityLogs.allCategories', 'Tất cả phân loại (Module)')}
               value={filters.entityType || undefined}
-              onChange={(val) =>
-                setFilters((prev) => ({ ...prev, entityType: val || '' }))
-              }
+              onChange={(val) => setFilters((p) => ({ ...p, entityType: val || '' }))}
               allowClear
-              options={entityOptions}
+              options={ENTITY_TYPES.map((item) => ({
+                value: item.value,
+                label: (
+                  <Space>
+                    {item.icon}
+                    <span>{t(`activityLogs.entity.${item.value}`, item.value)}</span>
+                  </Space>
+                ),
+              }))}
             />
           </Col>
-          <Col xs={12} md={8}>
+          <Col xs={12} md={5}>
+            <Select
+              style={{ width: '100%' }}
+              placeholder={t('activityLogs.allActions', 'Tất cả hành động')}
+              value={filters.action || undefined}
+              onChange={(val) => setFilters((p) => ({ ...p, action: val || '' }))}
+              allowClear
+              options={ACTION_OPTIONS.map((action) => ({
+                value: action,
+                label: t(`activityLogs.action.${action}`, action),
+              }))}
+            />
+          </Col>
+          <Col xs={24} md={6}>
             <DatePicker.RangePicker
               style={{ width: '100%' }}
               format="DD/MM/YYYY"
+              placeholder={[t('activityLogs.startDate', 'Từ ngày'), t('activityLogs.endDate', 'Đến ngày')]}
               onChange={(dates) => {
                 setFilters((prev) => ({
                   ...prev,
@@ -352,10 +378,10 @@ export default function ActivityLogs() {
             />
           </Col>
         </Row>
-      </Card>
+      </div>
 
       {/* Table */}
-      <Card styles={{ body: { padding: 0 } }}>
+      <div className="saas-card" style={{ overflow: 'hidden' }}>
         <Table
           columns={columns}
           dataSource={logs}
@@ -370,10 +396,10 @@ export default function ActivityLogs() {
               setPage(p);
               setPageSize(ps);
             },
-            showTotal: (count) => t('activityLogs.totalLogs', { count }),
+            showTotal: (count) => t('activityLogs.totalLogs', { count }) || `Tổng số: ${count} nhật ký`,
           }}
         />
-      </Card>
+      </div>
     </div>
   );
 }

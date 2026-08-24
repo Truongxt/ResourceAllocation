@@ -287,50 +287,69 @@ export default function Reports() {
       <Spin spinning={loading}>
         {/* Summary Stats */}
         {utilData?.summary && (
-          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
             <Col xs={12} sm={6}>
-              <Card hoverable>
-                <Statistic
-                  title={t('reports.stats.totalResources')}
-                  value={utilData.summary.totalResources}
-                  prefix={<TeamOutlined style={{ color: '#6366f1' }} />}
-                />
-              </Card>
+              <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className="icon-chip icon-chip-primary">
+                  <TeamOutlined />
+                </div>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                    {t('reports.stats.totalResources') || 'Tổng nhân sự'}
+                  </Text>
+                  <div style={{ fontSize: 22, fontWeight: 800 }} className="tabular-nums">
+                    {utilData.summary.totalResources}
+                  </div>
+                </div>
+              </div>
             </Col>
+
             <Col xs={12} sm={6}>
-              <Card hoverable>
-                <Statistic
-                  title={t('reports.stats.avgUtilization')}
-                  value={utilData.summary.avgUtilization}
-                  suffix="%"
-                  valueStyle={{
-                    color: utilData.summary.avgUtilization > 100 ? '#ef4444' : '#10b981',
-                  }}
-                />
-              </Card>
+              <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className="icon-chip icon-chip-info">
+                  <PieChartOutlined />
+                </div>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                    {t('reports.stats.avgUtilization') || 'Utilization TB'}
+                  </Text>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: '#06b6d4' }} className="tabular-nums">
+                    {utilData.summary.avgUtilization}%
+                  </div>
+                </div>
+              </div>
             </Col>
+
             <Col xs={12} sm={6}>
-              <Card hoverable>
-                <Statistic
-                  title={t('dashboard.overloadedResources')}
-                  value={utilData.summary.overloaded}
-                  valueStyle={{
-                    color: utilData.summary.overloaded > 0 ? '#ef4444' : '#10b981',
-                  }}
-                  prefix={<WarningOutlined style={{ color: utilData.summary.overloaded > 0 ? '#ef4444' : '#10b981' }} />}
-                />
-              </Card>
+              <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className={`icon-chip ${utilData.summary.overloaded > 0 ? 'icon-chip-danger' : 'icon-chip-primary'}`}>
+                  <WarningOutlined />
+                </div>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                    {t('dashboard.overloadedResources') || 'Quá tải'}
+                  </Text>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: utilData.summary.overloaded > 0 ? '#ef4444' : '#10b981' }} className="tabular-nums">
+                    {utilData.summary.overloaded}
+                  </div>
+                </div>
+              </div>
             </Col>
+
             <Col xs={12} sm={6}>
-              <Card hoverable>
-                <Statistic
-                  title={t('reports.stats.highBurnout')}
-                  value={utilData.summary.highBurnout || 0}
-                  valueStyle={{
-                    color: (utilData.summary.highBurnout || 0) > 0 ? '#ef4444' : '#10b981',
-                  }}
-                />
-              </Card>
+              <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className={`icon-chip ${(utilData.summary.highBurnout || 0) > 0 ? 'icon-chip-danger' : 'icon-chip-success'}`}>
+                  <WarningOutlined />
+                </div>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                    {t('reports.stats.highBurnout') || 'Nguy cơ Burnout'}
+                  </Text>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: (utilData.summary.highBurnout || 0) > 0 ? '#ef4444' : '#10b981' }} className="tabular-nums">
+                    {utilData.summary.highBurnout || 0}
+                  </div>
+                </div>
+              </div>
             </Col>
           </Row>
         )}
@@ -348,14 +367,14 @@ export default function Reports() {
                 </span>
               ),
               children: (
-                <Card styles={{ body: { padding: 0 } }}>
+                <div className="saas-card" style={{ overflow: 'hidden' }}>
                   <Table
                     columns={resourceColumns}
                     dataSource={utilData?.resources || []}
                     rowKey="id"
                     pagination={{ pageSize: 10 }}
                   />
-                </Card>
+                </div>
               ),
             },
             {

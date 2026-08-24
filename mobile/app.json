@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "RAO Mobile",
+    "slug": "rao-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#090d16"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rao.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#090d16"
+      },
+      "package": "com.rao.mobile"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

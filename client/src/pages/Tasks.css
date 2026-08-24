@@ -1,54 +1,72 @@
-/* ---- Kanban Board Ant Design ---- */
+/* =========================================================
+   Tasks & Kanban Board - Modern Enterprise SaaS Styling
+   ========================================================= */
+
 .kanban-board-antd {
   display: grid;
-  grid-template-columns: repeat(5, minmax(240px, 1fr));
+  grid-template-columns: repeat(5, minmax(260px, 1fr));
   gap: 16px;
   overflow-x: auto;
   padding-bottom: 16px;
   min-height: calc(100vh - 360px);
+  align-items: flex-start;
 }
 
 .kanban-column-antd {
-  background: var(--bg-secondary, #1e293b);
-  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.15));
+  background: var(--bg-surface, #101726);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 280px);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s ease;
 }
 
 .kanban-column-header-antd {
-  padding: 12px 16px;
-  background: var(--bg-primary, #0f172a);
-  border-bottom: 1px solid var(--border-color, rgba(148, 163, 184, 0.15));
+  padding: 14px 16px;
+  background: var(--bg-surface, #101726);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .kanban-column-body-antd {
   padding: 12px;
   overflow-y: auto;
   flex: 1;
-  min-height: 120px;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .kanban-empty-antd {
-  padding: 32px 12px;
+  padding: 36px 12px;
   text-align: center;
-  border: 2px dashed rgba(148, 163, 184, 0.2);
-  border-radius: 8px;
-  margin-top: 8px;
+  border: 2px dashed var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  margin-top: 4px;
 }
 
 .kanban-task-card {
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  background: var(--bg-elevated, #172033) !important;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08)) !important;
+  border-radius: 10px !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .kanban-task-card:hover {
   transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.35) !important;
+  box-shadow: 0 6px 16px -2px rgba(0, 0, 0, 0.4);
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .kanban-board-antd {
-    grid-template-columns: repeat(5, 260px);
+    grid-template-columns: repeat(5, 280px);
   }
 }
