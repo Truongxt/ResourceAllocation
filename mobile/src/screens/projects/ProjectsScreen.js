@@ -7,11 +7,15 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
+  Modal,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
+import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import projectApi from '../../api/projectApi';
 import {
@@ -36,6 +40,14 @@ export default function ProjectsScreen({ navigation }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Create Project Modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+  const [budget, setBudget] = useState('');
+  const [description, setDescription] = useState('');
+  const [creating, setCreating] = useState(false);
+
   const loadProjects = useCallback(async () => {
     try {
       const params = {};
@@ -59,6 +71,35 @@ export default function ProjectsScreen({ navigation }) {
     setRefreshing(true);
     await loadProjects();
     setRefreshing(false);
+  };
+
+  const handleCreateProject = async () => {
+    if (!name.trim()) {
+      Alert.alert('Thông báo', 'Vui lòng nhập tên dự án');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      await projectApi.create({
+        name: name.trim(),
+        code: code.trim().toUpperCase() || undefined,
+        budget: Number(budget) || 0,
+        description: description.trim(),
+        status: 'planning',
+      });
+      Alert.alert('Thành công', 'Đã tạo dự án mới');
+      setShowCreateModal(false);
+      setName('');
+      setCode('');
+      setBudget('');
+      setDescription('');
+      await loadProjects();
+    } catch (err) {
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể tạo dự án');
+    } finally {
+      setCreating(false);
+    }
   };
 
   const renderProjectItem = ({ item }) => {
@@ -184,41 +225,50 @@ export default function ProjectsScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Search & Filter */}
+      {/* Search & Action Bar */}
       <View
         style={[styles.topSection, { borderBottomColor: theme.colors.border }]}
       >
-        <View
-          style={[
-            styles.searchBox,
-            {
-              backgroundColor: theme.colors.inputBg,
-              borderColor: theme.colors.inputBorder,
-            },
-          ]}
-        >
-          <Ionicons
-            name="search"
-            size={18}
-            color={theme.colors.textMuted}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={[styles.searchInput, { color: theme.colors.text }]}
-            placeholder="Tìm theo tên hoặc mã dự án..."
-            placeholderTextColor={theme.colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search ? (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons
-                name="close-circle"
-                size={18}
-                color={theme.colors.textMuted}
-              />
-            </TouchableOpacity>
-          ) : null}
+        <View style={styles.searchRow}>
+          <View
+            style={[
+              styles.searchBox,
+              {
+                backgroundColor: theme.colors.inputBg,
+                borderColor: theme.colors.inputBorder,
+              },
+            ]}
+          >
+            <Ionicons
+              name="search"
+              size={18}
+              color={theme.colors.textMuted}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={[styles.searchInput, { color: theme.colors.text }]}
+              placeholder="Tìm theo tên hoặc mã dự án..."
+              placeholderTextColor={theme.colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search ? (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Ionicons
+                  name="close-circle"
+                  size={18}
+                  color={theme.colors.textMuted}
+                />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          <TouchableOpacity
+            onPress={() => setShowCreateModal(true)}
+            style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
+          >
+            <Ionicons name="add" size={22} color="#ffffff" />
+          </TouchableOpacity>
         </View>
 
         {/* Status Pills */}
@@ -275,11 +325,124 @@ export default function ProjectsScreen({ navigation }) {
             <EmptyState
               icon="folder-open-outline"
               title="Không tìm thấy dự án"
-              description="Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc trạng thái."
+              description="Thử thay đổi từ khóa tìm kiếm hoặc bấm '+' để tạo dự án mới."
             />
           ) : null
         }
       />
+
+      {/* Create Project Modal */}
+      <Modal
+        visible={showCreateModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.createModalCard,
+              { backgroundColor: theme.colors.surface },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                Tạo dự án mới
+              </Text>
+              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
+                <Ionicons name="close" size={22} color={theme.colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Tên dự án *
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.inputBg,
+                    borderColor: theme.colors.inputBorder,
+                    color: theme.colors.text,
+                  },
+                ]}
+                placeholder="VD: Nâng cấp hệ thống Core Banking"
+                placeholderTextColor={theme.colors.textMuted}
+                value={name}
+                onChangeText={setName}
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Mã dự án (Code)
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.inputBg,
+                    borderColor: theme.colors.inputBorder,
+                    color: theme.colors.text,
+                  },
+                ]}
+                placeholder="VD: CB-2026"
+                placeholderTextColor={theme.colors.textMuted}
+                value={code}
+                onChangeText={setCode}
+                autoCapitalize="characters"
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Ngân sách (VND)
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.inputBg,
+                    borderColor: theme.colors.inputBorder,
+                    color: theme.colors.text,
+                  },
+                ]}
+                placeholder="VD: 500000000"
+                placeholderTextColor={theme.colors.textMuted}
+                keyboardType="numeric"
+                value={budget}
+                onChangeText={setBudget}
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Mô tả dự án
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.inputBg,
+                    borderColor: theme.colors.inputBorder,
+                    color: theme.colors.text,
+                    height: 80,
+                    textAlignVertical: 'top',
+                  },
+                ]}
+                placeholder="Mô tả mục tiêu và phạm vi dự án..."
+                placeholderTextColor={theme.colors.textMuted}
+                multiline
+                value={description}
+                onChangeText={setDescription}
+              />
+
+              <Button
+                title="Tạo dự án"
+                onPress={handleCreateProject}
+                loading={creating}
+                size="lg"
+                style={{ marginTop: 12, marginBottom: 12 }}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -294,14 +457,20 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: 1,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
   searchBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
     height: 42,
-    marginBottom: 10,
   },
   searchIcon: {
     marginRight: 8,
@@ -309,6 +478,13 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 13,
+  },
+  addBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filtersRow: {
     flexDirection: 'row',
@@ -396,5 +572,39 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 11,
     fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  createModalCard: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 20,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+    marginTop: 8,
+  },
+  formInput: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    height: 44,
+    fontSize: 13,
   },
 });

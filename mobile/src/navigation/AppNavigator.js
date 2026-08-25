@@ -10,6 +10,7 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import MainTabNavigator from './MainTabNavigator';
 import ProjectDetailScreen from '../screens/projects/ProjectDetailScreen';
 import ActivityLogsScreen from '../screens/activity/ActivityLogsScreen';
+import ReportsScreen from '../screens/reports/ReportsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -55,6 +56,10 @@ export default function AppNavigator() {
             <Stack.Screen
               name="ActivityLogsScreen"
               component={ActivityLogsScreen}
+            />
+            <Stack.Screen
+              name="ReportsScreen"
+              component={ReportsScreen}
             />
           </>
         )}

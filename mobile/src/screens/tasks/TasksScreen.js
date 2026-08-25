@@ -8,6 +8,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   Modal,
+  ScrollView,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,8 +18,8 @@ import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import taskApi from '../../api/taskApi';
+import projectApi from '../../api/projectApi';
 import {
-  formatDate,
   STATUS_MAP,
   PRIORITY_MAP,
 } from '../../utils/formatters';
@@ -31,10 +32,18 @@ const STATUS_TABS = [
   { key: 'done', label: 'Hoàn thành' },
 ];
 
+const PRIORITIES = [
+  { key: 'low', label: 'Thấp', color: '#64748b' },
+  { key: 'medium', label: 'Trung bình', color: '#3b82f6' },
+  { key: 'high', label: 'Cao', color: '#f59e0b' },
+  { key: 'critical', label: 'Khẩn cấp', color: '#ef4444' },
+];
+
 export default function TasksScreen() {
   const { theme } = useTheme();
 
   const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
@@ -44,14 +53,27 @@ export default function TasksScreen() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [updating, setUpdating] = useState(false);
 
+  // Create Task Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newProject, setNewProject] = useState('');
+  const [newPriority, setNewPriority] = useState('medium');
+  const [newHours, setNewHours] = useState('8');
+  const [newDesc, setNewDesc] = useState('');
+  const [creating, setCreating] = useState(false);
+
   const loadTasks = useCallback(async () => {
     try {
       const params = {};
       if (search.trim()) params.search = search.trim();
       if (statusFilter !== 'all') params.status = statusFilter;
 
-      const res = await taskApi.getAll(params);
-      setTasks(res.data?.data || []);
+      const [tRes, pRes] = await Promise.all([
+        taskApi.getAll(params),
+        projectApi.getAll({ limit: 50 }),
+      ]);
+      setTasks(tRes.data?.data || []);
+      setProjects(pRes.data?.data || []);
     } catch (err) {
       console.log('Error loading tasks:', err);
     } finally {
@@ -67,6 +89,37 @@ export default function TasksScreen() {
     setRefreshing(true);
     await loadTasks();
     setRefreshing(false);
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTitle.trim()) {
+      Alert.alert('Thông báo', 'Vui lòng nhập tiêu đề công việc');
+      return;
+    }
+    if (!newProject) {
+      Alert.alert('Thông báo', 'Vui lòng chọn dự án cho công việc');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      await taskApi.create({
+        title: newTitle.trim(),
+        project: newProject,
+        priority: newPriority,
+        estimatedHours: Number(newHours) || 8,
+        description: newDesc.trim(),
+      });
+      Alert.alert('Thành công', 'Tạo công việc mới thành công');
+      setShowCreateModal(false);
+      setNewTitle('');
+      setNewDesc('');
+      await loadTasks();
+    } catch (err) {
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể tạo công việc');
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleUpdateStatus = async (newStatus) => {
@@ -192,41 +245,51 @@ export default function TasksScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Top Search & Filter Bar */}
+      {/* Top Search & Action Bar */}
       <View
         style={[styles.topSection, { borderBottomColor: theme.colors.border }]}
       >
-        <View
-          style={[
-            styles.searchBox,
-            {
-              backgroundColor: theme.colors.inputBg,
-              borderColor: theme.colors.inputBorder,
-            },
-          ]}
-        >
-          <Ionicons
-            name="search"
-            size={18}
-            color={theme.colors.textMuted}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={[styles.searchInput, { color: theme.colors.text }]}
-            placeholder="Tìm kiếm công việc..."
-            placeholderTextColor={theme.colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search ? (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons
-                name="close-circle"
-                size={18}
-                color={theme.colors.textMuted}
-              />
-            </TouchableOpacity>
-          ) : null}
+        <View style={styles.searchRow}>
+          <View
+            style={[
+              styles.searchBox,
+              {
+                backgroundColor: theme.colors.inputBg,
+                borderColor: theme.colors.inputBorder,
+              },
+            ]}
+          >
+            <Ionicons
+              name="search"
+              size={18}
+              color={theme.colors.textMuted}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={[styles.searchInput, { color: theme.colors.text }]}
+              placeholder="Tìm kiếm công việc..."
+              placeholderTextColor={theme.colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search ? (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Ionicons
+                  name="close-circle"
+                  size={18}
+                  color={theme.colors.textMuted}
+                />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {/* Add Task Button */}
+          <TouchableOpacity
+            onPress={() => setShowCreateModal(true)}
+            style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
+          >
+            <Ionicons name="add" size={22} color="#ffffff" />
+          </TouchableOpacity>
         </View>
 
         {/* Horizontal Status Filter Tabs */}
@@ -287,13 +350,191 @@ export default function TasksScreen() {
             <EmptyState
               icon="checkbox-outline"
               title="Không tìm thấy công việc"
-              description="Thử thay đổi từ khóa hoặc bộ lọc trạng thái."
+              description="Thử thay đổi từ khóa hoặc bấm '+' để tạo công việc mới."
             />
           ) : null
         }
       />
 
-      {/* Task Detail & Status Updater Modal */}
+      {/* Quick Create Task Modal */}
+      <Modal
+        visible={showCreateModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.createModalCard,
+              { backgroundColor: theme.colors.surface },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                Tạo công việc mới
+              </Text>
+              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
+                <Ionicons name="close" size={22} color={theme.colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Title */}
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Tiêu đề công việc *
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.inputBg,
+                    borderColor: theme.colors.inputBorder,
+                    color: theme.colors.text,
+                  },
+                ]}
+                placeholder="VD: Thiết kế cơ sở dữ liệu"
+                placeholderTextColor={theme.colors.textMuted}
+                value={newTitle}
+                onChangeText={setNewTitle}
+              />
+
+              {/* Project Picker */}
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Dự án *
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.pickerScroll}
+              >
+                {projects.map((p) => {
+                  const isSel = newProject === p._id;
+                  return (
+                    <TouchableOpacity
+                      key={p._id}
+                      onPress={() => setNewProject(p._id)}
+                      style={[
+                        styles.projectPill,
+                        {
+                          backgroundColor: isSel
+                            ? theme.colors.primary
+                            : theme.isDark
+                            ? 'rgba(255,255,255,0.06)'
+                            : '#f1f5f9',
+                          borderColor: isSel ? theme.colors.primary : 'transparent',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.projectPillText,
+                          {
+                            color: isSel ? '#ffffff' : theme.colors.text,
+                            fontWeight: isSel ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {p.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Priority */}
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Mức ưu tiên
+              </Text>
+              <View style={styles.priorityRow}>
+                {PRIORITIES.map((pr) => {
+                  const isSel = newPriority === pr.key;
+                  return (
+                    <TouchableOpacity
+                      key={pr.key}
+                      onPress={() => setNewPriority(pr.key)}
+                      style={[
+                        styles.priorityPill,
+                        {
+                          backgroundColor: isSel
+                            ? pr.color
+                            : theme.isDark
+                            ? 'rgba(255,255,255,0.06)'
+                            : '#f1f5f9',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.priorityPillText,
+                          {
+                            color: isSel ? '#ffffff' : theme.colors.text,
+                            fontWeight: isSel ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {pr.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Hours */}
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Giờ ước tính (h)
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.inputBg,
+                    borderColor: theme.colors.inputBorder,
+                    color: theme.colors.text,
+                  },
+                ]}
+                placeholder="VD: 8"
+                placeholderTextColor={theme.colors.textMuted}
+                keyboardType="numeric"
+                value={newHours}
+                onChangeText={setNewHours}
+              />
+
+              {/* Description */}
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Mô tả chi tiết
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.inputBg,
+                    borderColor: theme.colors.inputBorder,
+                    color: theme.colors.text,
+                    height: 80,
+                    textAlignVertical: 'top',
+                  },
+                ]}
+                placeholder="Mô tả yêu cầu và đầu ra..."
+                placeholderTextColor={theme.colors.textMuted}
+                multiline
+                value={newDesc}
+                onChangeText={setNewDesc}
+              />
+
+              <Button
+                title="Tạo công việc"
+                onPress={handleCreateTask}
+                loading={creating}
+                size="lg"
+                style={{ marginTop: 12, marginBottom: 12 }}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Task Status Updater Modal */}
       <Modal
         visible={!!selectedTask}
         transparent
@@ -403,14 +644,20 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: 1,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
   searchBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
     height: 42,
-    marginBottom: 10,
   },
   searchIcon: {
     marginRight: 8,
@@ -418,6 +665,13 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 13,
+  },
+  addBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabsList: {
     gap: 8,
@@ -525,15 +779,62 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 36,
   },
+  createModalCard: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 20,
+    maxHeight: '88%',
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   modalTitle: {
     fontSize: 17,
     fontWeight: '800',
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+    marginTop: 8,
+  },
+  formInput: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    height: 44,
+    fontSize: 13,
+  },
+  pickerScroll: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  projectPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  projectPillText: {
+    fontSize: 12,
+  },
+  priorityRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 6,
+  },
+  priorityPill: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  priorityPillText: {
+    fontSize: 11,
   },
   modalTaskName: {
     fontSize: 15,

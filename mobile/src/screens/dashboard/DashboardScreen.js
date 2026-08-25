@@ -11,10 +11,12 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import Card from '../../components/common/Card';
+import NotificationsModal from '../notifications/NotificationsModal';
 import { projectApi } from '../../api/projectApi';
 import { taskApi } from '../../api/taskApi';
 import { resourceApi } from '../../api/resourceApi';
 import { activityLogApi } from '../../api/activityLogApi';
+import { notificationApi } from '../../api/notificationApi';
 import { formatTimeAgo } from '../../utils/formatters';
 
 export default function DashboardScreen({ navigation }) {
@@ -28,15 +30,18 @@ export default function DashboardScreen({ navigation }) {
     avgUtilization: 0,
   });
   const [recentLogs, setRecentLogs] = useState([]);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadDashboardData = useCallback(async () => {
     try {
-      const [projRes, taskRes, resRes, logRes] = await Promise.all([
+      const [projRes, taskRes, resRes, logRes, notifRes] = await Promise.all([
         projectApi.getAll({ limit: 1 }),
         taskApi.getAll({ limit: 1 }),
         resourceApi.getAll({ limit: 1 }),
         activityLogApi.getAll({ limit: 5 }),
+        notificationApi.getAll({ limit: 20 }),
       ]);
 
       const projectsTotal = projRes.data?.total || projRes.data?.data?.length || 0;
@@ -51,6 +56,9 @@ export default function DashboardScreen({ navigation }) {
       });
 
       setRecentLogs(logRes.data?.data?.logs || []);
+
+      const notifs = notifRes.data?.data?.notifications || notifRes.data?.data || [];
+      setUnreadNotifs(notifs.filter((n) => !n.read).length);
     } catch (e) {
       console.log('Error loading dashboard:', e);
     }
@@ -79,6 +87,33 @@ export default function DashboardScreen({ navigation }) {
           </Text>
         </View>
         <View style={styles.topActions}>
+          {/* Notification Bell */}
+          <TouchableOpacity
+            onPress={() => setShowNotifications(true)}
+            style={[
+              styles.iconBtn,
+              {
+                backgroundColor: theme.isDark
+                  ? 'rgba(255,255,255,0.06)'
+                  : '#f1f5f9',
+              },
+            ]}
+          >
+            <Ionicons
+              name="notifications-outline"
+              size={20}
+              color={theme.colors.text}
+            />
+            {unreadNotifs > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>
+                  {unreadNotifs > 9 ? '9+' : unreadNotifs}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Theme Toggle */}
           <TouchableOpacity
             onPress={toggleTheme}
             style={[
@@ -174,10 +209,10 @@ export default function DashboardScreen({ navigation }) {
             </Text>
           </Card>
 
-          {/* Workload KPI */}
+          {/* Reports KPI */}
           <Card
             style={styles.kpiCard}
-            onPress={() => navigation.navigate('OptimizationTab')}
+            onPress={() => navigation.navigate('ReportsScreen')}
           >
             <View
               style={[
@@ -225,6 +260,38 @@ export default function DashboardScreen({ navigation }) {
                 ]}
               >
                 Chạy thuật toán GA & CSP cân bằng tải
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
+          </Card>
+
+          <Card
+            style={styles.actionTile}
+            onPress={() => navigation.navigate('ReportsScreen')}
+          >
+            <View
+              style={[
+                styles.actionIcon,
+                { backgroundColor: '#06b6d4' },
+              ]}
+            >
+              <Ionicons name="stats-chart" size={24} color="#ffffff" />
+            </View>
+            <View style={styles.actionInfo}>
+              <Text style={[styles.actionTitle, { color: theme.colors.text }]}>
+                Báo cáo & Phân tích Tải
+              </Text>
+              <Text
+                style={[
+                  styles.actionSub,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                Xem Resource Histogram & rủi ro Burnout
               </Text>
             </View>
             <Ionicons
@@ -325,6 +392,13 @@ export default function DashboardScreen({ navigation }) {
           ))
         )}
       </ScrollView>
+
+      {/* Notifications Sheet Modal */}
+      <NotificationsModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        onUnreadCountChange={setUnreadNotifs}
+      />
     </View>
   );
 }
@@ -353,7 +427,7 @@ const styles = StyleSheet.create({
   },
   topActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   iconBtn: {
     width: 38,
@@ -361,6 +435,23 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#ef4444',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
   },
   scrollContent: {
     padding: 16,
