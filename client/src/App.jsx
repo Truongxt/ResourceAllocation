@@ -19,6 +19,7 @@ const Resources = lazy(() => import('./pages/Resources'));
 const Optimization = lazy(() => import('./pages/Optimization'));
 const GanttChart = lazy(() => import('./pages/GanttChart'));
 const Reports = lazy(() => import('./pages/Reports'));
+const BenchmarkStudio = lazy(() => import('./pages/BenchmarkStudio'));
 const Settings = lazy(() => import('./pages/Settings'));
 const ActivityLogs = lazy(() => import('./pages/ActivityLogs'));
 
@@ -106,6 +107,7 @@ export default function App() {
         <Route path="/optimization" element={<ProtectedRoute><AppLayout><Optimization /></AppLayout></ProtectedRoute>} />
         <Route path="/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><AppLayout><Reports /></AppLayout></ProtectedRoute>} />
+        <Route path="/benchmark" element={<ProtectedRoute><AppLayout><BenchmarkStudio /></AppLayout></ProtectedRoute>} />
         <Route path="/activity-logs" element={<ProtectedRoute><AppLayout><ActivityLogs /></AppLayout></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
 

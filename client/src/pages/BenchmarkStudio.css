@@ -1,0 +1,255 @@
+.benchmark-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.benchmark-header {
+  margin-bottom: 20px;
+}
+
+.benchmark-title {
+  margin-bottom: 6px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.5px;
+}
+
+.benchmark-subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  max-width: 900px;
+  margin-bottom: 0 !important;
+}
+
+.benchmark-config-card {
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.benchmark-dataset-grid {
+  width: 100%;
+}
+
+.benchmark-radio-card {
+  width: 100%;
+  height: 100%;
+  padding: 12px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--border-subtle) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  white-space: normal !important;
+  line-height: normal !important;
+}
+
+.radio-card-header {
+  margin-bottom: 6px;
+}
+
+.radio-card-meta {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.radio-card-desc {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.benchmark-run-btn {
+  height: 48px;
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: 8px;
+}
+
+.benchmark-loading-card {
+  border-radius: 12px;
+  text-align: center;
+  padding: 60px 20px;
+  margin-bottom: 20px;
+  background: var(--bg-surface);
+}
+
+.benchmark-champions-row {
+  margin-bottom: 20px;
+}
+
+.champion-card {
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.champion-card .ant-card-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 20px;
+}
+
+.champion-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.champion-gold .champion-icon {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.champion-blue .champion-icon {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.champion-purple .champion-icon {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+}
+
+.champion-info {
+  flex: 1;
+}
+
+.champion-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.champion-name {
+  margin: 2px 0 !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+}
+
+.champion-sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.benchmark-table-card {
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.benchmark-metric-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.benchmark-highlight-col {
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.benchmark-chart-card {
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  height: 100%;
+}
+
+.runtime-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.runtime-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.runtime-bar-row .algo-title {
+  width: 110px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.runtime-bar-row .bar-track {
+  flex: 1;
+  height: 12px;
+  background: var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.runtime-bar-row .bar-fill {
+  height: 100%;
+  border-radius: 6px;
+}
+
+.bar-greedy {
+  background: #64748b;
+}
+
+.bar-csp {
+  background: #3b82f6;
+}
+
+.bar-ga {
+  background: #8b5cf6;
+}
+
+.bar-hybrid {
+  background: #10b981;
+}
+
+.runtime-val {
+  width: 60px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.thesis-summary-text {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 8px !important;
+}
+
+.thesis-bullet-list {
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.latex-preview-card {
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.latex-code-block {
+  background: var(--bg-elevated);
+  padding: 16px;
+  border-radius: 8px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  margin: 0;
+}

@@ -8,6 +8,7 @@ import {
   ThunderboltOutlined,
   BarChartOutlined,
   FileTextOutlined,
+  ExperimentOutlined,
   HistoryOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -61,6 +62,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       ) : null,
       children: [
         { key: '/optimization', icon: <ThunderboltOutlined style={{ fontSize: 16, color: '#818cf8' }} />, label: t('nav.optimization') },
+        { key: '/benchmark', icon: <ExperimentOutlined style={{ fontSize: 16, color: '#f59e0b' }} />, label: 'Benchmark Studio' },
         { key: '/gantt', icon: <BarChartOutlined style={{ fontSize: 16 }} />, label: t('nav.gantt') },
         { key: '/reports', icon: <FileTextOutlined style={{ fontSize: 16 }} />, label: t('nav.reports') },
       ],

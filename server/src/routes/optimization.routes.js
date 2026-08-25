@@ -10,6 +10,7 @@ const {
   compareResults,
   getResultById,
   applyResult,
+  runBenchmark,
 } = require('../controllers/optimization.controller');
 
 const router = express.Router();
@@ -20,10 +21,11 @@ const resultIdValidation = [
 
 router.use(protect);
 
-// Run algorithms
+// Run algorithms & benchmark
 router.post('/run/genetic', runGeneticAlgorithm);
 router.post('/run/csp', runCSPSolver);
 router.post('/run/hybrid', runHybrid);
+router.post('/benchmark', runBenchmark);
 
 // History & detail
 // `/compare` phải đứng trước `/:id`, nếu không Express khớp "compare" vào :id và

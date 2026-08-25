@@ -30,6 +30,10 @@ const optimizationService = {
   applyResult(id) {
     return api.post(`/optimization/${id}/apply`);
   },
+
+  runBenchmark(params = {}) {
+    return api.post('/optimization/benchmark', params);
+  },
 };
 
 export default optimizationService;

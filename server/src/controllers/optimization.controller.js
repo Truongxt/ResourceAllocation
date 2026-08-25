@@ -4,6 +4,8 @@ const Resource = require('../models/Resource');
 const OptimizationResult = require('../models/OptimizationResult');
 const GeneticAlgorithm = require('../algorithms/genetic/GeneticAlgorithm');
 const CSPSolver = require('../algorithms/csp/CSPSolver');
+const { generateBenchmarkDataset } = require('../algorithms/benchmark/datasetGenerator');
+const { runComparativeBenchmark } = require('../algorithms/benchmark/benchmarkRunner');
 const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 
@@ -626,6 +628,67 @@ const applyResult = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Chạy thực nghiệm đánh giá đa thuật toán (Benchmark Studio)
+ * @route   POST /api/optimization/benchmark
+ * @access  Private
+ */
+const runBenchmark = async (req, res, next) => {
+  try {
+    const { datasetType = 'medium', customConfig, useDatabaseData = false, projectId } = req.body;
+
+    let tasks = [];
+    let resources = [];
+    let datasetLabel = '';
+
+    if (useDatabaseData) {
+      const liveData = await loadOptimizationData(projectId);
+      tasks = liveData.tasks;
+      resources = liveData.resources;
+      datasetLabel = `Dữ liệu Thực tế Hệ thống (${tasks.length} tasks, ${resources.length} nhân sự)`;
+
+      if (!tasks.length || !resources.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'Hệ thống chưa có đủ công việc hoặc nhân sự thực tế để chạy benchmark',
+        });
+      }
+    } else {
+      const generated = generateBenchmarkDataset(
+        datasetType === 'custom' ? customConfig : datasetType
+      );
+      tasks = generated.tasks;
+      resources = generated.resources;
+      datasetLabel = generated.label;
+    }
+
+    const benchmarkReport = await runComparativeBenchmark(tasks, resources, {
+      populationSize: req.body.populationSize,
+      maxGenerations: req.body.maxGenerations,
+    });
+
+    logActivity({
+      req,
+      action: 'RUN_OPTIMIZATION',
+      entityType: 'optimization',
+      entityTitle: 'Algorithm Benchmark Studio',
+      description: `Chạy thực nghiệm đánh giá đối chứng thuật toán trên tập ${datasetLabel}`,
+      details: { datasetLabel, taskCount: tasks.length, resourceCount: resources.length },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        datasetLabel,
+        ...benchmarkReport,
+      },
+      message: 'Đã hoàn thành thực nghiệm đánh giá đa thuật toán!',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   runGeneticAlgorithm,
   runCSPSolver,
@@ -634,4 +697,5 @@ module.exports = {
   compareResults,
   getResultById,
   applyResult,
+  runBenchmark,
 };

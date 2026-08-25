@@ -271,6 +271,38 @@ export default function DashboardScreen({ navigation }) {
 
           <Card
             style={styles.actionTile}
+            onPress={() => navigation.navigate('BenchmarkScreen')}
+          >
+            <View
+              style={[
+                styles.actionIcon,
+                { backgroundColor: '#f59e0b' },
+              ]}
+            >
+              <Ionicons name="flask" size={24} color="#ffffff" />
+            </View>
+            <View style={styles.actionInfo}>
+              <Text style={[styles.actionTitle, { color: theme.colors.text }]}>
+                Benchmark Studio 🧪
+              </Text>
+              <Text
+                style={[
+                  styles.actionSub,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                Thực nghiệm đánh giá đối chứng 4 giải thuật
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
+          </Card>
+
+          <Card
+            style={styles.actionTile}
             onPress={() => navigation.navigate('ReportsScreen')}
           >
             <View
