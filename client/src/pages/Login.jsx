@@ -236,7 +236,10 @@ export default function Login() {
         }}
       >
         <div style={{ width: '100%', maxWidth: 420 }}>
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ marginBottom: 20 }}>
+            <Link to="/home" style={{ color: '#818cf8', fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+              ← Quay lại Trang giới thiệu (Home)
+            </Link>
             <Title level={3} style={{ color: '#f8fafc', marginBottom: 6, fontWeight: 700 }}>
               {t('auth.loginTitle') || 'Đăng nhập hệ thống'}
             </Title>

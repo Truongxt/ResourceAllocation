@@ -1,5 +1,6 @@
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Badge, Dropdown, Avatar, Switch, List, Typography, Button, Space, Tooltip, Empty, Breadcrumb } from 'antd';
+import { Layout, Badge, Dropdown, Avatar, Switch, List, Typography, Button, Space, Tooltip, Empty, Breadcrumb, Tag } from 'antd';
 import {
   BellOutlined,
   UserOutlined,
@@ -7,12 +8,15 @@ import {
   SettingOutlined,
   SunOutlined,
   MoonOutlined,
-  CheckOutlined,
-  FileTextOutlined,
-  ThunderboltOutlined,
   ProjectOutlined,
   CloseOutlined,
   GlobalOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  FileTextOutlined,
+  ThunderboltOutlined,
+  TeamOutlined,
+  CheckOutlined
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, changeLanguage } from '../../i18n';
@@ -20,6 +24,8 @@ import { formatTimeAgo } from '../../i18n/format';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useSocket } from '../../context/SocketContext';
+import GlobalSearchModal from '../common/GlobalSearchModal';
+import QuickCreateModal from '../common/QuickCreateModal';
 
 const { Header: AntHeader } = Layout;
 const { Text, Title } = Typography;
@@ -48,6 +54,22 @@ export default function Header({ collapsed }) {
   const { t, i18n } = useTranslation();
   const currentTitle = t(`pageTitle.${location.pathname}`, { defaultValue: 'Tổng quan' });
   const nextLanguage = LANGUAGES.find((l) => l.code !== i18n.language) || LANGUAGES[0];
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickCreateType, setQuickCreateType] = useState('task');
+
+  // Keyboard shortcut listener (Ctrl+K or Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -203,15 +225,113 @@ export default function Header({ collapsed }) {
           transition: 'left 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        {/* Left: Page Title with Subtle Breadcrumb */}
-        <div>
+        {/* Left: Page Title & Location */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <Title level={4} style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.02em' }}>
             {currentTitle}
           </Title>
         </div>
 
-        {/* Right: Quick Controls & Profile */}
+        {/* Center: Compact Command Palette Trigger */}
+        <div
+          onClick={() => setSearchOpen(true)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            height: 32,
+            width: 210,
+            padding: '0 10px',
+            borderRadius: 8,
+            background: isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9',
+            border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            userSelect: 'none',
+          }}
+          className="header-search-trigger"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: isDark ? '#94a3b8' : '#64748b', fontSize: 12 }}>
+            <SearchOutlined style={{ fontSize: 13, color: '#6366f1' }} />
+            <span>{t('header.searchPlaceholder', { defaultValue: 'Tìm kiếm...' })}</span>
+          </div>
+          <kbd
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              padding: '1px 5px',
+              borderRadius: 4,
+              background: isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0',
+              color: isDark ? '#cbd5e1' : '#64748b',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #cbd5e1',
+              lineHeight: 1.2,
+            }}
+          >
+            ⌘K
+          </kbd>
+        </div>
+
+        {/* Right: Quick Controls, Quick Create & Profile */}
         <Space size="middle" align="center">
+          {/* Quick Create Button */}
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'task',
+                  icon: <FileTextOutlined style={{ color: '#6366f1' }} />,
+                  label: t('header.quickTask', { defaultValue: '+ Công việc mới (Task)' }),
+                  onClick: () => {
+                    setQuickCreateType('task');
+                    setQuickCreateOpen(true);
+                  },
+                },
+                {
+                  key: 'project',
+                  icon: <ProjectOutlined style={{ color: '#06b6d4' }} />,
+                  label: t('header.quickProject', { defaultValue: '+ Dự án mới (Project)' }),
+                  onClick: () => {
+                    setQuickCreateType('project');
+                    setQuickCreateOpen(true);
+                  },
+                },
+                ...(user?.role !== 'member'
+                  ? [
+                      {
+                        key: 'resource',
+                        icon: <TeamOutlined style={{ color: '#8b5cf6' }} />,
+                        label: t('header.quickResource', { defaultValue: '+ Nhân sự mới (Resource)' }),
+                        onClick: () => {
+                          setQuickCreateType('resource');
+                          setQuickCreateOpen(true);
+                        },
+                      },
+                    ]
+                  : []),
+              ],
+            }}
+            trigger={['click']}
+            placement="bottomRight"
+          >
+            <Button
+              type="primary"
+              size="middle"
+              icon={<PlusOutlined style={{ fontSize: 12 }} />}
+              style={{
+                height: 32,
+                padding: '0 12px',
+                fontSize: 13,
+                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                fontWeight: 600,
+                borderRadius: 8,
+                boxShadow: '0 2px 6px rgba(99, 102, 241, 0.3)',
+              }}
+            >
+              {t('header.quickCreate', { defaultValue: 'Tạo mới' })}
+            </Button>
+          </Dropdown>
+
           {/* Language Switch */}
           <Tooltip title={`${t('header.switchLanguage') || 'Đổi ngôn ngữ'}: ${nextLanguage.label}`}>
             <Button
@@ -370,6 +490,23 @@ export default function Header({ collapsed }) {
           />
         </div>
       )}
+
+      {/* Global Command Palette / Search Modal */}
+      <GlobalSearchModal
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
+
+      {/* Global Quick Create Modal */}
+      <QuickCreateModal
+        open={quickCreateOpen}
+        onClose={() => setQuickCreateOpen(false)}
+        defaultType={quickCreateType}
+        onSuccess={() => {
+          // If on tasks or projects or resources page, refresh or reload
+          window.location.reload();
+        }}
+      />
     </>
   );
 }

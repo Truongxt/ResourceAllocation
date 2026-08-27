@@ -26,14 +26,49 @@ const getTasks = async (req, res, next) => {
   try {
     const filter = {};
 
-    if (req.query.project) filter.project = req.query.project;
+    if (req.user && req.user.role !== 'admin') {
+      const accessibleProjects = await Project.find({
+        $or: [
+          { manager: req.user._id },
+          { 'members.user': req.user._id },
+          { createdBy: req.user._id },
+        ],
+      }).select('_id');
+      const projectIds = accessibleProjects.map((p) => p._id);
+
+      filter.$or = [
+        { project: { $in: projectIds } },
+        { assignee: req.user._id },
+        { createdBy: req.user._id },
+      ];
+    }
+
+    if (req.query.project) {
+      if (filter.$or) {
+        filter.$and = [
+          { $or: filter.$or },
+          { project: req.query.project },
+        ];
+        delete filter.$or;
+      } else {
+        filter.project = req.query.project;
+      }
+    }
     if (req.query.status) filter.status = req.query.status;
     if (req.query.priority) filter.priority = req.query.priority;
     if (req.query.assignee) filter.assignee = req.query.assignee;
 
     if (req.query.search) {
       const regex = new RegExp(req.query.search, 'i');
-      filter.$or = [{ title: regex }, { description: regex }];
+      const searchOr = [{ title: regex }, { description: regex }];
+      if (filter.$and) {
+        filter.$and.push({ $or: searchOr });
+      } else if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
+        delete filter.$or;
+      } else {
+        filter.$or = searchOr;
+      }
     }
 
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -178,6 +213,17 @@ const createTask = async (req, res, next) => {
 
     const task = await Task.create(taskData);
 
+    // Auto add assignee to project members if not present
+    if (taskData.assignee) {
+      const isMember = (project.members || []).some(
+        (m) => m.user && m.user.toString() === taskData.assignee.toString()
+      );
+      if (!isMember) {
+        project.members.push({ user: taskData.assignee, role: 'developer', allocation: 100 });
+        await project.save();
+      }
+    }
+
     // Recalculate project progress
     await recalculateProjectProgress(project._id);
 
@@ -262,6 +308,20 @@ const updateTask = async (req, res, next) => {
       .populate('project', 'name code status')
       .populate('assignee', 'name email avatar department')
       .populate('dependencies', 'title status');
+
+    // Auto add assignee to project members if not present
+    if (updatedTask.assignee) {
+      const project = await Project.findById(task.project);
+      if (project) {
+        const isMember = (project.members || []).some(
+          (m) => m.user && m.user.toString() === updatedTask.assignee._id.toString()
+        );
+        if (!isMember) {
+          project.members.push({ user: updatedTask.assignee._id, role: 'developer', allocation: 100 });
+          await project.save();
+        }
+      }
+    }
 
     // Recalculate project progress
     await recalculateProjectProgress(task.project);
@@ -426,7 +486,35 @@ const deleteTask = async (req, res, next) => {
 const getTaskSummary = async (req, res, next) => {
   try {
     const filter = {};
-    if (req.query.project) filter.project = req.query.project;
+
+    if (req.user && req.user.role !== 'admin') {
+      const accessibleProjects = await Project.find({
+        $or: [
+          { manager: req.user._id },
+          { 'members.user': req.user._id },
+          { createdBy: req.user._id },
+        ],
+      }).select('_id');
+      const projectIds = accessibleProjects.map((p) => p._id);
+
+      filter.$or = [
+        { project: { $in: projectIds } },
+        { assignee: req.user._id },
+        { createdBy: req.user._id },
+      ];
+    }
+
+    if (req.query.project) {
+      if (filter.$or) {
+        filter.$and = [
+          { $or: filter.$or },
+          { project: req.query.project },
+        ];
+        delete filter.$or;
+      } else {
+        filter.project = req.query.project;
+      }
+    }
 
     const [statusStats, priorityStats, totals] = await Promise.all([
       Task.aggregate([

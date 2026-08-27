@@ -191,7 +191,7 @@ export default function DashboardScreen({ navigation }) {
           {/* Resources KPI */}
           <Card
             style={styles.kpiCard}
-            onPress={() => navigation.navigate('ResourcesTab')}
+            onPress={() => user?.role !== 'member' && navigation.navigate('ResourcesTab')}
           >
             <View
               style={[

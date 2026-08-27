@@ -128,7 +128,14 @@
     "justNow": "Just now",
     "minutesAgo": "{{count}} min ago",
     "hoursAgo": "{{count}} h ago",
-    "daysAgo": "{{count}} d ago"
+    "daysAgo": "{{count}} d ago",
+    "searchPlaceholder": "Quick search...",
+    "searchModalPlaceholder": "Quickly search pages, projects, tasks, team... (Type a keyword)",
+    "pressEsc": "ESC to close",
+    "quickCreate": "Create",
+    "quickTask": "+ New Task",
+    "quickProject": "+ New Project",
+    "quickResource": "+ New Resource"
   },
   "auth": {
     "loginTitle": "Sign in",
@@ -761,6 +768,21 @@
       "topCategory": "Most common module",
       "timesCount": "{{count}} times",
       "logsCount": "{{count}} logs"
+    }
+  },
+  "projects": {
+    "title": "Project Management",
+    "subtitle": "Track progress, budget, and status of organization projects",
+    "noProjects": "No projects found",
+    "noDescription": "No description provided.",
+    "create": "Create Project",
+    "createProject": "Create Project",
+    "editProject": "Edit Project",
+    "projectDetails": "Project Details",
+    "importCsv": "Import CSV",
+    "searchPlaceholder": "Search by name, code, or description...",
+    "stats": {
+      "total": "Total Projects"
     }
   }
 }

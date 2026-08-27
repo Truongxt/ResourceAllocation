@@ -12,6 +12,12 @@ const getActivityLogs = async (req, res, next) => {
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 20, 1), 100);
     const filter = {};
 
+    if (req.user && req.user.role !== 'admin') {
+      filter.user = req.user._id;
+    } else if (req.query.user) {
+      filter.user = req.query.user;
+    }
+
     if (req.query.entityType) {
       filter.entityType = req.query.entityType;
     }
@@ -20,15 +26,12 @@ const getActivityLogs = async (req, res, next) => {
       filter.action = req.query.action;
     }
 
-    if (req.query.user) {
-      filter.user = req.query.user;
-    }
-
     if (req.query.search) {
+      const searchRegex = new RegExp(req.query.search, 'i');
       filter.$or = [
-        { description: new RegExp(req.query.search, 'i') },
-        { entityTitle: new RegExp(req.query.search, 'i') },
-        { userName: new RegExp(req.query.search, 'i') },
+        { description: searchRegex },
+        { entityTitle: searchRegex },
+        { userName: searchRegex },
       ];
     }
 
@@ -74,16 +77,22 @@ const getActivityStats = async (req, res, next) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const match = {};
+
+    if (req.user && req.user.role !== 'admin') {
+      match.user = req.user._id;
+    }
 
     const [total, todayCount, byEntityType, topUsers] = await Promise.all([
-      ActivityLog.countDocuments(),
-      ActivityLog.countDocuments({ createdAt: { $gte: today } }),
+      ActivityLog.countDocuments(match),
+      ActivityLog.countDocuments({ ...match, createdAt: { $gte: today } }),
       ActivityLog.aggregate([
+        { $match: match },
         { $group: { _id: '$entityType', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]),
       ActivityLog.aggregate([
-        { $match: { user: { $ne: null } } },
+        { $match: { ...match, user: { $ne: null } } },
         { $group: { _id: '$userName', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 5 },

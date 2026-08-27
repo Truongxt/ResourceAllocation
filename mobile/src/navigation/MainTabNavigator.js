@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import ProjectsScreen from '../screens/projects/ProjectsScreen';
@@ -14,6 +15,8 @@ const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const isMember = user?.role === 'member';
 
   return (
     <Tab.Navigator
@@ -67,16 +70,18 @@ export default function MainTabNavigator() {
         }}
       />
 
-      <Tab.Screen
-        name="ResourcesTab"
-        component={ResourcesScreen}
-        options={{
-          tabBarLabel: 'Nhân sự',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={20} color={color} />
-          ),
-        }}
-      />
+      {!isMember && (
+        <Tab.Screen
+          name="ResourcesTab"
+          component={ResourcesScreen}
+          options={{
+            tabBarLabel: 'Nhân sự',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="people-outline" size={20} color={color} />
+            ),
+          }}
+        />
+      )}
 
       <Tab.Screen
         name="OptimizationTab"

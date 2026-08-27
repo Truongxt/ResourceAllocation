@@ -216,8 +216,8 @@ export default function Dashboard() {
           <Col xs={24} sm={12} lg={6}>
             <div
               className="saas-card saas-card-interactive"
-              style={{ padding: '20px', cursor: 'pointer' }}
-              onClick={() => navigate('/resources')}
+              style={{ padding: '20px', cursor: user?.role !== 'member' ? 'pointer' : 'default' }}
+              onClick={() => user?.role !== 'member' && navigate('/resources')}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
@@ -419,7 +419,7 @@ export default function Dashboard() {
 
                 {/* Tile 3 */}
                 <div
-                  onClick={() => navigate('/resources')}
+                  onClick={() => navigate(user?.role === 'member' ? '/projects' : '/resources')}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -447,14 +447,14 @@ export default function Dashboard() {
                         fontSize: 18,
                       }}
                     >
-                      <TeamOutlined />
+                      {user?.role === 'member' ? <ProjectOutlined /> : <TeamOutlined />}
                     </div>
                     <div>
                       <Text strong style={{ fontSize: 13, display: 'block', color: isDark ? '#f8fafc' : '#14532d' }}>
-                        {t('dashboard.manageResources') || 'Quản lý Đội ngũ & Kỹ năng'}
+                        {user?.role === 'member' ? (t('nav.projects') || 'Dự án của tôi') : (t('dashboard.manageResources') || 'Quản lý Đội ngũ & Kỹ năng')}
                       </Text>
                       <Text type="secondary" style={{ fontSize: 11 }}>
-                        Ma trận kỹ năng và phân bổ phòng ban
+                        {user?.role === 'member' ? 'Xem danh sách dự án tham gia' : 'Ma trận kỹ năng và phân bổ phòng ban'}
                       </Text>
                     </div>
                   </div>

@@ -243,6 +243,9 @@ const runHybrid = async (req, res, next) => {
 const getHistory = async (req, res, next) => {
   try {
     const filter = {};
+    if (req.user && req.user.role !== 'admin') {
+      filter.runBy = req.user._id;
+    }
     if (req.query.algorithm) filter.algorithm = req.query.algorithm;
     if (req.query.status) filter.status = req.query.status;
 

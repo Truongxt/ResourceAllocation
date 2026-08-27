@@ -2,8 +2,23 @@ const Project = require('../models/Project');
 const Task = require('../models/Task');
 const { logActivity } = require('../services/activityLog.service');
 
-const buildProjectQuery = (query) => {
+const buildProjectQuery = async (query, user) => {
   const filter = {};
+
+  if (user && user.role !== 'admin') {
+    // Find all projects where user has tasks assigned or created
+    const userTasks = await Task.find({
+      $or: [{ assignee: user._id }, { createdBy: user._id }],
+    }).select('project');
+    const projectIdsFromTasks = userTasks.map((t) => t.project).filter(Boolean);
+
+    filter.$or = [
+      { manager: user._id },
+      { 'members.user': user._id },
+      { createdBy: user._id },
+      { _id: { $in: projectIdsFromTasks } },
+    ];
+  }
 
   if (query.status) filter.status = query.status;
   if (query.priority) filter.priority = query.priority;
@@ -11,7 +26,16 @@ const buildProjectQuery = (query) => {
 
   if (query.search) {
     const searchRegex = new RegExp(query.search, 'i');
-    filter.$or = [{ name: searchRegex }, { code: searchRegex }, { description: searchRegex }];
+    const searchFilter = [{ name: searchRegex }, { code: searchRegex }, { description: searchRegex }];
+    if (filter.$or) {
+      filter.$and = [
+        { $or: filter.$or },
+        { $or: searchFilter },
+      ];
+      delete filter.$or;
+    } else {
+      filter.$or = searchFilter;
+    }
   }
 
   if (query.startDate || query.endDate) {
@@ -48,7 +72,7 @@ const getProjects = async (req, res, next) => {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
     const skip = (page - 1) * limit;
     const sort = req.query.sort || '-createdAt';
-    const filter = buildProjectQuery(req.query);
+    const filter = await buildProjectQuery(req.query, req.user);
 
     const [projects, total] = await Promise.all([
       Project.find(filter)
@@ -364,10 +388,32 @@ const removeProjectMember = async (req, res, next) => {
 
 const getProjectSummary = async (req, res, next) => {
   try {
+    const match = {};
+    if (req.user && req.user.role !== 'admin') {
+      const userTasks = await Task.find({
+        $or: [{ assignee: req.user._id }, { createdBy: req.user._id }],
+      }).select('project');
+      const projectIdsFromTasks = userTasks.map((t) => t.project).filter(Boolean);
+
+      match.$or = [
+        { manager: req.user._id },
+        { 'members.user': req.user._id },
+        { createdBy: req.user._id },
+        { _id: { $in: projectIdsFromTasks } },
+      ];
+    }
+
     const [statusStats, priorityStats, totals] = await Promise.all([
-      Project.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
-      Project.aggregate([{ $group: { _id: '$priority', count: { $sum: 1 } } }]),
       Project.aggregate([
+        { $match: match },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+      Project.aggregate([
+        { $match: match },
+        { $group: { _id: '$priority', count: { $sum: 1 } } },
+      ]),
+      Project.aggregate([
+        { $match: match },
         {
           $group: {
             _id: null,

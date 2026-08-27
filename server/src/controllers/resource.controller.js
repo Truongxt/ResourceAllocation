@@ -1,6 +1,7 @@
 const Resource = require('../models/Resource');
 const Task = require('../models/Task');
 const User = require('../models/User');
+const Project = require('../models/Project');
 const Department = require('../models/Department');
 const { logActivity } = require('../services/activityLog.service');
 
@@ -36,6 +37,31 @@ const getResources = async (req, res, next) => {
   try {
     const filter = {};
 
+    if (req.user && req.user.role !== 'admin') {
+      const userProjects = await Project.find({
+        $or: [
+          { manager: req.user._id },
+          { 'members.user': req.user._id },
+          { createdBy: req.user._id },
+        ],
+      }).select('members');
+
+      const allowedUserIds = new Set();
+      allowedUserIds.add(req.user._id.toString());
+      userProjects.forEach((p) => {
+        if (p.members) {
+          p.members.forEach((m) => {
+            if (m.user) allowedUserIds.add(m.user.toString());
+          });
+        }
+      });
+
+      filter.$or = [
+        { user: { $in: Array.from(allowedUserIds) } },
+        { createdBy: req.user._id },
+      ];
+    }
+
     if (req.query.department) filter.department = req.query.department;
     if (req.query.availability) filter.availability = req.query.availability;
     if (req.query.isActive !== undefined) filter.isActive = req.query.isActive === 'true';
@@ -51,11 +77,17 @@ const getResources = async (req, res, next) => {
 
     if (req.query.search) {
       const regex = new RegExp(req.query.search, 'i');
-      filter.$or = [
+      const searchOr = [
         { position: regex },
         { department: regex },
         { employeeId: regex },
       ];
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
+        delete filter.$or;
+      } else {
+        filter.$or = searchOr;
+      }
     }
 
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -179,7 +211,7 @@ const createResource = async (req, res, next) => {
 
     delete resourceData.employeeId;
     resourceData.employeeId = await generateEmployeeId();
-    const resource = await Resource.create({ ...resourceData, user: linkedUserId });
+    const resource = await Resource.create({ ...resourceData, user: linkedUserId, createdBy: req.user._id });
     resourceCreated = true;
 
     const populated = await Resource.findById(resource._id)

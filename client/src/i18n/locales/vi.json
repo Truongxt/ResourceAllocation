@@ -123,6 +123,12 @@
     "logout": "Đăng xuất",
     "toggleTheme": "Chuyển giao diện Sáng/Tối",
     "switchLanguage": "Đổi ngôn ngữ",
+    "searchPlaceholder": "Tìm kiếm...",
+    "pressEsc": "ESC",
+    "quickCreate": "Tạo mới",
+    "quickTask": "+ Công việc mới (Task)",
+    "quickProject": "+ Dự án mới (Project)",
+    "quickResource": "+ Nhân sự mới (Resource)",
     "justNow": "Vừa xong",
     "minutesAgo": "{{count}} phút trước",
     "hoursAgo": "{{count}} giờ trước",
@@ -759,6 +765,21 @@
       "topCategory": "Phân loại phổ biến nhất",
       "timesCount": "{{count}} lần",
       "logsCount": "{{count}} logs"
+    }
+  },
+  "projects": {
+    "title": "Quản lý Dự án",
+    "subtitle": "Theo dõi tiến độ, ngân sách và trạng thái các dự án của tổ chức",
+    "noProjects": "Chưa có dự án nào",
+    "noDescription": "Chưa có mô tả dự án.",
+    "create": "Tạo dự án",
+    "createProject": "Tạo dự án",
+    "editProject": "Chỉnh sửa dự án",
+    "projectDetails": "Chi tiết dự án",
+    "importCsv": "Nhập CSV",
+    "searchPlaceholder": "Tìm theo tên, mã hoặc mô tả...",
+    "stats": {
+      "total": "Tổng dự án"
     }
   }
 }

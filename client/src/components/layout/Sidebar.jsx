@@ -10,11 +10,13 @@ import {
   FileTextOutlined,
   ExperimentOutlined,
   HistoryOutlined,
+  GlobalOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 const { Sider } = Layout;
 const { Text } = Typography;
@@ -23,6 +25,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark } = useTheme();
+  const { user } = useAuth();
   const { t } = useTranslation();
 
   const menuItems = [
@@ -35,7 +38,8 @@ export default function Sidebar({ collapsed, onToggle }) {
         </span>
       ) : null,
       children: [
-        { key: '/', icon: <DashboardOutlined style={{ fontSize: 16 }} />, label: t('nav.dashboard') },
+        { key: '/dashboard', icon: <DashboardOutlined style={{ fontSize: 16 }} />, label: t('nav.dashboard') || 'Tổng quan Dashboard' },
+        { key: '/home', icon: <GlobalOutlined style={{ fontSize: 16, color: '#06b6d4' }} />, label: 'Trang chủ (Giới thiệu)' },
       ],
     },
     {
@@ -49,7 +53,9 @@ export default function Sidebar({ collapsed, onToggle }) {
       children: [
         { key: '/projects', icon: <ProjectOutlined style={{ fontSize: 16 }} />, label: t('nav.projects') },
         { key: '/tasks', icon: <UnorderedListOutlined style={{ fontSize: 16 }} />, label: t('nav.tasks') },
-        { key: '/resources', icon: <TeamOutlined style={{ fontSize: 16 }} />, label: t('nav.resources') },
+        ...(user?.role !== 'member'
+          ? [{ key: '/resources', icon: <TeamOutlined style={{ fontSize: 16 }} />, label: t('nav.resources') }]
+          : []),
       ],
     },
     {

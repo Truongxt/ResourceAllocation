@@ -12,6 +12,54 @@ const { buildWorkloadTrend } = require('../analytics/workloadTrend');
  */
 const getDashboardOverview = async (req, res, next) => {
   try {
+    const isGlobalAdmin = req.user && req.user.role === 'admin';
+    let projectMatch = {};
+    let taskMatch = {};
+    let resourceMatch = { isActive: true };
+
+    if (!isGlobalAdmin && req.user) {
+      const userTasks = await Task.find({
+        $or: [{ assignee: req.user._id }, { createdBy: req.user._id }],
+      }).select('project');
+      const assignedProjectIds = userTasks.map((t) => t.project).filter(Boolean);
+
+      projectMatch = {
+        $or: [
+          { manager: req.user._id },
+          { 'members.user': req.user._id },
+          { createdBy: req.user._id },
+          { _id: { $in: assignedProjectIds } },
+        ],
+      };
+
+      const userProjects = await Project.find(projectMatch).select('_id members');
+      const userProjectIds = userProjects.map((p) => p._id);
+
+      taskMatch = {
+        $or: [
+          { project: { $in: userProjectIds } },
+          { assignee: req.user._id },
+          { createdBy: req.user._id },
+        ],
+      };
+
+      // Find user IDs involved in these projects
+      const memberUserIds = new Set();
+      userProjects.forEach((p) => {
+        if (p.members) {
+          p.members.forEach((m) => {
+            if (m.user) memberUserIds.add(m.user.toString());
+          });
+        }
+      });
+      memberUserIds.add(req.user._id.toString());
+
+      resourceMatch = {
+        isActive: true,
+        user: { $in: Array.from(memberUserIds) },
+      };
+    }
+
     const [
       projectStats,
       taskStats,
@@ -21,6 +69,7 @@ const getDashboardOverview = async (req, res, next) => {
     ] = await Promise.all([
       // Projects
       Project.aggregate([
+        { $match: projectMatch },
         {
           $group: {
             _id: null,
@@ -36,6 +85,7 @@ const getDashboardOverview = async (req, res, next) => {
 
       // Tasks
       Task.aggregate([
+        { $match: taskMatch },
         {
           $group: {
             _id: null,
@@ -53,7 +103,7 @@ const getDashboardOverview = async (req, res, next) => {
 
       // Resources
       Resource.aggregate([
-        { $match: { isActive: true } },
+        { $match: resourceMatch },
         {
           $group: {
             _id: null,
@@ -75,7 +125,7 @@ const getDashboardOverview = async (req, res, next) => {
         .select('algorithm fitness executionTime taskCount resourceCount createdAt isApplied'),
 
       // Recent tasks activity
-      Task.find()
+      Task.find(taskMatch)
         .sort('-updatedAt')
         .limit(8)
         .populate('project', 'name code')

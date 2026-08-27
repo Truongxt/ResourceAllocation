@@ -122,7 +122,10 @@ export default function Register() {
         }}
       >
         <div style={{ width: '100%', maxWidth: 440 }}>
-          <div style={{ marginBottom: 28 }}>
+          <div style={{ marginBottom: 20 }}>
+            <Link to="/home" style={{ color: '#818cf8', fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+              ← Quay lại Trang giới thiệu (Home)
+            </Link>
             <Title level={3} style={{ color: '#f8fafc', marginBottom: 6, fontWeight: 700 }}>
               {t('auth.registerTitle') || 'Tạo tài khoản mới'}
             </Title>
