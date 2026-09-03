@@ -100,10 +100,11 @@ ResourceAllocation/
 
 ## Tài liệu liên quan
 
+- [FEATURE_FLOWS.md](./FEATURE_FLOWS.md) - 🌊 **Tài liệu Luồng Hoạt động Chi tiết Từng Tính năng (Dành cho Đồ án)**
 - [FEATURES.md](./FEATURES.md) - Danh sách tính năng & trạng thái
 - [COMPARISON_JIRA.md](./COMPARISON_JIRA.md) - So sánh năng lực với Jira Software Cloud
 - [DATABASE.md](./DATABASE.md) - Thiết kế Database Schema
 - [API.md](./API.md) - API Documentation
-- [ALGORITHMS.md](./ALGORITHMS.md) - Mô tả thuật toán tối ưu hóa
+- [ALGORITHMS.md](./ALGORITHMS.md) - Mô tả thuật toán tối ưu hóa (GA, CSP, Hybrid)
 - [CHANGELOG.md](./CHANGELOG.md) - Nhật ký thay đổi
 - [architecture/SYSTEM_DESIGN.md](./architecture/SYSTEM_DESIGN.md) - Thiết kế kiến trúc chi tiết

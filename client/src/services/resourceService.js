@@ -32,6 +32,18 @@ const resourceService = {
   recalculateWorkload() {
     return api.post('/resources/recalculate-workload');
   },
+
+  getMyLeaves() {
+    return api.get('/resources/me/leaves');
+  },
+
+  addMyLeave(data) {
+    return api.post('/resources/me/leaves', data);
+  },
+
+  deleteMyLeave(leaveId) {
+    return api.delete(`/resources/me/leaves/${leaveId}`);
+  },
 };
 
 export default resourceService;

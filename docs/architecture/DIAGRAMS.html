@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sơ đồ Trực quan Luồng Tính năng - RAO Studio</title>
+  <!-- Mermaid.js for rich vector diagram rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-secondary: #111827;
+      --bg-card: #1e293b;
+      --border-color: rgba(255, 255, 255, 0.1);
+      --primary: #6366f1;
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      --cyan-gradient: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+      --emerald-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      --amber-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 100%;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 24px;
+      background: var(--bg-secondary);
+      padding: 8px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .tab-btn {
+      padding: 10px 18px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 13px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: var(--primary-gradient);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    .diagram-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-action {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-action:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .diagram-box {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow-x: auto;
+      min-height: 380px;
+    }
+
+    .diagram-desc {
+      margin-top: 18px;
+      padding: 16px 20px;
+      background: rgba(99, 102, 241, 0.06);
+      border-left: 4px solid #6366f1;
+      border-radius: 0 8px 8px 0;
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+
+    .diagram-desc strong {
+      color: #fff;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+      gap: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="badge">Đồ án Tốt nghiệp - Trần Xuân Trường</div>
+      <h1>Trung tâm Sơ đồ & Luồng Hoạt động Tính năng (RAO Studio)</h1>
+      <p class="subtitle">Trực quan hóa toàn bộ kiến trúc hệ thống, quy trình thuật toán GA/CSP/CPM, luồng xác thực bảo mật và bảng phân bổ nguồn lực.</p>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('tab-architecture')">🏗️ 1. Kiến trúc Tổng thể</button>
+      <button class="tab-btn" onclick="switchTab('tab-auth')">🔐 2. Luồng Xác thực & Token</button>
+      <button class="tab-btn" onclick="switchTab('tab-project-task')">📋 3. Dự án, Task & Kanban</button>
+      <button class="tab-btn" onclick="switchTab('tab-optimization')">🧬 4. Động cơ Tối ưu (GA / CSP)</button>
+      <button class="tab-btn" onclick="switchTab('tab-gantt')">📊 5. Sơ đồ Gantt & CPM</button>
+      <button class="tab-btn" onclick="switchTab('tab-benchmark')">🧪 6. Benchmark Studio</button>
+      <button class="tab-btn" onclick="switchTab('tab-realtime')">⚡ 7. Realtime & Audit Log</button>
+    </div>
+
+    <!-- TAB 1: KIẾN TRÚC TỔNG THỂ -->
+    <div id="tab-architecture" class="tab-content active">
+      <div class="diagram-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>🏗️</span> Sơ đồ Phân tầng Kiến trúc Hệ thống (Multi-Tier Architecture)
+          </div>
+          <div class="card-actions">
+            <button class="btn-action" onclick="window.print()">🖨️ In / Xuất PDF</button>
+          </div>
+        </div>
+        <div class="diagram-box">
+          <pre class="mermaid">
+graph TB
+    subgraph ClientLayer ["Lớp Giao diện (Client Apps)"]
+        Web["Web Client (React 18 + Vite + Antd 6)"]
+        Mobile["Mobile App (React Native + Expo)"]
+    end
+
+    subgraph SecurityLayer ["Lớp Bảo mật & Phân quyền"]
+        Gateway["API Gateway / Express Server (:5000)"]
+        AuthM["JWT Auth & Token Rotation"]
+        RBAC["Phân quyền RBAC (Admin / PM / Member)"]
+    end
+
+    subgraph CoreEngine ["Lớp Nghiệp vụ & Động cơ Thuật toán"]
+        ProjectCtrl["Quản lý Dự án & Tiến độ"]
+        TaskCtrl["Quản lý Công việc & Kanban"]
+        ResourceCtrl["Quản lý Nhân sự & Skill Matrix"]
+        GAEngine["Genetic Algorithm Engine (GA)"]
+        CSPEngine["Constraint Satisfaction (CSP Solver)"]
+        HybridEngine["Hybrid Engine (CSP ➔ GA)"]
+        CPMEngine["CPM Engine (Critical Path Analysis)"]
+        BenchmarkEngine["Benchmark Studio Runner"]
+    end
+
+    subgraph ServiceLayer ["Lớp Dịch vụ Nền tảng"]
+        SocketService["Socket.io Real-time Push"]
+        ActivityService["Activity Audit Logger"]
+    end
+
+    subgraph StorageLayer ["Lớp Cơ sở Dữ liệu"]
+        MongoDB[(MongoDB Database)]
+    end
+
+    Web -->|REST API / Bearer Token| Gateway
+    Mobile -->|REST API / Bearer Token| Gateway
+    Web <-->|WebSocket Events| SocketService
+    Mobile <-->|WebSocket Events| SocketService
+
+    Gateway --> AuthM --> RBAC
+    RBAC --> ProjectCtrl
+    RBAC --> TaskCtrl
+    RBAC --> ResourceCtrl
+    RBAC --> GAEngine
+    RBAC --> CSPEngine
+    RBAC --> HybridEngine
+    RBAC --> CPMEngine
+    RBAC --> BenchmarkEngine
+
+    ProjectCtrl --> MongoDB
+    TaskCtrl --> MongoDB
+    ResourceCtrl --> MongoDB
+    GAEngine --> MongoDB
+    CSPEngine --> MongoDB
+    HybridEngine --> MongoDB
+    CPMEngine --> MongoDB
+    BenchmarkEngine --> MongoDB
+
+    ProjectCtrl -.-> ActivityService
+    TaskCtrl -.-> SocketService
+    GAEngine -.-> SocketService
+    ActivityService --> MongoDB
+          </pre>
+        </div>
+        <div class="diagram-desc">
+          <strong>Ý nghĩa kiến trúc:</strong> Hệ thống tách bạch rõ ràng giữa tầng giao diện người dùng (Web/Mobile), tầng cổng bảo mật với cơ chế xác thực JWT và phân quyền 3 cấp (Admin, PM, Member), tầng xử lý nghiệp vụ & động cơ tối ưu hóa thông minh (GA, CSP, CPM), và tầng lưu trữ dữ liệu MongoDB kết hợp kênh truyền thời gian thực Socket.io.
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: XÁC THỰC & BẢO MẬT -->
+    <div id="tab-auth" class="tab-content">
+      <div class="grid-2">
+        <div class="diagram-card">
+          <div class="card-header">
+            <div class="card-title"><span>🔐</span> Luồng Đăng nhập & Xoay vòng Token</div>
+          </div>
+          <div class="diagram-box">
+            <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor User as Client (Web/Mobile)
+    participant Auth as Auth Controller
+    participant DB as MongoDB
+    participant Cookie as HttpOnly Cookie
+
+    User->>Auth: POST /api/auth/login { email, password }
+    Auth->>DB: Tìm User & kiểm tra bcrypt hash
+    alt Đăng nhập đúng
+        Auth->>Auth: Sinh AccessToken (15m) & RefreshToken (7d)
+        Auth->>DB: Lưu bản băm RefreshToken vào DB
+        Auth->>Cookie: Set-Cookie: refreshToken (httpOnly, Path=/api/auth)
+        Auth-->>User: Trả { accessToken, user }
+        User->>User: Lưu accessToken vào RAM (tokenStore.js)
+    else Sai thông tin
+        Auth-->>User: 401 Unauthorized
+    end
+            </pre>
+          </div>
+          <div class="diagram-desc">
+            <strong>Bảo mật cao cấp:</strong> Access Token chỉ lưu trong bộ nhớ RAM tạm thời, không lưu vào <code>localStorage</code> để triệt tiêu lỗ hổng XSS. Refresh Token được bảo vệ trong HttpOnly Cookie.
+          </div>
+        </div>
+
+        <div class="diagram-card">
+          <div class="card-header">
+            <div class="card-title"><span>🔄</span> Luồng Tự động Cấp lại Token (Silent Refresh)</div>
+          </div>
+          <div class="diagram-box">
+            <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Axios as Axios Interceptor
+    participant Server as Express Server
+    participant DB as MongoDB
+
+    Axios->>Server: Gửi Request (Token đã hết hạn)
+    Server-->>Axios: 401 TokenExpiredError
+    Note over Axios: Interceptor bắt mã 401
+    Axios->>Server: POST /api/auth/refresh-token (Cookie)
+    Server->>DB: Kiểm tra hash RefreshToken
+    alt Hợp lệ
+        Server->>Server: Xoay vòng Token (Tạo cặp mới)
+        Server->>DB: Cập nhật RefreshToken mới
+        Server-->>Axios: Set-Cookie mới + Trả AccessToken mới
+        Axios->>Axios: Cập nhật RAM tokenStore
+        Axios->>Server: Tự động chạy lại Request ban đầu
+        Server-->>Axios: 200 OK Thành công
+    else Không hợp lệ
+        Server-->>Axios: 403 Forbidden
+        Axios->>Axios: Chuyển về /login
+    end
+            </pre>
+          </div>
+          <div class="diagram-desc">
+            <strong>Trải nghiệm mượt mà:</strong> Người dùng không bao giờ bị gián đoạn hay bất ngờ bị văng khỏi hệ thống khi đang làm việc; token được tự động làm mới ngầm bên dưới.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: DỰ ÁN & KANBAN -->
+    <div id="tab-project-task" class="tab-content">
+      <div class="grid-2">
+        <div class="diagram-card">
+          <div class="card-header">
+            <div class="card-title"><span>🛡️</span> Kiểm tra Ràng buộc Tiền nhiệm & Chống Chu trình (DAG)</div>
+          </div>
+          <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Start([Lưu Task Dependency]) --> C1{Phụ thuộc chính nó?}
+    C1 -- Có --> E1[Báo lỗi: Tự phụ thuộc]
+    C1 -- Không --> C2{Cùng dự án?}
+    C2 -- Không --> E2[Báo lỗi: Khác dự án]
+    C2 -- Có --> Graph[Xây dựng đồ thị có hướng DAG]
+    Graph --> C3{Phát hiện chu trình vòng lặp?}
+    C3 -- Có --> E3[Báo lỗi: Tạo vòng lặp vô tận]
+    C3 -- Không --> Save[(Lưu Task vào Database)]
+    Save --> Recalc[Tính lại % tiến độ Dự án]
+    Recalc --> Done([Hoàn tất])
+            </pre>
+          </div>
+          <div class="diagram-desc">
+            <strong>Thuật toán đồ thị DAG:</strong> Ngăn chặn hoàn toàn lỗi logic trong quản lý dự án (Ví dụ: A chờ B, B chờ C, C lại chờ A).
+          </div>
+        </div>
+
+        <div class="diagram-card">
+          <div class="card-header">
+            <div class="card-title"><span>📋</span> Kéo thả Kanban & Đồng bộ Optimistic UI</div>
+          </div>
+          <div class="diagram-box">
+            <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor User as Người dùng Kanban
+    participant UI as React State
+    participant API as Task Controller
+    participant Socket as Socket.io Hub
+
+    User->>UI: Kéo thả thẻ Task sang cột 'Đang làm'
+    UI->>UI: Cập nhật giao diện ngay tức thì (Optimistic)
+    UI->>API: PATCH /api/tasks/:id/status
+    alt Lưu thành công
+        API->>Socket: Emit event 'task_updated'
+        Socket-->>User: Đồng bộ Realtime sang các thành viên khác
+    else Bị lỗi
+        API-->>UI: 400/500 Error
+        UI->>UI: Tự động hoàn tác thẻ về vị trí cũ (Rollback) + Báo lỗi
+    end
+            </pre>
+          </div>
+          <div class="diagram-desc">
+            <strong>Optimistic UI:</strong> Cho tốc độ phản hồi 0ms trên giao diện, tạo cảm giác mượt mà như các phần mềm hàng đầu như Trello hay Jira.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: ĐỘNG CƠ TỐI ƯU HÓA -->
+    <div id="tab-optimization" class="tab-content">
+      <div class="grid-2">
+        <div class="diagram-card">
+          <div class="card-header">
+            <div class="card-title"><span>🧬</span> Vòng lặp Thuật toán Di truyền (Genetic Algorithm)</div>
+          </div>
+          <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Start([Khởi tạo Tasks & Nhân sự]) --> Pop[Khởi tạo Quần thể: N Nhiễm sắc thể]
+    Pop --> Fit[Đánh giá Fitness Đa mục tiêu: Cân bằng tải, Kỹ năng, Chi phí, Quá tải]
+    Fit --> Check{Hội tụ hoặc Đạt thế hệ Max?}
+    Check -- Có --> Best[Trích xuất Cá thể Ưu tú nhất]
+    Check -- Không --> Elite[Giữ 5% Cá thể Tinh hoa]
+    Elite --> Tour[Chọn lọc Tournament k=5]
+    Tour --> Cross[Lai ghép Uniform Crossover rate=0.8]
+    Cross --> Mut[Đột biến Random Mutation rate=0.1]
+    Mut --> Next[Hình thành Quần thể thế hệ mới]
+    Next --> Fit
+    Best --> SaveResult[(Lưu OptimizationResult)]
+            </pre>
+          </div>
+          <div class="diagram-desc">
+            <strong>Đa mục tiêu (Multi-objective):</strong> Cân bằng đồng thời 4 hàm mục tiêu: Độ lệch chuẩn tải nhân sự, Độ phù hợp kỹ năng, Chi phí thực hiện và Triệt tiêu quá tải.
+          </div>
+        </div>
+
+        <div class="diagram-card">
+          <div class="card-header">
+            <div class="card-title"><span>⚙️</span> Quy trình Thuật toán Lai (Hybrid CSP ➔ GA)</div>
+          </div>
+          <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Data[Tập hợp Tasks & Nhân sự] --> CSP[CSP Solver Engine]
+    CSP --> NodeCons[Kiểm tra Node Consistency]
+    NodeCons --> AC3[Lan truyền Ràng buộc AC-3: Lọc H1-H4]
+    AC3 --> Domains[Thu hẹp Miền giá trị Khả thi]
+    Domains --> GA[GA Engine: Tìm kiếm Tối ưu trên Miền hẹp]
+    GA --> Comp[Ma trận So sánh 9 Chỉ số Định lượng]
+    Comp --> Apply[Áp dụng Phương án Phân công]
+            </pre>
+          </div>
+          <div class="diagram-desc">
+            <strong>Ưu việt của Hybrid:</strong> CSP loại bỏ triệt để các phép gán vi phạm ràng buộc cứng trước khi GA tiến hành tối ưu hóa, giúp tốc độ hội tụ nhanh gấp 3–5 lần và loại bỏ nghiệm không khả thi.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: SƠ ĐỒ GANTT & CPM -->
+    <div id="tab-gantt" class="tab-content">
+      <div class="diagram-card">
+        <div class="card-header">
+          <div class="card-title"><span>📊</span> Thuật toán Phân tích Đường găng (Critical Path Method - CPM)</div>
+        </div>
+        <div class="diagram-box">
+          <pre class="mermaid">
+flowchart LR
+    subgraph S1 ["1. Forward Pass (Duyệt xuôi)"]
+        F1["ES = Max(EF các tiền nhiệm)"]
+        F2["EF = ES + Thời lượng công việc"]
+    end
+
+    subgraph S2 ["2. Backward Pass (Duyệt ngược)"]
+        B1["LF = Min(LS các công việc sau)"]
+        B2["LS = LF - Thời lượng công việc"]
+    end
+
+    subgraph S3 ["3. Độ thả nổi (Total Float)"]
+        TF["Total Float (TF) = LS - ES = LF - EF"]
+    end
+
+    subgraph S4 ["4. Phát hiện Đường găng"]
+        CP["Các công việc có TF = 0 ➔ Đường găng (Màu Đỏ)"]
+    end
+
+    S1 --> S2 --> S3 --> S4
+          </pre>
+        </div>
+        <div class="diagram-desc">
+          <strong>Đường găng (Critical Path):</strong> Xác định chuỗi công việc quyết định thời gian hoàn thành của toàn bộ dự án. Bất kỳ sự chậm trễ nào trên đường găng đều sẽ làm trễ ngày bàn giao dự án.
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: BENCHMARK STUDIO -->
+    <div id="tab-benchmark" class="tab-content">
+      <div class="diagram-card">
+        <div class="card-header">
+          <div class="card-title"><span>🧪</span> Quy trình Thực nghiệm Đối chứng Thuật toán (Benchmark Studio)</div>
+        </div>
+        <div class="diagram-box">
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Tester as Nghiên cứu viên / Hội đồng
+    participant Studio as Benchmark Studio UI
+    participant Gen as Synthetic Generator
+    participant Runner as Benchmark Runner
+    participant GA as Genetic Algorithm
+    participant CSP as CSP Solver
+    participant Hybrid as Hybrid Engine
+
+    Tester->>Studio: Chọn bộ dữ liệu (Small 20t / Medium 100t / Large 500t / Live DB)
+    Studio->>Gen: Sinh dữ liệu ngẫu nhiên theo phân phối chuẩn
+    Studio->>Runner: Kích hoạt chạy đối chứng song song
+    par Chạy GA
+        Runner->>GA: Chạy GA (100 cá thể, 500 thế hệ)
+        GA-->>Runner: Thời gian (ms), Fitness, Độ lệch chuẩn tải
+    and Chạy CSP
+        Runner->>CSP: Chạy CSP (AC-3 + MRV + LCV)
+        CSP-->>Runner: Thời gian (ms), Tỉ lệ khả thi, Vi phạm
+    and Chạy Hybrid
+        Runner->>Hybrid: Chạy CSP lọc miền ➔ GA tối ưu
+        Hybrid-->>Runner: Tỉ lệ thu hẹp miền (%), Fitness tối ưu, Thời gian
+    end
+    Runner-->>Studio: Xuất Bảng so sánh 3 cột + Biểu đồ Radar + Kết luận đối chứng
+    Studio-->>Tester: Trực quan hóa số liệu phục vụ Thuyết minh Đồ án
+          </pre>
+        </div>
+        <div class="diagram-desc">
+          <strong>Phục vụ Đồ án Tốt nghiệp:</strong> Cung cấp đầy đủ bằng chứng thực nghiệm định lượng để chứng minh tính hiệu quả và tính khả thi của các thuật toán đề xuất trên nhiều quy mô bài toán khác nhau.
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 7: REALTIME & AUDIT LOG -->
+    <div id="tab-realtime" class="tab-content">
+      <div class="diagram-card">
+        <div class="card-header">
+          <div class="card-title"><span>⚡</span> Đồng bộ Thời gian thực & Ghi vết Hoạt động (Real-time & Audit Log)</div>
+        </div>
+        <div class="diagram-box">
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor PM as Project Manager
+    participant API as Backend Server
+    participant Socket as Socket.io Server
+    participant DB as MongoDB
+    actor Member as Thành viên (Web / Mobile)
+
+    PM->>API: Phân công công việc mới cho Member
+    API->>DB: Lưu Task + Tạo Notification + Ghi ActivityLog
+    API->>Socket: emitToUser(memberId, 'notification', data)
+    Socket-->>Member: Push Notification tức thì (In-app Badge & Popup)
+    Member->>Member: Nhấp thông báo ➔ Điều hướng thẳng tới Kanban Task
+          </pre>
+        </div>
+        <div class="diagram-desc">
+          <strong>Minh bạch & Liền mạch:</strong> Mọi thao tác quan trọng đều được lưu vết kiểm toán (Audit Trail) và thông báo tức thì đến người liên quan trên cả nền tảng Web và Mobile.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0f172a',
+        primaryColor: '#6366f1',
+        primaryTextColor: '#f8fafc',
+        primaryBorderColor: '#818cf8',
+        lineColor: '#06b6d4',
+        secondaryColor: '#1e293b',
+        tertiaryColor: '#111827',
+        fontFamily: 'Plus Jakarta Sans'
+      }
+    });
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      const targetTab = document.getElementById(tabId);
+      if (targetTab) {
+        targetTab.classList.add('active');
+      }
+
+      event.currentTarget.classList.add('active');
+    }
+  </script>
+</body>
+</html>

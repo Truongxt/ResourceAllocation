@@ -4,24 +4,8 @@ const User = require('../models/User');
 const Project = require('../models/Project');
 const Department = require('../models/Department');
 const { logActivity } = require('../services/activityLog.service');
-
-const EMPLOYEE_ID_PREFIX = 'NV';
-const EMPLOYEE_ID_LENGTH = 4;
-
-const generateEmployeeId = async () => {
-  const latest = await Resource.findOne({
-    employeeId: new RegExp(`^${EMPLOYEE_ID_PREFIX}\\d+$`),
-  })
-    .sort({ employeeId: -1 })
-    .select('employeeId');
-
-  const latestNumber = latest?.employeeId
-    ? parseInt(latest.employeeId.replace(EMPLOYEE_ID_PREFIX, ''), 10)
-    : 0;
-
-  const nextNumber = Number.isNaN(latestNumber) ? 1 : latestNumber + 1;
-  return `${EMPLOYEE_ID_PREFIX}${String(nextNumber).padStart(EMPLOYEE_ID_LENGTH, '0')}`;
-};
+const { syncResourceWorkload } = require('../services/workload.service');
+const { generateEmployeeId } = require('../utils/employeeId.util');
 
 const validateDepartment = async (departmentName) => {
   if (!departmentName) return null;
@@ -290,6 +274,12 @@ const deleteResource = async (req, res, next) => {
     }
 
     const deletedName = resource.employeeId || resource.position;
+
+    // Hủy phân công ở các task đang được gán cho nhân sự này để tránh dữ liệu mồ côi
+    if (resource.user) {
+      await Task.updateMany({ assignee: resource.user }, { assignee: null });
+    }
+
     await resource.deleteOne();
 
     await logActivity({
@@ -357,41 +347,19 @@ const updateSkills = async (req, res, next) => {
  */
 const recalculateWorkload = async (req, res, next) => {
   try {
-    const resources = await Resource.find({ isActive: true });
+    const count = await syncResourceWorkload();
 
-    for (const resource of resources) {
-      const activeTasks = await Task.find({
-        assignee: resource.user,
-        status: { $in: ['in_progress', 'review'] },
-      }).select('estimatedHours');
-
-      const totalHours = activeTasks.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
-
-      // Assume weekly distribution: estimatedHours / assumed weeks
-      resource.currentWorkload = totalHours;
-
-      // Update availability
-      const util = resource.maxCapacity > 0 ? totalHours / (resource.maxCapacity * resource.fte) : 0;
-      if (util > 1) resource.availability = 'unavailable';
-      else if (util > 0.7) resource.availability = 'partially_available';
-      else resource.availability = 'available';
-
-      await resource.save();
-    }
-
-    // Thao tác này ghi đè `currentWorkload` của toàn bộ nhân sự đang hoạt động.
-    // Nếu con số sau đó trông lạ, phải tra được ai chạy và chạy lúc nào.
     await logActivity({
       req,
       action: 'RECALCULATE_WORKLOAD',
       entityType: 'resource',
-      description: `Tính lại workload cho ${resources.length} nhân sự`,
-      details: { resourceCount: resources.length },
+      description: `Tính lại workload cho ${count} nhân sự`,
+      details: { resourceCount: count },
     });
 
     res.json({
       success: true,
-      message: `Đã tính toán lại workload cho ${resources.length} nhân sự`,
+      message: `Đã tính toán lại workload cho ${count} nhân sự`,
     });
   } catch (error) {
     next(error);
@@ -444,6 +412,137 @@ const getResourceSummary = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Lấy lịch nghỉ phép của user hiện tại
+ * @route   GET /api/resources/me/leaves
+ * @access  Private
+ */
+const getMyLeaves = async (req, res, next) => {
+  try {
+    const resource = await Resource.findOne({ user: req.user._id });
+    if (!resource) {
+      return res.json({ success: true, data: { leaves: [] } });
+    }
+
+    const leaves = (resource.unavailablePeriods || [])
+      .slice()
+      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+    res.json({
+      success: true,
+      data: { leaves },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Đăng ký lịch nghỉ phép mới cho user hiện tại
+ * @route   POST /api/resources/me/leaves
+ * @access  Private
+ */
+const addMyLeave = async (req, res, next) => {
+  try {
+    const { startDate, endDate, reason } = req.body;
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn ngày bắt đầu và ngày kết thúc',
+      });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({ success: false, message: 'Định dạng ngày không hợp lệ' });
+    }
+
+    if (end < start) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày kết thúc không được nhỏ hơn ngày bắt đầu',
+      });
+    }
+
+    let resource = await Resource.findOne({ user: req.user._id });
+    if (!resource) {
+      resource = await Resource.create({
+        user: req.user._id,
+        position: req.user.role === 'project_manager' ? 'Project Manager' : 'Developer',
+        department: 'Kỹ thuật',
+        maxCapacity: 40,
+        fte: 1.0,
+        currentWorkload: 0,
+        availability: 'available',
+        createdBy: req.user._id,
+      });
+    }
+
+    resource.unavailablePeriods.push({
+      startDate: start,
+      endDate: end,
+      reason: reason?.trim() || 'Nghỉ phép',
+    });
+
+    resource.unavailablePeriods.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    await resource.save();
+
+    await logActivity({
+      req,
+      action: 'ADD_LEAVE',
+      entityType: 'resource',
+      entityId: resource._id,
+      description: `Đăng ký nghỉ phép từ ${start.toLocaleDateString('vi-VN')} đến ${end.toLocaleDateString('vi-VN')}`,
+      details: { reason },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Đăng ký lịch nghỉ phép thành công',
+      data: { leaves: resource.unavailablePeriods },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Hủy/xóa lịch nghỉ phép của user hiện tại
+ * @route   DELETE /api/resources/me/leaves/:leaveId
+ * @access  Private
+ */
+const deleteMyLeave = async (req, res, next) => {
+  try {
+    const { leaveId } = req.params;
+    const resource = await Resource.findOne({ user: req.user._id });
+
+    if (!resource) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ nhân sự' });
+    }
+
+    const initialLength = resource.unavailablePeriods.length;
+    resource.unavailablePeriods = resource.unavailablePeriods.filter(
+      (p) => p._id && p._id.toString() !== leaveId
+    );
+
+    if (resource.unavailablePeriods.length === initialLength) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy kỳ nghỉ cần xóa' });
+    }
+
+    await resource.save();
+
+    res.json({
+      success: true,
+      message: 'Hủy lịch nghỉ phép thành công',
+      data: { leaves: resource.unavailablePeriods },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getResources,
   getResourceById,
@@ -453,4 +552,7 @@ module.exports = {
   updateSkills,
   recalculateWorkload,
   getResourceSummary,
+  getMyLeaves,
+  addMyLeave,
+  deleteMyLeave,
 };

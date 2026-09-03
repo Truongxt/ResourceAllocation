@@ -4,6 +4,7 @@ const Resource = require('../models/Resource');
 const OptimizationResult = require('../models/OptimizationResult');
 const mongoose = require('mongoose');
 const { buildWorkloadTrend } = require('../analytics/workloadTrend');
+const { getUserAnalyticsScope } = require('../services/analyticsScope.service');
 
 /**
  * @desc    Dashboard overview — tổng hợp real data
@@ -12,53 +13,12 @@ const { buildWorkloadTrend } = require('../analytics/workloadTrend');
  */
 const getDashboardOverview = async (req, res, next) => {
   try {
-    const isGlobalAdmin = req.user && req.user.role === 'admin';
-    let projectMatch = {};
-    let taskMatch = {};
-    let resourceMatch = { isActive: true };
-
-    if (!isGlobalAdmin && req.user) {
-      const userTasks = await Task.find({
-        $or: [{ assignee: req.user._id }, { createdBy: req.user._id }],
-      }).select('project');
-      const assignedProjectIds = userTasks.map((t) => t.project).filter(Boolean);
-
-      projectMatch = {
-        $or: [
-          { manager: req.user._id },
-          { 'members.user': req.user._id },
-          { createdBy: req.user._id },
-          { _id: { $in: assignedProjectIds } },
-        ],
-      };
-
-      const userProjects = await Project.find(projectMatch).select('_id members');
-      const userProjectIds = userProjects.map((p) => p._id);
-
-      taskMatch = {
-        $or: [
-          { project: { $in: userProjectIds } },
-          { assignee: req.user._id },
-          { createdBy: req.user._id },
-        ],
-      };
-
-      // Find user IDs involved in these projects
-      const memberUserIds = new Set();
-      userProjects.forEach((p) => {
-        if (p.members) {
-          p.members.forEach((m) => {
-            if (m.user) memberUserIds.add(m.user.toString());
-          });
-        }
-      });
-      memberUserIds.add(req.user._id.toString());
-
-      resourceMatch = {
-        isActive: true,
-        user: { $in: Array.from(memberUserIds) },
-      };
-    }
+    const {
+      projectMatch,
+      taskMatch,
+      resourceMatch,
+      recentOptimizationFilter,
+    } = await getUserAnalyticsScope(req.user);
 
     const [
       projectStats,
@@ -118,8 +78,8 @@ const getDashboardOverview = async (req, res, next) => {
         },
       ]),
 
-      // Recent optimizations
-      OptimizationResult.find({ status: 'completed' })
+      // Recent optimizations (scoped)
+      OptimizationResult.find(recentOptimizationFilter)
         .sort('-createdAt')
         .limit(5)
         .select('algorithm fitness executionTime taskCount resourceCount createdAt isApplied'),
@@ -162,13 +122,20 @@ const getDashboardOverview = async (req, res, next) => {
  */
 const getUtilizationBreakdown = async (req, res, next) => {
   try {
-    const resources = await Resource.find({ isActive: true })
+    const { resourceMatch, taskMatch } = await getUserAnalyticsScope(req.user);
+
+    const resources = await Resource.find(resourceMatch)
       .populate('user', 'name email avatar')
       .select('user position department skills maxCapacity fte currentWorkload availability');
 
-    // Get task assignments per resource
+    // Get task assignments per resource within user scope
+    const matchFilters = [{ status: { $in: ['todo', 'in_progress', 'review'] } }];
+    if (Object.keys(taskMatch).length > 0) {
+      matchFilters.push(taskMatch);
+    }
+
     const assignments = await Task.aggregate([
-      { $match: { status: { $in: ['todo', 'in_progress', 'review'] } } },
+      { $match: { $and: matchFilters } },
       {
         $group: {
           _id: '$assignee',
@@ -250,14 +217,20 @@ const getUtilizationBreakdown = async (req, res, next) => {
  */
 const getTaskAnalytics = async (req, res, next) => {
   try {
+    const { taskMatch } = await getUserAnalyticsScope(req.user);
+    const matchStage = Object.keys(taskMatch).length > 0 ? [{ $match: taskMatch }] : [];
+
     const [byStatus, byPriority, byProject, hoursSummary] = await Promise.all([
       Task.aggregate([
+        ...matchStage,
         { $group: { _id: '$status', count: { $sum: 1 } } },
       ]),
       Task.aggregate([
+        ...matchStage,
         { $group: { _id: '$priority', count: { $sum: 1 } } },
       ]),
       Task.aggregate([
+        ...matchStage,
         {
           $group: {
             _id: '$project',
@@ -289,6 +262,7 @@ const getTaskAnalytics = async (req, res, next) => {
         },
       ]),
       Task.aggregate([
+        ...matchStage,
         {
           $group: {
             _id: null,
@@ -347,14 +321,18 @@ const getWorkloadTrend = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Khoảng thời gian không hợp lệ' });
     }
 
-    // Lấy cả task đã done: biểu đồ trải theo lịch nên phần quá khứ phải có mặt, nếu chỉ
-    // lấy task đang mở thì mọi khoảng đã qua đều phẳng lì một cách sai lệch.
+    const { taskMatch, resourceMatch } = await getUserAnalyticsScope(req.user);
+
     const taskFilter = {};
-    if (projectId) taskFilter.project = projectId;
+    if (projectId) {
+      taskFilter.project = projectId;
+    } else if (Object.keys(taskMatch).length > 0) {
+      Object.assign(taskFilter, taskMatch);
+    }
 
     const [tasks, resources] = await Promise.all([
       Task.find(taskFilter).select('title estimatedHours startDate endDate assignee status').lean(),
-      Resource.find({ isActive: true })
+      Resource.find(resourceMatch)
         .populate('user', 'name')
         .select('user position maxCapacity fte unavailablePeriods')
         .lean(),

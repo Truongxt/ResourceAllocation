@@ -2,6 +2,7 @@ const Task = require('../models/Task');
 const Project = require('../models/Project');
 const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
+const { syncResourceWorkload } = require('../services/workload.service');
 
 /**
  * Helper: Tính lại progress dự án dựa trên tasks
@@ -227,6 +228,11 @@ const createTask = async (req, res, next) => {
     // Recalculate project progress
     await recalculateProjectProgress(project._id);
 
+    // Đồng bộ tải công việc của nhân sự được gán
+    if (taskData.assignee) {
+      await syncResourceWorkload(taskData.assignee);
+    }
+
     const populated = await Task.findById(task._id)
       .populate('project', 'name code status')
       .populate('assignee', 'name email avatar department')
@@ -301,6 +307,8 @@ const updateTask = async (req, res, next) => {
     delete updateData.createdBy;
     delete updateData.project; // Don't allow changing project
 
+    const oldAssignee = task.assignee;
+
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
@@ -325,6 +333,12 @@ const updateTask = async (req, res, next) => {
 
     // Recalculate project progress
     await recalculateProjectProgress(task.project);
+
+    // Đồng bộ tải cho cả người cũ và người mới (nếu có thay đổi assignee hoặc giờ/trạng thái)
+    const userIdsToSync = [oldAssignee, updatedTask.assignee?._id || updatedTask.assignee].filter(Boolean);
+    if (userIdsToSync.length > 0) {
+      await syncResourceWorkload(userIdsToSync);
+    }
 
     // Real-time Notification if newly assigned
     if (
@@ -394,6 +408,11 @@ const updateTaskStatus = async (req, res, next) => {
 
     await recalculateProjectProgress(task.project);
 
+    // Đồng bộ lại tải công việc của người được gán khi đổi trạng thái
+    if (task.assignee) {
+      await syncResourceWorkload(task.assignee);
+    }
+
     // Notify assignee if status changed by someone else
     if (
       updatedTask.assignee &&
@@ -458,6 +477,11 @@ const deleteTask = async (req, res, next) => {
 
     // Recalculate project progress
     await recalculateProjectProgress(projectId);
+
+    // Đồng bộ lại tải công việc khi task bị xóa
+    if (task.assignee) {
+      await syncResourceWorkload(task.assignee);
+    }
 
     logActivity({
       req,

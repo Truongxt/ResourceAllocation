@@ -1,0 +1,261 @@
+/* Executive Report Styling - Screen & Print */
+
+.executive-report-wrapper {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 8px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.executive-report-document {
+  background: #ffffff;
+  color: #1e293b;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 48px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+}
+
+/* Header */
+.rep-header {
+  border-bottom: 2px solid #4f46e5;
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+.rep-brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.rep-logo-text {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #4f46e5;
+}
+
+.rep-subbrand {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.rep-meta-right {
+  text-align: right;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.rep-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  text-align: center;
+  margin: 8px 0 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.rep-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+/* Section */
+.rep-section {
+  margin-bottom: 28px;
+  page-break-inside: avoid;
+}
+
+.rep-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-left: 4px solid #4f46e5;
+  padding-left: 10px;
+  margin-bottom: 14px;
+}
+
+/* KPI Grid */
+.rep-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rep-kpi-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+
+.rep-kpi-label {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.rep-kpi-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* Tables */
+.rep-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.rep-table th {
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 700;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+}
+
+.rep-table td {
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+}
+
+.rep-table tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+/* AI Assessment Box */
+.rep-assessment-box {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 14px 18px;
+  font-size: 12.5px;
+  color: #166534;
+  line-height: 1.6;
+}
+
+/* Signatures */
+.rep-signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  padding-top: 20px;
+  page-break-inside: avoid;
+}
+
+.rep-sign-box {
+  width: 250px;
+  text-align: center;
+}
+
+.rep-sign-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #0f172a;
+  text-transform: uppercase;
+}
+
+.rep-sign-subtitle {
+  font-size: 11px;
+  color: #64748b;
+  font-style: italic;
+  margin-bottom: 60px;
+}
+
+.rep-sign-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #1e293b;
+  border-top: 1px dashed #94a3b8;
+  padding-top: 6px;
+  display: inline-block;
+  min-width: 180px;
+}
+
+/* PRINT RULES */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .executive-report-document,
+  .executive-report-document * {
+    visibility: visible;
+  }
+
+  .executive-report-wrapper {
+    background: transparent !important;
+    padding: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .executive-report-document {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .ant-modal-close,
+  .ant-modal-header,
+  .ant-modal-footer,
+  .no-print {
+    display: none !important;
+  }
+
+  .rep-header {
+    border-bottom: 2px solid #000 !important;
+  }
+
+  .rep-logo-text {
+    color: #000 !important;
+  }
+
+  .rep-section-title {
+    border-left: 4px solid #000 !important;
+    color: #000 !important;
+  }
+
+  .rep-kpi-card {
+    border: 1px solid #ccc !important;
+    background: #fff !important;
+  }
+
+  .rep-table th {
+    background: #e2e8f0 !important;
+    color: #000 !important;
+    border: 1px solid #000 !important;
+  }
+
+  .rep-table td {
+    border: 1px solid #666 !important;
+  }
+}

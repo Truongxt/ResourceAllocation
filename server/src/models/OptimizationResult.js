@@ -102,10 +102,19 @@ const optimizationResultSchema = new mongoose.Schema(
     executionTime: { type: Number, default: 0 }, // ms
     generations: { type: Number, default: 0 },
     iterations: { type: Number, default: 0 },
-    // Applied
+    // Applied & Rollback
     isApplied: { type: Boolean, default: false },
     appliedAt: Date,
     appliedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    previousAssignments: [
+      {
+        task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
+        previousAssignee: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      },
+    ],
+    isRolledBack: { type: Boolean, default: false },
+    rolledBackAt: Date,
+    rolledBackBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     // Meta
     errorMessage: String,
     runBy: {

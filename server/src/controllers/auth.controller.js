@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Resource = require('../models/Resource');
+const Department = require('../models/Department');
 const { getJwtSecret, getAccessTokenExpire, getRefreshTokenDays } = require('../config/jwt');
 const {
   issueRefreshToken,
@@ -7,6 +9,7 @@ const {
   revokeToken,
   revokeAllForUser,
 } = require('../services/refreshToken.service');
+const { generateEmployeeId } = require('../utils/employeeId.util');
 
 const REFRESH_COOKIE = 'rao_refresh';
 
@@ -78,12 +81,39 @@ const register = async (req, res, next) => {
     }
 
     // Create user
+    const userRole = role || 'member';
     const user = await User.create({
       name,
       email,
       password,
-      role: role || 'member',
+      role: userRole,
     });
+
+    // Tự động tạo hồ sơ nhân sự mặc định cho tài khoản mới
+    try {
+      const defaultDept = await Department.findOne({ isActive: true }).select('name');
+      const departmentName = defaultDept?.name || 'Kỹ thuật';
+      const employeeId = await generateEmployeeId();
+
+      await Resource.create({
+        user: user._id,
+        employeeId,
+        position:
+          userRole === 'project_manager'
+            ? 'Project Manager'
+            : userRole === 'admin'
+            ? 'Quản trị viên'
+            : 'Developer',
+        department: departmentName,
+        maxCapacity: 40,
+        fte: 1.0,
+        currentWorkload: 0,
+        availability: 'available',
+        createdBy: user._id,
+      });
+    } catch (resourceErr) {
+      console.error('Lỗi khi tự động tạo hồ sơ Resource cho user mới:', resourceErr.message);
+    }
 
     // Generate token
     const token = await issueSession(res, req, user);

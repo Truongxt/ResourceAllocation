@@ -31,6 +31,10 @@ const optimizationService = {
     return api.post(`/optimization/${id}/apply`);
   },
 
+  rollbackResult(id) {
+    return api.post(`/optimization/${id}/rollback`);
+  },
+
   runBenchmark(params = {}) {
     return api.post('/optimization/benchmark', params);
   },

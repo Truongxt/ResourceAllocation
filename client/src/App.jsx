@@ -9,20 +9,20 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 // Mỗi trang là một chunk riêng: mở /login không phải tải theo cả sơ đồ Gantt,
 // trang tối ưu hóa và báo cáo. Sidebar/Header vẫn nằm trong chunk chính vì
 // khung layout hiện ngay từ khung hình đầu tiên.
-const Login = lazy(() => import('./pages/Login'));
-const Register = lazy(() => import('./pages/Register'));
-const LandingPage = lazy(() => import('./pages/LandingPage'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Projects = lazy(() => import('./pages/Projects'));
-const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
-const Tasks = lazy(() => import('./pages/Tasks'));
-const Resources = lazy(() => import('./pages/Resources'));
-const Optimization = lazy(() => import('./pages/Optimization'));
-const GanttChart = lazy(() => import('./pages/GanttChart'));
-const Reports = lazy(() => import('./pages/Reports'));
-const BenchmarkStudio = lazy(() => import('./pages/BenchmarkStudio'));
-const Settings = lazy(() => import('./pages/Settings'));
-const ActivityLogs = lazy(() => import('./pages/ActivityLogs'));
+const Login = lazy(() => import('./pages/auth/Login'));
+const Register = lazy(() => import('./pages/auth/Register'));
+const LandingPage = lazy(() => import('./pages/landing/LandingPage'));
+const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
+const Projects = lazy(() => import('./pages/projects/Projects'));
+const ProjectDetail = lazy(() => import('./pages/projects/ProjectDetail'));
+const Tasks = lazy(() => import('./pages/tasks/Tasks'));
+const Resources = lazy(() => import('./pages/resources/Resources'));
+const Optimization = lazy(() => import('./pages/optimization/Optimization'));
+const GanttChart = lazy(() => import('./pages/gantt/GanttChart'));
+const Reports = lazy(() => import('./pages/reports/Reports'));
+const BenchmarkStudio = lazy(() => import('./pages/benchmark/BenchmarkStudio'));
+const Settings = lazy(() => import('./pages/settings/Settings'));
+const ActivityLogs = lazy(() => import('./pages/activity-logs/ActivityLogs'));
 
 const { Content } = Layout;
 

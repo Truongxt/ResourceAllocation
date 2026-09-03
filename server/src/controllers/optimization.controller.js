@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const Resource = require('../models/Resource');
+const Project = require('../models/Project');
 const OptimizationResult = require('../models/OptimizationResult');
 const GeneticAlgorithm = require('../algorithms/genetic/GeneticAlgorithm');
 const CSPSolver = require('../algorithms/csp/CSPSolver');
@@ -8,17 +9,68 @@ const { generateBenchmarkDataset } = require('../algorithms/benchmark/datasetGen
 const { runComparativeBenchmark } = require('../algorithms/benchmark/benchmarkRunner');
 const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
+const { syncResourceWorkload } = require('../services/workload.service');
 
 /**
  * Helper: Load tasks & resources for optimization
  */
-const loadOptimizationData = async (projectId) => {
+const loadOptimizationData = async (projectId, user) => {
   const taskFilter = { status: { $in: ['todo', 'in_progress', 'review'] } };
-  if (projectId) taskFilter.project = projectId;
+  let resourceFilter = { isActive: true };
+
+  if (projectId) {
+    taskFilter.project = projectId;
+    const project = await Project.findById(projectId).select('members manager');
+    if (project) {
+      const memberUserIds = new Set();
+      if (project.manager) memberUserIds.add(project.manager.toString());
+      if (project.members && project.members.length > 0) {
+        project.members.forEach((m) => {
+          if (m.user) memberUserIds.add(m.user.toString());
+        });
+      }
+
+      if (memberUserIds.size > 0) {
+        resourceFilter = {
+          isActive: true,
+          user: { $in: Array.from(memberUserIds) },
+        };
+      }
+    }
+  } else if (user && user.role !== 'admin') {
+    // Nếu không chỉ định projectId và không phải admin: giới hạn theo dự án của user
+    const userProjects = await Project.find({
+      $or: [
+        { manager: user._id },
+        { 'members.user': user._id },
+        { createdBy: user._id },
+      ],
+    }).select('_id members');
+    const userProjectIds = userProjects.map((p) => p._id);
+    taskFilter.project = { $in: userProjectIds };
+
+    const allowedUserIds = new Set();
+    allowedUserIds.add(user._id.toString());
+    userProjects.forEach((p) => {
+      if (p.members) {
+        p.members.forEach((m) => {
+          if (m.user) allowedUserIds.add(m.user.toString());
+        });
+      }
+    });
+
+    resourceFilter = {
+      isActive: true,
+      $or: [
+        { user: { $in: Array.from(allowedUserIds) } },
+        { createdBy: user._id },
+      ],
+    };
+  }
 
   const [tasks, resources] = await Promise.all([
     Task.find(taskFilter).select('title estimatedHours requiredSkills startDate endDate project status dependencies'),
-    Resource.find({ isActive: true })
+    Resource.find(resourceFilter)
       .populate('user', 'name email')
       .select('user position department skills maxCapacity fte hourlyRate availability unavailablePeriods currentWorkload'),
   ]);
@@ -61,7 +113,7 @@ const runGeneticAlgorithm = async (req, res, next) => {
       overallocationWeight,
     } = req.body;
 
-    const { tasks, resources } = await loadOptimizationData(projectId);
+    const { tasks, resources } = await loadOptimizationData(projectId, req.user);
 
     if (!tasks.length) {
       return res.status(400).json({ success: false, message: 'Không có công việc cần tối ưu hóa (tasks phải ở trạng thái todo/in_progress/review)' });
@@ -131,7 +183,7 @@ const runCSPSolver = async (req, res, next) => {
   try {
     const { projectId, maxIterations, timeout, minSkillMatchThreshold } = req.body;
 
-    const { tasks, resources } = await loadOptimizationData(projectId);
+    const { tasks, resources } = await loadOptimizationData(projectId, req.user);
 
     if (!tasks.length) {
       return res.status(400).json({ success: false, message: 'Không có công việc cần tối ưu hóa' });
@@ -180,7 +232,7 @@ const runCSPSolver = async (req, res, next) => {
 const runHybrid = async (req, res, next) => {
   try {
     const { projectId, ...gaParams } = req.body;
-    const { tasks, resources } = await loadOptimizationData(projectId);
+    const { tasks, resources } = await loadOptimizationData(projectId, req.user);
 
     if (!tasks.length || !resources.length) {
       return res.status(400).json({ success: false, message: 'Không đủ dữ liệu' });
@@ -552,11 +604,19 @@ const applyResult = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Kết quả này đã được áp dụng trước đó' });
     }
 
+    // Lấy thông tin các task hiện tại để lưu snapshot phân công trước khi áp dụng
+    const taskIds = result.assignments.map((a) => a.task).filter(Boolean);
+    const existingTasks = await Task.find({ _id: { $in: taskIds } }).select('_id assignee title');
+    const existingMap = new Map(existingTasks.map((t) => [t._id.toString(), t.assignee]));
+
+    const previousAssignments = [];
+    const affectedUserIds = new Set();
+    existingTasks.forEach((t) => {
+      if (t.assignee) affectedUserIds.add(t.assignee.toString());
+    });
+
     // Apply assignments: Update task assignees
     let appliedCount = 0;
-    // Gom theo người nhận để mỗi người chỉ nhận MỘT thông báo tổng hợp. Bắn theo
-    // từng công việc thì áp dụng một phương án 30 task là 30 thông báo và 30 email
-    // vào cùng một hộp thư.
     const tasksByAssignee = new Map();
 
     for (const assignment of result.assignments) {
@@ -564,6 +624,12 @@ const applyResult = async (req, res, next) => {
         // Find the resource to get its user ID
         const resource = await Resource.findById(assignment.resource);
         if (resource) {
+          const oldAssignee = existingMap.get(assignment.task.toString()) || null;
+          previousAssignments.push({
+            task: assignment.task,
+            previousAssignee: oldAssignee,
+          });
+
           const task = await Task.findByIdAndUpdate(
             assignment.task,
             { assignee: resource.user },
@@ -571,25 +637,31 @@ const applyResult = async (req, res, next) => {
           ).select('title');
           appliedCount++;
 
-          if (resource.user && task) {
+          if (resource.user) {
+            affectedUserIds.add(resource.user.toString());
             const key = resource.user.toString();
             if (!tasksByAssignee.has(key)) tasksByAssignee.set(key, []);
-            tasksByAssignee.get(key).push(task.title);
+            tasksByAssignee.get(key).push(task?.title || assignment.taskTitle);
           }
         }
       }
     }
 
     result.isApplied = true;
+    result.isRolledBack = false;
     result.appliedAt = new Date();
     result.appliedBy = req.user._id;
+    result.previousAssignments = previousAssignments;
     await result.save();
 
-    // Báo cho từng người vừa được giao việc. Trước đây chỗ này gọi một lần với
-    // `recipient: null` kèm ý định "gửi cho tất cả user" — nhưng sendNotification
-    // bỏ qua ngay khi thiếu recipient, nên áp dụng phương án xong không ai được báo.
+    // Tự động đồng bộ tải công việc cho toàn bộ nhân sự bị ảnh hưởng
+    if (affectedUserIds.size > 0) {
+      await syncResourceWorkload(Array.from(affectedUserIds));
+    }
+
+    // Báo cho từng người vừa được giao việc
     for (const [userId, titles] of tasksByAssignee) {
-      if (userId === req.user._id.toString()) continue; // người tự bấm thì đã biết
+      if (userId === req.user._id.toString()) continue;
 
       const message =
         titles.length === 1
@@ -625,6 +697,85 @@ const applyResult = async (req, res, next) => {
       success: true,
       data: { result, appliedCount },
       message: `Đã áp dụng kết quả tối ưu hóa thành công cho ${appliedCount} công việc`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Hoàn tác kết quả tối ưu hóa (khôi phục phân công cũ)
+ * @route   POST /api/optimization/:id/rollback
+ * @access  Private (Admin, PM)
+ */
+const rollbackResult = async (req, res, next) => {
+  try {
+    const result = await OptimizationResult.findById(req.params.id);
+
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy kết quả tối ưu hóa' });
+    }
+
+    if (!result.isApplied) {
+      return res.status(400).json({ success: false, message: 'Chỉ có thể hoàn tác phương án đã được áp dụng' });
+    }
+
+    if (result.isRolledBack) {
+      return res.status(400).json({ success: false, message: 'Phương án này đã được hoàn tác trước đó' });
+    }
+
+    if (!result.previousAssignments || result.previousAssignments.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy thông tin phân công ban đầu để hoàn tác',
+      });
+    }
+
+    const affectedUserIds = new Set();
+    let rolledBackCount = 0;
+
+    for (const item of result.previousAssignments) {
+      if (item.task) {
+        const currentTask = await Task.findById(item.task).select('assignee');
+        if (currentTask?.assignee) {
+          affectedUserIds.add(currentTask.assignee.toString());
+        }
+        if (item.previousAssignee) {
+          affectedUserIds.add(item.previousAssignee.toString());
+        }
+
+        await Task.findByIdAndUpdate(item.task, {
+          assignee: item.previousAssignee || null,
+        });
+        rolledBackCount++;
+      }
+    }
+
+    result.isApplied = false;
+    result.isRolledBack = true;
+    result.rolledBackAt = new Date();
+    result.rolledBackBy = req.user._id;
+    await result.save();
+
+    // Đồng bộ lại khối lượng công việc cho toàn bộ nhân sự bị ảnh hưởng
+    if (affectedUserIds.size > 0) {
+      await syncResourceWorkload(Array.from(affectedUserIds));
+    }
+
+    logActivity({
+      req,
+      action: 'ROLLBACK_OPTIMIZATION',
+      entityType: 'optimization',
+      entityId: result._id,
+      entityTitle: `${result.algorithm.toUpperCase()} Optimization`,
+      description: `Hoàn tác phương án phân bổ ${result.algorithm.toUpperCase()} cho ${rolledBackCount} công việc`,
+      details: { algorithm: result.algorithm, rolledBackCount },
+    });
+
+    res.json({
+      success: true,
+      data: { result, rolledBackCount },
+      message: `Đã hoàn tác phân bổ thành công cho ${rolledBackCount} công việc`,
     });
   } catch (error) {
     next(error);
@@ -700,5 +851,6 @@ module.exports = {
   compareResults,
   getResultById,
   applyResult,
+  rollbackResult,
   runBenchmark,
 };

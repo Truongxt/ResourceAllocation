@@ -11,6 +11,9 @@ const {
   updateSkills,
   recalculateWorkload,
   getResourceSummary,
+  getMyLeaves,
+  addMyLeave,
+  deleteMyLeave,
 } = require('../controllers/resource.controller');
 
 const router = express.Router();
@@ -157,6 +160,12 @@ router.use(protect);
 
 router.get('/stats/summary', getResourceSummary);
 router.post('/recalculate-workload', authorize('admin'), recalculateWorkload);
+
+// Tự quản lý lịch nghỉ cá nhân (Self-service leave management)
+router.get('/me/leaves', getMyLeaves);
+router.post('/me/leaves', addMyLeave);
+router.delete('/me/leaves/:leaveId', deleteMyLeave);
+
 router.get('/', listValidation, validate, getResources);
 router.get('/:id', resourceIdValidation, validate, getResourceById);
 router.post('/', authorize('admin', 'project_manager'), createValidation, validate, createResource);

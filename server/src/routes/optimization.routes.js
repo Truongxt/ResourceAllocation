@@ -10,6 +10,7 @@ const {
   compareResults,
   getResultById,
   applyResult,
+  rollbackResult,
   runBenchmark,
 } = require('../controllers/optimization.controller');
 
@@ -34,7 +35,8 @@ router.get('/history', getHistory);
 router.get('/compare', compareResults);
 router.get('/:id', resultIdValidation, validate, getResultById);
 
-// Apply result
+// Apply & Rollback result
 router.post('/:id/apply', authorize('admin', 'project_manager'), resultIdValidation, validate, applyResult);
+router.post('/:id/rollback', authorize('admin', 'project_manager'), resultIdValidation, validate, rollbackResult);
 
 module.exports = router;
