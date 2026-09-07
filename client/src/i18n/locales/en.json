@@ -205,7 +205,9 @@
       "current": "Please enter your current password",
       "new": "Please enter a new password",
       "confirm": "Please confirm the new password"
-    }
+    },
+    "nameRequired": "Please enter full name",
+    "namePlaceholder": "Your full name"
   },
   "dashboard": {
     "subtitle": "Overview of resource management and allocation across the system",
@@ -232,7 +234,10 @@
     "totalCapacity": "Total capacity",
     "currentWorkload": "Current workload",
     "recentOptimizations": "Recent optimizations",
-    "taskResourceCount": "{{tasks}}T / {{resources}}R"
+    "taskResourceCount": "{{tasks}}T / {{resources}}R",
+    "welcome": "System Overview",
+    "burnoutRisk": "Burnout Risk",
+    "runOptimization": "Run Optimization"
   },
   "projects": {
     "subtitle": "Track progress, budget, and status across the organization's projects",
@@ -274,7 +279,12 @@
       "budget": "Budget (VND)",
       "tags": "Tags",
       "tagsHint": "Comma-separated, e.g. AI, Backend, Web"
-    }
+    },
+    "title": "Project Management",
+    "noProjects": "No projects yet",
+    "createProject": "Create Project",
+    "editProject": "Edit Project",
+    "projectDetails": "Project Details"
   },
   "optimization": {
     "title": "Resource allocation optimization",
@@ -407,7 +417,18 @@
       "mixedScope": "These runs cover different project scopes — their metrics are not directly comparable.",
       "mixedTaskCount": "The runs had different task counts ({{counts}}). Cumulative metrics such as total cost scale with size, not with solution quality.",
       "unfinished": "{{count}} runs are not in the \"completed\" state; their figures may be incomplete."
-    }
+    },
+    "historyTitle": "Optimization Run History",
+    "taskTitle": "Task",
+    "assignedResource": "Assigned Resource",
+    "estimatedHours": "Hours",
+    "totalCost": "Total Cost",
+    "avgSkillMatch": "Avg Skill Match",
+    "workloadVariance": "Workload Variance (StdDev)",
+    "convergenceChart": "📈 Algorithm Evolution & Convergence (GA)",
+    "loadError": "Failed to load result details",
+    "runSuccess": "Optimization algorithm executed successfully!",
+    "selectAtLeastTwo": "Please select at least 2 solutions to compare"
   },
   "resources": {
     "title": "People & departments",
@@ -551,7 +572,17 @@
       "progress": "Progress (%)",
       "estimatedHours": "Estimated hours",
       "actualHours": "Actual hours"
-    }
+    },
+    "filterProject": "All Projects",
+    "filterPriority": "Priority",
+    "views": {
+      "kanban": "Kanban",
+      "table": "List"
+    },
+    "add": "Add Task",
+    "titleColumn": "Task Title",
+    "permissionDenied": "You do not have permission to change this task status",
+    "statusUpdated": "Task status updated"
   },
   "projectDetail": {
     "loadFailed": "Could not load the project",
@@ -768,21 +799,6 @@
       "topCategory": "Most common module",
       "timesCount": "{{count}} times",
       "logsCount": "{{count}} logs"
-    }
-  },
-  "projects": {
-    "title": "Project Management",
-    "subtitle": "Track progress, budget, and status of organization projects",
-    "noProjects": "No projects found",
-    "noDescription": "No description provided.",
-    "create": "Create Project",
-    "createProject": "Create Project",
-    "editProject": "Edit Project",
-    "projectDetails": "Project Details",
-    "importCsv": "Import CSV",
-    "searchPlaceholder": "Search by name, code, or description...",
-    "stats": {
-      "total": "Total Projects"
     }
   }
 }

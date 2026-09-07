@@ -46,7 +46,9 @@
     "startDate": "Ngày bắt đầu",
     "endDate": "Ngày kết thúc",
     "viewDetails": "Chi tiết dự án",
-    "collapseSidebar": "Thu gọn thanh bên"
+    "collapseSidebar": "Thu gọn thanh bên",
+    "deleteConfirm": "Xác nhận xóa?",
+    "required": "Trường này là bắt buộc"
   },
   "enums": {
     "role": {
@@ -132,7 +134,8 @@
     "justNow": "Vừa xong",
     "minutesAgo": "{{count}} phút trước",
     "hoursAgo": "{{count}} giờ trước",
-    "daysAgo": "{{count}} ngày trước"
+    "daysAgo": "{{count}} ngày trước",
+    "searchModalPlaceholder": "Tìm nhanh trang, dự án, công việc, nhân sự... (Nhập từ khóa)"
   },
   "auth": {
     "loginTitle": "Đăng nhập hệ thống",
@@ -202,7 +205,9 @@
       "current": "Vui lòng nhập mật khẩu hiện tại",
       "new": "Vui lòng nhập mật khẩu mới",
       "confirm": "Vui lòng xác nhận mật khẩu mới"
-    }
+    },
+    "nameRequired": "Vui lòng nhập họ và tên",
+    "namePlaceholder": "Họ và tên của bạn"
   },
   "dashboard": {
     "subtitle": "Tổng quan hệ thống quản lý nguồn lực và phân bổ nhân sự",
@@ -229,7 +234,10 @@
     "totalCapacity": "Capacity tổng",
     "currentWorkload": "Workload hiện tại",
     "recentOptimizations": "Tối ưu hóa gần đây",
-    "taskResourceCount": "{{tasks}}T / {{resources}}R"
+    "taskResourceCount": "{{tasks}}T / {{resources}}R",
+    "welcome": "Tổng quan Hệ thống",
+    "burnoutRisk": "Nguy cơ kiệt sức",
+    "runOptimization": "Tối ưu hóa Phân bổ"
   },
   "projects": {
     "subtitle": "Theo dõi tiến độ, ngân sách và trạng thái các dự án của tổ chức",
@@ -271,7 +279,12 @@
       "budget": "Ngân sách (VND)",
       "tags": "Thẻ (Tags)",
       "tagsHint": "Phân cách bằng dấu phẩy, ví dụ: AI, Backend, Web"
-    }
+    },
+    "title": "Quản lý Dự án",
+    "noProjects": "Chưa có dự án nào",
+    "createProject": "Tạo dự án",
+    "editProject": "Chỉnh sửa dự án",
+    "projectDetails": "Chi tiết dự án"
   },
   "optimization": {
     "title": "Tối ưu hóa Phân bổ Nguồn lực",
@@ -404,7 +417,18 @@
       "mixedScope": "Các phương án chạy trên phạm vi dự án khác nhau — chỉ số của chúng không so trực tiếp được.",
       "mixedTaskCount": "Số công việc đầu vào khác nhau ({{counts}}). Các chỉ số cộng dồn như tổng chi phí sẽ lệch theo quy mô chứ không theo chất lượng lời giải.",
       "unfinished": "{{count}} phương án không ở trạng thái \"completed\", số liệu có thể thiếu."
-    }
+    },
+    "historyTitle": "Lịch sử chạy tối ưu hóa",
+    "taskTitle": "Công việc",
+    "assignedResource": "Nhân sự được giao",
+    "estimatedHours": "Số giờ",
+    "totalCost": "Tổng chi phí",
+    "avgSkillMatch": "Khớp kỹ năng TB",
+    "workloadVariance": "Độ lệch tải (StdDev)",
+    "convergenceChart": "📈 Quá trình tiến hóa & hội tụ giải thuật (GA)",
+    "loadError": "Không thể tải chi tiết kết quả",
+    "runSuccess": "Chạy thuật toán tối ưu hóa thành công!",
+    "selectAtLeastTwo": "Vui lòng chọn ít nhất 2 phương án để so sánh"
   },
   "resources": {
     "title": "Quản lý Nhân sự & Phòng ban",
@@ -548,7 +572,17 @@
       "progress": "Tiến độ hoàn thành (%)",
       "estimatedHours": "Giờ ước tính (h)",
       "actualHours": "Giờ thực tế (h)"
-    }
+    },
+    "filterProject": "Tất cả dự án",
+    "filterPriority": "Độ ưu tiên",
+    "views": {
+      "kanban": "Kanban",
+      "table": "Danh sách"
+    },
+    "add": "Thêm công việc",
+    "titleColumn": "Tiêu đề công việc",
+    "permissionDenied": "Bạn không có quyền chuyển trạng thái công việc này",
+    "statusUpdated": "Đã cập nhật trạng thái công việc"
   },
   "projectDetail": {
     "loadFailed": "Không thể tải dự án",
@@ -765,21 +799,6 @@
       "topCategory": "Phân loại phổ biến nhất",
       "timesCount": "{{count}} lần",
       "logsCount": "{{count}} logs"
-    }
-  },
-  "projects": {
-    "title": "Quản lý Dự án",
-    "subtitle": "Theo dõi tiến độ, ngân sách và trạng thái các dự án của tổ chức",
-    "noProjects": "Chưa có dự án nào",
-    "noDescription": "Chưa có mô tả dự án.",
-    "create": "Tạo dự án",
-    "createProject": "Tạo dự án",
-    "editProject": "Chỉnh sửa dự án",
-    "projectDetails": "Chi tiết dự án",
-    "importCsv": "Nhập CSV",
-    "searchPlaceholder": "Tìm theo tên, mã hoặc mô tả...",
-    "stats": {
-      "total": "Tổng dự án"
     }
   }
 }

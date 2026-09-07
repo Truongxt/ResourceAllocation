@@ -39,7 +39,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       ) : null,
       children: [
         { key: '/dashboard', icon: <DashboardOutlined style={{ fontSize: 16 }} />, label: t('nav.dashboard') || 'Tổng quan Dashboard' },
-        { key: '/home', icon: <GlobalOutlined style={{ fontSize: 16, color: '#06b6d4' }} />, label: 'Trang chủ (Giới thiệu)' },
+        // { key: '/home', icon: <GlobalOutlined style={{ fontSize: 16, color: '#06b6d4' }} />, label: 'Trang chủ (Giới thiệu)' },
       ],
     },
     {

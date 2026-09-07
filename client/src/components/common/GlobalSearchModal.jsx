@@ -64,7 +64,6 @@ export default function GlobalSearchModal({ open, onClose }) {
         taskService.getAll(),
         resourceService.getAll(),
       ]);
-
       const projects = projRes.status === 'fulfilled' && projRes.value?.data ? (Array.isArray(projRes.value.data) ? projRes.value.data : projRes.value.data.data?.projects || projRes.value.data.projects || []) : [];
       const tasks = taskRes.status === 'fulfilled' && taskRes.value?.data ? (Array.isArray(taskRes.value.data) ? taskRes.value.data : taskRes.value.data.data?.tasks || taskRes.value.data.tasks || []) : [];
       const resources = resRes.status === 'fulfilled' && resRes.value?.data ? (Array.isArray(resRes.value.data) ? resRes.value.data : resRes.value.data.data?.resources || resRes.value.data.resources || []) : [];

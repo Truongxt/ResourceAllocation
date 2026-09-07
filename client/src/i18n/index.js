@@ -37,6 +37,11 @@ i18n.use(initReactI18next).init({
     // trong tên dự án thành &#39; ngay trên màn hình.
     escapeValue: false,
   },
+  // Tránh in nguyên tên biến 'tasks.views.kanban' ra giao diện khi thiếu khóa.
+  // Trả về chuỗi rỗng để cú pháp t('key') || 'Fallback tiếng Việt' luôn hoạt động chuẩn xác.
+  parseMissingKeyHandler: (key, defaultValue) => {
+    return defaultValue || '';
+  },
 });
 
 export const changeLanguage = (code) => {
