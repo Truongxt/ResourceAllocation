@@ -9,6 +9,7 @@
  */
 
 import { Row, Col, Typography, Tag, Space, Progress, Empty } from 'antd';
+import { BarChartOutlined, ClockCircleOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
@@ -26,7 +27,7 @@ export default function DashboardTaskAndHours({
         <div className="saas-card" style={{ padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16 }}>📊</span>
+              <BarChartOutlined style={{ fontSize: 16, color: '#818cf8' }} />
               <Text strong style={{ fontSize: 14 }}>
                 {t('dashboard.taskDistribution') || 'Phân bổ Trạng thái Công việc'}
               </Text>
@@ -74,7 +75,7 @@ export default function DashboardTaskAndHours({
       <Col xs={24} lg={10}>
         <div className="saas-card" style={{ padding: 20, height: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <span style={{ fontSize: 16 }}>⏱️</span>
+            <ClockCircleOutlined style={{ fontSize: 16, color: '#06b6d4' }} />
             <Text strong style={{ fontSize: 14 }}>
               {t('dashboard.workHours') || 'Tổng hợp Giờ công & Năng suất'}
             </Text>

@@ -8,7 +8,13 @@
  *     các hàm format hiển thị thời gian, đơn vị đo lường và Header bảng so sánh.
  */
 
+import React from 'react';
 import { Space, Tag, Typography } from 'antd';
+import {
+  BranchesOutlined,
+  ApartmentOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
 import { formatDateTime, formatNumber } from '../../i18n/format';
 
 const { Text } = Typography;
@@ -16,9 +22,9 @@ const { Text } = Typography;
 export const ALGO_VALUES = ['genetic', 'csp', 'hybrid'];
 
 export const ALGO_META = {
-  genetic: { icon: '🧬', label: 'GA', color: 'purple' },
-  csp: { icon: '🔗', label: 'CSP', color: 'blue' },
-  hybrid: { icon: '⚡', label: 'Hybrid', color: 'gold' },
+  genetic: { icon: <BranchesOutlined style={{ color: '#a855f7' }} />, label: 'GA (Giải thuật Di truyền)', color: 'purple', shortLabel: 'GA' },
+  csp: { icon: <ApartmentOutlined style={{ color: '#06b6d4' }} />, label: 'CSP (Thỏa mãn Ràng buộc)', color: 'cyan', shortLabel: 'CSP' },
+  hybrid: { icon: <ThunderboltOutlined style={{ color: '#f59e0b' }} />, label: 'Hybrid (CSP + GA)', color: 'gold', shortLabel: 'Hybrid' },
 };
 
 /**

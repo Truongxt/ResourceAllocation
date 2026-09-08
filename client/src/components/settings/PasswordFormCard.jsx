@@ -46,8 +46,9 @@ export default function PasswordFormCard({ changePassword, t }) {
 
   return (
     <div className="saas-card" style={{ padding: 24, height: '100%' }}>
-      <Title level={5} style={{ marginBottom: 18, fontWeight: 700 }}>
-        🔒 {t('settings.password') || 'Bảo mật & Đổi Mật khẩu'}
+      <Title level={5} style={{ marginBottom: 18, fontWeight: 700, display: 'flex', alignItems: 'center' }}>
+        <LockOutlined style={{ marginRight: 8, color: '#6366f1' }} />
+        <span>{t('settings.password') || 'Bảo mật & Đổi Mật khẩu'}</span>
       </Title>
 
       <Form form={form} layout="vertical" onFinish={handleSubmit}>

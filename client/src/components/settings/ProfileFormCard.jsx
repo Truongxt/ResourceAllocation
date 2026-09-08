@@ -55,16 +55,17 @@ export default function ProfileFormCard({ user, updateProfile, t }) {
 
   return (
     <div className="saas-card" style={{ padding: 24, height: '100%' }}>
-      <Title level={5} style={{ marginBottom: 18, fontWeight: 700 }}>
-        👤 {t('settings.profile') || 'Thông tin Cá nhân'}
+      <Title level={5} style={{ marginBottom: 18, fontWeight: 700, display: 'flex', alignItems: 'center' }}>
+        <UserOutlined style={{ marginRight: 8, color: '#6366f1' }} />
+        <span>{t('settings.profile') || 'Hồ sơ cá nhân'}</span>
       </Title>
 
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
         {/* Họ và tên */}
         <Form.Item
           name="name"
-          label={<span style={{ fontWeight: 600, fontSize: 13 }}>{t('settings.name') || 'Họ và tên'}</span>}
-          rules={[{ required: true, message: t('settings.nameRequired') || 'Vui lòng nhập họ và tên' }]}
+          label={<span style={{ fontWeight: 600, fontSize: 13 }}>{t('auth.name') || 'Họ và tên'}</span>}
+          rules={[{ required: true, message: t('auth.required.name') || 'Vui lòng nhập họ tên' }]}
         >
           <Input
             prefix={<UserOutlined style={{ color: '#64748b' }} />}
@@ -111,7 +112,7 @@ export default function ProfileFormCard({ user, updateProfile, t }) {
               fontWeight: 600,
             }}
           >
-            {t('settings.saveProfile') || 'Lưu thay đổi'}
+            {t('common.saveChanges') || 'Lưu thay đổi'}
           </Button>
         </Form.Item>
       </Form>

@@ -29,7 +29,7 @@ import {
   ReloadOutlined,
   ExperimentOutlined,
 } from '@ant-design/icons';
-import { MAX_COMPARE, formatTime } from './OptimizationConstants';
+import { MAX_COMPARE, formatTime, ALGO_META } from './OptimizationConstants';
 
 const { Text } = Typography;
 
@@ -52,8 +52,13 @@ export default function OptimizationHistoryTable({
       dataIndex: 'algorithm',
       key: 'algorithm',
       render: (algo) => {
-        const icon = algo === 'genetic' ? '🧬' : algo === 'csp' ? '🔗' : '⚡';
-        return <Tag color="blue">{icon} {algo?.toUpperCase()}</Tag>;
+        const meta = ALGO_META[algo] || { label: algo, color: 'blue' };
+        return (
+          <Tag color={meta.color || 'blue'} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 6, padding: '2px 8px' }}>
+            {meta.icon}
+            <span style={{ fontWeight: 600 }}>{meta.shortLabel || algo?.toUpperCase()}</span>
+          </Tag>
+        );
       },
     },
     {

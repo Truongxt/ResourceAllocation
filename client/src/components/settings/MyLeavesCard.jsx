@@ -119,8 +119,9 @@ export default function MyLeavesCard() {
       {/* Tiêu đề & Nút đăng ký */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <Title level={5} style={{ margin: '0 0 4px 0', fontWeight: 700 }}>
-            🏖️ Lịch Nghỉ Phép & Đăng Ký Vắng Mặt
+          <Title level={5} style={{ margin: '0 0 4px 0', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
+            <CalendarOutlined style={{ marginRight: 8, color: '#06b6d4' }} />
+            <span>Lịch Nghỉ Phép & Đăng Ký Vắng Mặt</span>
           </Title>
           <Text type="secondary" style={{ fontSize: 13 }}>
             Khai báo ngày nghỉ phép hoặc công tác để hệ thống tự động loại trừ khi phân công công việc
@@ -222,7 +223,12 @@ export default function MyLeavesCard() {
 
       {/* Modal đăng ký nghỉ phép mới */}
       <Modal
-        title="🏖️ Đăng ký Lịch Nghỉ Phép / Vắng Mặt"
+        title={
+          <Space size={8}>
+            <CalendarOutlined style={{ color: '#06b6d4' }} />
+            <span>Đăng ký Lịch Nghỉ Phép / Vắng Mặt</span>
+          </Space>
+        }
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         footer={null}

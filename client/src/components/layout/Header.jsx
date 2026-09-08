@@ -337,8 +337,8 @@ export default function Header({ collapsed }) {
             <Button
               type="text"
               size="small"
+              aria-label={nextLanguage.short}
               onClick={() => changeLanguage(nextLanguage.code)}
-              icon={<GlobalOutlined style={{ fontSize: 14 }} />}
               style={{
                 fontWeight: 600,
                 fontSize: 12,
@@ -353,8 +353,10 @@ export default function Header({ collapsed }) {
 
           {/* Theme Toggle */}
           <Tooltip title={t('header.toggleTheme') || 'Chuyển giao diện'}>
-            <div
+            <button
+              type="button"
               onClick={toggleTheme}
+              aria-label="Toggle Theme"
               style={{
                 width: 34,
                 height: 34,
@@ -367,19 +369,23 @@ export default function Header({ collapsed }) {
                 border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
                 color: isDark ? '#fbbf24' : '#6366f1',
                 transition: 'all 0.2s ease',
+                padding: 0,
               }}
             >
               {isDark ? <SunOutlined style={{ fontSize: 16 }} /> : <MoonOutlined style={{ fontSize: 16 }} />}
-            </div>
+            </button>
           </Tooltip>
 
           {/* Notification Bell */}
           <Dropdown
+            popupRender={() => notifContent}
             dropdownRender={() => notifContent}
             trigger={['click']}
             placement="bottomRight"
           >
-            <div
+            <button
+              type="button"
+              aria-label="Notifications"
               style={{
                 width: 34,
                 height: 34,
@@ -392,12 +398,13 @@ export default function Header({ collapsed }) {
                 border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
                 color: isDark ? '#cbd5e1' : '#334155',
                 position: 'relative',
+                padding: 0,
               }}
             >
               <Badge count={unreadCount} size="small" offset={[2, -2]}>
                 <BellOutlined style={{ fontSize: 16 }} />
               </Badge>
-            </div>
+            </button>
           </Dropdown>
 
           {/* User Menu Chip */}
@@ -427,6 +434,9 @@ export default function Header({ collapsed }) {
               <div style={{ lineHeight: 1.2 }}>
                 <Text strong style={{ fontSize: 13, display: 'block', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {user?.name || 'User'}
+                </Text>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 500, display: 'block' }}>
+                  {user?.role ? t(`enums.role.${user.role}`) : ''}
                 </Text>
               </div>
               <div

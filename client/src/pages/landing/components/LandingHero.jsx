@@ -17,6 +17,7 @@ import {
   ArrowRightOutlined,
   ExperimentOutlined,
   CheckCircleFilled,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 
 const { Title, Paragraph } = Typography;
@@ -170,7 +171,10 @@ export default function LandingHero({
               {/* Cột phải: Bộ giải toán Real-time & Đo tải trọng */}
               <div className="mockup-column-analytics">
                 <div className="mockup-pane-title">
-                  <span>⚡ Tối ưu hóa Phân bổ (Real-time Solver)</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <ThunderboltOutlined style={{ color: '#f59e0b' }} />
+                    Tối ưu hóa Phân bổ (Real-time Solver)
+                  </span>
                   <Tag color="gold">Fitness: 0.962</Tag>
                 </div>
 

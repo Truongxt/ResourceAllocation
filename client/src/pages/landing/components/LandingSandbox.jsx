@@ -91,7 +91,7 @@ export default function LandingSandbox({
                   className="sandbox-run-btn"
                   block
                 >
-                  {sandboxRunning ? 'Đang chạy giải thuật...' : '⚡ Chạy Phân bổ Tối ưu Ngay'}
+                  {sandboxRunning ? 'Đang chạy giải thuật...' : 'Chạy Phân bổ Tối ưu Ngay'}
                 </Button>
               </div>
             </Col>

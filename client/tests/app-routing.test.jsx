@@ -54,9 +54,9 @@ describe('Định tuyến và nạp trang theo chunk', () => {
     expect(container.querySelector('.spinner')).toBeNull();
   });
 
-  it('chưa đăng nhập vào / thì rơi về trang đăng nhập, không có khung layout', async () => {
+  it('chưa đăng nhập vào route bảo vệ thì rơi về trang đăng nhập, không có khung layout', async () => {
     auth.current = authState({ authenticated: false });
-    const { container } = renderWithProviders(<App />, { route: '/' });
+    const { container } = renderWithProviders(<App />, { route: '/dashboard' });
 
     await screen.findByText('Đăng nhập hệ thống');
     // Login nằm ngoài AppLayout nên không được kèm sidebar.

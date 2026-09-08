@@ -1,9 +1,19 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Typography, Alert, Space } from 'antd';
-import { LockOutlined, MailOutlined, ThunderboltOutlined, CheckCircleFilled, ArrowRightOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import {
+  LockOutlined,
+  MailOutlined,
+  ThunderboltOutlined,
+  CheckCircleFilled,
+  ArrowRightOutlined,
+  SafetyCertificateOutlined,
+  BranchesOutlined,
+  ApartmentOutlined,
+} from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import AppLogo from '../../components/common/AppLogo';
 import './Auth.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -81,31 +91,8 @@ export default function Login() {
         />
 
         {/* Brand Top */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, zIndex: 2 }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 20,
-              color: '#fff',
-              boxShadow: '0 0 20px rgba(99, 102, 241, 0.5)',
-            }}
-          >
-            ⚡
-          </div>
-          <div>
-            <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '-0.02em', color: '#f8fafc' }}>
-              RAO Studio
-            </span>
-            <span style={{ fontSize: 12, color: '#94a3b8', display: 'block' }}>
-              Resource Allocation AI
-            </span>
-          </div>
+        <div style={{ zIndex: 2 }}>
+          <AppLogo size={40} isDark={true} subtitle="Resource Allocation AI" />
         </div>
 
         {/* Hero Central Content */}
@@ -153,6 +140,7 @@ export default function Login() {
                 style={{
                   width: 36,
                   height: 36,
+                  minWidth: 36,
                   borderRadius: 8,
                   background: 'rgba(99, 102, 241, 0.15)',
                   display: 'flex',
@@ -162,7 +150,7 @@ export default function Login() {
                   fontSize: 18,
                 }}
               >
-                🧬
+                <BranchesOutlined />
               </div>
               <div>
                 <Text strong style={{ color: '#f8fafc', fontSize: 14, display: 'block' }}>
@@ -190,6 +178,7 @@ export default function Login() {
                 style={{
                   width: 36,
                   height: 36,
+                  minWidth: 36,
                   borderRadius: 8,
                   background: 'rgba(6, 182, 212, 0.15)',
                   display: 'flex',
@@ -199,7 +188,7 @@ export default function Login() {
                   fontSize: 18,
                 }}
               >
-                🔗
+                <ApartmentOutlined />
               </div>
               <div>
                 <Text strong style={{ color: '#f8fafc', fontSize: 14, display: 'block' }}>
@@ -259,8 +248,9 @@ export default function Login() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#818cf8', letterSpacing: 0.5 }}>
-                ⚡ Tài khoản trải nghiệm nhanh
+              <Text style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#818cf8', letterSpacing: 0.5, display: 'flex', alignItems: 'center' }}>
+                <ThunderboltOutlined style={{ marginRight: 6 }} />
+                <span>Tài khoản trải nghiệm nhanh</span>
               </Text>
             </div>
             <Button

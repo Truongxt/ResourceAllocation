@@ -22,7 +22,13 @@
  */
 
 import { Typography, Select, Button, Space, Divider, Row, Col, InputNumber, Slider } from 'antd';
-import { PlayCircleOutlined } from '@ant-design/icons';
+import {
+  PlayCircleOutlined,
+  SettingOutlined,
+  ControlOutlined,
+  AimOutlined,
+  ApartmentOutlined,
+} from '@ant-design/icons';
 import { ALGO_VALUES, ALGO_META } from './OptimizationConstants';
 
 const { Title, Text } = Typography;
@@ -41,7 +47,7 @@ export default function OptimizationConfigCard({
     <div className="saas-card" style={{ padding: 20 }}>
       {/* Tiêu đề panel */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <span style={{ fontSize: 18 }}>⚙️</span>
+        <SettingOutlined style={{ fontSize: 17, color: '#6366f1' }} />
         <Title level={5} style={{ margin: 0, fontWeight: 700 }}>
           {t('optimization.configTitle') || 'Cấu hình Thuật toán'}
         </Title>
@@ -55,15 +61,19 @@ export default function OptimizationConfigCard({
             fontSize: 11,
             fontWeight: 700,
             textTransform: 'uppercase',
-            display: 'block',
-            marginBottom: 6,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginBottom: 8,
           }}
         >
-          ⚡ Chọn cấu hình mẫu (Preset)
+          <ControlOutlined style={{ color: '#818cf8' }} />
+          <span>{t('optimization.presetTitle') || 'Cấu hình mẫu (Presets)'}</span>
         </Text>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <Button
             size="small"
+            icon={<ApartmentOutlined style={{ color: '#06b6d4' }} />}
             onClick={() =>
               setParams((p) => ({
                 ...p,
@@ -72,12 +82,13 @@ export default function OptimizationConfigCard({
                 overallocationWeight: 0.3,
               }))
             }
-            style={{ fontSize: 11, fontWeight: 500 }}
+            style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            ⚖️ Cân bằng tải
+            Cân bằng tải
           </Button>
           <Button
             size="small"
+            icon={<AimOutlined style={{ color: '#10b981' }} />}
             onClick={() =>
               setParams((p) => ({
                 ...p,
@@ -86,9 +97,9 @@ export default function OptimizationConfigCard({
                 overallocationWeight: 0.2,
               }))
             }
-            style={{ fontSize: 11, fontWeight: 500 }}
+            style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            🎯 Khớp kỹ năng
+            Khớp kỹ năng
           </Button>
         </div>
       </div>

@@ -15,6 +15,7 @@ import {
   ProjectOutlined,
   TeamOutlined,
   ArrowRightOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import { taskStatusLabel } from '../../../i18n/enums';
 import { formatTimeAgo } from '../../../i18n/format';
@@ -38,7 +39,7 @@ export default function DashboardQuickAndRecent({
       <Col xs={24} lg={10}>
         <div className="saas-card" style={{ padding: 20, height: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <span style={{ fontSize: 16 }}>⚡</span>
+            <ThunderboltOutlined style={{ fontSize: 16, color: '#6366f1' }} />
             <Text strong style={{ fontSize: 14 }}>
               {t('dashboard.quickActions') || 'Lối tắt Nhanh'}
             </Text>
@@ -185,7 +186,7 @@ export default function DashboardQuickAndRecent({
         <div className="saas-card" style={{ padding: 20, height: '100%', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16 }}>📋</span>
+              <HistoryOutlined style={{ fontSize: 16, color: '#818cf8' }} />
               <Text strong style={{ fontSize: 14 }}>
                 {t('dashboard.recentActivity') || 'Nhật ký Hoạt động Gần đây'}
               </Text>

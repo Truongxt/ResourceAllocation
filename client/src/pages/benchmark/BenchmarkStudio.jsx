@@ -25,6 +25,11 @@ import {
   DatabaseOutlined,
   FileTextOutlined,
   FieldTimeOutlined,
+  ClockCircleOutlined,
+  AimOutlined,
+  ApartmentOutlined,
+  WarningOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 import optimizationService from '../../services/optimizationService';
 import { formatCurrency } from '../../i18n/format';
@@ -98,45 +103,35 @@ export default function BenchmarkStudio() {
     const blob = new Blob([benchmarkData.csvExport], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `benchmark_results_${benchmarkData.summary?.taskCount || 100}tasks.csv`);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `benchmark_rao_${selectedDataset}_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    message.success('Đã tải xuống file CSV kết quả!');
   };
 
   // Table columns definition
   const tableColumns = [
     {
-      title: 'Chỉ số đánh giá',
+      title: 'Chỉ số Đánh giá (Metrics)',
       dataIndex: 'metric',
       key: 'metric',
+      width: 250,
       render: (text, record) => (
         <div>
-          <Text strong>{text}</Text>
-          {record.hint && <div className="benchmark-metric-hint">{record.hint}</div>}
+          <Text strong style={{ fontSize: 13 }}>{text}</Text>
+          <div style={{ fontSize: 11, color: '#94a3b8' }}>{record.hint}</div>
         </div>
       ),
     },
     {
-      title: (
-        <Space>
-          <span>Greedy (Tham lam)</span>
-          <Tag color="default">Baseline</Tag>
-        </Space>
-      ),
+      title: 'Greedy (Tham lam)',
       dataIndex: 'greedy',
       key: 'greedy',
       align: 'center',
     },
     {
-      title: (
-        <Space>
-          <span>CSP Solver</span>
-          <Tag color="blue">Hard Constraints</Tag>
-        </Space>
-      ),
+      title: 'CSP Solver',
       dataIndex: 'csp',
       key: 'csp',
       align: 'center',
@@ -144,8 +139,7 @@ export default function BenchmarkStudio() {
     {
       title: (
         <Space>
-          <span>Genetic Algorithm</span>
-          <Tag color="purple">Multi-objective</Tag>
+          <span>GA (Di truyền)</span>
         </Space>
       ),
       dataIndex: 'genetic',
@@ -156,7 +150,9 @@ export default function BenchmarkStudio() {
       title: (
         <Space>
           <span>Hybrid (CSP → GA)</span>
-          <Tag color="gold">🏆 Đề tài</Tag>
+          <Tag color="gold" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, borderRadius: 4 }}>
+            <TrophyOutlined /> Đề tài
+          </Tag>
         </Space>
       ),
       dataIndex: 'hybrid',
@@ -176,7 +172,12 @@ export default function BenchmarkStudio() {
     ? [
         {
           key: 'runtime',
-          metric: '⏱️ Thời gian thực thi',
+          metric: (
+            <Space size={6}>
+              <ClockCircleOutlined style={{ color: '#06b6d4' }} />
+              <span>Thời gian thực thi</span>
+            </Space>
+          ),
           hint: 'Đo bằng nano-giây chuyển sang mili-giây',
           greedy: `${g.executionTime || 0} ms`,
           csp: `${c.executionTime || 0} ms`,
@@ -185,7 +186,12 @@ export default function BenchmarkStudio() {
         },
         {
           key: 'fitness',
-          metric: '🎯 Điểm Fitness tổng hợp',
+          metric: (
+            <Space size={6}>
+              <AimOutlined style={{ color: '#6366f1' }} />
+              <span>Điểm Fitness tổng hợp</span>
+            </Space>
+          ),
           hint: 'Hàm mục tiêu chuẩn hóa (0..1) từ scoring.js',
           greedy: <Text strong>{g.fitness || 0}</Text>,
           csp: <Text strong>{c.fitness || 0}</Text>,
@@ -194,7 +200,12 @@ export default function BenchmarkStudio() {
         },
         {
           key: 'skillMatch',
-          metric: '🧩 Độ khớp kỹ năng TB',
+          metric: (
+            <Space size={6}>
+              <CheckCircleOutlined style={{ color: '#10b981' }} />
+              <span>Độ khớp kỹ năng TB</span>
+            </Space>
+          ),
           hint: 'Tỉ lệ đáp ứng yêu cầu kỹ năng (%)',
           greedy: `${g.skillMatchRate || 0}%`,
           csp: `${c.skillMatchRate || 0}%`,
@@ -203,7 +214,12 @@ export default function BenchmarkStudio() {
         },
         {
           key: 'workloadStdDev',
-          metric: '⚖️ Độ lệch chuẩn tải (StdDev)',
+          metric: (
+            <Space size={6}>
+              <ApartmentOutlined style={{ color: '#f59e0b' }} />
+              <span>Độ lệch chuẩn tải (StdDev)</span>
+            </Space>
+          ),
           hint: 'Càng nhỏ thể hiện tải phân bổ càng đồng đều',
           greedy: g.workloadStdDev || 0,
           csp: c.workloadStdDev || 0,
@@ -212,7 +228,12 @@ export default function BenchmarkStudio() {
         },
         {
           key: 'overallocation',
-          metric: '⚠️ Nhân sự bị quá tải (>100%)',
+          metric: (
+            <Space size={6}>
+              <WarningOutlined style={{ color: '#ef4444' }} />
+              <span>Nhân sự bị quá tải (&gt;100%)</span>
+            </Space>
+          ),
           hint: 'Số nhân sự có tổng giờ gán vượt quá capacity',
           greedy: g.overallocationCount || 0,
           csp: c.overallocationCount || 0,
@@ -221,7 +242,12 @@ export default function BenchmarkStudio() {
         },
         {
           key: 'cost',
-          metric: '💰 Tổng chi phí ước tính',
+          metric: (
+            <Space size={6}>
+              <DollarOutlined style={{ color: '#10b981' }} />
+              <span>Tổng chi phí ước tính</span>
+            </Space>
+          ),
           hint: 'Tổng lương nhân sự = Σ (Giờ làm × Hourly Rate)',
           greedy: formatCurrency(g.totalCost || 0),
           csp: formatCurrency(c.totalCost || 0),
@@ -407,7 +433,15 @@ export default function BenchmarkStudio() {
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             {/* Runtime Comparison Card */}
             <Col xs={24} md={12}>
-              <Card title="⏱️ So sánh Thời gian Thực thi (Runtime ms)" className="benchmark-chart-card">
+              <Card
+                title={
+                  <Space size={8}>
+                    <ClockCircleOutlined style={{ color: '#06b6d4' }} />
+                    <span>So sánh Thời gian Thực thi (Runtime ms)</span>
+                  </Space>
+                }
+                className="benchmark-chart-card"
+              >
                 <div className="runtime-bars">
                   <div className="runtime-bar-row">
                     <span className="algo-title">Greedy</span>

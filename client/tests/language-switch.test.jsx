@@ -36,7 +36,7 @@ vi.mock('../src/context/SocketContext', async (importOriginal) => ({
 
 const { default: Header } = await import('../src/components/layout/Header.jsx');
 const { default: Sidebar } = await import('../src/components/layout/Sidebar.jsx');
-const { default: Settings } = await import('../src/pages/Settings.jsx');
+const { default: Settings } = await import('../src/pages/settings/Settings.jsx');
 
 function renderChrome() {
   return renderWithProviders(

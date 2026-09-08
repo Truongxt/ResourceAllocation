@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../constants';
 import { roleLabel } from '../../i18n/enums';
+import AppLogo from '../../components/common/AppLogo';
 import './Auth.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -63,31 +64,8 @@ export default function Register() {
           }}
         />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, zIndex: 2 }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 20,
-              color: '#fff',
-              boxShadow: '0 0 20px rgba(99, 102, 241, 0.5)',
-            }}
-          >
-            ⚡
-          </div>
-          <div>
-            <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '-0.02em', color: '#f8fafc' }}>
-              RAO Studio
-            </span>
-            <span style={{ fontSize: 12, color: '#94a3b8', display: 'block' }}>
-              Resource Allocation AI
-            </span>
-          </div>
+        <div style={{ zIndex: 2 }}>
+          <AppLogo size={40} isDark={true} subtitle="Resource Allocation AI" />
         </div>
 
         <div style={{ maxWidth: 500, margin: '40px 0', zIndex: 2 }}>

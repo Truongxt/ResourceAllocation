@@ -34,6 +34,7 @@ import {
   CheckCircleOutlined,
   RollbackOutlined,
   WarningOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons';
 import { formatNumber } from '../../i18n/format';
 
@@ -264,7 +265,15 @@ export default function OptimizationResultView({
 
       {/* Báo cáo thu hẹp không gian tìm kiếm (Pha CSP trong Hybrid) */}
       {currentResult.domainReduction?.restricted && (
-        <Card size="small" title={`🔗 ${t('optimization.domain.title') || 'Hiệu quả thu hẹp không gian tìm kiếm (CSP)'}`}>
+        <Card
+          size="small"
+          title={
+            <Space size={8}>
+              <ApartmentOutlined style={{ color: '#06b6d4' }} />
+              <span>{t('optimization.domain.title') || 'Hiệu quả thu hẹp không gian tìm kiếm (CSP)'}</span>
+            </Space>
+          }
+        >
           <Space size={32} wrap>
             <Statistic
               title={t('optimization.domain.pairsLeft') || 'Số cặp khả thi còn lại'}

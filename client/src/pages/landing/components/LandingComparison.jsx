@@ -8,8 +8,17 @@
  *   - Giới thiệu hệ sinh thái đa nền tảng (Web Client React 18 + Mobile React Native Expo SDK 54).
  */
 
-import { Tag, Typography, Row, Col } from 'antd';
-import { CheckCircleFilled } from '@ant-design/icons';
+import { Tag, Typography, Row, Col, Space } from 'antd';
+import {
+  CheckCircleFilled,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  WarningOutlined,
+  LaptopOutlined,
+  MobileOutlined,
+  ThunderboltOutlined,
+  ExperimentOutlined,
+} from '@ant-design/icons';
 
 const { Title, Paragraph } = Typography;
 
@@ -31,12 +40,17 @@ export default function LandingComparison() {
             </Paragraph>
           </div>
 
-          <div className="comparison-table-wrap">
+          <div className="comparison-table-wrapper">
             <table className="comparison-table">
               <thead>
                 <tr>
                   <th className="col-feature">Năng lực Cốt lõi</th>
-                  <th className="col-rao">⚡ RAO Studio (Hệ thống này)</th>
+                  <th className="col-rao">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <ThunderboltOutlined style={{ color: '#818cf8' }} />
+                      RAO Studio (Hệ thống này)
+                    </span>
+                  </th>
                   <th className="col-jira">Jira Software Cloud (Bản gốc)</th>
                   <th className="col-trello">Trello / Asana</th>
                 </tr>
@@ -50,8 +64,14 @@ export default function LandingComparison() {
                   <td className="rao-cell cell-yes">
                     <CheckCircleFilled className="cell-icon text-success" /> Tích hợp sẵn (GA + CSP)
                   </td>
-                  <td className="other-cell cell-no">❌ Không có (Phân công thủ công)</td>
-                  <td className="other-cell cell-no">❌ Không có</td>
+                  <td className="other-cell cell-no">
+                    <CloseCircleOutlined style={{ color: '#ef4444', marginRight: 6 }} />
+                    Không có (Phân công thủ công)
+                  </td>
+                  <td className="other-cell cell-no">
+                    <CloseCircleOutlined style={{ color: '#ef4444', marginRight: 6 }} />
+                    Không có
+                  </td>
                 </tr>
 
                 <tr>
@@ -62,8 +82,14 @@ export default function LandingComparison() {
                   <td className="rao-cell cell-yes">
                     <CheckCircleFilled className="cell-icon text-success" /> Có sẵn đầy đủ thuật toán CPM
                   </td>
-                  <td className="other-cell cell-part">⚠️ Cần mua thêm app Marketplace đắt tiền</td>
-                  <td className="other-cell cell-no">❌ Không có</td>
+                  <td className="other-cell cell-part">
+                    <WarningOutlined style={{ color: '#f59e0b', marginRight: 6 }} />
+                    Cần mua thêm app Marketplace đắt tiền
+                  </td>
+                  <td className="other-cell cell-no">
+                    <CloseCircleOutlined style={{ color: '#ef4444', marginRight: 6 }} />
+                    Không có
+                  </td>
                 </tr>
 
                 <tr>
@@ -74,8 +100,14 @@ export default function LandingComparison() {
                   <td className="rao-cell cell-yes">
                     <CheckCircleFilled className="cell-icon text-success" /> Quản lý chi tiết từng kỹ năng
                   </td>
-                  <td className="other-cell cell-no">❌ Chỉ quản lý ở mức team chung</td>
-                  <td className="other-cell cell-no">❌ Không có</td>
+                  <td className="other-cell cell-no">
+                    <CloseCircleOutlined style={{ color: '#ef4444', marginRight: 6 }} />
+                    Chỉ quản lý ở mức team chung
+                  </td>
+                  <td className="other-cell cell-no">
+                    <CloseCircleOutlined style={{ color: '#ef4444', marginRight: 6 }} />
+                    Không có
+                  </td>
                 </tr>
 
                 <tr>
@@ -86,8 +118,14 @@ export default function LandingComparison() {
                   <td className="rao-cell cell-yes">
                     <CheckCircleFilled className="cell-icon text-success" /> Có chỉ số Burnout Index 3 cấp độ
                   </td>
-                  <td className="other-cell cell-no">❌ Không có</td>
-                  <td className="other-cell cell-no">❌ Không có</td>
+                  <td className="other-cell cell-no">
+                    <CloseCircleOutlined style={{ color: '#ef4444', marginRight: 6 }} />
+                    Không có
+                  </td>
+                  <td className="other-cell cell-no">
+                    <CloseCircleOutlined style={{ color: '#ef4444', marginRight: 6 }} />
+                    Không có
+                  </td>
                 </tr>
 
                 <tr>
@@ -98,8 +136,14 @@ export default function LandingComparison() {
                   <td className="rao-cell cell-yes">
                     <CheckCircleFilled className="cell-icon text-success" /> Tích hợp sẵn Benchmark Studio
                   </td>
-                  <td className="other-cell cell-no">❌ Không có</td>
-                  <td className="other-cell cell-no">❌ Không có</td>
+                  <td className="other-cell cell-no">
+                    <CloseCircleOutlined style={{ color: '#ef4444', marginRight: 6 }} />
+                    Không có
+                  </td>
+                  <td className="other-cell cell-no">
+                    <CloseCircleOutlined style={{ color: '#ef4444', marginRight: 6 }} />
+                    Không có
+                  </td>
                 </tr>
 
                 <tr>
@@ -110,8 +154,14 @@ export default function LandingComparison() {
                   <td className="rao-cell cell-yes">
                     <CheckCircleFilled className="cell-icon text-success" /> Đầy đủ tính năng như Web
                   </td>
-                  <td className="other-cell cell-yes">✅ Có app di động</td>
-                  <td className="other-cell cell-yes">✅ Có app di động</td>
+                  <td className="other-cell cell-yes">
+                    <CheckCircleOutlined style={{ color: '#10b981', marginRight: 6 }} />
+                    Có app di động
+                  </td>
+                  <td className="other-cell cell-yes">
+                    <CheckCircleOutlined style={{ color: '#10b981', marginRight: 6 }} />
+                    Có app di động
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -136,7 +186,9 @@ export default function LandingComparison() {
 
               <div className="platform-cards">
                 <div className="platform-card">
-                  <div className="platform-icon">💻</div>
+                  <div className="platform-icon">
+                    <LaptopOutlined style={{ fontSize: 24, color: '#6366f1' }} />
+                  </div>
                   <div className="platform-text">
                     <strong>Nền tảng Web Client</strong>
                     <span>React 18, Vite, Ant Design, Glassmorphism, Dual Theme (Sáng / Tối).</span>
@@ -144,7 +196,9 @@ export default function LandingComparison() {
                 </div>
 
                 <div className="platform-card" style={{ marginTop: 14 }}>
-                  <div className="platform-icon">📱</div>
+                  <div className="platform-icon">
+                    <MobileOutlined style={{ fontSize: 24, color: '#06b6d4' }} />
+                  </div>
                   <div className="platform-text">
                     <strong>Ứng dụng Di động RAO Mobile</strong>
                     <span>React Native, Expo SDK 54, điều hướng Native Stack & Bottom Tabs.</span>
@@ -179,11 +233,13 @@ export default function LandingComparison() {
                       <span className="kpi-v text-warning">86%</span>
                     </div>
                   </div>
-                  <div className="mobile-action-pill">
-                    ⚡ Tối ưu hóa Phân bổ GA & CSP
+                  <div className="mobile-action-pill" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <ThunderboltOutlined style={{ color: '#818cf8' }} />
+                    <span>Tối ưu hóa Phân bổ GA & CSP</span>
                   </div>
-                  <div className="mobile-action-pill" style={{ marginTop: 8 }}>
-                    🧪 Benchmark Studio Thực nghiệm
+                  <div className="mobile-action-pill" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <ExperimentOutlined style={{ color: '#06b6d4' }} />
+                    <span>Benchmark Studio Thực nghiệm</span>
                   </div>
                 </div>
               </div>

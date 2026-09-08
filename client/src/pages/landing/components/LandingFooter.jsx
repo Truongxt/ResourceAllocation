@@ -15,6 +15,7 @@ import {
   DashboardOutlined,
   ArrowRightOutlined,
 } from '@ant-design/icons';
+import AppLogo from '../../../components/common/AppLogo';
 
 const { Title, Paragraph } = Typography;
 
@@ -103,9 +104,8 @@ export default function LandingFooter({
         <div className="landing-container">
           <div className="footer-top-row">
             <div className="footer-brand-col">
-              <div className="footer-brand">
-                <span className="brand-icon">⚡</span>
-                <span className="brand-title">RAO Studio</span>
+              <div className="footer-brand" style={{ marginBottom: 12 }}>
+                <AppLogo isDark={true} size={32} subtitle="" />
               </div>
               <p className="footer-brand-desc">
                 Hệ thống Quản lý Dự án & Tự động Tối ưu hóa Phân bổ Nguồn lực Thông minh.

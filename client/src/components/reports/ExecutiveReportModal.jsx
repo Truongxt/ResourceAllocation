@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Modal, Button, Space, Tag, Spin } from 'antd';
-import { PrinterOutlined, CloseOutlined, FilePdfOutlined } from '@ant-design/icons';
+import {
+  PrinterOutlined,
+  CloseOutlined,
+  FilePdfOutlined,
+  WarningOutlined,
+  CheckCircleOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useAuth } from '../../context/AuthContext';
 import optimizationService from '../../services/optimizationService';
@@ -278,22 +285,31 @@ export default function ExecutiveReportModal({ open, onClose, utilData, taskData
               <div className="rep-section-title">5. Nhận Xét & Khuyến Nghị Từ Hệ Thống (AI Assessment)</div>
               <div className="rep-assessment-box">
                 {summary.overloaded > 0 ? (
-                  <p>
-                    ⚠️ <strong>Cảnh báo tải trọng:</strong> Phát hiện{' '}
-                    <strong>{summary.overloaded} nhân sự</strong> đang trong tình trạng vượt quá định mức
-                    cho phép. Khuyến nghị chạy phương án phân bổ cân bằng tải (GA / Hybrid) để dàn đều
-                    khối lượng công việc, phòng tránh rủi ro kiệt sức.
+                  <p style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 8 }}>
+                    <WarningOutlined style={{ color: '#f59e0b', fontSize: 16, marginTop: 2, flexShrink: 0 }} />
+                    <span>
+                      <strong>Cảnh báo tải trọng:</strong> Phát hiện{' '}
+                      <strong>{summary.overloaded} nhân sự</strong> đang trong tình trạng vượt quá định mức
+                      cho phép. Khuyến nghị chạy phương án phân bổ cân bằng tải (GA / Hybrid) để dàn đều
+                      khối lượng công việc, phòng tránh rủi ro kiệt sức.
+                    </span>
                   </p>
                 ) : (
-                  <p>
-                    ✅ <strong>Đánh giá tải trọng tốt:</strong> Không có nhân sự nào bị quá tải nghiêm trọng.
-                    Mức độ sử dụng nguồn lực trung bình đạt <strong>{summary.avgUtilization}%</strong>, nằm trong
-                    khoảng tối ưu (70% - 85%).
+                  <p style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 8 }}>
+                    <CheckCircleOutlined style={{ color: '#10b981', fontSize: 16, marginTop: 2, flexShrink: 0 }} />
+                    <span>
+                      <strong>Đánh giá tải trọng tốt:</strong> Không có nhân sự nào bị quá tải nghiêm trọng.
+                      Mức độ sử dụng nguồn lực trung bình đạt <strong>{summary.avgUtilization}%</strong>, nằm trong
+                      khoảng tối ưu (70% - 85%).
+                    </span>
                   </p>
                 )}
-                <p style={{ marginTop: 8, marginBottom: 0 }}>
-                  💡 <strong>Khuyến nghị kế hoạch:</strong> Đối với các công việc thuộc đường găng dự án (CPM Critical Path),
-                  cần ưu tiên nhân sự có Level kỹ năng từ Advanced trở lên để đảm bảo tiến độ không bị trì hoãn.
+                <p style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 8, marginBottom: 0 }}>
+                  <InfoCircleOutlined style={{ color: '#06b6d4', fontSize: 16, marginTop: 2, flexShrink: 0 }} />
+                  <span>
+                    <strong>Khuyến nghị kế hoạch:</strong> Đối với các công việc thuộc đường găng dự án (CPM Critical Path),
+                    cần ưu tiên nhân sự có Level kỹ năng từ Advanced trở lên để đảm bảo tiến độ không bị trì hoãn.
+                  </span>
                 </p>
               </div>
             </div>

@@ -20,6 +20,9 @@ import {
   RiseOutlined,
   ExperimentOutlined,
   CheckCircleFilled,
+  SafetyCertificateOutlined,
+  WarningOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 
 const { Title, Paragraph } = Typography;
@@ -104,14 +107,14 @@ export default function LandingFeatures({ activeTab, setActiveTab }) {
                 <Col xs={24} lg={12}>
                   <div className="feature-visual-box visual-opt">
                     <div className="visual-card-mini">
-                      <span className="mini-icon">🧬</span>
+                      <span className="mini-icon"><ThunderboltOutlined style={{ color: '#818cf8', fontSize: 18 }} /></span>
                       <div className="mini-info">
                         <strong>400 Thế hệ Tiến hóa (Generations)</strong>
                         <span>Hội tụ điểm Fitness tối ưu 0.962 trong 18ms</span>
                       </div>
                     </div>
                     <div className="visual-card-mini" style={{ marginTop: 12 }}>
-                      <span className="mini-icon">⚖️</span>
+                      <span className="mini-icon"><ApartmentOutlined style={{ color: '#06b6d4', fontSize: 18 }} /></span>
                       <div className="mini-info">
                         <strong>Cân bằng Tải Tuyệt đối</strong>
                         <span>Độ lệch chuẩn giờ làm việc giảm 72% so với phân bổ thủ công</span>
@@ -237,13 +240,22 @@ export default function LandingFeatures({ activeTab, setActiveTab }) {
                 <Col xs={24} lg={12}>
                   <div className="feature-visual-box visual-analytics">
                     <div className="burnout-alert-box alert-safe">
-                      <span>🛡️ 18 Nhân sự trong Vùng An toàn (&lt; 80% tải)</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <SafetyCertificateOutlined style={{ color: '#10b981', fontSize: 16 }} />
+                        18 Nhân sự trong Vùng An toàn (&lt; 80% tải)
+                      </span>
                     </div>
                     <div className="burnout-alert-box alert-warning" style={{ marginTop: 10 }}>
-                      <span>⚖️ 4 Nhân sự đạt Hiệu suất Tối ưu (80 - 100% tải)</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <CheckCircleOutlined style={{ color: '#f59e0b', fontSize: 16 }} />
+                        4 Nhân sự đạt Hiệu suất Tối ưu (80 - 100% tải)
+                      </span>
                     </div>
                     <div className="burnout-alert-box alert-danger" style={{ marginTop: 10 }}>
-                      <span>⚠️ 0 Nhân sự bị Quá tải (Đã được thuật toán cân bằng)</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <WarningOutlined style={{ color: '#ef4444', fontSize: 16 }} />
+                        0 Nhân sự bị Quá tải (Đã được thuật toán cân bằng)
+                      </span>
                     </div>
                   </div>
                 </Col>

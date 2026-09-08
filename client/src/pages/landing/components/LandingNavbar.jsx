@@ -15,7 +15,10 @@ import {
   DashboardOutlined,
   LoginOutlined,
   UserAddOutlined,
+  SunOutlined,
+  MoonOutlined,
 } from '@ant-design/icons';
+import AppLogo from '../../../components/common/AppLogo';
 
 export default function LandingNavbar({
   isAuthenticated = false,
@@ -52,12 +55,8 @@ export default function LandingNavbar({
       {/* 2. Header Điều Hướng Chính */}
       <header className="landing-header">
         <div className="landing-header-inner">
-          <div className="landing-brand" onClick={() => navigate('/')}>
-            <div className="brand-icon-box">⚡</div>
-            <div className="brand-text-wrap">
-              <span className="brand-name">RAO Studio</span>
-              <span className="brand-badge">PRO</span>
-            </div>
+          <div className="landing-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+            <AppLogo isDark={isDark} size={36} subtitle="" />
           </div>
 
           <nav className="landing-nav-menu">
@@ -118,8 +117,9 @@ export default function LandingNavbar({
               onClick={toggleTheme}
               className="theme-toggle-btn"
               title="Chuyển đổi giao diện Sáng / Tối"
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              {isDark ? '☀️' : '🌙'}
+              {isDark ? <SunOutlined style={{ color: '#fbbf24', fontSize: 16 }} /> : <MoonOutlined style={{ color: '#6366f1', fontSize: 16 }} />}
             </button>
 
             {isAuthenticated ? (

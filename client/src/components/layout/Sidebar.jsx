@@ -17,6 +17,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import AppLogo from '../common/AppLogo';
 
 const { Sider } = Layout;
 const { Text } = Typography;
@@ -127,49 +128,12 @@ export default function Sidebar({ collapsed, onToggle }) {
             background: isDark ? 'rgba(255, 255, 255, 0.01)' : '#ffffff',
           }}
         >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              minWidth: 36,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: 18,
-              color: '#ffffff',
-              boxShadow: '0 0 16px rgba(99, 102, 241, 0.45)',
-            }}
-          >
-            ⚡
-          </div>
-          {!collapsed && (
-            <div style={{ overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontWeight: 800, fontSize: 16, color: isDark ? '#f8fafc' : '#0f172a', letterSpacing: '-0.02em' }}>
-                  RAO Studio
-                </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: '1px 6px',
-                    borderRadius: 4,
-                    background: 'rgba(99, 102, 241, 0.15)',
-                    color: '#818cf8',
-                    border: '1px solid rgba(99, 102, 241, 0.25)',
-                  }}
-                >
-                  PRO
-                </span>
-              </div>
-              <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b', whiteSpace: 'nowrap', fontWeight: 500 }}>
-                Resource Allocation AI
-              </div>
-            </div>
-          )}
+          <AppLogo
+            size={collapsed ? 34 : 36}
+            showText={!collapsed}
+            isDark={isDark}
+            subtitle="Resource Allocation AI"
+          />
         </div>
 
         {/* Menu Navigation */}

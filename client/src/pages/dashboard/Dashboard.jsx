@@ -112,7 +112,7 @@ export default function Dashboard() {
               </span>
             </div>
             <Text type="secondary" style={{ fontSize: 13 }}>
-              {t('dashboard.subtitle') || 'Theo dõi phân bổ nguồn lực, tiến độ công việc và cảnh báo tải'}
+              {t('dashboard.subtitle', { defaultValue: 'Tổng quan hệ thống quản lý nguồn lực và phân bổ nhân sự' })}
             </Text>
           </div>
 
