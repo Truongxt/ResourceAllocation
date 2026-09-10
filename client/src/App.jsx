@@ -22,6 +22,7 @@ const GanttChart = lazy(() => import('./pages/gantt/GanttChart'));
 const Reports = lazy(() => import('./pages/reports/Reports'));
 const BenchmarkStudio = lazy(() => import('./pages/benchmark/BenchmarkStudio'));
 const Settings = lazy(() => import('./pages/settings/Settings'));
+const CalendarPage = lazy(() => import('./pages/calendar/CalendarPage'));
 const ActivityLogs = lazy(() => import('./pages/activity-logs/ActivityLogs'));
 
 const { Content } = Layout;
@@ -119,6 +120,11 @@ export default function App() {
         <Route path="/tasks" element={<ProtectedRoute><AppLayout><Tasks /></AppLayout></ProtectedRoute>} />
         <Route path="/resources" element={<ProtectedRoute roles={['admin', 'project_manager']}><AppLayout><Resources /></AppLayout></ProtectedRoute>} />
         <Route path="/optimization" element={<ProtectedRoute><AppLayout><Optimization /></AppLayout></ProtectedRoute>} />
+        <Route
+          path="/calendar"
+          element={<ProtectedRoute><AppLayout><CalendarPage /></AppLayout></ProtectedRoute>}
+        />
+
         <Route path="/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><AppLayout><Reports /></AppLayout></ProtectedRoute>} />
         <Route path="/benchmark" element={<ProtectedRoute><AppLayout><BenchmarkStudio /></AppLayout></ProtectedRoute>} />

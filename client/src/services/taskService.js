@@ -4,7 +4,9 @@ const taskService = {
   getAll(params = {}) {
     return api.get('/tasks', { params });
   },
-
+  getCalendarTasks(params) {
+    return api.get("/tasks", { params });
+  },
   getSummary(params = {}) {
     return api.get('/tasks/stats/summary', { params });
   },

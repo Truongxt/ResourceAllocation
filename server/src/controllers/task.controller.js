@@ -44,6 +44,37 @@ const getTasks = async (req, res, next) => {
       ];
     }
 
+    // Lọc theo date
+    if (req.query.from && req.query.to) {
+      const fromDate = new Date(req.query.from);
+      const toDate = new Date(req.query.to);
+
+      // thuật toán overlap: 2 khoảng [a,b] và [x,y]
+      // overlap nếu a <= y && x <= b
+      const dateOverLapCondition = {
+        $and: [
+          { startDate: { $lte: toDate } },
+          { endDate: { $gte: fromDate } },
+        ]
+      }
+
+      // ghép vô filter
+
+      if (filter.$and) {
+        filter.$and.push(dateOverLapCondition)
+      } else if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, dateOverLapCondition];
+        delete filter.$or;
+      }
+      else {
+        filter.$and = [dateOverLapCondition];
+      }
+    }
+    // Nếu là nhân viên thường (member) thì chỉ lấy các task được giao cho chính họ
+    if (req.user && req.user.role === 'member') {
+      filter.assignee = req.user._id;
+    }
+
     if (req.query.project) {
       if (filter.$or) {
         filter.$and = [
@@ -527,6 +558,7 @@ const getTaskSummary = async (req, res, next) => {
         { createdBy: req.user._id },
       ];
     }
+
 
     if (req.query.project) {
       if (filter.$or) {

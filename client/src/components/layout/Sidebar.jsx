@@ -13,11 +13,13 @@ import {
   GlobalOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  CalendarOutlined
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import AppLogo from '../common/AppLogo';
+
 
 const { Sider } = Layout;
 const { Text } = Typography;
@@ -54,6 +56,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       children: [
         { key: '/projects', icon: <ProjectOutlined style={{ fontSize: 16 }} />, label: t('nav.projects') },
         { key: '/tasks', icon: <UnorderedListOutlined style={{ fontSize: 16 }} />, label: t('nav.tasks') },
+        { key: '/calendar', icon: <CalendarOutlined style={{ fontSize: 16 }} />, label: t('nav.calendar') || 'Lịch công việc' },
         ...(user?.role !== 'member'
           ? [{ key: '/resources', icon: <TeamOutlined style={{ fontSize: 16 }} />, label: t('nav.resources') }]
           : []),
