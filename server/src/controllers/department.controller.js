@@ -4,13 +4,20 @@ const { logActivity } = require('../services/activityLog.service');
 
 const getDepartments = async (req, res, next) => {
   try {
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
     const filter = {};
     if (req.query.isActive !== undefined) filter.isActive = req.query.isActive === 'true';
     if (req.query.search) filter.name = new RegExp(req.query.search, 'i');
 
+    const companyNames = [userCompany];
+    if (userCompany !== 'Công ty Công nghệ RAO') {
+      companyNames.push('Công ty Công nghệ RAO');
+    }
+    filter.companyName = { $in: companyNames };
+
     const departments = await Department.find(filter).sort('name');
     const counts = await Resource.aggregate([
-      { $match: { isActive: true } },
+      { $match: { isActive: true, companyName: userCompany } },
       { $group: { _id: '$department', resourceCount: { $sum: 1 } } },
     ]);
 
@@ -36,7 +43,11 @@ const getDepartments = async (req, res, next) => {
 
 const createDepartment = async (req, res, next) => {
   try {
-    const department = await Department.create(req.body);
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    const department = await Department.create({
+      ...req.body,
+      companyName: userCompany,
+    });
     res.status(201).json({
       success: true,
       data: { department },
@@ -49,18 +60,25 @@ const createDepartment = async (req, res, next) => {
 
 const updateDepartment = async (req, res, next) => {
   try {
-    const department = await Department.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const department = await Department.findById(req.params.id);
 
     if (!department) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy phòng ban' });
     }
 
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (department.companyName && department.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Không có quyền thao tác trên phòng ban của công ty khác' });
+    }
+
+    const updatedDepartment = await Department.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
     res.json({
       success: true,
-      data: { department },
+      data: { department: updatedDepartment },
       message: 'Cập nhật phòng ban thành công',
     });
   } catch (error) {
@@ -75,7 +93,16 @@ const deleteDepartment = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy phòng ban' });
     }
 
-    const resourceCount = await Resource.countDocuments({ department: department.name, isActive: true });
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (department.companyName && department.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Không có quyền thao tác trên phòng ban của công ty khác' });
+    }
+
+    const resourceCount = await Resource.countDocuments({
+      department: department.name,
+      companyName: userCompany,
+      isActive: true,
+    });
     if (resourceCount > 0) {
       return res.status(400).json({
         success: false,

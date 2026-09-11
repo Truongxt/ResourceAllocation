@@ -78,6 +78,11 @@ const projectSchema = new mongoose.Schema(
       },
     ],
     tags: [String],
+    companyName: {
+      type: String,
+      trim: true,
+      default: 'Công ty Công nghệ RAO',
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -98,6 +103,7 @@ projectSchema.virtual('tasks', {
 
 projectSchema.index({ status: 1 });
 projectSchema.index({ manager: 1 });
+projectSchema.index({ companyName: 1 });
 projectSchema.index({ startDate: 1, endDate: 1 });
 
 module.exports = mongoose.model('Project', projectSchema);

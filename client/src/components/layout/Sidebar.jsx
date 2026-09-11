@@ -13,7 +13,8 @@ import {
   GlobalOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  CalendarOutlined
+  CalendarOutlined,
+  SafetyCertificateOutlined
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
@@ -86,6 +87,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         </span>
       ) : null,
       children: [
+        { key: '/account', icon: <SafetyCertificateOutlined style={{ fontSize: 16, color: '#3b82f6' }} />, label: 'Base Account' },
         { key: '/activity-logs', icon: <HistoryOutlined style={{ fontSize: 16 }} />, label: t('nav.activityLogs') },
       ],
     },

@@ -96,7 +96,7 @@ export default function GlobalSearchModal({ open, onClose }) {
     : data.tasks.slice(0, 4);
 
   const filteredResources = cleanQuery
-    ? data.resources.filter((r) => (r.name || '').toLowerCase().includes(cleanQuery) || (r.role || '').toLowerCase().includes(cleanQuery))
+    ? data.resources.filter((r) => ((r.user?.name || r.name || '')).toLowerCase().includes(cleanQuery) || ((r.position || r.user?.role || r.role || '')).toLowerCase().includes(cleanQuery))
     : data.resources.slice(0, 4);
 
   const totalResults =
@@ -353,9 +353,13 @@ export default function GlobalSearchModal({ open, onClose }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <TeamOutlined style={{ color: '#8b5cf6', fontSize: 15 }} />
                       <Text strong style={{ fontSize: 13, color: isDark ? '#f8fafc' : '#0f172a' }}>
-                        {r.name}
+                        {r.user?.name || r.name || 'Nhân sự'}
                       </Text>
-                      {r.role && <span style={{ fontSize: 12, color: '#94a3b8' }}>· {r.role}</span>}
+                      {(r.position || r.user?.role || r.role) && (
+                        <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                          · {r.position || r.user?.role || r.role}
+                        </span>
+                      )}
                     </div>
                     <Tag color="cyan" style={{ margin: 0 }}>
                       {r.skills?.length || 0} kỹ năng

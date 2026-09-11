@@ -36,9 +36,73 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    phone: {
+      type: String,
+      trim: true,
+    },
+    companyName: {
+      type: String,
+      trim: true,
+      default: 'Công ty Công nghệ RAO',
+    },
+    jobTitle: {
+      type: String,
+      trim: true,
+    },
+    companySize: {
+      type: String,
+      trim: true,
+    },
+    interestedProduct: {
+      type: String,
+      trim: true,
+    },
+    location: {
+      type: String,
+      trim: true,
+    },
+    manager: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    appPermissions: {
+      type: Object,
+      default: () => ({
+        projects: 'manage',
+        tasks: 'manage',
+        calendar: 'view',
+        optimization: 'view',
+        reports: 'view',
+      }),
+    },
+    lastLoginAt: {
+      type: Date,
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,
+    },
+    isOwner: {
+      type: Boolean,
+      default: false,
+    },
+    isGuest: {
+      type: Boolean,
+      default: false,
+    },
+    appAdmins: {
+      type: [String],
+      default: [],
+    },
+    specialGrants: {
+      type: [String],
+      default: [],
     },
   },
   {
@@ -66,5 +130,7 @@ userSchema.methods.toJSON = function () {
   delete obj.password;
   return obj;
 };
+
+userSchema.index({ companyName: 1 });
 
 module.exports = mongoose.model('User', userSchema);

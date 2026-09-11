@@ -102,6 +102,7 @@ export default function App() {
         <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
         <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />} />
+        <Route path="/dang-ky-demo" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />} />
 
         {/* Root Route: Landing page for guests, Dashboard for logged-in users */}
         <Route
@@ -130,6 +131,7 @@ export default function App() {
         <Route path="/benchmark" element={<ProtectedRoute><AppLayout><BenchmarkStudio /></AppLayout></ProtectedRoute>} />
         <Route path="/activity-logs" element={<ProtectedRoute><AppLayout><ActivityLogs /></AppLayout></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
+        <Route path="/account" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

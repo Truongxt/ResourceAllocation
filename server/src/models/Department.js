@@ -5,13 +5,16 @@ const departmentSchema = new mongoose.Schema(
     name: {
       type: String,
       required: [true, 'Tên phòng ban là bắt buộc'],
-      unique: true,
       trim: true,
       maxlength: [120, 'Tên phòng ban không vượt quá 120 ký tự'],
     },
+    companyName: {
+      type: String,
+      trim: true,
+      default: 'Công ty Công nghệ RAO',
+    },
     code: {
       type: String,
-      unique: true,
       sparse: true,
       uppercase: true,
       trim: true,
@@ -35,6 +38,7 @@ const departmentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-departmentSchema.index({ isActive: 1, name: 1 });
+departmentSchema.index({ isActive: 1, companyName: 1, name: 1 });
+departmentSchema.index({ name: 1, companyName: 1 });
 
 module.exports = mongoose.model('Department', departmentSchema);

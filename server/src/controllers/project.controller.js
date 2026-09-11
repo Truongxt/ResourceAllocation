@@ -1,9 +1,16 @@
 const Project = require('../models/Project');
 const Task = require('../models/Task');
+const User = require('../models/User');
 const { logActivity } = require('../services/activityLog.service');
 
 const buildProjectQuery = async (query, user) => {
   const filter = {};
+  const userCompany = (user && user.companyName) || 'Công ty Công nghệ RAO';
+  if (userCompany === 'Công ty Công nghệ RAO') {
+    filter.companyName = { $in: [userCompany, null, undefined] };
+  } else {
+    filter.companyName = userCompany;
+  }
 
   if (user && user.role !== 'admin') {
     // Find all projects where user has tasks assigned or created
@@ -156,6 +163,14 @@ const getProjectById = async (req, res, next) => {
       });
     }
 
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền truy cập dự án của công ty khác',
+      });
+    }
+
     res.json({
       success: true,
       data: { project },
@@ -167,8 +182,10 @@ const getProjectById = async (req, res, next) => {
 
 const createProject = async (req, res, next) => {
   try {
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
     const projectData = {
       ...req.body,
+      companyName: userCompany,
       createdBy: req.user._id,
       manager: req.body.manager || req.user._id,
     };
@@ -207,6 +224,14 @@ const updateProject = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy dự án',
+      });
+    }
+
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
 
@@ -249,6 +274,14 @@ const deleteProject = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy dự án',
+      });
+    }
+
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
 
@@ -297,6 +330,22 @@ const addProjectMember = async (req, res, next) => {
       });
     }
 
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên dự án của công ty khác',
+      });
+    }
+
+    const userToAdd = await User.findById(user);
+    if (userToAdd && userToAdd.companyName && userToAdd.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không thể thêm nhân sự từ công ty khác vào dự án',
+      });
+    }
+
     const existingMember = project.members.find((member) => member.user.toString() === user);
     if (existingMember) {
       return res.status(400).json({
@@ -329,6 +378,14 @@ const updateProjectMember = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy dự án',
+      });
+    }
+
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
 
@@ -369,6 +426,14 @@ const removeProjectMember = async (req, res, next) => {
       });
     }
 
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên dự án của công ty khác',
+      });
+    }
+
     project.members = project.members.filter((member) => member.user.toString() !== req.params.userId);
     await project.save();
 
@@ -389,6 +454,13 @@ const removeProjectMember = async (req, res, next) => {
 const getProjectSummary = async (req, res, next) => {
   try {
     const match = {};
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (userCompany === 'Công ty Công nghệ RAO') {
+      match.companyName = { $in: [userCompany, null, undefined] };
+    } else {
+      match.companyName = userCompany;
+    }
+
     if (req.user && req.user.role !== 'admin') {
       const userTasks = await Task.find({
         $or: [{ assignee: req.user._id }, { createdBy: req.user._id }],

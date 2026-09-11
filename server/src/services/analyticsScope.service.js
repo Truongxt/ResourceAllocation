@@ -37,13 +37,14 @@ const Task = require('../models/Task');
  */
 const getUserAnalyticsScope = async (user) => {
   const isGlobalAdmin = user && user.role === 'admin';
+  const userCompany = user?.companyName || 'Công ty Công nghệ RAO';
 
-  // Trường hợp 1: Admin toàn quyền -> Không lọc gì cả
+  // Trường hợp 1: Admin công ty -> Xem toàn bộ dữ liệu trong phạm vi công ty mình
   if (isGlobalAdmin || !user) {
     return {
-      projectMatch: {},
-      taskMatch: {},
-      resourceMatch: { isActive: true },
+      projectMatch: { companyName: userCompany },
+      taskMatch: { companyName: userCompany },
+      resourceMatch: { isActive: true, companyName: userCompany },
       recentOptimizationFilter: { status: 'completed' },
       isGlobalAdmin: true,
       userProjectIds: null,
@@ -51,14 +52,16 @@ const getUserAnalyticsScope = async (user) => {
   }
 
   // Trường hợp 2: PM hoặc Member -> Truy vết các dự án liên quan
-  // Bước 2.1: Tìm các dự án mà user có task được gán hoặc tự tạo task
+  // Bước 2.1: Tìm các dự án mà user có task được gán hoặc tự tạo task (cùng công ty)
   const userTasks = await Task.find({
+    companyName: userCompany,
     $or: [{ assignee: user._id }, { createdBy: user._id }],
   }).select('project');
   const assignedProjectIds = userTasks.map((t) => t.project).filter(Boolean);
 
   // Bước 2.2: Lọc các dự án mà user có liên quan
   const projectMatch = {
+    companyName: userCompany,
     $or: [
       { manager: user._id },
       { 'members.user': user._id },

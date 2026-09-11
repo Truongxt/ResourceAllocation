@@ -112,8 +112,8 @@ export default function Header({ collapsed }) {
     {
       key: 'settings',
       icon: <SettingOutlined />,
-      label: t('header.settings') || 'Cài đặt tài khoản',
-      onClick: () => navigate('/settings'),
+      label: 'Base Account & Cài đặt',
+      onClick: () => navigate('/account'),
     },
     {
       key: 'logout',

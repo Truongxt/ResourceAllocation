@@ -7,9 +7,13 @@ const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
 const { generateEmployeeId } = require('../utils/employeeId.util');
 
-const validateDepartment = async (departmentName) => {
+const validateDepartment = async (departmentName, companyName = 'Công ty Công nghệ RAO') => {
   if (!departmentName) return null;
-  return Department.findOne({ name: departmentName, isActive: true }).select('_id name');
+  return Department.findOne({
+    name: departmentName,
+    isActive: true,
+    companyName: { $in: [companyName, 'Công ty Công nghệ RAO'] },
+  }).select('_id name');
 };
 
 /**
@@ -20,6 +24,12 @@ const validateDepartment = async (departmentName) => {
 const getResources = async (req, res, next) => {
   try {
     const filter = {};
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (userCompany === 'Công ty Công nghệ RAO') {
+      filter.companyName = { $in: [userCompany, null, undefined] };
+    } else {
+      filter.companyName = userCompany;
+    }
 
     if (req.user && req.user.role !== 'admin') {
       const userProjects = await Project.find({
@@ -117,6 +127,14 @@ const getResourceById = async (req, res, next) => {
       });
     }
 
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (resource.companyName && resource.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền xem nhân sự của công ty khác',
+      });
+    }
+
     // Get current assignments
     const assignments = await Task.find({
       assignee: resource.user,
@@ -149,8 +167,9 @@ const createResource = async (req, res, next) => {
   try {
     const { user, newUser, ...resourceData } = req.body;
     let linkedUserId = user;
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
 
-    const department = await validateDepartment(resourceData.department);
+    const department = await validateDepartment(resourceData.department, userCompany);
     if (!department) {
       return res.status(400).json({
         success: false,
@@ -173,6 +192,7 @@ const createResource = async (req, res, next) => {
         password: newUser.password,
         role: newUser.role || 'member',
         department: resourceData.department,
+        companyName: userCompany,
       });
       linkedUserId = createdUser._id;
     }
@@ -182,6 +202,13 @@ const createResource = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy tài khoản liên kết',
+      });
+    }
+
+    if (linkedUser.companyName && linkedUser.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không thể thêm nhân sự từ công ty khác',
       });
     }
 
@@ -195,7 +222,12 @@ const createResource = async (req, res, next) => {
 
     delete resourceData.employeeId;
     resourceData.employeeId = await generateEmployeeId();
-    const resource = await Resource.create({ ...resourceData, user: linkedUserId, createdBy: req.user._id });
+    const resource = await Resource.create({
+      ...resourceData,
+      user: linkedUserId,
+      companyName: userCompany,
+      createdBy: req.user._id,
+    });
     resourceCreated = true;
 
     const populated = await Resource.findById(resource._id)
@@ -229,12 +261,20 @@ const updateResource = async (req, res, next) => {
       });
     }
 
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (resource.companyName && resource.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên nhân sự của công ty khác',
+      });
+    }
+
     const updateData = { ...req.body };
     delete updateData.user; // Cannot change user link
     delete updateData.employeeId; // Employee code is system-generated
 
     if (updateData.department !== undefined) {
-      const department = await validateDepartment(updateData.department);
+      const department = await validateDepartment(updateData.department, userCompany);
       if (!department) {
         return res.status(400).json({
           success: false,
@@ -270,6 +310,14 @@ const deleteResource = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy nhân sự',
+      });
+    }
+
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (resource.companyName && resource.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên nhân sự của công ty khác',
       });
     }
 

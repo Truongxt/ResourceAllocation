@@ -11,6 +11,7 @@ import { useTheme } from '../../context/ThemeContext';
 import projectService from '../../services/projectService';
 import taskService from '../../services/taskService';
 import resourceService from '../../services/resourceService';
+import departmentService from '../../services/departmentService';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -24,6 +25,7 @@ export default function QuickCreateModal({ open, onClose, defaultType = 'task', 
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState([]);
   const [resources, setResources] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     if (open) {
@@ -35,9 +37,10 @@ export default function QuickCreateModal({ open, onClose, defaultType = 'task', 
 
   const loadMetadata = async () => {
     try {
-      const [projRes, resRes] = await Promise.allSettled([
+      const [projRes, resRes, deptRes] = await Promise.allSettled([
         projectService.getAll(),
         resourceService.getAll(),
+        departmentService.getAll(),
       ]);
 
       if (projRes.status === 'fulfilled' && projRes.value?.data) {
@@ -47,6 +50,10 @@ export default function QuickCreateModal({ open, onClose, defaultType = 'task', 
       if (resRes.status === 'fulfilled' && resRes.value?.data) {
         const list = Array.isArray(resRes.value.data) ? resRes.value.data : resRes.value.data.data?.resources || resRes.value.data.resources || [];
         setResources(list);
+      }
+      if (deptRes.status === 'fulfilled' && deptRes.value?.data) {
+        const list = Array.isArray(deptRes.value.data) ? deptRes.value.data : deptRes.value.data.data?.departments || deptRes.value.data.departments || [];
+        setDepartments(list.filter((d) => d.isActive !== false));
       }
     } catch (err) {
       console.error('Error loading metadata for quick create', err);
@@ -60,11 +67,11 @@ export default function QuickCreateModal({ open, onClose, defaultType = 'task', 
         const payload = {
           title: values.title,
           description: values.description,
-          projectId: values.projectId,
+          project: values.projectId,
           priority: values.priority || 'medium',
           estimatedHours: values.estimatedHours || 8,
-          assigneeId: values.assigneeId || null,
-          dueDate: values.dueDate ? values.dueDate.toISOString() : undefined,
+          assignee: values.assignee || undefined,
+          endDate: values.dueDate ? values.dueDate.toISOString() : undefined,
         };
         await taskService.create(payload);
         message.success('Đã tạo công việc mới thành công!');
@@ -80,12 +87,19 @@ export default function QuickCreateModal({ open, onClose, defaultType = 'task', 
         await projectService.create(payload);
         message.success('Đã tạo dự án mới thành công!');
       } else if (createType === 'resource') {
+        const selectedDept = values.department || departments[0]?.name || 'Engineering';
         const payload = {
-          name: values.name,
-          email: values.email,
-          role: values.role || 'Developer',
-          department: values.department || 'Engineering',
-          maxCapacityHoursPerWeek: values.maxCapacity || 40,
+          position: values.role || 'Developer',
+          department: selectedDept,
+          maxCapacity: Number(values.maxCapacity) || 40,
+          fte: 1,
+          hourlyRate: 0,
+          newUser: {
+            name: values.name,
+            email: values.email,
+            password: values.password || '123456',
+            role: 'member',
+          },
         };
         await resourceService.create(payload);
         message.success('Đã tạo nhân sự mới thành công!');
@@ -148,13 +162,15 @@ export default function QuickCreateModal({ open, onClose, defaultType = 'task', 
               label="Thuộc Dự án"
               rules={[{ required: true, message: 'Vui lòng chọn dự án' }]}
             >
-              <Select placeholder="Chọn dự án">
-                {projects.map((p) => (
-                  <Option key={p._id} value={p._id}>
-                    {p.name} {p.code ? `(${p.code})` : ''}
-                  </Option>
-                ))}
-              </Select>
+              <Select
+                placeholder="Chọn dự án"
+                showSearch
+                optionFilterProp="label"
+                options={projects.map((p) => ({
+                  value: p._id,
+                  label: `${p.name}${p.code ? ` (${p.code})` : ''}`,
+                }))}
+              />
             </Form.Item>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -173,14 +189,22 @@ export default function QuickCreateModal({ open, onClose, defaultType = 'task', 
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Form.Item name="assigneeId" label="Người thực hiện (Tùy chọn)">
-                <Select placeholder="Chưa phân công" allowClear>
-                  {resources.map((r) => (
-                    <Option key={r._id} value={r._id}>
-                      {r.name} ({r.role || 'Member'})
-                    </Option>
-                  ))}
-                </Select>
+              <Form.Item name="assignee" label="Người thực hiện (Tùy chọn)">
+                <Select
+                  placeholder="Chưa phân công"
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  options={resources.map((r) => {
+                    const userName = r.user?.name || r.name || r.userName || 'Nhân sự';
+                    const userRole = r.position || r.user?.role || 'Thành viên';
+                    const userId = r.user?._id || r.userId || r._id;
+                    return {
+                      value: userId,
+                      label: `${userName} (${userRole})`,
+                    };
+                  })}
+                />
               </Form.Item>
 
               <Form.Item name="dueDate" label="Hạn chót (Deadline)">
@@ -268,13 +292,25 @@ export default function QuickCreateModal({ open, onClose, defaultType = 'task', 
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Form.Item name="department" label="Phòng ban" initialValue="Engineering">
-                <Select>
-                  <Option value="Engineering">Engineering</Option>
-                  <Option value="Product & Design">Product & Design</Option>
-                  <Option value="Quality Assurance">Quality Assurance</Option>
-                  <Option value="AI & Research">AI & Research</Option>
-                </Select>
+              <Form.Item
+                name="department"
+                label="Phòng ban"
+                initialValue={departments[0]?.name || 'Engineering'}
+                rules={[{ required: true, message: 'Vui lòng chọn phòng ban' }]}
+              >
+                <Select
+                  placeholder="Chọn phòng ban"
+                  options={
+                    departments.length > 0
+                      ? departments.map((d) => ({ value: d.name, label: d.name }))
+                      : [
+                          { value: 'Engineering', label: 'Engineering' },
+                          { value: 'Product & Design', label: 'Product & Design' },
+                          { value: 'Quality Assurance', label: 'Quality Assurance' },
+                          { value: 'AI & Research', label: 'AI & Research' },
+                        ]
+                  }
+                />
               </Form.Item>
 
               <Form.Item name="maxCapacity" label="Công suất tuần (Giờ)" initialValue={40}>

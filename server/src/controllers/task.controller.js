@@ -26,9 +26,18 @@ const recalculateProjectProgress = async (projectId) => {
 const getTasks = async (req, res, next) => {
   try {
     const filter = {};
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
 
-    if (req.user && req.user.role !== 'admin') {
+    const companyProjects = await Project.find({
+      companyName: userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
+    }).select('_id');
+    const companyProjectIds = companyProjects.map((p) => p._id);
+
+    if (req.user && req.user.role === 'admin') {
+      filter.project = { $in: companyProjectIds };
+    } else {
       const accessibleProjects = await Project.find({
+        _id: { $in: companyProjectIds },
         $or: [
           { manager: req.user._id },
           { 'members.user': req.user._id },
@@ -76,11 +85,20 @@ const getTasks = async (req, res, next) => {
     }
 
     if (req.query.project) {
+      const isAllowed = companyProjectIds.some(id => id.toString() === req.query.project.toString());
+      if (!isAllowed && req.user.role !== 'superadmin') {
+        return res.json({
+          success: true,
+          count: 0,
+          total: 0,
+          pagination: { page: 1, limit: 50, pages: 1 },
+          data: { tasks: [] },
+        });
+      }
+
       if (filter.$or) {
-        filter.$and = [
-          { $or: filter.$or },
-          { project: req.query.project },
-        ];
+        filter.$and = filter.$and || [];
+        filter.$and.push({ $or: filter.$or }, { project: req.query.project });
         delete filter.$or;
       } else {
         filter.project = req.query.project;
@@ -139,7 +157,7 @@ const getTasks = async (req, res, next) => {
 const getTaskById = async (req, res, next) => {
   try {
     const task = await Task.findById(req.params.id)
-      .populate('project', 'name code status members manager')
+      .populate('project', 'name code status members manager companyName')
       .populate('assignee', 'name email avatar department')
       .populate('dependencies', 'title status priority startDate endDate progress')
       .populate('createdBy', 'name email');
@@ -148,6 +166,14 @@ const getTaskById = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy công việc',
+      });
+    }
+
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (task.project?.companyName && task.project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền xem công việc của công ty khác',
       });
     }
 
@@ -224,6 +250,14 @@ const createTask = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy dự án',
+      });
+    }
+
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền tạo công việc trong dự án của công ty khác',
       });
     }
 
@@ -318,6 +352,15 @@ const updateTask = async (req, res, next) => {
       });
     }
 
+    const project = await Project.findById(task.project);
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project?.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên công việc của công ty khác',
+      });
+    }
+
     if (req.body.dependencies !== undefined) {
       const depError = await validateDependencies(req.body.dependencies, {
         taskId: task._id,
@@ -350,7 +393,6 @@ const updateTask = async (req, res, next) => {
 
     // Auto add assignee to project members if not present
     if (updatedTask.assignee) {
-      const project = await Project.findById(task.project);
       if (project) {
         const isMember = (project.members || []).some(
           (m) => m.user && m.user.toString() === updatedTask.assignee._id.toString()
@@ -426,6 +468,15 @@ const updateTaskStatus = async (req, res, next) => {
       });
     }
 
+    const project = await Project.findById(task.project);
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project?.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên công việc của công ty khác',
+      });
+    }
+
     const updateData = { status };
     if (status === 'done') updateData.progress = 100;
     if (status === 'todo') updateData.progress = 0;
@@ -496,6 +547,15 @@ const deleteTask = async (req, res, next) => {
       });
     }
 
+    const project = await Project.findById(task.project);
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project?.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên công việc của công ty khác',
+      });
+    }
+
     const projectId = task.project;
 
     // Remove this task from other tasks' dependencies
@@ -534,16 +594,25 @@ const deleteTask = async (req, res, next) => {
 };
 
 /**
- * @desc    Lấy thống kê tasks tổng quan
+ * @desc    Thống kê tasks
  * @route   GET /api/tasks/stats/summary
  * @access  Private
  */
 const getTaskSummary = async (req, res, next) => {
   try {
     const filter = {};
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
 
-    if (req.user && req.user.role !== 'admin') {
+    const companyProjects = await Project.find({
+      companyName: userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
+    }).select('_id');
+    const companyProjectIds = companyProjects.map((p) => p._id);
+
+    if (req.user && req.user.role === 'admin') {
+      filter.project = { $in: companyProjectIds };
+    } else {
       const accessibleProjects = await Project.find({
+        _id: { $in: companyProjectIds },
         $or: [
           { manager: req.user._id },
           { 'members.user': req.user._id },

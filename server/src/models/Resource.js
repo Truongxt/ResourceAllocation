@@ -22,6 +22,11 @@ const resourceSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    companyName: {
+      type: String,
+      trim: true,
+      default: 'Công ty Công nghệ RAO',
+    },
     // Skill Matrix
     skills: [
       {
@@ -109,5 +114,6 @@ resourceSchema.virtual('isOverloaded').get(function () {
 resourceSchema.index({ 'skills.name': 1, 'skills.level': 1 });
 resourceSchema.index({ availability: 1 });
 resourceSchema.index({ department: 1 });
+resourceSchema.index({ companyName: 1 });
 
 module.exports = mongoose.model('Resource', resourceSchema);
