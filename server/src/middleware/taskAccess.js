@@ -21,12 +21,17 @@ const canModifyTask = ({ restrictFields = false } = {}) => async (req, res, next
   try {
     if (PRIVILEGED_ROLES.includes(req.user.role)) return next();
 
-    const task = await Task.findById(req.params.id).select('assignee');
+    const task = await Task.findById(req.params.id).select('assignee parentTask');
     if (!task) {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy công việc',
       });
+    }
+
+    // Với công việc con (subtask), nhân viên và quản lý đều có thể tạo và sửa đầy đủ thông số
+    if (task.parentTask) {
+      return next();
     }
 
     const isAssignee = task.assignee && task.assignee.toString() === req.user._id.toString();
@@ -55,4 +60,30 @@ const canModifyTask = ({ restrictFields = false } = {}) => async (req, res, next
   }
 };
 
-module.exports = { canModifyTask, ASSIGNEE_EDITABLE_FIELDS, PRIVILEGED_ROLES };
+const canDeleteTask = () => async (req, res, next) => {
+  try {
+    if (PRIVILEGED_ROLES.includes(req.user.role)) return next();
+
+    const task = await Task.findById(req.params.id).select('assignee createdBy parentTask');
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy công việc',
+      });
+    }
+
+    // Cho phép xóa nếu là công việc con (subtask)
+    if (task.parentTask) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: 'Chỉ quản trị viên hoặc quản lý dự án mới có quyền xóa công việc chính.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { canModifyTask, canDeleteTask, ASSIGNEE_EDITABLE_FIELDS, PRIVILEGED_ROLES };

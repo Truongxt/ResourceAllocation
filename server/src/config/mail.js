@@ -6,13 +6,17 @@
  * thì chấp nhận được, chết luồng giao việc thì không.
  */
 
+const path = require('path');
+const dotenv = require('dotenv');
 const nodemailer = require('nodemailer');
+
+function cleanEnvVal(val) {
+  if (!val) return '';
+  return String(val).trim().replace(/^["']|["']$/g, '');
+}
 
 /**
  * Quyết định có gửi email hay không, dựa trên biến môi trường.
- *
- * Hàm thuần: nhận env vào, trả quyết định ra, không đụng mạng — nhờ vậy kiểm thử
- * được đầy đủ các nhánh mà không cần server SMTP.
  *
  * @returns {{enabled: boolean, reason?: string, host?: string, port?: number,
  *            secure?: boolean, auth?: object, from?: string}}
@@ -22,12 +26,21 @@ function readMailConfig(env = process.env) {
     return { enabled: false, reason: 'đang chạy kiểm thử' };
   }
 
+  // Luôn nạp lại .env mới nhất nếu ở môi trường dev để nhận cấu hình ngay lập tức mà không cần restart server
+  if (env.NODE_ENV !== 'test') {
+    try {
+      dotenv.config({ path: path.join(__dirname, '../../../.env'), override: true });
+    } catch {
+      /* ignore */
+    }
+  }
+
   if (String(env.EMAIL_ENABLED || '').toLowerCase() === 'false') {
     return { enabled: false, reason: 'EMAIL_ENABLED=false' };
   }
 
-  const host = (env.SMTP_HOST || '').trim();
-  const from = (env.MAIL_FROM || '').trim();
+  const host = cleanEnvVal(env.SMTP_HOST);
+  const from = cleanEnvVal(env.MAIL_FROM);
 
   if (!host) return { enabled: false, reason: 'thiếu SMTP_HOST' };
   if (!from) return { enabled: false, reason: 'thiếu MAIL_FROM' };
@@ -37,8 +50,8 @@ function readMailConfig(env = process.env) {
     return { enabled: false, reason: `SMTP_PORT không hợp lệ: ${env.SMTP_PORT}` };
   }
 
-  const user = (env.SMTP_USER || '').trim();
-  const pass = env.SMTP_PASS || '';
+  const user = cleanEnvVal(env.SMTP_USER);
+  const pass = cleanEnvVal(env.SMTP_PASS);
 
   return {
     enabled: true,
@@ -52,19 +65,26 @@ function readMailConfig(env = process.env) {
 }
 
 let cachedTransporter = null;
+let lastTransporterKey = null;
 
-/** Transporter dùng chung, dựng một lần. Trả null khi email đang tắt. */
+/** Transporter dùng chung, tự động tái tạo khi cấu hình SMTP thay đổi. Trả null khi email đang tắt. */
 function getTransporter(env = process.env) {
   const config = readMailConfig(env);
-  if (!config.enabled) return null;
+  if (!config.enabled) {
+    cachedTransporter = null;
+    lastTransporterKey = null;
+    return null;
+  }
 
-  if (!cachedTransporter) {
+  const currentKey = `${config.host}:${config.port}:${config.auth?.user}:${config.auth?.pass}:${config.from}`;
+  if (!cachedTransporter || lastTransporterKey !== currentKey) {
     cachedTransporter = nodemailer.createTransport({
       host: config.host,
       port: config.port,
       secure: config.secure,
       auth: config.auth,
     });
+    lastTransporterKey = currentKey;
   }
 
   return cachedTransporter;
@@ -73,6 +93,7 @@ function getTransporter(env = process.env) {
 /** Dùng trong kiểm thử để tránh transporter của lần chạy trước dính sang. */
 function resetTransporter() {
   cachedTransporter = null;
+  lastTransporterKey = null;
 }
 
 module.exports = { readMailConfig, getTransporter, resetTransporter };

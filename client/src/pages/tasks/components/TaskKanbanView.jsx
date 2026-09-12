@@ -14,13 +14,23 @@
  *     ngay lập tức và tự động đồng bộ lại tải làm việc nhân sự ở backend.
  */
 
-import { Typography, Tooltip, Button, Tag, Space, Progress, Avatar } from 'antd';
+import { Typography, Tooltip, Button, Tag, Space, Progress, Avatar, Badge } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
   UserOutlined,
   ClockCircleOutlined,
+  CheckSquareOutlined,
+  MessageOutlined,
+  ApartmentOutlined,
+  EyeOutlined,
+  FolderOutlined,
+  CopyOutlined,
+  CalendarOutlined,
+  FileDoneOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { taskStatusLabel, priorityLabel } from '../../../i18n/enums';
 import { PRIORITY_OPTIONS } from '../../../constants';
 
@@ -36,6 +46,8 @@ export default function TaskKanbanView({
   onDrop,
   onOpenCreateInColumn,
   onOpenEdit,
+  onOpenDetail,
+  onDuplicate,
   isDark = false,
   t,
 }) {
@@ -97,6 +109,14 @@ export default function TaskKanbanView({
               ) : (
                 colTasks.map((task) => {
                   const priorityOpt = PRIORITY_OPTIONS.find((p) => p.value === task.priority);
+                  const checklistDone = (task.checklist || []).filter((c) => c.completed).length;
+                  const checklistTotal = (task.checklist || []).length;
+                  const commentsCount = (task.comments || []).length;
+                  const followersCount = (task.followers || []).length;
+                  const subtasksCount = (task.subtasks || []).length;
+                  const hasResult = !!(task.resultReport?.summary || (task.resultReport?.deliverableLinks && task.resultReport.deliverableLinks.length > 0));
+                  const hasWeworkMeta = checklistTotal > 0 || commentsCount > 0 || followersCount > 0 || subtasksCount > 0 || hasResult || !!task.recurringTaskId;
+                  const isOverdue = task.status !== 'completed' && task.status !== 'done' && task.endDate && new Date(task.endDate) < new Date();
 
                   return (
                     <div
@@ -104,12 +124,14 @@ export default function TaskKanbanView({
                       className="kanban-task-card"
                       draggable={canEditTask(task)}
                       onDragStart={(e) => onDragStart(e, task._id)}
+                      onClick={() => onOpenDetail && onOpenDetail(task)}
                       style={{
                         padding: '12px 14px',
-                        cursor: canEditTask(task) ? 'grab' : 'default',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       }}
                     >
-                      {/* Huy hiệu dự án & Độ ưu tiên */}
+                      {/* Huy hiệu dự án, Nhóm công việc & Độ ưu tiên */}
                       <div
                         style={{
                           display: 'flex',
@@ -134,6 +156,22 @@ export default function TaskKanbanView({
                               {task.project.code || task.project.name}
                             </span>
                           )}
+                          {task.taskGroup && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                background: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
+                                color: task.taskGroup.color || '#3b82f6',
+                                border: `1px solid ${task.taskGroup.color ? task.taskGroup.color + '40' : 'rgba(59, 130, 246, 0.25)'}`,
+                              }}
+                            >
+                              <FolderOutlined style={{ marginRight: 3, fontSize: 9 }} />
+                              {task.taskGroup.name}
+                            </span>
+                          )}
                           <Tag
                             color={priorityOpt?.color || 'default'}
                             style={{ borderRadius: 6, margin: 0, fontSize: 10 }}
@@ -144,18 +182,34 @@ export default function TaskKanbanView({
 
                         <Space size={2}>
                           {canEditTask(task) && (
+                            <Tooltip title="Nhân bản">
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<CopyOutlined style={{ fontSize: 12, color: '#6366f1' }} />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDuplicate && onDuplicate(task);
+                                }}
+                              />
+                            </Tooltip>
+                          )}
+                          {canEditTask(task) && (
                             <Button
                               type="text"
                               size="small"
                               icon={<EditOutlined style={{ fontSize: 12 }} />}
-                              onClick={() => onOpenEdit(task)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenEdit(task);
+                              }}
                             />
                           )}
                         </Space>
                       </div>
 
                       {/* Tiêu đề công việc */}
-                      <div style={{ marginBottom: 10 }}>
+                      <div style={{ marginBottom: 8 }}>
                         <Text
                           strong
                           style={{
@@ -171,13 +225,140 @@ export default function TaskKanbanView({
 
                       {/* Thanh tiến độ nếu có */}
                       {(task.progress || 0) > 0 && (
-                        <div style={{ marginBottom: 10 }}>
+                        <div style={{ marginBottom: 8 }}>
                           <Progress
                             percent={task.progress || 0}
                             size="small"
                             strokeColor="#6366f1"
                             trailColor={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}
                           />
+                        </div>
+                      )}
+
+                      {/* Base Wework metadata indicators (Checklist, Bình luận, Người theo dõi, Subtasks) */}
+                      {hasWeworkMeta && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                          {checklistTotal > 0 && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '1px 5px',
+                                borderRadius: 4,
+                                background: checklistDone === checklistTotal
+                                  ? (isDark ? 'rgba(16, 185, 129, 0.2)' : '#ecfdf5')
+                                  : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#f8fafc'),
+                                color: checklistDone === checklistTotal ? '#10b981' : (isDark ? '#94a3b8' : '#64748b'),
+                                border: `1px solid ${checklistDone === checklistTotal ? 'rgba(16, 185, 129, 0.3)' : (isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0')}`,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}
+                            >
+                              <CheckSquareOutlined style={{ fontSize: 10 }} />
+                              {checklistDone}/{checklistTotal}
+                            </span>
+                          )}
+
+                          {commentsCount > 0 && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '1px 5px',
+                                borderRadius: 4,
+                                background: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
+                                color: '#3b82f6',
+                                border: '1px solid rgba(59, 130, 246, 0.25)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}
+                            >
+                              <MessageOutlined style={{ fontSize: 10 }} />
+                              {commentsCount}
+                            </span>
+                          )}
+
+                          {subtasksCount > 0 && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '1px 5px',
+                                borderRadius: 4,
+                                background: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f5f3ff',
+                                color: '#a855f7',
+                                border: '1px solid rgba(168, 85, 247, 0.25)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}
+                            >
+                              <ApartmentOutlined style={{ fontSize: 10 }} />
+                              {subtasksCount}
+                            </span>
+                          )}
+
+                          {followersCount > 0 && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '1px 5px',
+                                borderRadius: 4,
+                                background: isDark ? 'rgba(234, 179, 8, 0.15)' : '#fefce8',
+                                color: '#ca8a04',
+                                border: '1px solid rgba(234, 179, 8, 0.25)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}
+                            >
+                              <EyeOutlined style={{ fontSize: 10 }} />
+                              {followersCount}
+                            </span>
+                          )}
+
+                          {hasResult && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '1px 5px',
+                                borderRadius: 4,
+                                background: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ecfdf5',
+                                color: '#10b981',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}
+                            >
+                              <FileDoneOutlined style={{ fontSize: 10 }} />
+                              Kết quả
+                            </span>
+                          )}
+
+                          {task.recurringTaskId && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '1px 5px',
+                                borderRadius: 4,
+                                background: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f5f3ff',
+                                color: '#8b5cf6',
+                                border: '1px solid rgba(168, 85, 247, 0.25)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}
+                            >
+                              <SyncOutlined style={{ fontSize: 9 }} />
+                              Định kỳ
+                            </span>
+                          )}
                         </div>
                       )}
 
@@ -202,6 +383,40 @@ export default function TaskKanbanView({
                           {task.requiredSkills.length > 2 && (
                             <span style={{ fontSize: 10, color: '#94a3b8' }}>
                               +{task.requiredSkills.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Hạn chót công việc */}
+                      {task.endDate && (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: 11,
+                            marginBottom: 8,
+                            color: isOverdue ? '#ef4444' : (isDark ? '#94a3b8' : '#64748b'),
+                            fontWeight: isOverdue ? 600 : 400,
+                          }}
+                        >
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <CalendarOutlined style={{ fontSize: 11 }} />
+                            {dayjs(task.endDate).format('DD/MM/YYYY')}
+                          </span>
+                          {isOverdue && (
+                            <span
+                              style={{
+                                fontSize: 9,
+                                padding: '0 5px',
+                                borderRadius: 3,
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: '#ef4444',
+                                fontWeight: 700,
+                              }}
+                            >
+                              QUÁ HẠN
                             </span>
                           )}
                         </div>

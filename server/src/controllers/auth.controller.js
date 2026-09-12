@@ -11,6 +11,7 @@ const {
   revokeAllForUser,
 } = require('../services/refreshToken.service');
 const { generateEmployeeId } = require('../utils/employeeId.util');
+const { sendUserWelcomeEmail } = require('../services/email.service');
 
 const REFRESH_COOKIE = 'rao_refresh';
 
@@ -412,10 +413,12 @@ const createUser = async (req, res, next) => {
     const finalRole = role || 'member';
     const finalJobTitle = jobTitle || position || (finalRole === 'project_manager' ? 'Project Manager' : 'Developer');
 
+    const plainPassword = password || '123456';
+
     const user = await User.create({
       name,
       email,
-      password: password || '123456',
+      password: plainPassword,
       role: finalRole,
       department: department || 'Kỹ thuật',
       phone: phone || '',
@@ -443,10 +446,31 @@ const createUser = async (req, res, next) => {
       console.error('Lỗi khi tự động tạo Resource cho user:', err.message);
     }
 
+    // Gửi email chứa thông tin tài khoản và mật khẩu đăng nhập cho người dùng
+    let emailStatus = { sent: false };
+    try {
+      emailStatus = await sendUserWelcomeEmail({
+        user: {
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          jobTitle: user.jobTitle,
+          department: user.department,
+        },
+        plainPassword,
+        companyName: userCompany,
+      });
+    } catch (mailErr) {
+      console.error('Lỗi khi gửi email thông tin tài khoản:', mailErr.message);
+      emailStatus = { sent: false, reason: mailErr.message };
+    }
+
     res.status(201).json({
       success: true,
-      data: { user },
-      message: 'Tạo tài khoản thành công',
+      data: { user, emailStatus },
+      message: emailStatus.sent
+        ? `Tạo tài khoản thành công! Thông tin đăng nhập và mật khẩu đã được gửi đến email ${user.email}.`
+        : 'Tạo tài khoản thành công',
     });
   } catch (error) {
     next(error);
@@ -567,7 +591,24 @@ const adminResetPassword = async (req, res, next) => {
     await user.save();
     await revokeAllForUser(user._id);
 
-    res.json({ success: true, message: 'Đã đặt lại mật khẩu thành công' });
+    // Gửi email thông báo mật khẩu mới cho thành viên
+    try {
+      await sendUserWelcomeEmail({
+        user: {
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          jobTitle: user.jobTitle,
+          department: user.department,
+        },
+        plainPassword: newPassword,
+        companyName: req.user.companyName || user.companyName,
+      });
+    } catch (mailErr) {
+      console.error('Lỗi khi gửi email đặt lại mật khẩu:', mailErr.message);
+    }
+
+    res.json({ success: true, message: `Đã đặt lại mật khẩu thành công và gửi thông báo tới ${user.email}` });
   } catch (error) {
     next(error);
   }

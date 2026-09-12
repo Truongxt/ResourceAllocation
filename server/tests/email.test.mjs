@@ -12,7 +12,7 @@ import { ok, section as S, summary } from './helpers.mjs';
 
 const require = createRequire(import.meta.url);
 const { readMailConfig } = require('../src/config/mail');
-const { buildNotificationEmail, shouldEmail } = require('../src/services/email.service');
+const { buildNotificationEmail, buildUserWelcomeEmail, shouldEmail } = require('../src/services/email.service');
 
 /** env tối thiểu để email được coi là đã cấu hình đủ. */
 const fullEnv = {
@@ -117,6 +117,36 @@ S('Nội dung thư');
   ok(!hostile.html.includes('<b>Nam</b>'), 'Tên người nhận cũng được escape');
   ok(hostile.text.includes('<script>alert(1)</script>'),
     'Bản text giữ nguyên — text/plain không diễn giải thẻ nên không cần escape');
+}
+
+// ══════════════════════════════════════════════
+S('Email chào mừng và mật khẩu khởi tạo cho người dùng mới');
+{
+  const newUser = {
+    name: 'Nguyễn Văn Test',
+    email: 'test.user@company.com',
+    role: 'member',
+    jobTitle: 'Kỹ sư phần mềm',
+    department: 'Kỹ thuật',
+  };
+
+  const welcomeMail = buildUserWelcomeEmail({
+    user: newUser,
+    plainPassword: 'SecretPassword123!',
+    companyName: 'Công ty Phần Mềm Nasani',
+    clientUrl: 'https://app.nasani.vn',
+  });
+
+  ok(welcomeMail.to === 'test.user@company.com', 'Gửi đúng địa chỉ email nhân sự mới');
+  ok(welcomeMail.subject.includes('Công ty Phần Mềm Nasani') && welcomeMail.subject.includes('mật khẩu'),
+    'Tiêu đề thư có tên công ty và thông báo mật khẩu');
+  ok(welcomeMail.text.includes('SecretPassword123!'), 'Bản text chứa mật khẩu khởi tạo');
+  ok(welcomeMail.html.includes('SecretPassword123!'), 'Bản HTML chứa mật khẩu khởi tạo');
+  ok(welcomeMail.text.includes('test.user@company.com'), 'Bản text chứa email đăng nhập');
+  ok(welcomeMail.html.includes('test.user@company.com'), 'Bản HTML chứa email đăng nhập');
+  ok(welcomeMail.text.includes('https://app.nasani.vn/login'), 'Bản text chứa link đăng nhập');
+  ok(welcomeMail.html.includes('https://app.nasani.vn/login'), 'Bản HTML chứa link đăng nhập');
+  ok(welcomeMail.html.includes('Kỹ sư phần mềm'), 'Bản HTML chứa chức danh của nhân sự');
 }
 
 summary();

@@ -18,6 +18,16 @@ const taskSchema = new mongoose.Schema(
       ref: 'Project',
       required: [true, 'Dự án là bắt buộc'],
     },
+    taskGroup: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'TaskGroup',
+      default: null,
+    },
+    parentTask: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Task',
+      default: null,
+    },
     status: {
       type: String,
       enum: ['todo', 'in_progress', 'review', 'done', 'blocked'],
@@ -54,6 +64,27 @@ const taskSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    followers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+    checklist: [
+      {
+        title: { type: String, required: true, trim: true },
+        isCompleted: { type: Boolean, default: false },
+        assignee: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        order: { type: Number, default: 0 },
+      },
+    ],
+    comments: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        content: { type: String, required: true, maxlength: 3000 },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     requiredSkills: [
       {
         name: String,
@@ -81,18 +112,90 @@ const taskSchema = new mongoose.Schema(
         ref: 'Task',
       },
     ],
+    companyName: {
+      type: String,
+      trim: true,
+      default: 'Công ty Công nghệ RAO',
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    // Base Wework: Báo cáo kết quả công việc khi hoàn thành
+    resultReport: {
+      summary: {
+        type: String,
+        maxlength: [3000, 'Báo cáo kết quả không vượt quá 3000 ký tự'],
+        default: '',
+      },
+      deliverableLinks: [
+        {
+          title: { type: String, trim: true },
+          url: { type: String, trim: true },
+        },
+      ],
+      attachments: [
+        {
+          name: { type: String, trim: true },
+          url: { type: String, trim: true },
+          size: { type: Number, default: 0 },
+        },
+      ],
+      actualHours: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      submittedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      submittedAt: {
+        type: Date,
+      },
+      approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      approvedAt: {
+        type: Date,
+      },
+    },
+    // Base Wework: Lịch sử gia hạn / điều chỉnh thời hạn hoàn thành
+    deadlineHistory: [
+      {
+        oldEndDate: { type: Date },
+        newEndDate: { type: Date },
+        changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        reason: { type: String, trim: true, maxlength: 500 },
+        changedAt: { type: Date, default: Date.now },
+      },
+    ],
+    // Base Wework: Liên kết công việc lặp lại gốc
+    recurringTaskId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RecurringTask',
+      default: null,
+    },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
+// Virtual: lấy danh sách subtasks
+taskSchema.virtual('subtasks', {
+  ref: 'Task',
+  localField: '_id',
+  foreignField: 'parentTask',
+});
+
 taskSchema.index({ project: 1, status: 1 });
 taskSchema.index({ assignee: 1 });
+taskSchema.index({ createdBy: 1 });
+taskSchema.index({ followers: 1 });
 taskSchema.index({ startDate: 1, endDate: 1 });
 
 module.exports = mongoose.model('Task', taskSchema);

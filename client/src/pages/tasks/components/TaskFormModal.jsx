@@ -51,6 +51,7 @@ export default function TaskFormModal({
   knownSkillOptions = [],
   dependencyOptions = [],
   selectedProject,
+  taskGroups = [],
   onSubmit,
   submitting = false,
   t,
@@ -143,6 +144,64 @@ export default function TaskFormModal({
             </Form.Item>
           </Col>
         </Row>
+
+        {/* Base Wework: Nhóm công việc & Công việc cha */}
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item
+              name="taskGroup"
+              label="Nhóm công việc (Task Group)"
+              extra={selectedProject ? undefined : 'Chọn dự án trước để chọn nhóm công việc'}
+            >
+              <Select
+                placeholder="Chọn nhóm công việc..."
+                allowClear
+                disabled={!canManageTasks || !selectedProject}
+                options={(taskGroups || []).map((g) => ({
+                  value: g._id,
+                  label: (
+                    <span style={{ color: g.color || '#3b82f6', fontWeight: 600 }}>
+                      📁 {g.name}
+                    </span>
+                  ),
+                }))}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="parentTask"
+              label="Công việc cha (Nếu là việc con)"
+              extra={selectedProject ? undefined : 'Chọn dự án trước'}
+            >
+              <Select
+                placeholder="Chọn công việc cha (Subtask)..."
+                allowClear
+                disabled={!canManageTasks || !selectedProject}
+                options={dependencyOptions}
+                optionFilterProp="label"
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        {/* Base Wework: Người theo dõi (Followers) */}
+        <Form.Item
+          name="followers"
+          label="Người theo dõi (Followers)"
+          extra="Những người nhận thông báo khi có bình luận hoặc tiến độ cập nhật"
+        >
+          <Select
+            mode="multiple"
+            placeholder="Chọn người theo dõi..."
+            allowClear
+            maxTagCount="responsive"
+            options={resources.map((r) => ({
+              value: r.user?._id || r.userId || r._id,
+              label: r.user?.name || r.userName || r.position,
+            }))}
+          />
+        </Form.Item>
 
         {/* Mô tả chi tiết */}
         <Form.Item name="description" label={t('tasks.form.description') || 'Mô tả chi tiết'}>

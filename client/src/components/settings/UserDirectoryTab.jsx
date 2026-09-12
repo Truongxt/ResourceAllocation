@@ -285,8 +285,13 @@ export default function UserDirectoryTab({ currentUser }) {
   // 8. Tạo tài khoản mới
   const handleCreateUser = async (values) => {
     try {
-      await authService.createUser(values);
-      message.success('Đã tạo tài khoản thành công!');
+      const res = await authService.createUser(values);
+      const emailStatus = res.data?.emailStatus;
+      if (emailStatus?.sent) {
+        message.success(`Đã tạo tài khoản cho ${values.name} và gửi thông tin đăng nhập đến ${values.email}!`, 6);
+      } else {
+        message.success(res.message || `Đã tạo tài khoản thành công cho ${values.name}! Mật khẩu: ${values.password}`, 6);
+      }
       setCreateModalOpen(false);
       createForm.resetFields();
       loadUsers();
@@ -954,6 +959,27 @@ export default function UserDirectoryTab({ currentUser }) {
         width={560}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreateUser} style={{ marginTop: 16 }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.06) 0%, rgba(99, 102, 241, 0.06) 100%)',
+            border: '1px solid rgba(99, 102, 241, 0.2)',
+            borderRadius: 8,
+            padding: '10px 14px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}>
+            <MailOutlined style={{ color: '#4f46e5', fontSize: 20 }} />
+            <div>
+              <Text strong style={{ fontSize: 13, color: '#312e81', display: 'block' }}>
+                Tự động gửi thông tin tài khoản và mật khẩu qua email
+              </Text>
+              <Text type="secondary" style={{ fontSize: 11.5 }}>
+                Ngay khi bấm "Tạo tài khoản", email chứa tên đăng nhập, mật khẩu và link truy cập sẽ được gửi đến hòm thư của nhân sự.
+              </Text>
+            </div>
+          </div>
+
           <Row gutter={16}>
             <Col xs={24} sm={12}>
               <Form.Item name="name" label="Họ và tên" rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}>

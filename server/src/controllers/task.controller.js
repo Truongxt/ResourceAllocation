@@ -1,8 +1,15 @@
 const Task = require('../models/Task');
 const Project = require('../models/Project');
+const User = require('../models/User');
+const TaskGroup = require('../models/TaskGroup');
 const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
+const {
+  generateTaskTemplateWorkbook,
+  parseTaskExcelBuffer,
+  importTasksFromExcel,
+} = require('../services/excelTaskImport.service');
 
 /**
  * Helper: Tính lại progress dự án dựa trên tasks
@@ -79,9 +86,49 @@ const getTasks = async (req, res, next) => {
         filter.$and = [dateOverLapCondition];
       }
     }
-    // Nếu là nhân viên thường (member) thì chỉ lấy các task được giao cho chính họ
-    if (req.user && req.user.role === 'member') {
+    // Base Wework: Lọc theo phạm vi cá nhân (scope)
+    const scope = req.query.scope || 'all';
+    if (scope === 'my_tasks') {
       filter.assignee = req.user._id;
+      delete filter.$or;
+    } else if (scope === 'assigned_by_me') {
+      filter.createdBy = req.user._id;
+      delete filter.$or;
+    } else if (scope === 'following') {
+      filter.followers = req.user._id;
+      delete filter.$or;
+    } else if (scope === 'subordinates') {
+      const subordinates = await User.find({ manager: req.user._id }).select('_id');
+      const subIds = subordinates.map((s) => s._id);
+      filter.assignee = { $in: subIds };
+      delete filter.$or;
+    }
+    // Khi scope === 'all', giữ nguyên filter.$or đã thiết lập theo dự án và công ty phía trên
+
+    // Base Wework: Lọc thời gian nhanh (timeFilter)
+    if (req.query.timeFilter) {
+      const tf = req.query.timeFilter;
+      const now = new Date();
+      if (tf === 'today') {
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        filter.endDate = { $gte: startOfToday, $lte: endOfToday };
+      } else if (tf === 'this_week') {
+        const day = now.getDay();
+        const diffToMon = (day === 0 ? -6 : 1) - day;
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() + diffToMon);
+        startOfWeek.setHours(0, 0, 0, 0);
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+        filter.endDate = { $gte: startOfWeek, $lte: endOfWeek };
+      } else if (tf === 'overdue') {
+        filter.endDate = { $lt: now };
+        filter.status = { $ne: 'done' };
+      } else if (tf === 'done') {
+        filter.status = 'done';
+      }
     }
 
     if (req.query.project) {
@@ -121,6 +168,13 @@ const getTasks = async (req, res, next) => {
       }
     }
 
+    // Không hiển thị công việc con ra ngoài bảng chính trừ khi có chỉ định
+    if (req.query.parentTask) {
+      filter.parentTask = req.query.parentTask;
+    } else if (req.query.includeSubtasks !== 'true') {
+      filter.parentTask = { $in: [null, undefined] };
+    }
+
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
     const skip = (page - 1) * limit;
@@ -131,6 +185,12 @@ const getTasks = async (req, res, next) => {
         .populate('project', 'name code status')
         .populate('assignee', 'name email avatar department')
         .populate('dependencies', 'title status')
+        .populate('taskGroup', 'name color order')
+        .populate('followers', 'name email avatar')
+        .populate('parentTask', 'title status')
+        .populate('resultReport.submittedBy', 'name email avatar')
+        .populate('resultReport.approvedBy', 'name email avatar')
+        .populate('deadlineHistory.changedBy', 'name email avatar')
         .sort(sort)
         .skip(skip)
         .limit(limit),
@@ -160,6 +220,13 @@ const getTaskById = async (req, res, next) => {
       .populate('project', 'name code status members manager companyName')
       .populate('assignee', 'name email avatar department')
       .populate('dependencies', 'title status priority startDate endDate progress')
+      .populate('taskGroup', 'name color order')
+      .populate('followers', 'name email avatar')
+      .populate('parentTask', 'title status priority')
+      .populate('comments.user', 'name email avatar')
+      .populate('resultReport.submittedBy', 'name email avatar')
+      .populate('resultReport.approvedBy', 'name email avatar')
+      .populate('deadlineHistory.changedBy', 'name email avatar')
       .populate('createdBy', 'name email');
 
     if (!task) {
@@ -177,9 +244,17 @@ const getTaskById = async (req, res, next) => {
       });
     }
 
+    // Fetch subtasks of this task
+    const subtasks = await Task.find({ parentTask: task._id })
+      .populate('assignee', 'name email avatar')
+      .select('title status priority progress startDate endDate assignee estimatedHours actualHours');
+
+    const taskObj = task.toObject();
+    taskObj.subtasks = subtasks;
+
     res.json({
       success: true,
-      data: { task },
+      data: { task: taskObj },
     });
   } catch (error) {
     next(error);
@@ -301,7 +376,10 @@ const createTask = async (req, res, next) => {
     const populated = await Task.findById(task._id)
       .populate('project', 'name code status')
       .populate('assignee', 'name email avatar department')
-      .populate('dependencies', 'title status');
+      .populate('dependencies', 'title status')
+      .populate('taskGroup', 'name color order')
+      .populate('followers', 'name email avatar')
+      .populate('parentTask', 'title status');
 
     // Real-time Notification if assigned to someone else
     if (populated.assignee && populated.assignee._id.toString() !== req.user._id.toString()) {
@@ -389,7 +467,10 @@ const updateTask = async (req, res, next) => {
     })
       .populate('project', 'name code status')
       .populate('assignee', 'name email avatar department')
-      .populate('dependencies', 'title status');
+      .populate('dependencies', 'title status')
+      .populate('taskGroup', 'name color order')
+      .populate('followers', 'name email avatar')
+      .populate('parentTask', 'title status');
 
     // Auto add assignee to project members if not present
     if (updatedTask.assignee) {
@@ -641,6 +722,10 @@ const getTaskSummary = async (req, res, next) => {
       }
     }
 
+    if (!req.query.includeSubtasks) {
+      filter.parentTask = { $in: [null, undefined] };
+    }
+
     const [statusStats, priorityStats, totals] = await Promise.all([
       Task.aggregate([
         { $match: filter },
@@ -686,3 +771,649 @@ module.exports = {
   deleteTask,
   getTaskSummary,
 };
+
+// ==========================================================================
+// BASE WEWORK — Mở rộng tính năng Quản lý Công việc nâng cao
+// ==========================================================================
+
+/**
+ * @desc    Thêm bình luận vào task
+ * @route   POST /api/tasks/:id/comments
+ * @access  Private
+ */
+const addComment = async (req, res, next) => {
+  try {
+    const { content } = req.body;
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, message: 'Nội dung bình luận không được trống' });
+    }
+
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    const comment = { user: req.user._id, content: content.trim(), createdAt: new Date() };
+    task.comments.push(comment);
+    await task.save();
+
+    // Populate user info cho comment mới thêm
+    await task.populate('comments.user', 'name email avatar');
+    const newComment = task.comments[task.comments.length - 1];
+
+    // Thông báo cho followers và assignee
+    const notifyUsers = new Set([
+      ...(task.followers || []).map(String),
+      task.assignee ? task.assignee.toString() : null,
+    ].filter(id => id && id !== req.user._id.toString()));
+
+    notifyUsers.forEach((recipientId) => {
+      sendNotification({
+        recipient: recipientId,
+        actor: req.user._id,
+        type: 'task_comment',
+        title: 'Bình luận mới trong công việc',
+        message: `${req.user.name} đã bình luận trong "${task.title}"`,
+        entityType: 'task',
+        entityId: task._id,
+        link: '/tasks',
+      });
+    });
+
+    res.status(201).json({ success: true, data: { comment: newComment } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Xóa bình luận
+ * @route   DELETE /api/tasks/:id/comments/:commentId
+ * @access  Private
+ */
+const deleteComment = async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    const comment = task.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ success: false, message: 'Không tìm thấy bình luận' });
+
+    // Chỉ cho phép xóa bình luận của chính mình hoặc admin
+    if (comment.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Bạn chỉ được xóa bình luận của mình' });
+    }
+
+    comment.deleteOne();
+    await task.save();
+
+    res.json({ success: true, message: 'Đã xóa bình luận' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Thêm mục checklist
+ * @route   POST /api/tasks/:id/checklist
+ * @access  Private
+ */
+const addChecklistItem = async (req, res, next) => {
+  try {
+    const { title, assignee } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'Tiêu đề mục checklist không được trống' });
+    }
+
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    const order = task.checklist.length;
+    task.checklist.push({ title: title.trim(), assignee: assignee || null, order });
+    await task.save();
+
+    const newItem = task.checklist[task.checklist.length - 1];
+    res.status(201).json({ success: true, data: { item: newItem } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Toggle trạng thái checklist item
+ * @route   PUT /api/tasks/:id/checklist/:itemId/toggle
+ * @access  Private
+ */
+const toggleChecklistItem = async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    const item = task.checklist.id(req.params.itemId);
+    if (!item) return res.status(404).json({ success: false, message: 'Không tìm thấy mục checklist' });
+
+    item.isCompleted = !item.isCompleted;
+    await task.save();
+
+    // Tính progress checklist
+    const total = task.checklist.length;
+    const completed = task.checklist.filter(c => c.isCompleted).length;
+
+    res.json({
+      success: true,
+      data: { item, checklistProgress: { total, completed, percent: total > 0 ? Math.round((completed / total) * 100) : 0 } },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Xóa mục checklist
+ * @route   DELETE /api/tasks/:id/checklist/:itemId
+ * @access  Private
+ */
+const removeChecklistItem = async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    const item = task.checklist.id(req.params.itemId);
+    if (!item) return res.status(404).json({ success: false, message: 'Không tìm thấy mục checklist' });
+
+    item.deleteOne();
+    await task.save();
+
+    res.json({ success: true, message: 'Đã xóa mục checklist' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Thêm người theo dõi công việc
+ * @route   POST /api/tasks/:id/followers
+ * @access  Private
+ */
+const addFollower = async (req, res, next) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ success: false, message: 'Thiếu userId' });
+
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    if (task.followers.some(f => f.toString() === userId)) {
+      return res.status(400).json({ success: false, message: 'Người dùng đã theo dõi công việc này' });
+    }
+
+    task.followers.push(userId);
+    await task.save();
+    await task.populate('followers', 'name email avatar');
+
+    sendNotification({
+      recipient: userId,
+      actor: req.user._id,
+      type: 'task_follower_added',
+      title: 'Được thêm vào theo dõi công việc',
+      message: `${req.user.name} đã thêm bạn vào danh sách theo dõi công việc "${task.title}"`,
+      entityType: 'task',
+      entityId: task._id,
+      link: '/tasks',
+    });
+
+    res.json({ success: true, data: { followers: task.followers }, message: 'Đã thêm người theo dõi' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Xóa người theo dõi công việc
+ * @route   DELETE /api/tasks/:id/followers/:userId
+ * @access  Private
+ */
+const removeFollower = async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    task.followers = task.followers.filter(f => f.toString() !== req.params.userId);
+    await task.save();
+    await task.populate('followers', 'name email avatar');
+
+    res.json({ success: true, data: { followers: task.followers }, message: 'Đã xóa người theo dõi' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Lấy subtasks của một task
+ * @route   GET /api/tasks/:id/subtasks
+ * @access  Private
+ */
+const getSubtasks = async (req, res, next) => {
+  try {
+    const subtasks = await Task.find({ parentTask: req.params.id })
+      .populate('assignee', 'name email avatar')
+      .populate('followers', 'name email avatar')
+      .populate('taskGroup', 'name color')
+      .sort('createdAt');
+
+    res.json({ success: true, data: { subtasks } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Tạo công việc con (subtask) trực tiếp từ task cha
+ * @route   POST /api/tasks/:id/subtasks
+ * @access  Private (Cả nhân viên và quản lý cấp cao đều tạo được)
+ */
+const createSubtask = async (req, res, next) => {
+  try {
+    const parent = await Task.findById(req.params.id);
+    if (!parent) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công việc cha' });
+    }
+
+    const {
+      title,
+      description,
+      assignee,
+      priority,
+      status,
+      estimatedHours,
+      actualHours,
+      progress,
+      startDate,
+      endDate,
+      requiredSkills,
+      followers,
+    } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'Tiêu đề việc con là bắt buộc' });
+    }
+
+    const subtask = await Task.create({
+      title: title.trim(),
+      description: description ? description.trim() : '',
+      project: parent.project,
+      parentTask: parent._id,
+      taskGroup: parent.taskGroup,
+      assignee: assignee || undefined,
+      followers: Array.isArray(followers) ? followers : [],
+      priority: priority || parent.priority || 'medium',
+      status: status || 'todo',
+      estimatedHours: estimatedHours !== undefined ? Number(estimatedHours) : 2,
+      actualHours: actualHours !== undefined ? Number(actualHours) : 0,
+      progress: progress !== undefined ? Number(progress) : 0,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      requiredSkills: Array.isArray(requiredSkills) ? requiredSkills : [],
+      companyName: parent.companyName || (req.user && req.user.companyName) || 'Công ty Công nghệ RAO',
+      createdBy: req.user._id,
+    });
+
+    const populated = await Task.findById(subtask._id)
+      .populate('assignee', 'name email avatar')
+      .populate('followers', 'name email avatar')
+      .populate('taskGroup', 'name color');
+
+    // Thông báo cho người phụ trách task cha nếu người tạo là người khác
+    if (parent.assignee && parent.assignee.toString() !== req.user._id.toString()) {
+      sendNotification({
+        recipient: parent.assignee,
+        actor: req.user._id,
+        type: 'task_subtask_added',
+        title: 'Công việc con mới',
+        message: `${req.user.name} đã tạo việc con "${populated.title}" trong "${parent.title}"`,
+        entityType: 'task',
+        entityId: parent._id,
+        link: '/tasks',
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      data: { subtask: populated },
+      message: 'Tạo công việc con thành công',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Cập nhật kết quả công việc và đánh dấu hoàn thành (Base Wework 4.3)
+ * @route   POST /api/tasks/:id/report-result
+ * @access  Private
+ */
+const reportTaskResult = async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+    }
+
+    const { summary, deliverableLinks, attachments, actualHours, markAsDone } = req.body;
+
+    task.resultReport = {
+      summary: summary || '',
+      deliverableLinks: Array.isArray(deliverableLinks) ? deliverableLinks : [],
+      attachments: Array.isArray(attachments) ? attachments : [],
+      actualHours: typeof actualHours === 'number' ? actualHours : task.actualHours,
+      submittedBy: req.user._id,
+      submittedAt: new Date(),
+    };
+
+    if (typeof actualHours === 'number' && actualHours > 0) {
+      task.actualHours = actualHours;
+    }
+
+    if (markAsDone) {
+      task.status = 'done';
+      task.progress = 100;
+    }
+
+    await task.save();
+    await recalculateProjectProgress(task.project);
+    if (task.assignee) {
+      await syncResourceWorkload(task.assignee);
+    }
+
+    const populated = await Task.findById(task._id)
+      .populate('project', 'name code')
+      .populate('assignee', 'name email avatar department')
+      .populate('resultReport.submittedBy', 'name email avatar');
+
+    logActivity({
+      user: req.user._id,
+      action: 'TASK_RESULT_SUBMITTED',
+      entityType: 'task',
+      entityId: task._id,
+      description: `${req.user.name} đã nộp báo cáo kết quả cho "${task.title}"`,
+      companyName: task.companyName,
+    });
+
+    res.json({
+      success: true,
+      data: { task: populated },
+      message: 'Cập nhật kết quả công việc thành công',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Nhân bản công việc (Base Wework 5.2)
+ * @route   POST /api/tasks/:id/duplicate
+ * @access  Private
+ */
+const duplicateTask = async (req, res, next) => {
+  try {
+    const original = await Task.findById(req.params.id);
+    if (!original) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công việc cần nhân bản' });
+    }
+
+    const { targetProjectId, targetTaskGroupId, newTitle } = req.body;
+    const targetProject = targetProjectId || original.project;
+    const targetGroup = targetTaskGroupId !== undefined ? targetTaskGroupId : original.taskGroup;
+
+    const duplicated = await Task.create({
+      title: newTitle || `${original.title} (Bản sao)`,
+      description: original.description,
+      project: targetProject,
+      taskGroup: targetGroup || null,
+      assignee: original.assignee,
+      followers: original.followers,
+      priority: original.priority,
+      status: 'todo',
+      progress: 0,
+      estimatedHours: original.estimatedHours,
+      startDate: new Date(),
+      endDate: original.endDate,
+      requiredSkills: original.requiredSkills,
+      checklist: (original.checklist || []).map((c) => ({
+        title: c.title,
+        assignee: c.assignee,
+        isCompleted: false,
+        order: c.order,
+      })),
+      companyName: original.companyName,
+      createdBy: req.user._id,
+    });
+
+    // Nhân bản cả subtasks con nếu có
+    const subtasks = await Task.find({ parentTask: original._id });
+    if (subtasks && subtasks.length > 0) {
+      for (const sub of subtasks) {
+        await Task.create({
+          title: `${sub.title} (Bản sao)`,
+          description: sub.description,
+          project: targetProject,
+          taskGroup: targetGroup || null,
+          parentTask: duplicated._id,
+          assignee: sub.assignee,
+          priority: sub.priority,
+          status: 'todo',
+          progress: 0,
+          estimatedHours: sub.estimatedHours,
+          checklist: (sub.checklist || []).map((c) => ({
+            title: c.title,
+            isCompleted: false,
+          })),
+          companyName: sub.companyName,
+          createdBy: req.user._id,
+        });
+      }
+    }
+
+    const populated = await Task.findById(duplicated._id)
+      .populate('project', 'name code')
+      .populate('assignee', 'name email avatar')
+      .populate('taskGroup', 'name color');
+
+    res.status(201).json({
+      success: true,
+      data: { task: populated },
+      message: 'Nhân bản công việc thành công',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Di chuyển công việc sang nhóm hoặc dự án khác (Base Wework 5.3)
+ * @route   POST /api/tasks/:id/move
+ * @access  Private
+ */
+const moveTask = async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+    }
+
+    const { targetProjectId, targetTaskGroupId } = req.body;
+    if (targetProjectId) task.project = targetProjectId;
+    if (targetTaskGroupId !== undefined) task.taskGroup = targetTaskGroupId || null;
+
+    await task.save();
+
+    // Đồng bộ chuyển project cho subtasks
+    if (targetProjectId) {
+      await Task.updateMany(
+        { parentTask: task._id },
+        { project: targetProjectId, taskGroup: targetTaskGroupId || null }
+      );
+    }
+
+    const populated = await Task.findById(task._id)
+      .populate('project', 'name code')
+      .populate('taskGroup', 'name color')
+      .populate('assignee', 'name email avatar');
+
+    res.json({
+      success: true,
+      data: { task: populated },
+      message: 'Di chuyển công việc thành công',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Điều chỉnh thời hạn hoàn thành (Deadline) kèm lý do (Base Wework 4.5)
+ * @route   PATCH /api/tasks/:id/deadline
+ * @access  Private
+ */
+const updateDeadline = async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+    }
+
+    const { newEndDate, reason } = req.body;
+    if (!newEndDate) {
+      return res.status(400).json({ success: false, message: 'Thời hạn mới là bắt buộc' });
+    }
+
+    task.deadlineHistory = task.deadlineHistory || [];
+    task.deadlineHistory.push({
+      oldEndDate: task.endDate,
+      newEndDate: new Date(newEndDate),
+      changedBy: req.user._id,
+      reason: reason || 'Gia hạn theo yêu cầu công việc',
+      changedAt: new Date(),
+    });
+
+    task.endDate = new Date(newEndDate);
+    await task.save();
+
+    const populated = await Task.findById(task._id)
+      .populate('deadlineHistory.changedBy', 'name email avatar');
+
+    res.json({
+      success: true,
+      data: { task: populated },
+      message: 'Cập nhật thời hạn hoàn thành thành công',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Tải file mẫu Excel (.xlsx) chuẩn Base Wework (Base Wework 3.3)
+ * @route   GET /api/tasks/template-excel
+ * @access  Private
+ */
+const downloadExcelTemplate = async (req, res, next) => {
+  try {
+    const buffer = generateTaskTemplateWorkbook();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="Mau_Cong_Viec_Base_Wework.xlsx"');
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Xem nhanh dữ liệu từ file Excel tải lên (Preview) (Base Wework 3.3)
+ * @route   POST /api/tasks/preview-excel
+ * @access  Private
+ */
+const previewExcelTasks = async (req, res, next) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ success: false, message: 'Vui lòng tải lên file Excel (.xlsx)' });
+    }
+    const items = parseTaskExcelBuffer(req.file.buffer);
+    res.json({
+      success: true,
+      data: { items, count: items.length },
+      message: `Đã phân tích thành công ${items.length} dòng công việc`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Nhập hàng loạt công việc từ file Excel (Base Wework 3.3)
+ * @route   POST /api/tasks/import-excel
+ * @access  Private
+ */
+const importExcelTasks = async (req, res, next) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn file Excel để nhập dữ liệu' });
+    }
+    const { projectId } = req.body;
+    if (!projectId) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn dự án tiếp nhận công việc' });
+    }
+
+    const companyName = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    const result = await importTasksFromExcel({
+      buffer: req.file.buffer,
+      projectId,
+      companyName,
+      createdBy: req.user._id,
+    });
+
+    logActivity({
+      user: req.user._id,
+      action: 'TASKS_IMPORTED_EXCEL',
+      entityType: 'project',
+      entityId: projectId,
+      description: `${req.user.name} đã nhập ${result.totalImported} công việc từ file Excel`,
+      companyName,
+    });
+
+    res.json({
+      success: true,
+      data: result,
+      message: `Đã nhập thành công ${result.totalImported} công việc vào dự án!`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Re-export tất cả bao gồm các endpoint mới
+module.exports = {
+  getTasks,
+  getTaskById,
+  createTask,
+  updateTask,
+  updateTaskStatus,
+  deleteTask,
+  getTaskSummary,
+  addComment,
+  deleteComment,
+  addChecklistItem,
+  toggleChecklistItem,
+  removeChecklistItem,
+  addFollower,
+  removeFollower,
+  getSubtasks,
+  createSubtask,
+  // Base Wework endpoints:
+  reportTaskResult,
+  duplicateTask,
+  moveTask,
+  updateDeadline,
+  downloadExcelTemplate,
+  previewExcelTasks,
+  importExcelTasks,
+};
+

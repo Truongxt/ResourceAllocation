@@ -1,8 +1,9 @@
 const express = require('express');
+const multer = require('multer');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const { protect, authorize } = require('../middleware/auth');
-const { canModifyTask } = require('../middleware/taskAccess');
+const { canModifyTask, canDeleteTask } = require('../middleware/taskAccess');
 const {
   getTasks,
   getTaskById,
@@ -11,9 +12,26 @@ const {
   updateTaskStatus,
   deleteTask,
   getTaskSummary,
+  addComment,
+  deleteComment,
+  addChecklistItem,
+  toggleChecklistItem,
+  removeChecklistItem,
+  addFollower,
+  removeFollower,
+  getSubtasks,
+  createSubtask,
+  reportTaskResult,
+  duplicateTask,
+  moveTask,
+  updateDeadline,
+  downloadExcelTemplate,
+  previewExcelTasks,
+  importExcelTasks,
 } = require('../controllers/task.controller');
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const taskIdValidation = [
   param('id').isMongoId().withMessage('ID công việc không hợp lệ'),
@@ -127,6 +145,13 @@ const statusValidation = [
 router.use(protect);
 
 router.get('/stats/summary', getTaskSummary);
+router.get('/summary/stats', getTaskSummary);
+
+// Base Wework: Excel import & template (Đặt trước /:id)
+router.get('/excel/template', downloadExcelTemplate);
+router.post('/excel/preview', upload.single('file'), previewExcelTasks);
+router.post('/excel/import', upload.single('file'), importExcelTasks);
+
 router.get('/', listValidation, validate, getTasks);
 router.get('/:id', taskIdValidation, validate, getTaskById);
 
@@ -143,6 +168,36 @@ router.put(
 );
 router.patch('/:id/status', taskIdValidation, statusValidation, validate, canModifyTask(), updateTaskStatus);
 
-router.delete('/:id', authorize('admin', 'project_manager'), taskIdValidation, validate, deleteTask);
+router.delete('/:id', taskIdValidation, validate, canDeleteTask(), deleteTask);
 
-module.exports = router;
+// === BASE WEWORK — Task sub-resources & Actions ===
+// Báo cáo kết quả công việc
+router.post('/:id/report-result', taskIdValidation, validate, reportTaskResult);
+
+// Nhân bản công việc
+router.post('/:id/duplicate', taskIdValidation, validate, duplicateTask);
+
+// Di chuyển công việc (nhóm / dự án)
+router.post('/:id/move', taskIdValidation, validate, moveTask);
+
+// Điều chỉnh thời hạn hoàn thành (Deadline)
+router.patch('/:id/deadline', taskIdValidation, validate, updateDeadline);
+
+// Comments
+router.post('/:id/comments', taskIdValidation, validate, addComment);
+router.delete('/:id/comments/:commentId', deleteComment);
+
+// Checklist
+router.post('/:id/checklist', taskIdValidation, validate, addChecklistItem);
+router.put('/:id/checklist/:itemId/toggle', toggleChecklistItem);
+router.delete('/:id/checklist/:itemId', removeChecklistItem);
+
+// Followers
+router.post('/:id/followers', taskIdValidation, validate, addFollower);
+router.delete('/:id/followers/:userId', removeFollower);
+
+// Subtasks
+router.get('/:id/subtasks', taskIdValidation, validate, getSubtasks);
+router.post('/:id/subtasks', taskIdValidation, validate, createSubtask);
+
+module.exports = router;

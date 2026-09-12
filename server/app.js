@@ -14,6 +14,8 @@ const optimizationRoutes = require('./src/routes/optimization.routes');
 const analyticsRoutes = require('./src/routes/analytics.routes');
 const notificationRoutes = require('./src/routes/notification.routes');
 const activityLogRoutes = require('./src/routes/activityLog.routes');
+const taskGroupRoutes = require('./src/routes/taskGroup.routes');
+const recurringTaskRoutes = require('./src/routes/recurringTask.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./src/middleware/error');
@@ -64,6 +66,8 @@ app.use('/api/optimization', optimizationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
+app.use('/api/task-groups', taskGroupRoutes);
+app.use('/api/recurring-tasks', recurringTaskRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

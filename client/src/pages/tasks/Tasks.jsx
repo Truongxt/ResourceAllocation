@@ -18,16 +18,23 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Typography, Space, Segmented, Button, Form, message } from 'antd';
+import { Typography, Space, Segmented, Button, Form, Tabs, Tag, message } from 'antd';
 import {
   AppstoreOutlined,
   UnorderedListOutlined,
   PlusOutlined,
+  FileExcelOutlined,
+  SyncOutlined,
+  UserOutlined,
+  SendOutlined,
+  EyeOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import taskService from '../../services/taskService';
 import projectService from '../../services/projectService';
 import resourceService from '../../services/resourceService';
+import taskGroupService from '../../services/taskGroupService';
 import { TASK_STATUSES as STATUS_COLS, ROLES } from '../../constants';
 import { invalidPredecessors } from '../../utils/gantt';
 import { useAuth } from '../../context/AuthContext';
@@ -37,6 +44,9 @@ import TaskFilterBar from './components/TaskFilterBar';
 import TaskKanbanView from './components/TaskKanbanView';
 import TaskTableView from './components/TaskTableView';
 import TaskFormModal from './components/TaskFormModal';
+import TaskDetailDrawer from '../../components/tasks/TaskDetailDrawer';
+import TaskExcelImportModal from '../../components/tasks/TaskExcelImportModal';
+import RecurringTaskModal from '../../components/tasks/RecurringTaskModal';
 import './Tasks.css';
 
 const { Title, Text } = Typography;
@@ -59,6 +69,17 @@ export default function Tasks() {
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [projectTasks, setProjectTasks] = useState([]);
 
+  // Base Wework: Drawer chi tiết công việc & Nhóm công việc
+  const [selectedDetailTaskId, setSelectedDetailTaskId] = useState(null);
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+  const [taskGroups, setTaskGroups] = useState([]);
+
+  // Base Wework: Không gian "Công việc của tôi" (Scope) & Lọc nhanh thời gian (Time Filter)
+  const [scope, setScope] = useState('all'); // 'all' | 'my_tasks' | 'assigned_by_me' | 'following' | 'subordinates'
+  const [timeFilter, setTimeFilter] = useState('all'); // 'all' | 'today' | 'this_week' | 'overdue' | 'done'
+  const [excelModalOpen, setExcelModalOpen] = useState(false);
+  const [recurringModalOpen, setRecurringModalOpen] = useState(false);
+
   const [form] = Form.useForm();
   const selectedProject = Form.useWatch('project', form);
 
@@ -77,6 +98,8 @@ export default function Tasks() {
     setLoading(true);
     try {
       const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
+      if (scope !== 'all') params.scope = scope;
+      if (timeFilter !== 'all') params.timeFilter = timeFilter;
       const res = await taskService.getAll(params);
       setTasks(res.data.data.tasks || []);
     } catch {
@@ -84,7 +107,7 @@ export default function Tasks() {
     } finally {
       setLoading(false);
     }
-  }, [filters, t]);
+  }, [filters, scope, timeFilter, t]);
 
   /**
    * Tải danh sách dự án
@@ -129,6 +152,18 @@ export default function Tasks() {
       .getAll({ project: selectedProject })
       .then((res) => setProjectTasks(res.data.data.tasks || []))
       .catch(() => setProjectTasks([]));
+  }, [selectedProject]);
+
+  // Base Wework: Tải danh sách nhóm công việc (Task Groups) thuộc dự án
+  useEffect(() => {
+    if (!selectedProject) {
+      setTaskGroups([]);
+      return;
+    }
+    taskGroupService
+      .getByProject(selectedProject)
+      .then((res) => setTaskGroups(res.data.data.groups || []))
+      .catch(() => setTaskGroups([]));
   }, [selectedProject]);
 
   // Gom nhóm các kỹ năng hiện có trong hệ thống để gợi ý AutoComplete
@@ -221,6 +256,14 @@ export default function Tasks() {
   };
 
   /**
+   * Mở Drawer chi tiết công việc (Base Wework)
+   */
+  const handleOpenDetail = (task) => {
+    setSelectedDetailTaskId(task._id);
+    setDetailDrawerOpen(true);
+  };
+
+  /**
    * Mở modal tạo mới công việc
    */
   const handleOpenCreate = () => {
@@ -232,6 +275,9 @@ export default function Tasks() {
       estimatedHours: 8,
       progress: 0,
       project: filters.project || undefined,
+      taskGroup: undefined,
+      followers: [],
+      parentTask: undefined,
     });
     setModalOpen(true);
   };
@@ -245,6 +291,9 @@ export default function Tasks() {
       estimatedHours: 8,
       progress: 0,
       project: filters.project || undefined,
+      taskGroup: undefined,
+      followers: [],
+      parentTask: undefined,
     });
     setModalOpen(true);
   };
@@ -267,6 +316,9 @@ export default function Tasks() {
       actualHours: task.actualHours || 0,
       requiredSkills: task.requiredSkills || [],
       dependencies: (task.dependencies || []).map((d) => d._id || d),
+      taskGroup: task.taskGroup?._id || task.taskGroup,
+      followers: (task.followers || []).map((f) => f._id || f),
+      parentTask: task.parentTask?._id || task.parentTask,
       dateRange:
         task.startDate && task.endDate
           ? [dayjs(task.startDate), dayjs(task.endDate)]
@@ -285,6 +337,19 @@ export default function Tasks() {
       loadTasks();
     } catch {
       message.error(t('tasks.deleteFailed') || 'Lỗi khi xóa công việc');
+    }
+  };
+
+  /**
+   * Nhân bản công việc (Base Wework)
+   */
+  const handleDuplicateTask = async (task) => {
+    try {
+      await taskService.duplicate(task._id);
+      message.success(t('tasks.duplicated') || 'Đã nhân bản công việc thành công');
+      loadTasks();
+    } catch {
+      message.error(t('tasks.duplicateFailed') || 'Không thể nhân bản công việc');
     }
   };
 
@@ -339,7 +404,7 @@ export default function Tasks() {
           </Text>
         </div>
 
-        <Space size="small">
+        <Space size="middle" wrap>
           <Segmented
             value={view}
             onChange={setView}
@@ -348,6 +413,23 @@ export default function Tasks() {
               { value: 'list', icon: <UnorderedListOutlined />, label: t('tasks.listView') || 'Danh sách' },
             ]}
           />
+
+          {/* Base Wework: Nút Nhập từ Excel */}
+          <Button
+            icon={<FileExcelOutlined style={{ color: '#10b981' }} />}
+            onClick={() => setExcelModalOpen(true)}
+          >
+            Nhập Excel
+          </Button>
+
+          {/* Base Wework: Nút Việc lặp lại */}
+          <Button
+            icon={<SyncOutlined style={{ color: '#6366f1' }} />}
+            onClick={() => setRecurringModalOpen(true)}
+          >
+            Việc lặp lại
+          </Button>
+
           {canManageTasks && (
             <Button
               type="primary"
@@ -363,6 +445,105 @@ export default function Tasks() {
             </Button>
           )}
         </Space>
+      </div>
+
+      {/* Base Wework: Không gian "Công việc của tôi" - Tabs phân loại vai trò */}
+      <div
+        style={{
+          background: isDark ? 'rgba(30, 41, 59, 0.4)' : '#ffffff',
+          padding: '0 16px',
+          borderRadius: 12,
+          marginBottom: 16,
+          border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+        }}
+      >
+        <Tabs
+          activeKey={scope}
+          onChange={setScope}
+          items={[
+            {
+              key: 'all',
+              label: (
+                <span style={{ fontWeight: 600 }}>
+                  <AppstoreOutlined style={{ marginRight: 6 }} />
+                  Tất cả công việc
+                </span>
+              ),
+            },
+            {
+              key: 'my_tasks',
+              label: (
+                <span style={{ fontWeight: 600 }}>
+                  <UserOutlined style={{ marginRight: 6, color: '#3b82f6' }} />
+                  Việc tôi làm
+                </span>
+              ),
+            },
+            {
+              key: 'assigned_by_me',
+              label: (
+                <span style={{ fontWeight: 600 }}>
+                  <SendOutlined style={{ marginRight: 6, color: '#f59e0b' }} />
+                  Việc tôi giao
+                </span>
+              ),
+            },
+            {
+              key: 'following',
+              label: (
+                <span style={{ fontWeight: 600 }}>
+                  <EyeOutlined style={{ marginRight: 6, color: '#8b5cf6' }} />
+                  Việc tôi theo dõi
+                </span>
+              ),
+            },
+            ...(user?.role !== 'member'
+              ? [
+                  {
+                    key: 'subordinates',
+                    label: (
+                      <span style={{ fontWeight: 600 }}>
+                        <TeamOutlined style={{ marginRight: 6, color: '#10b981' }} />
+                        Nhân viên trực tiếp
+                      </span>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </div>
+
+      {/* Base Wework: Thanh lọc thời gian nhanh (Time filter tags) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <Text type="secondary" style={{ fontSize: 13, fontWeight: 600 }}>
+          Thời hạn:
+        </Text>
+        {[
+          { key: 'all', label: 'Tất cả' },
+          { key: 'today', label: 'Hôm nay' },
+          { key: 'this_week', label: 'Tuần này' },
+          { key: 'overdue', label: 'Quá hạn ⚠️' },
+          { key: 'done', label: 'Đã hoàn thành ✓' },
+        ].map((item) => (
+          <Tag.CheckableTag
+            key={item.key}
+            checked={timeFilter === item.key}
+            onChange={() => setTimeFilter(item.key)}
+            style={{
+              borderRadius: 14,
+              padding: '2px 12px',
+              fontSize: 12,
+              fontWeight: timeFilter === item.key ? 700 : 500,
+              cursor: 'pointer',
+              border: `1px solid ${timeFilter === item.key ? '#6366f1' : (isDark ? '#334155' : '#e2e8f0')}`,
+              background: timeFilter === item.key ? (item.key === 'overdue' ? '#ef4444' : '#6366f1') : undefined,
+              color: timeFilter === item.key ? '#ffffff' : undefined,
+            }}
+          >
+            {item.label}
+          </Tag.CheckableTag>
+        ))}
       </div>
 
       {/* 1. Khối KPI Chips */}
@@ -389,7 +570,9 @@ export default function Tasks() {
           canEditTask={canEditTask}
           canManageTasks={canManageTasks}
           onOpenEdit={handleOpenEdit}
+          onOpenDetail={handleOpenDetail}
           onDelete={handleDelete}
+          onDuplicate={handleDuplicateTask}
           t={t}
         />
       ) : (
@@ -403,6 +586,8 @@ export default function Tasks() {
           onDrop={handleDrop}
           onOpenCreateInColumn={handleOpenCreateInColumn}
           onOpenEdit={handleOpenEdit}
+          onOpenDetail={handleOpenDetail}
+          onDuplicate={handleDuplicateTask}
           isDark={isDark}
           t={t}
         />
@@ -420,9 +605,48 @@ export default function Tasks() {
         knownSkillOptions={knownSkillOptions}
         dependencyOptions={dependencyOptions}
         selectedProject={selectedProject}
+        taskGroups={taskGroups}
         onSubmit={handleFormSubmit}
         submitting={submitting}
         t={t}
+      />
+
+      {/* 5. Drawer chi tiết công việc (Base Wework) */}
+      <TaskDetailDrawer
+        open={detailDrawerOpen}
+        taskId={selectedDetailTaskId}
+        onClose={() => {
+          setDetailDrawerOpen(false);
+          setSelectedDetailTaskId(null);
+        }}
+        currentUser={user}
+        onTaskUpdated={loadTasks}
+        onOpenEdit={handleOpenEdit}
+        knownSkillOptions={knownSkillOptions}
+        companyUsers={resources.map((r) => ({
+          _id: r.user?._id || r.userId || r._id,
+          name: r.user?.name || r.userName || r.position,
+          email: r.user?.email || r.email,
+          avatar: r.user?.avatar || r.avatar,
+          position: r.position,
+        }))}
+      />
+
+      {/* 6. Modal Nhập công việc từ Excel (Base Wework 3.3) */}
+      <TaskExcelImportModal
+        open={excelModalOpen}
+        onClose={() => setExcelModalOpen(false)}
+        projects={projects}
+        onImportSuccess={loadTasks}
+      />
+
+      {/* 7. Modal Quản lý công việc lặp lại (Base Wework 3.4) */}
+      <RecurringTaskModal
+        open={recurringModalOpen}
+        onClose={() => setRecurringModalOpen(false)}
+        projects={projects}
+        resources={resources}
+        onTaskGenerated={loadTasks}
       />
     </div>
   );
