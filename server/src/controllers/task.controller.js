@@ -182,7 +182,7 @@ const getTasks = async (req, res, next) => {
 
     const [tasks, total] = await Promise.all([
       Task.find(filter)
-        .populate('project', 'name code status')
+        .populate('project', 'name code status permissions members manager companyName')
         .populate('assignee', 'name email avatar department')
         .populate('dependencies', 'title status')
         .populate('taskGroup', 'name color order')
@@ -217,7 +217,7 @@ const getTasks = async (req, res, next) => {
 const getTaskById = async (req, res, next) => {
   try {
     const task = await Task.findById(req.params.id)
-      .populate('project', 'name code status members manager companyName')
+      .populate('project', 'name code status members manager permissions companyName')
       .populate('assignee', 'name email avatar department')
       .populate('dependencies', 'title status priority startDate endDate progress')
       .populate('taskGroup', 'name color order')
@@ -459,18 +459,34 @@ const updateTask = async (req, res, next) => {
     delete updateData.createdBy;
     delete updateData.project; // Don't allow changing project
 
+    // Base Wework: Nếu thay đổi endDate, tự động ghi nhận vào deadlineHistory
+    if (
+      updateData.endDate &&
+      (!task.endDate || new Date(task.endDate).getTime() !== new Date(updateData.endDate).getTime())
+    ) {
+      updateData.$push = updateData.$push || {};
+      updateData.$push.deadlineHistory = {
+        oldEndDate: task.endDate,
+        newEndDate: new Date(updateData.endDate),
+        changedBy: req.user._id,
+        reason: req.body.deadlineReason || 'Cập nhật thời hạn hoàn thành',
+        changedAt: new Date(),
+      };
+    }
+
     const oldAssignee = task.assignee;
 
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     })
-      .populate('project', 'name code status')
+      .populate('project', 'name code status permissions members manager companyName')
       .populate('assignee', 'name email avatar department')
       .populate('dependencies', 'title status')
       .populate('taskGroup', 'name color order')
       .populate('followers', 'name email avatar')
-      .populate('parentTask', 'title status');
+      .populate('parentTask', 'title status')
+      .populate('deadlineHistory.changedBy', 'name email avatar');
 
     // Auto add assignee to project members if not present
     if (updatedTask.assignee) {
@@ -1280,7 +1296,8 @@ const updateDeadline = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
     }
 
-    const { newEndDate, reason } = req.body;
+    const newEndDate = req.body.newEndDate || req.body.dueDate || req.body.endDate;
+    const reason = req.body.reason;
     if (!newEndDate) {
       return res.status(400).json({ success: false, message: 'Thời hạn mới là bắt buộc' });
     }
@@ -1388,6 +1405,85 @@ const importExcelTasks = async (req, res, next) => {
     next(error);
   }
 };
+/**
+ * @desc    Lấy danh sách công việc nhắc nhở cần hoàn thành (Base Wework Reminders)
+ * @route   GET /api/tasks/reminders
+ * @access  Private
+ * Tham chiếu chuẩn Base Wework: https://help.base.vn/support/solutions/articles/63000252622
+ */
+const getTaskReminders = async (req, res, next) => {
+  try {
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    const companyScope = userCompany === 'Công ty Công nghệ RAO'
+      ? { $in: [userCompany, null, undefined] }
+      : userCompany;
+
+    // 1. Chỉ lấy các công việc được giao cho chính người dùng đang đăng nhập,
+    // bắt buộc phải có thời hạn (deadline) và chưa hoàn thành
+    const baseFilter = {
+      assignee: req.user._id,
+      status: { $ne: 'done' },
+      endDate: { $exists: true, $ne: null },
+      companyName: companyScope,
+    };
+
+    const tasks = await Task.find(baseFilter)
+      .populate('project', 'name code color status')
+      .populate('taskGroup', 'name color')
+      .populate('parentTask', 'title')
+      .populate('assignee', 'name email avatar jobTitle')
+      .sort({ endDate: 1, priority: -1 });
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    // Mốc thời gian 7 ngày trước và 7 ngày sau thời điểm hiện tại
+    const sevenDaysAgoStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysLaterEnd = new Date(todayEnd.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    // Tab 1: "Quan trọng" (Thời hạn trước và sau 7 ngày so với hôm nay)
+    const important = tasks.filter((t) => {
+      const d = new Date(t.endDate);
+      return d >= sevenDaysAgoStart && d <= sevenDaysLaterEnd;
+    });
+
+    // Tab 2: "Hôm nay" (Thời hạn trong ngày hôm nay)
+    const today = tasks.filter((t) => {
+      const d = new Date(t.endDate);
+      return d >= todayStart && d <= todayEnd;
+    });
+
+    // Tab 3: "Muộn" (Quá hạn nhưng chưa hoàn thành)
+    const overdue = tasks.filter((t) => {
+      const d = new Date(t.endDate);
+      return d < todayStart;
+    });
+
+    // Chế độ 4: "Lịch biểu" (Toàn bộ công việc trong Reminders kể cả > 7 ngày)
+    const schedule = tasks;
+
+    res.json({
+      success: true,
+      data: {
+        important,
+        today,
+        overdue,
+        schedule,
+        counts: {
+          important: important.length,
+          today: today.length,
+          overdue: overdue.length,
+          total: schedule.length,
+          // Chuẩn Base Wework: Số hiển thị trên reminders cập nhật theo số lượng công việc tại tab Quan trọng
+          badgeCount: important.length,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // Re-export tất cả bao gồm các endpoint mới
 module.exports = {
@@ -1415,5 +1511,6 @@ module.exports = {
   downloadExcelTemplate,
   previewExcelTasks,
   importExcelTasks,
+  getTaskReminders,
 };
 

@@ -47,6 +47,7 @@ export default function TaskTableView({
   onOpenDetail,
   onDelete,
   onDuplicate,
+  onOpenDeadline,
   t,
 }) {
   const tableColumns = [
@@ -201,7 +202,7 @@ export default function TaskTableView({
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
             <ClockCircleOutlined style={{ color: isOverdue ? '#ef4444' : '#64748b', fontSize: 11 }} />
             <Text style={{ fontSize: 12, color: isOverdue ? '#ef4444' : undefined, fontWeight: isOverdue ? 600 : 400 }}>
-              {dayjs(endDate).format('DD/MM/YYYY')}
+              {dayjs(endDate).format('DD/MM/YYYY HH:mm')}
             </Text>
             {isOverdue && (
               <Tag color="error" style={{ fontSize: 9, margin: 0, padding: '0 4px', lineHeight: '16px' }}>
@@ -272,6 +273,16 @@ export default function TaskTableView({
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => onOpenEdit(record)}
+              />
+            </Tooltip>
+          )}
+          {onOpenDeadline && (
+            <Tooltip title="Gia hạn thời hạn (Deadline)">
+              <Button
+                type="text"
+                size="small"
+                icon={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
+                onClick={() => onOpenDeadline(record)}
               />
             </Tooltip>
           )}

@@ -80,6 +80,11 @@ const taskService = {
     return api.patch(`/tasks/${taskId}/deadline`, data);
   },
 
+  // === Base Wework: Reminders (Nhắc việc) ===
+  getReminders(params = {}) {
+    return api.get('/tasks/reminders', { params });
+  },
+
   // === Base Wework: Excel Import/Export ===
   downloadExcelTemplate() {
     return api.get('/tasks/excel/template', { responseType: 'blob' });

@@ -120,7 +120,7 @@ export default function App() {
         <Route path="/projects/:id" element={<ProtectedRoute><AppLayout><ProjectDetail /></AppLayout></ProtectedRoute>} />
         <Route path="/tasks" element={<ProtectedRoute><AppLayout><Tasks /></AppLayout></ProtectedRoute>} />
         <Route path="/resources" element={<ProtectedRoute roles={['admin', 'project_manager']}><AppLayout><Resources /></AppLayout></ProtectedRoute>} />
-        <Route path="/optimization" element={<ProtectedRoute><AppLayout><Optimization /></AppLayout></ProtectedRoute>} />
+        <Route path="/optimization" element={<ProtectedRoute app="optimize"><AppLayout><Optimization /></AppLayout></ProtectedRoute>} />
         <Route
           path="/calendar"
           element={<ProtectedRoute><AppLayout><CalendarPage /></AppLayout></ProtectedRoute>}
@@ -128,7 +128,7 @@ export default function App() {
 
         <Route path="/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><AppLayout><Reports /></AppLayout></ProtectedRoute>} />
-        <Route path="/benchmark" element={<ProtectedRoute><AppLayout><BenchmarkStudio /></AppLayout></ProtectedRoute>} />
+        <Route path="/benchmark" element={<ProtectedRoute app="optimize"><AppLayout><BenchmarkStudio /></AppLayout></ProtectedRoute>} />
         <Route path="/activity-logs" element={<ProtectedRoute><AppLayout><ActivityLogs /></AppLayout></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
         <Route path="/account" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />

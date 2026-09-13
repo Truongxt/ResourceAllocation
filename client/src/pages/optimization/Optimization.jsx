@@ -19,12 +19,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Row, Col, Tabs, Typography, message } from 'antd';
+import { Row, Col, Tabs, Typography, message, Button } from 'antd';
 import {
   ThunderboltOutlined,
   HistoryOutlined,
   ExperimentOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
+import { useAuth } from '../../context/AuthContext';
 import optimizationService from '../../services/optimizationService';
 import projectService from '../../services/projectService';
 import OptimizationConfigCard from '../../components/optimization/OptimizationConfigCard';
@@ -37,6 +39,8 @@ const { Title, Text } = Typography;
 
 export default function Optimization() {
   const { t } = useTranslation();
+  const { user, hasAppAccess } = useAuth();
+  const canAccess = Boolean(hasAppAccess ? hasAppAccess('optimize') : (user?.isOwner || user?.role === 'admin' || user?.appAdmins?.includes('optimize')));
 
   // --- TRẠNG THÁI CẤU HÌNH THUẬT TOÁN ---
   const [algorithm, setAlgorithm] = useState('genetic');
@@ -64,6 +68,10 @@ export default function Optimization() {
   const [benchmark, setBenchmark] = useState(null);
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
 
+  // --- TRẠNG THÁI TIỀN KIỂM TRA (READINESS / PREFLIGHT) ---
+  const [readiness, setReadiness] = useState(null);
+  const [readinessLoading, setReadinessLoading] = useState(false);
+
   /**
    * Tải danh sách dự án cho bộ lọc
    */
@@ -88,10 +96,29 @@ export default function Optimization() {
     }
   }, []);
 
+  /**
+   * Tải dữ liệu trạng thái sẵn sàng (Pre-flight readiness)
+   */
+  const loadReadiness = useCallback(async () => {
+    setReadinessLoading(true);
+    try {
+      const res = await optimizationService.getReadiness(params.projectId || undefined);
+      setReadiness(res.data?.data || null);
+    } catch {
+      // Bỏ qua lỗi kết nối
+    } finally {
+      setReadinessLoading(false);
+    }
+  }, [params.projectId]);
+
   useEffect(() => {
     loadProjects();
     loadHistory();
   }, [loadProjects, loadHistory]);
+
+  useEffect(() => {
+    loadReadiness();
+  }, [loadReadiness]);
 
   /**
    * Xem lại chi tiết một kết quả từ lịch sử
@@ -131,11 +158,12 @@ export default function Optimization() {
       };
 
       const res = await optimizationService.run(payload);
-      const resultData = res.data.data;
+      const resultData = res.data?.data?.result || res.data?.data?.optimization || res.data?.data;
       setCurrentResult(resultData);
       setActiveTab('result');
       message.success(t('optimization.runSuccess') || 'Chạy thuật toán tối ưu hóa thành công!');
       loadHistory();
+      loadReadiness();
     } catch (err) {
       const errorMsg =
         err.response?.data?.message || t('optimization.runFailed') || 'Chạy thuật toán thất bại';
@@ -153,6 +181,7 @@ export default function Optimization() {
       await optimizationService.apply(id);
       message.success(t('optimization.applySuccess') || 'Đã áp dụng kết quả phân bổ vào hệ thống');
       loadHistory();
+      loadReadiness();
       if (currentResult && currentResult._id === id) {
         setCurrentResult((prev) => ({ ...prev, isApplied: true, isRolledBack: false }));
       }
@@ -169,6 +198,7 @@ export default function Optimization() {
       const res = await optimizationService.rollbackResult(id);
       message.success(res.data?.message || 'Đã hoàn tác phân bổ thành công');
       loadHistory();
+      loadReadiness();
       if (currentResult && currentResult._id === id) {
         setCurrentResult((prev) => ({ ...prev, isApplied: false, isRolledBack: true }));
       }
@@ -196,6 +226,25 @@ export default function Optimization() {
       setBenchmarkLoading(false);
     }
   };
+
+  if (!canAccess) {
+    return (
+      <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--card-bg, #1e293b)', borderRadius: 12, margin: '40px auto', maxWidth: 640 }}>
+        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, marginBottom: 16 }}>
+          <LockOutlined />
+        </div>
+        <Title level={3} style={{ marginBottom: 8, color: 'var(--text-primary)' }}>
+          Chưa được cấp quyền Base Optimize+
+        </Title>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 24, fontSize: 14, lineHeight: 1.6 }}>
+          Tài khoản của bạn chưa được cấp quyền Quản trị ứng dụng (App Admin) cho phân hệ <strong>Base Optimize+</strong>. Vui lòng liên hệ Quản trị viên cấp cao (Owner) để được cấp quyền sử dụng.
+        </Text>
+        <Button type="primary" size="large" onClick={() => { window.location.href = '/dashboard'; }} style={{ background: '#2563eb' }}>
+          Quay lại Tổng quan Dashboard
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 1400 }}>
@@ -243,6 +292,12 @@ export default function Optimization() {
                     currentResult={currentResult}
                     onApply={handleApply}
                     onRollback={handleRollback}
+                    readiness={readiness}
+                    readinessLoading={readinessLoading}
+                    onRun={handleRun}
+                    running={running}
+                    algorithm={algorithm}
+                    projectName={projects.find((p) => p._id === params.projectId)?.name || ''}
                     t={t}
                   />
                 ),

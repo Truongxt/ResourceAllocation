@@ -18,9 +18,14 @@ const loadOptimizationData = async (projectId, user) => {
   const taskFilter = { status: { $in: ['todo', 'in_progress', 'review'] } };
   let resourceFilter = { isActive: true };
 
+  const userCompany = (user && user.companyName) || 'Công ty Công nghệ RAO';
+  const companyScope = userCompany === 'Công ty Công nghệ RAO'
+    ? { $in: [userCompany, null, undefined] }
+    : userCompany;
+
   if (projectId) {
     taskFilter.project = projectId;
-    const project = await Project.findById(projectId).select('members manager');
+    const project = await Project.findById(projectId).select('members manager companyName');
     if (project) {
       const memberUserIds = new Set();
       if (project.manager) memberUserIds.add(project.manager.toString());
@@ -33,13 +38,17 @@ const loadOptimizationData = async (projectId, user) => {
       if (memberUserIds.size > 0) {
         resourceFilter = {
           isActive: true,
+          companyName: companyScope,
           user: { $in: Array.from(memberUserIds) },
         };
+      } else {
+        resourceFilter.companyName = companyScope;
       }
     }
-  } else if (user && user.role !== 'admin') {
-    // Nếu không chỉ định projectId và không phải admin: giới hạn theo dự án của user
+  } else if (user && user.role !== 'admin' && !user.isOwner && !user.appAdmins?.includes('optimize')) {
+    // Nếu không chỉ định projectId và không phải admin/owner/appAdmin: giới hạn theo dự án của user
     const userProjects = await Project.find({
+      companyName: companyScope,
       $or: [
         { manager: user._id },
         { 'members.user': user._id },
@@ -48,6 +57,7 @@ const loadOptimizationData = async (projectId, user) => {
     }).select('_id members');
     const userProjectIds = userProjects.map((p) => p._id);
     taskFilter.project = { $in: userProjectIds };
+    taskFilter.companyName = companyScope;
 
     const allowedUserIds = new Set();
     allowedUserIds.add(user._id.toString());
@@ -61,11 +71,16 @@ const loadOptimizationData = async (projectId, user) => {
 
     resourceFilter = {
       isActive: true,
+      companyName: companyScope,
       $or: [
         { user: { $in: Array.from(allowedUserIds) } },
         { createdBy: user._id },
       ],
     };
+  } else if (user) {
+    // Admin chọn "Tất cả dự án": lấy toàn bộ công việc và nhân sự của công ty mình
+    taskFilter.companyName = companyScope;
+    resourceFilter.companyName = companyScope;
   }
 
   const [tasks, resources] = await Promise.all([
@@ -843,6 +858,49 @@ const runBenchmark = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Lấy dữ liệu kiểm tra độ sẵn sàng trước khi chạy tối ưu hóa (Pre-flight Readiness)
+ * @route   GET /api/optimization/readiness
+ * @access  Private
+ */
+const getOptimizationReadiness = async (req, res, next) => {
+  try {
+    const { projectId } = req.query;
+    const { tasks, resources } = await loadOptimizationData(projectId, req.user);
+
+    const unassignedTasks = tasks.filter((t) => !t.assignee).length;
+    const totalEstimatedHours = tasks.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
+    const totalCapacityHours = resources.reduce((sum, r) => sum + (r.maxCapacity || 40), 0);
+    const uniqueSkillsRequired = new Set();
+    tasks.forEach((t) => {
+      (t.requiredSkills || []).forEach((s) => {
+        if (s && s.name) uniqueSkillsRequired.add(s.name.toLowerCase());
+        else if (typeof s === 'string') uniqueSkillsRequired.add(s.toLowerCase());
+      });
+    });
+
+    const issues = [];
+    if (tasks.length === 0) issues.push('Chưa có công việc nào ở trạng thái chờ thực hiện (todo/in_progress/review).');
+    if (resources.length === 0) issues.push('Chưa có nhân sự nào được cấu hình khả dụng trong hệ thống.');
+
+    res.json({
+      success: true,
+      data: {
+        totalTasks: tasks.length,
+        unassignedTasks,
+        totalEstimatedHours,
+        totalResources: resources.length,
+        totalCapacityHours,
+        skillsCount: uniqueSkillsRequired.size,
+        ready: tasks.length > 0 && resources.length > 0,
+        issues,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   runGeneticAlgorithm,
   runCSPSolver,
@@ -853,4 +911,5 @@ module.exports = {
   applyResult,
   rollbackResult,
   runBenchmark,
+  getOptimizationReadiness,
 };

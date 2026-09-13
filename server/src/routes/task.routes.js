@@ -3,7 +3,19 @@ const multer = require('multer');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const { protect, authorize } = require('../middleware/auth');
-const { canModifyTask, canDeleteTask } = require('../middleware/taskAccess');
+const {
+  canCreateTask,
+  canModifyTask,
+  canUpdateTaskStatus,
+  canUpdateDeadline,
+  canDeleteTask,
+  canManageFollowers,
+  canDuplicateTask,
+  canMoveTask,
+  canManageChecklist,
+  canReportResult,
+  canCreateSubtask,
+} = require('../middleware/taskAccess');
 const {
   getTasks,
   getTaskById,
@@ -28,6 +40,7 @@ const {
   downloadExcelTemplate,
   previewExcelTasks,
   importExcelTasks,
+  getTaskReminders,
 } = require('../controllers/task.controller');
 
 const router = express.Router();
@@ -151,13 +164,15 @@ router.get('/summary/stats', getTaskSummary);
 router.get('/excel/template', downloadExcelTemplate);
 router.post('/excel/preview', upload.single('file'), previewExcelTasks);
 router.post('/excel/import', upload.single('file'), importExcelTasks);
+// Base Wework: Reminders (Nhắc nhở công việc cần hoàn thành - đặt trước /:id)
+router.get('/reminders', getTaskReminders);
 
 router.get('/', listValidation, validate, getTasks);
 router.get('/:id', taskIdValidation, validate, getTaskById);
 
-router.post('/', authorize('admin', 'project_manager'), createValidation, validate, createTask);
+router.post('/', canCreateTask(), createValidation, validate, createTask);
 
-// Member sửa được task của chính mình, nhưng chỉ các trường về tiến độ
+// Member sửa được task của chính mình theo phân quyền Base Wework
 router.put(
   '/:id',
   taskIdValidation,
@@ -166,38 +181,38 @@ router.put(
   canModifyTask({ restrictFields: true }),
   updateTask
 );
-router.patch('/:id/status', taskIdValidation, statusValidation, validate, canModifyTask(), updateTaskStatus);
+router.patch('/:id/status', taskIdValidation, statusValidation, validate, canUpdateTaskStatus(), updateTaskStatus);
 
 router.delete('/:id', taskIdValidation, validate, canDeleteTask(), deleteTask);
 
 // === BASE WEWORK — Task sub-resources & Actions ===
 // Báo cáo kết quả công việc
-router.post('/:id/report-result', taskIdValidation, validate, reportTaskResult);
+router.post('/:id/report-result', taskIdValidation, validate, canReportResult(), reportTaskResult);
 
 // Nhân bản công việc
-router.post('/:id/duplicate', taskIdValidation, validate, duplicateTask);
+router.post('/:id/duplicate', taskIdValidation, validate, canDuplicateTask(), duplicateTask);
 
 // Di chuyển công việc (nhóm / dự án)
-router.post('/:id/move', taskIdValidation, validate, moveTask);
+router.post('/:id/move', taskIdValidation, validate, canMoveTask(), moveTask);
 
 // Điều chỉnh thời hạn hoàn thành (Deadline)
-router.patch('/:id/deadline', taskIdValidation, validate, updateDeadline);
+router.patch('/:id/deadline', taskIdValidation, validate, canUpdateDeadline(), updateDeadline);
 
 // Comments
 router.post('/:id/comments', taskIdValidation, validate, addComment);
 router.delete('/:id/comments/:commentId', deleteComment);
 
 // Checklist
-router.post('/:id/checklist', taskIdValidation, validate, addChecklistItem);
-router.put('/:id/checklist/:itemId/toggle', toggleChecklistItem);
-router.delete('/:id/checklist/:itemId', removeChecklistItem);
+router.post('/:id/checklist', taskIdValidation, validate, canManageChecklist(), addChecklistItem);
+router.put('/:id/checklist/:itemId/toggle', taskIdValidation, canManageChecklist(), toggleChecklistItem);
+router.delete('/:id/checklist/:itemId', taskIdValidation, canManageChecklist(), removeChecklistItem);
 
 // Followers
-router.post('/:id/followers', taskIdValidation, validate, addFollower);
-router.delete('/:id/followers/:userId', removeFollower);
+router.post('/:id/followers', taskIdValidation, validate, canManageFollowers('add'), addFollower);
+router.delete('/:id/followers/:userId', taskIdValidation, canManageFollowers('remove'), removeFollower);
 
 // Subtasks
 router.get('/:id/subtasks', taskIdValidation, validate, getSubtasks);
-router.post('/:id/subtasks', taskIdValidation, validate, createSubtask);
+router.post('/:id/subtasks', taskIdValidation, validate, canCreateSubtask(), createSubtask);
 
 module.exports = router;

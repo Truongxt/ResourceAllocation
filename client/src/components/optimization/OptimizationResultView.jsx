@@ -37,6 +37,7 @@ import {
   ApartmentOutlined,
 } from '@ant-design/icons';
 import { formatNumber } from '../../i18n/format';
+import OptimizationPreflightView from './OptimizationPreflightView';
 
 const { Text } = Typography;
 
@@ -44,16 +45,25 @@ export default function OptimizationResultView({
   currentResult,
   onApply,
   onRollback,
+  readiness,
+  readinessLoading,
+  onRun,
+  running,
+  algorithm,
+  projectName,
   t,
 }) {
   if (!currentResult) {
     return (
-      <Card>
-        <Empty
-          description={t('optimization.noResult') || 'Chưa có kết quả tối ưu hóa nào được chọn'}
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
-      </Card>
+      <OptimizationPreflightView
+        readiness={readiness}
+        loading={readinessLoading}
+        onRun={onRun}
+        running={running}
+        algorithm={algorithm}
+        projectName={projectName}
+        t={t}
+      />
     );
   }
 

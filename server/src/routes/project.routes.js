@@ -12,6 +12,8 @@ const {
   updateProjectMember,
   removeProjectMember,
   getProjectSummary,
+  updateProjectPermissions,
+  quickEditProject,
 } = require('../controllers/project.controller');
 
 const router = express.Router();
@@ -34,6 +36,7 @@ const listValidation = [
     .isIn(['low', 'medium', 'high', 'critical'])
     .withMessage('Độ ưu tiên không hợp lệ'),
   query('manager').optional().isMongoId().withMessage('ID manager không hợp lệ'),
+  query('department').optional().isString(),
   query('page').optional().isInt({ min: 1 }).withMessage('Page phải là số nguyên dương'),
   query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit phải từ 1 đến 100'),
 ];
@@ -69,6 +72,10 @@ const projectValidation = [
   body('progress').optional().isFloat({ min: 0, max: 100 }).withMessage('Tiến độ phải từ 0 đến 100'),
   body('manager').optional().isMongoId().withMessage('Project Manager không hợp lệ'),
   body('tags').optional().isArray().withMessage('Tags phải là danh sách'),
+  body('projectType').optional().isIn(['internal', 'client']).withMessage('Phân loại dự án không hợp lệ'),
+  body('color').optional().trim(),
+  body('template').optional({ nullable: true }).trim(),
+  body('members').optional().isArray().withMessage('Danh sách thành viên phải là mảng'),
 ];
 
 const updateProjectValidation = [
@@ -103,6 +110,9 @@ const updateProjectValidation = [
   body('progress').optional().isFloat({ min: 0, max: 100 }).withMessage('Tiến độ phải từ 0 đến 100'),
   body('manager').optional().isMongoId().withMessage('Project Manager không hợp lệ'),
   body('tags').optional().isArray().withMessage('Tags phải là danh sách'),
+  body('projectType').optional().isIn(['internal', 'client']).withMessage('Phân loại dự án không hợp lệ'),
+  body('color').optional().trim(),
+  body('template').optional({ nullable: true }).trim(),
 ];
 
 const memberValidation = [
@@ -133,11 +143,17 @@ router.use(protect);
 router.get('/stats/summary', getProjectSummary);
 router.get('/', listValidation, validate, getProjects);
 router.get('/:id', projectIdValidation, validate, getProjectById);
-router.post('/', authorize('admin', 'project_manager'), projectValidation, validate, createProject);
+router.post('/', projectValidation, validate, createProject);
 router.put('/:id', authorize('admin', 'project_manager'), projectIdValidation, updateProjectValidation, validate, updateProject);
 router.delete('/:id', authorize('admin', 'project_manager'), projectIdValidation, validate, deleteProject);
 router.post('/:id/members', authorize('admin', 'project_manager'), projectIdValidation, memberValidation, validate, addProjectMember);
 router.put('/:id/members/:userId', authorize('admin', 'project_manager'), projectIdValidation, userIdValidation, updateMemberValidation, validate, updateProjectMember);
 router.delete('/:id/members/:userId', authorize('admin', 'project_manager'), projectIdValidation, userIdValidation, validate, removeProjectMember);
+
+// Base Wework: Cấu hình phân quyền thao tác trong dự án (Owner & PM)
+router.patch('/:id/permissions', projectIdValidation, validate, updateProjectPermissions);
+
+// Base Wework: Chỉnh sửa nhanh (Quick Edit) dự án / phòng ban
+router.patch('/:id/quick-edit', projectIdValidation, validate, quickEditProject);
 
 module.exports = router;

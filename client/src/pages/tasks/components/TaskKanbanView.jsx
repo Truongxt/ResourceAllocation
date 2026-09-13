@@ -403,7 +403,7 @@ export default function TaskKanbanView({
                         >
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                             <CalendarOutlined style={{ fontSize: 11 }} />
-                            {dayjs(task.endDate).format('DD/MM/YYYY')}
+                            {dayjs(task.endDate).format('DD/MM/YYYY HH:mm')}
                           </span>
                           {isOverdue && (
                             <span

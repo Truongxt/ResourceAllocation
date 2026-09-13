@@ -5,6 +5,10 @@ const departmentService = {
     return api.get('/departments', { params });
   },
 
+  getById(id) {
+    return api.get(`/departments/${id}`);
+  },
+
   create(data) {
     return api.post('/departments', data);
   },

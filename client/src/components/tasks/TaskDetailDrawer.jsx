@@ -27,6 +27,7 @@ import { useTheme } from '../../context/ThemeContext';
 import taskService from '../../services/taskService';
 import SubtaskFormModal from './SubtaskFormModal';
 import TaskResultModal from './TaskResultModal';
+import { getTaskPermissions } from '../../utils/taskPermissions';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/vi';
@@ -66,6 +67,11 @@ export default function TaskDetailDrawer({
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
+
+  // Base Wework: Kiểm tra phân quyền thao tác người dùng trên công việc
+  const perms = useMemo(() => {
+    return getTaskPermissions(task, task?.project, currentUser);
+  }, [task, currentUser]);
 
   // Checklist
   const [newChecklistTitle, setNewChecklistTitle] = useState('');
@@ -366,11 +372,27 @@ export default function TaskDetailDrawer({
         </InfoCard>
 
         <InfoCard icon={<CalendarOutlined />} label="Thời hạn" isDark={isDark}>
-          <Text style={{ fontSize: 13 }}>
-            {task.startDate ? dayjs(task.startDate).format('DD/MM/YYYY') : '—'}
-            {' → '}
-            {task.endDate ? dayjs(task.endDate).format('DD/MM/YYYY') : '—'}
-          </Text>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+            <Text style={{ fontSize: 13 }}>
+              {task.startDate ? dayjs(task.startDate).format('DD/MM/YYYY HH:mm') : '—'}
+              {' → '}
+              {task.endDate ? dayjs(task.endDate).format('DD/MM/YYYY HH:mm') : '—'}
+            </Text>
+            {perms.canEditDeadline && (
+              <Button
+                size="small"
+                type="link"
+                style={{ padding: 0, fontSize: 12, color: '#f59e0b', height: 'auto' }}
+                onClick={() => {
+                  setNewDeadlineDate(task.endDate ? dayjs(task.endDate) : null);
+                  setDeadlineReason('');
+                  setDeadlineModalOpen(true);
+                }}
+              >
+                Gia hạn
+              </Button>
+            )}
+          </div>
         </InfoCard>
 
         <InfoCard icon={<ClockCircleOutlined />} label="Ước lượng / Thực tế" isDark={isDark}>
@@ -921,7 +943,7 @@ export default function TaskDetailDrawer({
     <div style={{ padding: '8px 0' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Text strong style={{ fontSize: 13 }}>
-          Thời hạn hiện tại: {task?.endDate ? dayjs(task.endDate).format('DD/MM/YYYY') : 'Chưa có'}
+          Thời hạn hiện tại: {task?.endDate ? dayjs(task.endDate).format('DD/MM/YYYY HH:mm') : 'Chưa có'}
         </Text>
         <Button
           size="small"
@@ -955,11 +977,11 @@ export default function TaskDetailDrawer({
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <Space>
                   <Tag color="orange">
-                    {item.oldEndDate ? dayjs(item.oldEndDate).format('DD/MM/YYYY') : '---'}
+                    {item.oldEndDate ? dayjs(item.oldEndDate).format('DD/MM/YYYY HH:mm') : '---'}
                   </Tag>
                   <span>→</span>
                   <Tag color="green">
-                    {item.newEndDate ? dayjs(item.newEndDate).format('DD/MM/YYYY') : '---'}
+                    {item.newEndDate ? dayjs(item.newEndDate).format('DD/MM/YYYY HH:mm') : '---'}
                   </Tag>
                 </Space>
                 <Text type="secondary" style={{ fontSize: 11 }}>
@@ -1090,13 +1112,16 @@ export default function TaskDetailDrawer({
               <Text style={{ fontSize: 16, fontWeight: 700, display: 'block', lineHeight: 1.4 }}>
                 {task.title}
               </Text>
-              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Tag style={{ borderRadius: 6, fontSize: 11, color: statusInfo.color, background: statusInfo.bg, border: `1px solid ${statusInfo.color}30` }}>
                   {statusInfo.label}
                 </Tag>
                 {task.project?.name && (
                   <Tag color="blue" style={{ borderRadius: 6, fontSize: 11 }}>{task.project.name}</Tag>
                 )}
+                <Tag color="purple" style={{ borderRadius: 6, fontSize: 11 }}>
+                  {perms.roleLabel}
+                </Tag>
               </div>
             </div>
           ) : (loading ? 'Đang tải thông tin...' : 'Chi tiết công việc')
@@ -1105,43 +1130,47 @@ export default function TaskDetailDrawer({
           task ? (
             <Space size={8}>
               {/* Báo cáo kết quả */}
-              <Tooltip title="Báo cáo kết quả / Hoàn thành">
-                <Button
-                  type={task.status === 'done' ? 'default' : 'primary'}
-                  size="small"
-                  icon={<CheckCircleOutlined style={{ color: task.status === 'done' ? '#10b981' : '#fff' }} />}
-                  onClick={() => setResultModalOpen(true)}
-                  style={{
-                    borderRadius: 8,
-                    fontSize: 12,
-                    background: task.status === 'done' ? undefined : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    borderColor: '#10b981',
-                  }}
-                >
-                  {task.status === 'done' ? 'Kết quả' : 'Nộp kết quả'}
-                </Button>
-              </Tooltip>
-
-              {/* Nhân bản công việc */}
-              <Tooltip title="Nhân bản công việc">
-                <Popconfirm
-                  title="Nhân bản công việc này?"
-                  description="Sao chép toàn bộ checklist và công việc con sang bản mới."
-                  onConfirm={handleDuplicateTask}
-                  okText="Nhân bản"
-                  cancelText="Hủy"
-                >
+              {perms.canReportResult && (
+                <Tooltip title="Báo cáo kết quả / Hoàn thành">
                   <Button
-                    type="text"
+                    type={task.status === 'done' ? 'default' : 'primary'}
                     size="small"
-                    icon={<CopyOutlined />}
-                    style={{ borderRadius: 8 }}
-                  />
-                </Popconfirm>
-              </Tooltip>
+                    icon={<CheckCircleOutlined style={{ color: task.status === 'done' ? '#10b981' : '#fff' }} />}
+                    onClick={() => setResultModalOpen(true)}
+                    style={{
+                      borderRadius: 8,
+                      fontSize: 12,
+                      background: task.status === 'done' ? undefined : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      borderColor: '#10b981',
+                    }}
+                  >
+                    {task.status === 'done' ? 'Kết quả' : 'Nộp kết quả'}
+                  </Button>
+                </Tooltip>
+              )}
+
+              {/* Nhân bản công việc (Chỉ Người giao, QLDA, Owner) */}
+              {perms.canDuplicate && (
+                <Tooltip title="Nhân bản công việc">
+                  <Popconfirm
+                    title="Nhân bản công việc này?"
+                    description="Sao chép toàn bộ checklist và công việc con sang bản mới."
+                    onConfirm={handleDuplicateTask}
+                    okText="Nhân bản"
+                    cancelText="Hủy"
+                  >
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CopyOutlined />}
+                      style={{ borderRadius: 8 }}
+                    />
+                  </Popconfirm>
+                </Tooltip>
+              )}
 
               {/* Edit button */}
-              {onOpenEdit && (
+              {onOpenEdit && (perms.canEditDetails || perms.canEditDeadline) && (
                 <Tooltip title="Chỉnh sửa công việc">
                   <Button
                     type="text"
@@ -1271,7 +1300,7 @@ export default function TaskDetailDrawer({
       <div style={{ padding: '12px 0' }}>
         <div style={{ marginBottom: 12 }}>
           <Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>
-            Thời hạn hiện tại: {task?.endDate ? dayjs(task.endDate).format('DD/MM/YYYY') : 'Chưa có'}
+            Thời hạn hiện tại: {task?.endDate ? dayjs(task.endDate).format('DD/MM/YYYY HH:mm') : 'Chưa có'}
           </Text>
         </div>
         <div style={{ marginBottom: 12 }}>
@@ -1279,10 +1308,12 @@ export default function TaskDetailDrawer({
             Thời hạn mới (*):
           </Text>
           <DatePicker
+            showTime={{ format: 'HH:mm' }}
+            format="DD/MM/YYYY HH:mm"
             style={{ width: '100%' }}
-            format="DD/MM/YYYY"
             value={newDeadlineDate}
             onChange={setNewDeadlineDate}
+            placeholder="Chọn thời hạn & giờ mới"
           />
         </div>
         <div>

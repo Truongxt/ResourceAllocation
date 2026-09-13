@@ -119,6 +119,26 @@ export function AuthProvider({ children }) {
     setError(null);
   }, []);
 
+  // Kiểm tra quyền truy cập phân hệ / Quản trị ứng dụng (App Admin)
+  const hasAppAccess = useCallback((appKey) => {
+    if (!user) return false;
+    if (user.isOwner) return true;
+    if (user.role === 'admin') return true;
+    return Array.isArray(user.appAdmins) && user.appAdmins.includes(appKey);
+  }, [user]);
+
+  // Làm mới thông tin người dùng từ máy chủ (sau khi phân quyền hoặc cập nhật profile)
+  const refreshUser = useCallback(async () => {
+    try {
+      const response = await authService.getMe();
+      if (response.data?.user) {
+        setUser(response.data.user);
+      }
+    } catch (err) {
+      console.error('Lỗi khi làm mới thông tin tài khoản:', err);
+    }
+  }, []);
+
   const value = {
     user,
     loading,
@@ -134,6 +154,8 @@ export function AuthProvider({ children }) {
     updateProfile,
     changePassword,
     clearError,
+    hasAppAccess,
+    refreshUser,
   };
 
   return (

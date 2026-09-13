@@ -31,6 +31,8 @@ const SUITES = [
   { name: 'security', file: 'security.test.mjs', label: 'Header, CORS, giới hạn tần suất' },
   { name: 'api', file: 'api.test.mjs', label: 'REST API' },
   { name: 'project-detail', file: 'project-detail.test.mjs', label: 'Trang chi tiết dự án' },
+  { name: 'task-permissions', file: 'task-permissions.test.mjs', label: 'Ma trận phân quyền Base Wework' },
+  { name: 'department-wework', file: 'department-wework.test.mjs', label: 'Quản lý Department chuẩn Base Wework' },
   { name: 'socket', file: 'socket.test.mjs', label: 'Socket.IO realtime' },
 ];
 

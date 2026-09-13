@@ -87,6 +87,43 @@ const projectSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    // Base Wework: Department (Phân nhóm / Phòng ban cấp cha)
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Department',
+      default: null,
+    },
+    // Base Wework: Phân loại dự án (help.base.vn/articles/63000270225)
+    projectType: {
+      type: String,
+      enum: ['internal', 'client'],
+      default: 'internal',
+    },
+    // Base Wework: Màu sắc nhận diện dự án
+    color: {
+      type: String,
+      trim: true,
+      default: '#6366f1',
+    },
+    // Base Wework: Mẫu dự án (Template)
+    template: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    // Base Wework: Cấu hình phân quyền thao tác trong dự án
+    permissions: {
+      allowAssigneeEditDeadline: { type: Boolean, default: false },
+      allowAssigneeEditTitleDesc: { type: Boolean, default: false },
+      allowAssigneeReassign: { type: Boolean, default: false },
+      allowFollowerComment: { type: Boolean, default: true },
+      allowMembersCreateTasks: { type: Boolean, default: true },
+      allowCreatorDeleteTask: { type: Boolean, default: false },
+      allowAssigneeDeleteTask: { type: Boolean, default: false },
+      allowFollowerMarkDone: { type: Boolean, default: false },
+      allowMembersViewAllTasks: { type: Boolean, default: true },
+      allowGuestCreateTask: { type: Boolean, default: false },
+    },
   },
   {
     timestamps: true,
@@ -103,6 +140,7 @@ projectSchema.virtual('tasks', {
 
 projectSchema.index({ status: 1 });
 projectSchema.index({ manager: 1 });
+projectSchema.index({ department: 1 });
 projectSchema.index({ companyName: 1 });
 projectSchema.index({ startDate: 1, endDate: 1 });
 

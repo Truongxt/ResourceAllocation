@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Badge, Dropdown, Avatar, Switch, List, Typography, Button, Space, Tooltip, Empty, Breadcrumb, Tag } from 'antd';
 import {
@@ -16,7 +16,8 @@ import {
   FileTextOutlined,
   ThunderboltOutlined,
   TeamOutlined,
-  CheckOutlined
+  CheckOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, changeLanguage } from '../../i18n';
@@ -24,8 +25,11 @@ import { formatTimeAgo } from '../../i18n/format';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useSocket } from '../../context/SocketContext';
+import taskService from '../../services/taskService';
 import GlobalSearchModal from '../common/GlobalSearchModal';
 import QuickCreateModal from '../common/QuickCreateModal';
+import RemindersDrawer from '../tasks/RemindersDrawer';
+import TaskDetailDrawer from '../tasks/TaskDetailDrawer';
 
 const { Header: AntHeader } = Layout;
 const { Text, Title } = Typography;
@@ -58,6 +62,35 @@ export default function Header({ collapsed }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [quickCreateType, setQuickCreateType] = useState('task');
+
+  // Base Wework: Reminders State
+  const [remindersOpen, setRemindersOpen] = useState(false);
+  const [remindersBadgeCount, setRemindersBadgeCount] = useState(0);
+  const [selectedDetailTaskId, setSelectedDetailTaskId] = useState(null);
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+
+  const fetchRemindersCount = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await taskService.getReminders();
+      if (res.data?.success && res.data?.data?.counts) {
+        // Chuẩn Base Wework: Số hiển thị trên badge bằng đúng số lượng mục Quan trọng (counts.badgeCount)
+        setRemindersBadgeCount(res.data.data.counts.badgeCount ?? res.data.data.counts.important ?? 0);
+      }
+    } catch {
+      // Bỏ qua lỗi khi polling
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchRemindersCount();
+    window.addEventListener('reminders:updated', fetchRemindersCount);
+    const interval = setInterval(fetchRemindersCount, 60000);
+    return () => {
+      window.removeEventListener('reminders:updated', fetchRemindersCount);
+      clearInterval(interval);
+    };
+  }, [fetchRemindersCount]);
 
   // Keyboard shortcut listener (Ctrl+K or Cmd+K)
   useEffect(() => {
@@ -376,6 +409,40 @@ export default function Header({ collapsed }) {
             </button>
           </Tooltip>
 
+          {/* Base Wework: Reminders Clock Button */}
+          <Tooltip title="Nhắc nhở công việc (Reminders)">
+            <button
+              type="button"
+              onClick={() => setRemindersOpen(true)}
+              aria-label="Nhắc nhở công việc"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                background: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
+                color: remindersBadgeCount > 0 ? '#f43f5e' : (isDark ? '#cbd5e1' : '#334155'),
+                position: 'relative',
+                padding: 0,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Badge
+                count={remindersBadgeCount}
+                overflowCount={99}
+                size="small"
+                offset={[2, -2]}
+                style={{ backgroundColor: '#f43f5e' }}
+              >
+                <ClockCircleOutlined style={{ fontSize: 16 }} />
+              </Badge>
+            </button>
+          </Tooltip>
+
           {/* Notification Bell */}
           <Dropdown
             popupRender={() => notifContent}
@@ -515,6 +582,34 @@ export default function Header({ collapsed }) {
         onSuccess={() => {
           // If on tasks or projects or resources page, refresh or reload
           window.location.reload();
+        }}
+      />
+
+      {/* Base Wework: Reminders Drawer */}
+      <RemindersDrawer
+        open={remindersOpen}
+        onClose={() => setRemindersOpen(false)}
+        onSelectTask={(id) => {
+          setSelectedDetailTaskId(id);
+          setDetailDrawerOpen(true);
+        }}
+        onTaskUpdated={() => {
+          fetchRemindersCount();
+        }}
+      />
+
+      {/* Base Wework: Task Detail Drawer khi click xem chi tiết từ Reminders */}
+      <TaskDetailDrawer
+        open={detailDrawerOpen}
+        taskId={selectedDetailTaskId}
+        onClose={() => {
+          setDetailDrawerOpen(false);
+          setSelectedDetailTaskId(null);
+        }}
+        currentUser={user}
+        onTaskUpdated={() => {
+          fetchRemindersCount();
+          window.dispatchEvent(new CustomEvent('reminders:updated'));
         }}
       />
     </>

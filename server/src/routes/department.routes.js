@@ -4,6 +4,7 @@ const { validate } = require('../middleware/validate');
 const { protect, authorize } = require('../middleware/auth');
 const {
   getDepartments,
+  getDepartmentById,
   createDepartment,
   updateDepartment,
   deleteDepartment,
@@ -25,13 +26,17 @@ const departmentValidation = [
   body('code').optional({ values: 'falsy' }).trim().isLength({ max: 12 }).withMessage('Mã phòng ban không vượt quá 12 ký tự'),
   body('description').optional().trim(),
   body('managerName').optional().trim(),
+  body('managers').optional().isArray().withMessage('Danh sách quản lý phải là mảng'),
+  body('managers.*').optional().isMongoId().withMessage('ID quản lý không hợp lệ'),
+  body('color').optional().trim(),
   body('isActive').optional().isBoolean().withMessage('Trạng thái phòng ban không hợp lệ'),
 ];
 
 router.use(protect);
 
 router.get('/', listValidation, validate, getDepartments);
-router.post('/', authorize('admin', 'project_manager'), departmentValidation, validate, createDepartment);
+router.get('/:id', departmentIdValidation, validate, getDepartmentById);
+router.post('/', departmentValidation, validate, createDepartment);
 router.put('/:id', authorize('admin', 'project_manager'), departmentIdValidation, departmentValidation, validate, updateDepartment);
 router.delete('/:id', authorize('admin'), departmentIdValidation, validate, deleteDepartment);
 

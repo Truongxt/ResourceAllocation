@@ -11,6 +11,7 @@
  *     4. Giờ ước tính, giờ thực tế, tiến độ (%), và khoảng thời gian thực hiện (RangePicker).
  */
 
+import { useMemo } from 'react';
 import {
   Modal,
   Form,
@@ -37,6 +38,7 @@ import {
   priorityOptions,
   requiredSkillLevelOptions,
 } from '../../../i18n/enums';
+import { getTaskPermissions } from '../../../utils/taskPermissions';
 
 const { TextArea } = Input;
 
@@ -46,6 +48,7 @@ export default function TaskFormModal({
   editingTask,
   form,
   canManageTasks = false,
+  currentUser = null,
   projects = [],
   resources = [],
   knownSkillOptions = [],
@@ -56,6 +59,25 @@ export default function TaskFormModal({
   submitting = false,
   t,
 }) {
+  const currentProj = useMemo(() => {
+    const projId = selectedProject || editingTask?.project?._id || editingTask?.project;
+    return (projects || []).find((p) => (p._id || p.id) === projId) || editingTask?.project;
+  }, [selectedProject, editingTask, projects]);
+
+  const taskPerms = useMemo(() => {
+    if (!editingTask) return null;
+    return getTaskPermissions(editingTask, currentProj, currentUser);
+  }, [editingTask, currentProj, currentUser]);
+
+  const canEditDeadline = canManageTasks || (taskPerms?.canEditDeadline ?? false);
+  const canEditTitleDesc = canManageTasks || (taskPerms?.canEditDetails ?? false);
+  const canChangeAssignee = canManageTasks || (taskPerms?.canChangeAssignee ?? false);
+
+  const permissionFeatures = [];
+  if (canEditDeadline) permissionFeatures.push('Gia hạn / Sửa thời hạn');
+  if (canEditTitleDesc) permissionFeatures.push('Sửa tiêu đề & mô tả');
+  if (canChangeAssignee) permissionFeatures.push('Bàn giao công việc');
+
   return (
     <Modal
       title={
@@ -76,8 +98,9 @@ export default function TaskFormModal({
           style={{ marginTop: 8 }}
           message={t('tasks.memberNotice.title') || 'Thông báo phân quyền'}
           description={
-            t('tasks.memberNotice.body') ||
-            'Bạn đang đăng nhập với quyền thành viên. Bạn chỉ có thể cập nhật tiến độ công việc được giao.'
+            editingTask
+              ? `Bạn đang cập nhật công việc với vai trò ${taskPerms?.roleLabel || 'Thành viên'}. Quyền hạn được cấp trong dự án: Tiến độ & giờ thực tế${permissionFeatures.length > 0 ? `, ${permissionFeatures.join(', ')}` : ''}.`
+              : (t('tasks.memberNotice.body') || 'Bạn đang đăng nhập với quyền thành viên. Bạn chỉ có thể cập nhật tiến độ công việc được giao.')
           }
         />
       )}
@@ -89,7 +112,7 @@ export default function TaskFormModal({
           label={t('tasks.form.title') || 'Tiêu đề công việc'}
           rules={[{ required: true, message: t('tasks.form.titleRequired') || 'Vui lòng nhập tiêu đề' }]}
         >
-          <Input placeholder="Thiết kế giao diện bảng Kanban..." disabled={!canManageTasks} />
+          <Input placeholder="Thiết kế giao diện bảng Kanban..." disabled={!canEditTitleDesc} />
         </Form.Item>
 
         {/* Dự án & Trạng thái */}
@@ -124,7 +147,7 @@ export default function TaskFormModal({
               <Select
                 placeholder={t('tasks.form.assigneePlaceholder') || 'Chọn nhân sự phụ trách...'}
                 allowClear
-                disabled={!canManageTasks}
+                disabled={!canChangeAssignee}
                 options={resources.map((r) => ({
                   value: r.user?._id || r.userId || r._id,
                   label: (
@@ -205,7 +228,7 @@ export default function TaskFormModal({
 
         {/* Mô tả chi tiết */}
         <Form.Item name="description" label={t('tasks.form.description') || 'Mô tả chi tiết'}>
-          <TextArea rows={3} placeholder="Mô tả công việc..." disabled={!canManageTasks} />
+          <TextArea rows={3} placeholder="Mô tả công việc..." disabled={!canEditTitleDesc} />
         </Form.Item>
 
         {/* Kỹ năng yêu cầu cho thuật toán tối ưu */}
@@ -319,12 +342,14 @@ export default function TaskFormModal({
           </Col>
         </Row>
 
-        {/* Khoảng ngày thực hiện */}
+        {/* Khoảng ngày thực hiện kèm giờ */}
         <Form.Item name="dateRange" label={t('projects.form.dateRange') || 'Thời gian thực hiện'}>
           <DatePicker.RangePicker
+            showTime={{ format: 'HH:mm' }}
+            format="DD/MM/YYYY HH:mm"
             style={{ width: '100%' }}
-            format="DD/MM/YYYY"
-            disabled={!canManageTasks}
+            disabled={!canEditDeadline}
+            placeholder={['Ngày & giờ bắt đầu', 'Hạn chót & giờ hoàn thành']}
           />
         </Form.Item>
 

@@ -12,6 +12,7 @@ const {
 } = require('../services/refreshToken.service');
 const { generateEmployeeId } = require('../utils/employeeId.util');
 const { sendUserWelcomeEmail } = require('../services/email.service');
+const { logActivity } = require('../services/activityLog.service');
 
 const REFRESH_COOKIE = 'rao_refresh';
 
@@ -631,11 +632,91 @@ const updateUserManager = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Bạn không có quyền thao tác trên tài khoản của công ty khác' });
     }
 
-    targetUser.manager = managerId || null;
-    await targetUser.save();
-    await targetUser.populate('manager', 'name email avatar jobTitle');
+    if (managerId) {
+      if (managerId.toString() === targetUser._id.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể chỉ định người dùng làm người quản lý trực tiếp của chính mình',
+        });
+      }
 
-    res.json({ success: true, data: { user: targetUser }, message: 'Đã cập nhật quản lý trực tiếp' });
+      const candidateManager = await User.findById(managerId);
+      if (!candidateManager) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy người quản lý được chọn',
+        });
+      }
+
+      if (!isSameCompany(targetUser, candidateManager)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Người quản lý trực tiếp phải thuộc cùng công ty',
+        });
+      }
+
+      // Ràng buộc cấp bậc (Hierarchy Constraints):
+      // 1. Quản trị cấp cao (Owner/CEO/Founder): Không thể có quản lý là Member hoặc PM
+      if (targetUser.isOwner && !candidateManager.isOwner) {
+        return res.status(400).json({
+          success: false,
+          message: 'Quản trị cấp cao / CEO / Chủ tịch là vị trí quản trị cao nhất, không thể chỉ định thành viên hoặc cấp dưới làm người quản lý trực tiếp.',
+        });
+      }
+
+      // 2. Admin không thể bị quản lý bởi Member
+      if (targetUser.role === 'admin' && candidateManager.role === 'member') {
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể chỉ định thành viên thông thường làm người quản lý trực tiếp của Quản trị viên hệ thống.',
+        });
+      }
+
+      // 3. Project Manager không thể bị quản lý bởi Member
+      if (targetUser.role === 'project_manager' && candidateManager.role === 'member') {
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể chỉ định nhân viên làm người quản lý trực tiếp của Quản lý dự án (PM).',
+        });
+      }
+
+      // 4. Chống vòng lặp quản lý (Cycle Detection)
+      let currManagerId = candidateManager.manager;
+      const visited = new Set([targetUser._id.toString(), candidateManager._id.toString()]);
+      while (currManagerId) {
+        const currIdStr = currManagerId.toString();
+        if (currIdStr === targetUser._id.toString()) {
+          return res.status(400).json({
+            success: false,
+            message: `Không thể chỉ định ${candidateManager.name} vì sẽ tạo thành vòng lặp quản lý (${candidateManager.name} hoặc cấp trên đang báo cáo cho ${targetUser.name}).`,
+          });
+        }
+        if (visited.has(currIdStr)) break;
+        visited.add(currIdStr);
+        const ancestor = await User.findById(currManagerId).select('manager');
+        currManagerId = ancestor?.manager;
+      }
+
+      targetUser.manager = candidateManager._id;
+    } else {
+      targetUser.manager = null;
+    }
+
+    await targetUser.save();
+    await targetUser.populate('manager', 'name email avatar jobTitle role isOwner');
+
+    await logActivity({
+      req,
+      action: 'UPDATE_USER_MANAGER',
+      entityType: 'auth',
+      entityId: targetUser._id,
+      entityTitle: targetUser.name,
+      description: targetUser.manager
+        ? `Gán ${targetUser.manager.name} làm quản lý trực tiếp cho ${targetUser.name}`
+        : `Xóa quản lý trực tiếp của ${targetUser.name}`,
+    });
+
+    res.json({ success: true, data: { user: targetUser }, message: 'Đã cập nhật quản lý trực tiếp thành công' });
   } catch (error) {
     next(error);
   }
@@ -1026,6 +1107,32 @@ const updateUserAppAdmin = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
     }
+
+    try {
+      const { sendNotification } = require('../services/socket.service');
+      const { logActivity } = require('../services/activityLog.service');
+
+      const appLabels = (user.appAdmins || []).map((k) => (k === 'optimize' ? 'Base Optimize+' : k)).join(', ');
+      sendNotification(user._id, {
+        title: 'Cập nhật quyền Quản trị ứng dụng (App Admin)',
+        message: user.appAdmins.length > 0
+          ? `Bạn đã được chỉ định làm Quản trị ứng dụng cho: ${appLabels}`
+          : 'Quyền Quản trị ứng dụng (App Admin) của bạn đã được cập nhật.',
+        type: 'system_alert',
+        actor: req.user._id,
+      });
+
+      logActivity({
+        user: req.user._id,
+        action: 'UPDATE_APP_ADMIN',
+        description: `Quản trị cấp cao phân quyền App Admin cho nhân sự ${user.name} (${appLabels || 'Chưa cấp'})`,
+        entityType: 'User',
+        entityId: user._id,
+      });
+    } catch {
+      // Non-blocking
+    }
+
     res.json({
       success: true,
       data: { user },

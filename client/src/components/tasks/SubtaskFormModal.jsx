@@ -215,9 +215,14 @@ export default function SubtaskFormModal({
           </Col>
         </Row>
 
-        {/* Khoảng ngày thực hiện */}
+        {/* Khoảng ngày thực hiện kèm giờ */}
         <Form.Item name="dateRange" label="Thời gian thực hiện">
-          <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+          <DatePicker.RangePicker
+            showTime={{ format: 'HH:mm' }}
+            format="DD/MM/YYYY HH:mm"
+            style={{ width: '100%' }}
+            placeholder={['Bắt đầu (ngày & giờ)', 'Hạn chót (ngày & giờ)']}
+          />
         </Form.Item>
 
         {/* Mô tả chi tiết */}

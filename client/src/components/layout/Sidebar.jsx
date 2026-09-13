@@ -29,8 +29,11 @@ export default function Sidebar({ collapsed, onToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark } = useTheme();
-  const { user } = useAuth();
+  const { user, hasAppAccess } = useAuth();
   const { t } = useTranslation();
+
+  const canAccessOptimize = Boolean(hasAppAccess ? hasAppAccess('optimize') : (user?.isOwner || user?.role === 'admin' || user?.appAdmins?.includes('optimize')));
+  const canAccessResource = Boolean(user?.role !== 'member' || user?.isOwner || (hasAppAccess && hasAppAccess('resource')));
 
   const menuItems = [
     {
@@ -58,7 +61,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         { key: '/projects', icon: <ProjectOutlined style={{ fontSize: 16 }} />, label: t('nav.projects') },
         { key: '/tasks', icon: <UnorderedListOutlined style={{ fontSize: 16 }} />, label: t('nav.tasks') },
         { key: '/calendar', icon: <CalendarOutlined style={{ fontSize: 16 }} />, label: t('nav.calendar') || 'Lịch công việc' },
-        ...(user?.role !== 'member'
+        ...(canAccessResource
           ? [{ key: '/resources', icon: <TeamOutlined style={{ fontSize: 16 }} />, label: t('nav.resources') }]
           : []),
       ],
@@ -72,8 +75,12 @@ export default function Sidebar({ collapsed, onToggle }) {
         </span>
       ) : null,
       children: [
-        { key: '/optimization', icon: <ThunderboltOutlined style={{ fontSize: 16, color: '#818cf8' }} />, label: t('nav.optimization') },
-        { key: '/benchmark', icon: <ExperimentOutlined style={{ fontSize: 16, color: '#f59e0b' }} />, label: 'Benchmark Studio' },
+        ...(canAccessOptimize
+          ? [
+              { key: '/optimization', icon: <ThunderboltOutlined style={{ fontSize: 16, color: '#818cf8' }} />, label: t('nav.optimization') },
+              { key: '/benchmark', icon: <ExperimentOutlined style={{ fontSize: 16, color: '#f59e0b' }} />, label: 'Benchmark Studio' },
+            ]
+          : []),
         { key: '/gantt', icon: <BarChartOutlined style={{ fontSize: 16 }} />, label: t('nav.gantt') },
         { key: '/reports', icon: <FileTextOutlined style={{ fontSize: 16 }} />, label: t('nav.reports') },
       ],

@@ -26,6 +26,7 @@ import {
   Dropdown,
   Radio,
   Divider,
+  Alert,
 } from 'antd';
 import {
   UserOutlined,
@@ -47,9 +48,11 @@ import {
   PhoneOutlined,
   ApartmentOutlined,
   CheckCircleFilled,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { roleLabel } from '../../i18n/enums';
 import authService from '../../services/authService';
 import departmentService from '../../services/departmentService';
@@ -60,6 +63,7 @@ const { Option } = Select;
 export default function UserDirectoryTab({ currentUser }) {
   const { t } = useTranslation();
   const { isDark } = useTheme();
+  const { refreshUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
@@ -243,6 +247,52 @@ export default function UserDirectoryTab({ currentUser }) {
     }
   };
 
+  // Lọc danh sách ứng viên Quản lý trực tiếp theo chuẩn phân cấp & chống vòng lặp báo cáo
+  const managerCandidates = useMemo(() => {
+    if (!editManagerUser) return [];
+
+    // Tính toán tất cả các cấp dưới (trực tiếp và gián tiếp) của tài khoản đang xét
+    const subordinateIds = new Set();
+    const queue = [editManagerUser._id.toString()];
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      for (const u of users) {
+        const uManagerId = (u.manager?._id || u.manager)?.toString();
+        const uIdStr = u._id.toString();
+        if (uManagerId && uManagerId === currentId && !subordinateIds.has(uIdStr)) {
+          subordinateIds.add(uIdStr);
+          queue.push(uIdStr);
+        }
+      }
+    }
+
+    return users.filter((u) => {
+      const uIdStr = u._id.toString();
+      // 1. Không thể chọn chính mình
+      if (uIdStr === editManagerUser._id.toString()) return false;
+
+      // 2. Không thể chọn người đang báo cáo cho mình (chống vòng lặp quản trị)
+      if (subordinateIds.has(uIdStr)) return false;
+
+      // 3. Quản trị cấp cao (Owner/CEO/Founder/Chủ tịch): Cấp dưới không thể quản lý cấp trên
+      if (editManagerUser.isOwner) {
+        return Boolean(u.isOwner);
+      }
+
+      // 4. Quản trị hệ thống (Admin): Thành viên thông thường không thể quản lý
+      if (editManagerUser.role === 'admin' && u.role === 'member') {
+        return false;
+      }
+
+      // 5. Quản lý dự án (PM): Thành viên thông thường không thể quản lý
+      if (editManagerUser.role === 'project_manager' && u.role === 'member') {
+        return false;
+      }
+
+      return true;
+    });
+  }, [editManagerUser, users]);
+
   // 7. Gán quản lý
   const handleSaveManager = async (values) => {
     if (!editManagerUser) return;
@@ -306,6 +356,9 @@ export default function UserDirectoryTab({ currentUser }) {
     try {
       await authService.updateUserAppAdmin(appAdminModalUser._id, selectedApps);
       message.success(`Đã cập nhật quyền App Admin cho ${appAdminModalUser.name}`);
+      if (appAdminModalUser._id === currentUser?._id && refreshUser) {
+        refreshUser();
+      }
       setAppAdminModalUser(null);
       loadUsers();
     } catch (err) {
@@ -924,23 +977,64 @@ export default function UserDirectoryTab({ currentUser }) {
         open={Boolean(editManagerUser)}
         onCancel={() => setEditManagerUser(null)}
         footer={null}
-        width={460}
+        width={500}
       >
-        <Form form={managerForm} layout="vertical" onFinish={handleSaveManager} style={{ marginTop: 16 }}>
-          <Form.Item name="managerId" label="Người quản lý trực tiếp (Direct Manager)">
+        {editManagerUser?.isOwner && (
+          <Alert
+            type="warning"
+            showIcon
+            message="Tài khoản Quản trị cấp cao (CEO / Founder / Chủ tịch)"
+            description="Đây là cấp quản trị cao nhất trong sơ đồ tổ chức công ty. Nhân viên hoặc thành viên cấp dưới không thể làm người quản lý trực tiếp của Quản trị cấp cao."
+            style={{ marginTop: 12, marginBottom: 16, borderRadius: 8 }}
+          />
+        )}
+
+        <Form form={managerForm} layout="vertical" onFinish={handleSaveManager} style={{ marginTop: 12 }}>
+          <Form.Item
+            name="managerId"
+            label={
+              <Space>
+                <Text strong>Người quản lý trực tiếp (Direct Manager)</Text>
+                <Tooltip title="Chỉ những nhân sự có cấp bậc phù hợp và không thuộc chuỗi báo cáo cấp dưới mới có thể làm quản lý trực tiếp.">
+                  <InfoCircleOutlined style={{ color: '#64748b' }} />
+                </Tooltip>
+              </Space>
+            }
+          >
             <Select
-              placeholder="Chọn người quản lý..."
+              placeholder="Chọn người quản lý hoặc để trống..."
               allowClear
               showSearch
               optionFilterProp="label"
-              options={users
-                .filter((u) => u._id !== editManagerUser?._id)
-                .map((u) => ({
+              options={[
+                {
+                  value: null,
+                  label: '— Chưa thiết lập (Không có quản lý trực tiếp) —',
+                },
+                ...managerCandidates.map((u) => ({
                   value: u._id,
-                  label: `${u.name} (${u.jobTitle || roleLabel(u.role)})`,
-                }))}
+                  label: `${u.name} (${u.isOwner ? '★ Quản trị cấp cao' : u.role === 'admin' ? 'Admin' : u.role === 'project_manager' ? 'PM' : 'Thành viên'}${u.jobTitle ? ` • ${u.jobTitle}` : ''})`,
+                })),
+              ]}
             />
           </Form.Item>
+
+          {managerCandidates.length === 0 && !editManagerUser?.isOwner && (
+            <div
+              style={{
+                padding: '10px 14px',
+                background: isDark ? '#1e293b' : '#f8fafc',
+                borderRadius: 8,
+                border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+                color: '#64748b',
+                fontSize: 12.5,
+                marginBottom: 14,
+              }}
+            >
+              ℹ️ Hiện không có nhân sự phù hợp cao hơn trong danh bạ để gán quản lý trực tiếp. Bạn có thể để trống mục này.
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
             <Button onClick={() => setEditManagerUser(null)}>Hủy</Button>
             <Button type="primary" htmlType="submit" style={{ background: '#2563eb' }}>

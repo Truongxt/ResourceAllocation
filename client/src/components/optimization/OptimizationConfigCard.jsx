@@ -21,13 +21,16 @@
  *   - @param {Function} t - Hàm dịch ngôn ngữ i18n
  */
 
-import { Typography, Select, Button, Space, Divider, Row, Col, InputNumber, Slider } from 'antd';
+import { Typography, Select, Button, Space, Divider, Row, Col, InputNumber, Slider, Tooltip, Tag } from 'antd';
 import {
   PlayCircleOutlined,
   SettingOutlined,
   ControlOutlined,
   AimOutlined,
   ApartmentOutlined,
+  DollarOutlined,
+  InfoCircleOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
 import { ALGO_VALUES, ALGO_META } from './OptimizationConstants';
 
@@ -43,6 +46,12 @@ export default function OptimizationConfigCard({
   onRun,
   t,
 }) {
+  const wWorkload = params.workloadWeight || 0;
+  const wSkill = params.skillWeight || 0;
+  const wCost = params.costWeight || 0;
+  const wOverload = params.overallocationWeight || 0;
+  const totalWeight = Number((wWorkload + wSkill + wCost + wOverload).toFixed(2));
+
   return (
     <div className="saas-card" style={{ padding: 20 }}>
       {/* Tiêu đề panel */}
@@ -79,7 +88,8 @@ export default function OptimizationConfigCard({
                 ...p,
                 workloadWeight: 0.5,
                 skillWeight: 0.2,
-                overallocationWeight: 0.3,
+                costWeight: 0.1,
+                overallocationWeight: 0.2,
               }))
             }
             style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -94,12 +104,45 @@ export default function OptimizationConfigCard({
                 ...p,
                 workloadWeight: 0.2,
                 skillWeight: 0.6,
-                overallocationWeight: 0.2,
+                costWeight: 0.1,
+                overallocationWeight: 0.1,
               }))
             }
             style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             Khớp kỹ năng
+          </Button>
+          <Button
+            size="small"
+            icon={<DollarOutlined style={{ color: '#f59e0b' }} />}
+            onClick={() =>
+              setParams((p) => ({
+                ...p,
+                workloadWeight: 0.2,
+                skillWeight: 0.2,
+                costWeight: 0.5,
+                overallocationWeight: 0.1,
+              }))
+            }
+            style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            Tiết kiệm chi phí
+          </Button>
+          <Button
+            size="small"
+            icon={<StarOutlined style={{ color: '#6366f1' }} />}
+            onClick={() =>
+              setParams((p) => ({
+                ...p,
+                workloadWeight: 0.3,
+                skillWeight: 0.35,
+                costWeight: 0.15,
+                overallocationWeight: 0.2,
+              }))
+            }
+            style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            Toàn diện
           </Button>
         </div>
       </div>
@@ -146,10 +189,15 @@ export default function OptimizationConfigCard({
       {/* Các tham số tiến hóa GA (Chỉ hiển thị khi dùng GA hoặc Hybrid) */}
       {algorithm !== 'csp' && (
         <>
-          <Divider style={{ margin: '16px 0' }}>{t('optimization.gaParams')}</Divider>
+          <Divider style={{ margin: '16px 0' }}>{t('optimization.gaParams') || 'Tham số giải thuật GA'}</Divider>
           <Row gutter={12} style={{ marginBottom: 12 }}>
             <Col span={12}>
-              <Text style={{ fontSize: 12 }}>Population Size</Text>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+                <Text style={{ fontSize: 12 }}>Population Size</Text>
+                <Tooltip title="Quy mô quần thể: số lượng phương án phân công trong mỗi thế hệ (khuyên dùng: 50 - 200).">
+                  <InfoCircleOutlined style={{ color: '#94a3b8', fontSize: 11, marginLeft: 4 }} />
+                </Tooltip>
+              </div>
               <InputNumber
                 min={10}
                 max={500}
@@ -159,7 +207,12 @@ export default function OptimizationConfigCard({
               />
             </Col>
             <Col span={12}>
-              <Text style={{ fontSize: 12 }}>Max Generations</Text>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+                <Text style={{ fontSize: 12 }}>Max Generations</Text>
+                <Tooltip title="Số thế hệ tối đa: số vòng lặp lai ghép và đột biến để tìm lời giải hội tụ (50 - 2000).">
+                  <InfoCircleOutlined style={{ color: '#94a3b8', fontSize: 11, marginLeft: 4 }} />
+                </Tooltip>
+              </div>
               <InputNumber
                 min={50}
                 max={2000}
@@ -172,7 +225,12 @@ export default function OptimizationConfigCard({
 
           <Row gutter={12} style={{ marginBottom: 16 }}>
             <Col span={12}>
-              <Text style={{ fontSize: 12 }}>Crossover Rate</Text>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+                <Text style={{ fontSize: 12 }}>Crossover Rate</Text>
+                <Tooltip title="Xác suất lai ghép: trao đổi phân công giữa 2 phương án cha mẹ (0.7 - 0.9).">
+                  <InfoCircleOutlined style={{ color: '#94a3b8', fontSize: 11, marginLeft: 4 }} />
+                </Tooltip>
+              </div>
               <InputNumber
                 min={0.1}
                 max={1}
@@ -183,7 +241,12 @@ export default function OptimizationConfigCard({
               />
             </Col>
             <Col span={12}>
-              <Text style={{ fontSize: 12 }}>Mutation Rate</Text>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+                <Text style={{ fontSize: 12 }}>Mutation Rate</Text>
+                <Tooltip title="Xác suất đột biến: thay đổi phân công ngẫu nhiên để tránh bế tắc cực trị cục bộ (0.05 - 0.15).">
+                  <InfoCircleOutlined style={{ color: '#94a3b8', fontSize: 11, marginLeft: 4 }} />
+                </Tooltip>
+              </div>
               <InputNumber
                 min={0.01}
                 max={0.5}
@@ -195,13 +258,38 @@ export default function OptimizationConfigCard({
             </Col>
           </Row>
 
-          <Divider style={{ margin: '16px 0' }}>{t('optimization.fitnessWeights')}</Divider>
+          <Divider style={{ margin: '16px 0 10px 0' }}>
+            <Space size={6}>
+              <span>{t('optimization.fitnessWeights') || 'Trọng số mục tiêu (Fitness)'}</span>
+              <Tag color={totalWeight > 1 ? 'warning' : 'blue'} style={{ borderRadius: 8, fontSize: 10, margin: 0 }}>
+                Tổng: {totalWeight}
+              </Tag>
+            </Space>
+          </Divider>
+
+          {/* Thanh phân bổ trực quan các trọng số */}
+          {totalWeight > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', background: '#e2e8f0' }}>
+                <div style={{ width: `${(wWorkload / totalWeight) * 100}%`, background: '#3b82f6' }} title="Tải" />
+                <div style={{ width: `${(wSkill / totalWeight) * 100}%`, background: '#10b981' }} title="Kỹ năng" />
+                <div style={{ width: `${(wCost / totalWeight) * 100}%`, background: '#f59e0b' }} title="Chi phí" />
+                <div style={{ width: `${(wOverload / totalWeight) * 100}%`, background: '#a855f7' }} title="Chống quá tải" />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
+                <span style={{ color: '#3b82f6' }}>● Tải {Math.round((wWorkload / totalWeight) * 100)}%</span>
+                <span style={{ color: '#10b981' }}>● Skill {Math.round((wSkill / totalWeight) * 100)}%</span>
+                <span style={{ color: '#f59e0b' }}>● Phí {Math.round((wCost / totalWeight) * 100)}%</span>
+                <span style={{ color: '#a855f7' }}>● Quá tải {Math.round((wOverload / totalWeight) * 100)}%</span>
+              </div>
+            </div>
+          )}
 
           {/* Trọng số Cân bằng tải */}
-          <div style={{ marginBottom: 8 }}>
+          <div style={{ marginBottom: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 12 }}>{t('optimization.weightWorkload')}</Text>
-              <Text strong style={{ fontSize: 12 }}>{params.workloadWeight}</Text>
+              <Text style={{ fontSize: 12 }}>{t('optimization.weightWorkload') || 'Cân bằng tải (Workload)'}</Text>
+              <Text strong style={{ fontSize: 12, color: '#3b82f6' }}>{params.workloadWeight}</Text>
             </div>
             <Slider
               min={0}
@@ -209,14 +297,15 @@ export default function OptimizationConfigCard({
               step={0.05}
               value={params.workloadWeight}
               onChange={(val) => setParams((p) => ({ ...p, workloadWeight: val }))}
+              style={{ margin: '6px 0 12px 0' }}
             />
           </div>
 
           {/* Trọng số Khớp kỹ năng */}
-          <div style={{ marginBottom: 8 }}>
+          <div style={{ marginBottom: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 12 }}>{t('optimization.weightSkill')}</Text>
-              <Text strong style={{ fontSize: 12 }}>{params.skillWeight}</Text>
+              <Text style={{ fontSize: 12 }}>{t('optimization.weightSkill') || 'Khớp kỹ năng (Skill Match)'}</Text>
+              <Text strong style={{ fontSize: 12, color: '#10b981' }}>{params.skillWeight}</Text>
             </div>
             <Slider
               min={0}
@@ -224,14 +313,31 @@ export default function OptimizationConfigCard({
               step={0.05}
               value={params.skillWeight}
               onChange={(val) => setParams((p) => ({ ...p, skillWeight: val }))}
+              style={{ margin: '6px 0 12px 0' }}
+            />
+          </div>
+
+          {/* Trọng số Tiết kiệm chi phí */}
+          <div style={{ marginBottom: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 12 }}>{t('optimization.weightCost') || 'Tiết kiệm chi phí (Cost)'}</Text>
+              <Text strong style={{ fontSize: 12, color: '#f59e0b' }}>{params.costWeight ?? 0.15}</Text>
+            </div>
+            <Slider
+              min={0}
+              max={1}
+              step={0.05}
+              value={params.costWeight ?? 0.15}
+              onChange={(val) => setParams((p) => ({ ...p, costWeight: val }))}
+              style={{ margin: '6px 0 12px 0' }}
             />
           </div>
 
           {/* Trọng số Chống quá tải */}
-          <div style={{ marginBottom: 8 }}>
+          <div style={{ marginBottom: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 12 }}>{t('optimization.weightOverload')}</Text>
-              <Text strong style={{ fontSize: 12 }}>{params.overallocationWeight}</Text>
+              <Text style={{ fontSize: 12 }}>{t('optimization.weightOverload') || 'Tránh quá tải (Overload Penalty)'}</Text>
+              <Text strong style={{ fontSize: 12, color: '#a855f7' }}>{params.overallocationWeight}</Text>
             </div>
             <Slider
               min={0}
@@ -239,6 +345,7 @@ export default function OptimizationConfigCard({
               step={0.05}
               value={params.overallocationWeight}
               onChange={(val) => setParams((p) => ({ ...p, overallocationWeight: val }))}
+              style={{ margin: '6px 0 12px 0' }}
             />
           </div>
         </>

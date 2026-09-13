@@ -38,6 +38,16 @@ const projectService = {
   removeMember(id, userId) {
     return api.delete(`/projects/${id}/members/${userId}`);
   },
+
+  // Base Wework: Cập nhật cấu hình phân quyền thao tác trong dự án
+  updatePermissions(id, permissions) {
+    return api.patch(`/projects/${id}/permissions`, { permissions });
+  },
+
+  // Base Wework: Chỉnh sửa nhanh (Quick Edit) dự án / phòng ban
+  quickUpdate(id, data) {
+    return api.patch(`/projects/${id}/quick-edit`, data);
+  },
 };
 
 export default projectService;

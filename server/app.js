@@ -16,6 +16,7 @@ const notificationRoutes = require('./src/routes/notification.routes');
 const activityLogRoutes = require('./src/routes/activityLog.routes');
 const taskGroupRoutes = require('./src/routes/taskGroup.routes');
 const recurringTaskRoutes = require('./src/routes/recurringTask.routes');
+const companySettingRoutes = require('./src/routes/companySetting.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./src/middleware/error');
@@ -68,6 +69,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/task-groups', taskGroupRoutes);
 app.use('/api/recurring-tasks', recurringTaskRoutes);
+app.use('/api/company-settings', companySettingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

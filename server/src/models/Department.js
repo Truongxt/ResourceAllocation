@@ -30,6 +30,17 @@ const departmentSchema = new mongoose.Schema(
       trim: true,
       maxlength: [100, 'Tên quản lý không vượt quá 100 ký tự'],
     },
+    managers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+    color: {
+      type: String,
+      trim: true,
+      default: '#6366f1',
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -38,7 +49,8 @@ const departmentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+departmentSchema.index({ name: 1, companyName: 1 }, { unique: true });
+departmentSchema.index({ code: 1, companyName: 1 }, { unique: true, sparse: true });
 departmentSchema.index({ isActive: 1, companyName: 1, name: 1 });
-departmentSchema.index({ name: 1, companyName: 1 });
 
 module.exports = mongoose.model('Department', departmentSchema);

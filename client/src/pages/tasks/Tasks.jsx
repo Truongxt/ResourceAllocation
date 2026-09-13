@@ -29,6 +29,7 @@ import {
   SendOutlined,
   EyeOutlined,
   TeamOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import taskService from '../../services/taskService';
@@ -37,6 +38,7 @@ import resourceService from '../../services/resourceService';
 import taskGroupService from '../../services/taskGroupService';
 import { TASK_STATUSES as STATUS_COLS, ROLES } from '../../constants';
 import { invalidPredecessors } from '../../utils/gantt';
+import { getTaskPermissions } from '../../utils/taskPermissions';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import TaskKpiChips from './components/TaskKpiChips';
@@ -47,6 +49,7 @@ import TaskFormModal from './components/TaskFormModal';
 import TaskDetailDrawer from '../../components/tasks/TaskDetailDrawer';
 import TaskExcelImportModal from '../../components/tasks/TaskExcelImportModal';
 import RecurringTaskModal from '../../components/tasks/RecurringTaskModal';
+import RemindersDrawer from '../../components/tasks/RemindersDrawer';
 import './Tasks.css';
 
 const { Title, Text } = Typography;
@@ -79,17 +82,30 @@ export default function Tasks() {
   const [timeFilter, setTimeFilter] = useState('all'); // 'all' | 'today' | 'this_week' | 'overdue' | 'done'
   const [excelModalOpen, setExcelModalOpen] = useState(false);
   const [recurringModalOpen, setRecurringModalOpen] = useState(false);
+  const [remindersOpen, setRemindersOpen] = useState(false);
 
   const [form] = Form.useForm();
   const selectedProject = Form.useWatch('project', form);
 
-  // Phân quyền: Admin và PM có toàn quyền; Member chỉ sửa task của chính mình
-  const canManageTasks = user?.role === ROLES.ADMIN || user?.role === ROLES.PM;
+  // Phân quyền: Admin và PM có toàn quyền; Creator và Assignee sửa task của mình
+  const canManageTasks = user?.role === ROLES.ADMIN || user?.role === ROLES.PM || Boolean(user?.isOwner);
   const isAssignedToMe = (task) => {
     const assigneeId = task?.assignee?._id || task?.assignee;
-    return !!assigneeId && !!user?._id && assigneeId === user._id;
+    return !!assigneeId && !!user?._id && assigneeId.toString() === user._id.toString();
   };
-  const canEditTask = (task) => canManageTasks || isAssignedToMe(task);
+  const isCreatedByMe = (task) => {
+    const creatorId = task?.createdBy?._id || task?.createdBy;
+    return !!creatorId && !!user?._id && creatorId.toString() === user._id.toString();
+  };
+  const canEditTask = (task) => {
+    if (!task) return false;
+    if (canManageTasks) return true;
+    const taskProj =
+      (projects || []).find((p) => (p._id || p.id) === (task.project?._id || task.project)) || task.project;
+    const perms = getTaskPermissions(task, taskProj, user);
+    return perms.canEditDetails || perms.canEditDeadline || perms.canChangeAssignee || perms.canUpdateStatus;
+  };
+  const canCreateAnyTask = canManageTasks || (Array.isArray(projects) && projects.length > 0);
 
   /**
    * Tải danh sách công việc theo bộ lọc
@@ -367,7 +383,33 @@ export default function Tasks() {
       delete payload.dateRange;
 
       if (editingTask) {
-        await taskService.update(editingTask._id, payload);
+        if (!canManageTasks) {
+          const taskProj =
+            (projects || []).find((p) => (p._id || p.id) === (editingTask.project?._id || editingTask.project)) ||
+            editingTask.project;
+          const perms = getTaskPermissions(editingTask, taskProj, user);
+
+          const filteredPayload = {};
+          if (payload.status !== undefined) filteredPayload.status = payload.status;
+          if (payload.progress !== undefined) filteredPayload.progress = payload.progress;
+          if (payload.actualHours !== undefined) filteredPayload.actualHours = payload.actualHours;
+
+          if (perms.canEditDeadline) {
+            if (payload.startDate !== undefined) filteredPayload.startDate = payload.startDate;
+            if (payload.endDate !== undefined) filteredPayload.endDate = payload.endDate;
+          }
+          if (perms.canEditDetails) {
+            if (payload.title !== undefined) filteredPayload.title = payload.title;
+            if (payload.description !== undefined) filteredPayload.description = payload.description;
+          }
+          if (perms.canChangeAssignee && payload.assignee !== undefined) {
+            filteredPayload.assignee = payload.assignee;
+          }
+
+          await taskService.update(editingTask._id, filteredPayload);
+        } else {
+          await taskService.update(editingTask._id, payload);
+        }
         message.success(t('tasks.updated') || 'Đã cập nhật công việc');
       } else {
         await taskService.create(payload);
@@ -430,7 +472,15 @@ export default function Tasks() {
             Việc lặp lại
           </Button>
 
-          {canManageTasks && (
+          {/* Base Wework: Nút Nhắc việc (Reminders) */}
+          <Button
+            icon={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
+            onClick={() => setRemindersOpen(true)}
+          >
+            Nhắc việc
+          </Button>
+
+          {canCreateAnyTask && (
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -573,6 +623,7 @@ export default function Tasks() {
           onOpenDetail={handleOpenDetail}
           onDelete={handleDelete}
           onDuplicate={handleDuplicateTask}
+          onOpenDeadline={handleOpenDetail}
           t={t}
         />
       ) : (
@@ -600,6 +651,7 @@ export default function Tasks() {
         editingTask={editingTask}
         form={form}
         canManageTasks={canManageTasks}
+        currentUser={user}
         projects={projects}
         resources={resources}
         knownSkillOptions={knownSkillOptions}
@@ -647,6 +699,17 @@ export default function Tasks() {
         projects={projects}
         resources={resources}
         onTaskGenerated={loadTasks}
+      />
+
+      {/* 8. Drawer Nhắc nhở công việc cần hoàn thành (Base Wework Reminders) */}
+      <RemindersDrawer
+        open={remindersOpen}
+        onClose={() => setRemindersOpen(false)}
+        onSelectTask={(id) => {
+          setSelectedDetailTaskId(id);
+          setDetailDrawerOpen(true);
+        }}
+        onTaskUpdated={loadTasks}
       />
     </div>
   );

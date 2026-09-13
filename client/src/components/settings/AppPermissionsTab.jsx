@@ -49,7 +49,9 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
+import companySettingService from '../../services/companySettingService';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -57,6 +59,7 @@ const { Option } = Select;
 export default function AppPermissionsTab() {
   const { t } = useTranslation();
   const { isDark } = useTheme();
+  const { user: currentUser, refreshUser } = useAuth();
 
   // State
   const [activeSubTab, setActiveSubTab] = useState('matrix');
@@ -78,6 +81,44 @@ export default function AppPermissionsTab() {
   const [guestModalOpen, setGuestModalOpen] = useState(false);
   const [guestForm] = Form.useForm();
   const [creatingGuest, setCreatingGuest] = useState(false);
+
+  // Base Wework Company Settings state (help.base.vn/articles/63000270226)
+  const [companySettings, setCompanySettings] = useState({
+    createProjectPermission: 'only_admin',
+    createDepartmentPermission: 'only_admin',
+  });
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // Load Base Wework settings
+  const loadCompanySettings = async () => {
+    setLoadingSettings(true);
+    try {
+      const res = await companySettingService.getSettings();
+      if (res.data?.data?.settings) {
+        setCompanySettings(res.data.data.settings);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải cài đặt công ty:', err);
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
+  const handleSaveCompanySettings = async () => {
+    setSavingSettings(true);
+    try {
+      const res = await companySettingService.updateSettings(companySettings);
+      message.success('Đã lưu cấu hình phân quyền Base Wework thành công!');
+      if (res.data?.data?.settings) {
+        setCompanySettings(res.data.data.settings);
+      }
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Có lỗi khi lưu cài đặt');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   // Load matrix & catalog
   const loadMatrix = async () => {
@@ -112,6 +153,7 @@ export default function AppPermissionsTab() {
   useEffect(() => {
     loadMatrix();
     loadUsersAndGuests();
+    loadCompanySettings();
   }, []);
 
   // Filter matrix data
@@ -312,6 +354,9 @@ export default function AppPermissionsTab() {
     try {
       await authService.updateUserAppAdmin(selectedUserForAppAdmin._id, selectedApps);
       message.success(`Đã cập nhật quyền App Admin cho ${selectedUserForAppAdmin.name}`);
+      if (selectedUserForAppAdmin._id === currentUser?._id && refreshUser) {
+        refreshUser();
+      }
       setAppAdminModalOpen(false);
       loadUsersAndGuests();
     } catch (err) {
@@ -871,6 +916,155 @@ export default function AppPermissionsTab() {
                   ]}
                   locale={{ emptyText: 'Chưa có tài khoản khách nào. Bấm nút tạo mới để thêm.' }}
                 />
+              </div>
+            ),
+          },
+          {
+            key: 'wework_custom',
+            label: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+                <SettingOutlined />
+                <span>Tùy chỉnh khác (Base Wework)</span>
+              </span>
+            ),
+            children: (
+              <div>
+                <div
+                  style={{
+                    padding: '24px 28px',
+                    borderRadius: 14,
+                    background: isDark ? 'rgba(15, 23, 42, 0.6)' : '#ffffff',
+                    border: isDark ? '1px solid #1e293b' : '1px solid #e2e8f0',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                    <div>
+                      <Title level={5} style={{ margin: '0 0 4px 0', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <ApartmentOutlined style={{ color: '#6366f1' }} />
+                        Phân Quyền Tạo Phòng Ban & Dự Án
+                      </Title>
+                      <Text type="secondary" style={{ fontSize: 13 }}>
+                        Cấu hình phân quyền hệ thống chuẩn Base Wework (Theo tài liệu: help.base.vn/articles/63000270226)
+                      </Text>
+                    </div>
+                    <Tag color="purple" style={{ borderRadius: 12, padding: '3px 12px', fontWeight: 600 }}>
+                      Dành cho Quản trị hệ thống (System Owner)
+                    </Tag>
+                  </div>
+
+                  <Divider style={{ margin: '12px 0 20px 0' }} />
+
+                  {/* Mục 1: Quyền tạo dự án mới */}
+                  <div style={{ marginBottom: 28 }}>
+                    <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 6 }}>
+                      1. Quyền tạo dự án mới (Project Creation Permission)
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 12.5, display: 'block', marginBottom: 12 }}>
+                      Xác định nhóm nhân sự nào trong công ty được phép khởi tạo các dự án mới trong phân hệ Base Wework.
+                    </Text>
+
+                    <Radio.Group
+                      value={companySettings.createProjectPermission}
+                      onChange={(e) =>
+                        setCompanySettings((prev) => ({ ...prev, createProjectPermission: e.target.value }))
+                      }
+                      style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+                    >
+                      <Radio value="only_admin">
+                        <Space direction="vertical" size={1}>
+                          <Text strong style={{ fontSize: 13 }}>Chỉ Quản trị viên (Admin & App Admin Wework)</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            Mặc định chuẩn Base: Chỉ System Owner, Admin và Quản trị ứng dụng Wework mới có quyền tạo dự án.
+                          </Text>
+                        </Space>
+                      </Radio>
+                      <Radio value="all_members">
+                        <Space direction="vertical" size={1}>
+                          <Text strong style={{ fontSize: 13 }}>Tất cả thành viên (All Members)</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            Cho phép mọi thành viên trong công ty tự do khởi tạo dự án mới.
+                          </Text>
+                        </Space>
+                      </Radio>
+                    </Radio.Group>
+                  </div>
+
+                  <Divider style={{ margin: '20px 0' }} />
+
+                  {/* Mục 2: Quyền tạo phòng ban mới */}
+                  <div style={{ marginBottom: 28 }}>
+                    <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 6 }}>
+                      2. Quyền tạo phòng ban mới (Department Creation Permission)
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 12.5, display: 'block', marginBottom: 12 }}>
+                      Xác định nhóm nhân sự nào được quyền tạo khối / phòng ban (Department) mới để phân nhóm các dự án.
+                    </Text>
+
+                    <Radio.Group
+                      value={companySettings.createDepartmentPermission}
+                      onChange={(e) =>
+                        setCompanySettings((prev) => ({ ...prev, createDepartmentPermission: e.target.value }))
+                      }
+                      style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+                    >
+                      <Radio value="only_admin">
+                        <Space direction="vertical" size={1}>
+                          <Text strong style={{ fontSize: 13 }}>Chỉ Quản trị viên (Admin & App Admin Wework)</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            Mặc định chuẩn Base: Chỉ System Owner, Admin và Quản trị ứng dụng Wework mới có quyền tạo phòng ban.
+                          </Text>
+                        </Space>
+                      </Radio>
+                      <Radio value="all_members">
+                        <Space direction="vertical" size={1}>
+                          <Text strong style={{ fontSize: 13 }}>Tất cả thành viên (All Members)</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            Cho phép mọi thành viên trong công ty tự do khởi tạo phòng ban mới.
+                          </Text>
+                        </Space>
+                      </Radio>
+                    </Radio.Group>
+                  </div>
+
+                  {/* Note từ Base.vn */}
+                  <div
+                    style={{
+                      padding: '14px 18px',
+                      borderRadius: 10,
+                      background: isDark ? 'rgba(30, 41, 59, 0.5)' : '#eff6ff',
+                      border: isDark ? '1px solid #1e293b' : '1px solid #bfdbfe',
+                      marginBottom: 24,
+                    }}
+                  >
+                    <Text strong style={{ color: '#2563eb', fontSize: 13, display: 'block', marginBottom: 4 }}>
+                      💡 NOTE CHUẨN BASE WEWORK:
+                    </Text>
+                    <Text style={{ fontSize: 12.5, color: isDark ? '#cbd5e1' : '#334155' }}>
+                      - Quản trị hệ thống (System Owner) và Quản trị ứng dụng (App Admin Wework) mặc định luôn luôn có toàn quyền tạo và quản lý phòng ban / dự án.
+                    </Text>
+                  </div>
+
+                  {/* Nút lưu cài đặt */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                    <Button onClick={loadCompanySettings} disabled={savingSettings}>
+                      Đặt lại
+                    </Button>
+                    <Button
+                      type="primary"
+                      onClick={handleSaveCompanySettings}
+                      loading={savingSettings}
+                      style={{
+                        background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                        boxShadow: '0 2px 8px rgba(37, 99, 235, 0.35)',
+                        fontWeight: 600,
+                        padding: '0 24px',
+                      }}
+                    >
+                      Lưu thay đổi cài đặt
+                    </Button>
+                  </div>
+                </div>
               </div>
             ),
           },
