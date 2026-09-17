@@ -125,8 +125,8 @@ export default function TaskTableView({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
               {record.project && (
-                <Text type="secondary" style={{ fontSize: 11 }}>
-                  📁 {record.project.name}
+                <Text type="secondary" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <FolderOutlined style={{ fontSize: 11 }} /> {record.project.name}
                 </Text>
               )}
 

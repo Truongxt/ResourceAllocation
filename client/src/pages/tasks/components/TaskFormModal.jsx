@@ -32,6 +32,7 @@ import {
   UserOutlined,
   PlusOutlined,
   MinusCircleOutlined,
+  FolderOutlined,
 } from '@ant-design/icons';
 import {
   taskStatusOptions,
@@ -183,8 +184,8 @@ export default function TaskFormModal({
                 options={(taskGroups || []).map((g) => ({
                   value: g._id,
                   label: (
-                    <span style={{ color: g.color || '#3b82f6', fontWeight: 600 }}>
-                      📁 {g.name}
+                    <span style={{ color: g.color || '#3b82f6', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <FolderOutlined /> {g.name}
                     </span>
                   ),
                 }))}

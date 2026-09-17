@@ -38,7 +38,7 @@ export default function DashboardKpiCards({
       {/* Thẻ 1: Dự án */}
       <Col xs={24} sm={12} lg={6}>
         <div
-          className="saas-card saas-card-interactive"
+          className="bento-card bento-card-interactive"
           style={{ padding: '20px', cursor: 'pointer' }}
           onClick={() => navigate('/projects')}
         >
@@ -77,7 +77,7 @@ export default function DashboardKpiCards({
       {/* Thẻ 2: Công việc */}
       <Col xs={24} sm={12} lg={6}>
         <div
-          className="saas-card saas-card-interactive"
+          className="bento-card bento-card-interactive"
           style={{ padding: '20px', cursor: 'pointer' }}
           onClick={() => navigate('/tasks')}
         >
@@ -116,7 +116,7 @@ export default function DashboardKpiCards({
       {/* Thẻ 3: Nhân sự */}
       <Col xs={24} sm={12} lg={6}>
         <div
-          className="saas-card saas-card-interactive"
+          className="bento-card bento-card-interactive"
           style={{ padding: '20px', cursor: user?.role !== 'member' ? 'pointer' : 'default' }}
           onClick={() => user?.role !== 'member' && navigate('/resources')}
         >
@@ -155,7 +155,7 @@ export default function DashboardKpiCards({
       {/* Thẻ 4: Cảnh báo quá tải */}
       <Col xs={24} sm={12} lg={6}>
         <div
-          className="saas-card saas-card-interactive"
+          className="bento-card bento-card-interactive"
           style={{
             padding: '20px',
             cursor: 'pointer',

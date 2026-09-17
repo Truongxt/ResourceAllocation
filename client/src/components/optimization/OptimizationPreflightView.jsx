@@ -508,7 +508,7 @@ export default function OptimizationPreflightView({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 18 }}>⚡</span>
+              <ThunderboltOutlined style={{ fontSize: 16, color: '#10b981' }} />
               <Text strong style={{ fontSize: 13, color: '#10b981' }}>Hybrid (CSP + GA)</Text>
             </div>
             <Text type="secondary" style={{ fontSize: 12, display: 'block', lineHeight: 1.5 }}>

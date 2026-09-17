@@ -35,6 +35,9 @@ import {
   RollbackOutlined,
   WarningOutlined,
   ApartmentOutlined,
+  UserOutlined,
+  FolderOutlined,
+  RiseOutlined,
 } from '@ant-design/icons';
 import { formatNumber } from '../../i18n/format';
 import OptimizationPreflightView from './OptimizationPreflightView';
@@ -78,8 +81,8 @@ export default function OptimizationResultView({
           <Text strong style={{ fontSize: 13 }}>{title || r.title}</Text>
           {r.task?.project?.name && (
             <div>
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                📁 {r.task.project.name}
+              <Text type="secondary" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <FolderOutlined style={{ fontSize: 11 }} /> {r.task.project.name}
               </Text>
             </div>
           )}
@@ -91,8 +94,8 @@ export default function OptimizationResultView({
       dataIndex: 'resourceName',
       key: 'resourceName',
       render: (name, r) => (
-        <Space>
-          <span style={{ fontSize: 14 }}>👤</span>
+        <Space size={6}>
+          <UserOutlined style={{ color: '#818cf8' }} />
           <Text strong>{name || r.resource?.user?.name || r.resource?.position || '—'}</Text>
         </Space>
       ),
@@ -186,7 +189,12 @@ export default function OptimizationResultView({
       {currentResult.convergenceHistory && currentResult.convergenceHistory.length > 1 && (
         <Card
           size="small"
-          title={t('optimization.convergenceChart') || '📈 Quá trình tiến hóa & hội tụ giải thuật (GA)'}
+          title={
+            <Space size={8}>
+              <RiseOutlined style={{ color: '#818cf8' }} />
+              <span>{t('optimization.convergenceChart') || 'Quá trình tiến hóa & hội tụ giải thuật (GA)'}</span>
+            </Space>
+          }
         >
           <div
             style={{

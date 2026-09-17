@@ -1,19 +1,19 @@
-/* ---- Header Styles ---- */
 .header {
   position: fixed;
   top: 0;
   right: 0;
   left: var(--sidebar-width);
   height: var(--header-height);
-  background: rgba(15, 23, 42, 0.8);
+  background: var(--surface-overlay);
   backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border-color);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--space-6);
-  z-index: var(--z-sticky);
-  transition: left var(--transition-base);
+  z-index: var(--z-sticky, 100);
+  transition: left var(--transition-base, 0.2s cubic-bezier(0.16, 1, 0.3, 1));
 }
 
 .sidebar-collapsed ~ .app-main .header,

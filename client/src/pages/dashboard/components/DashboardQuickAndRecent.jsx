@@ -16,6 +16,7 @@ import {
   TeamOutlined,
   ArrowRightOutlined,
   HistoryOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { taskStatusLabel } from '../../../i18n/enums';
 import { formatTimeAgo } from '../../../i18n/format';
@@ -229,13 +230,13 @@ export default function DashboardQuickAndRecent({
                       </Text>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
                         {item.project && (
-                          <span style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b', fontWeight: 500 }}>
-                            📁 {item.project.name}
+                          <span style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <ProjectOutlined style={{ fontSize: 11 }} /> {item.project.name}
                           </span>
                         )}
                         <span style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8' }}>•</span>
-                        <span style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>
-                          👤 {item.assignee?.name || 'Chưa gán'}
+                        <span style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <UserOutlined style={{ fontSize: 11 }} /> {item.assignee?.name || 'Chưa gán'}
                         </span>
                       </div>
                     </div>

@@ -30,6 +30,8 @@ import {
   ApartmentOutlined,
   WarningOutlined,
   DollarOutlined,
+  CloseCircleOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import optimizationService from '../../services/optimizationService';
 import { formatCurrency } from '../../i18n/format';
@@ -256,7 +258,12 @@ export default function BenchmarkStudio() {
         },
         {
           key: 'violations',
-          metric: '🚫 Ràng buộc vi phạm',
+          metric: (
+            <Space size={6}>
+              <CloseCircleOutlined style={{ color: '#ef4444' }} />
+              <span>Ràng buộc vi phạm</span>
+            </Space>
+          ),
           hint: 'Vi phạm ràng buộc cứng (Hard Constraints)',
           greedy: g.constraintViolations ? <Tag color="error">Có vi phạm</Tag> : <Tag color="success">0</Tag>,
           csp: c.constraintViolations ? <Tag color="error">Có vi phạm</Tag> : <Tag color="success">0</Tag>,
@@ -272,7 +279,7 @@ export default function BenchmarkStudio() {
       <div className="benchmark-header">
         <div>
           <Title level={2} className="benchmark-title">
-            <ExperimentOutlined style={{ marginRight: 10, color: 'var(--primary-color)' }} />
+            <ExperimentOutlined style={{ marginRight: 10, color: 'var(--brand-primary, #6366f1)' }} />
             Experimental Benchmark Studio
           </Title>
           <Paragraph className="benchmark-subtitle">
@@ -282,31 +289,51 @@ export default function BenchmarkStudio() {
       </div>
 
       {/* Dataset Selection Card */}
-      <Card className="benchmark-config-card" title="1. Chọn Tập Dữ liệu Thử nghiệm (Test Dataset)">
-        <Row gutter={[16, 16]} align="middle">
+      <Card
+        className="benchmark-config-card"
+        title={
+          <Space size={8}>
+            <DatabaseOutlined style={{ color: '#6366f1' }} />
+            <span>1. Chọn Tập Dữ liệu Thử nghiệm (Test Dataset)</span>
+          </Space>
+        }
+      >
+        <Row gutter={[16, 20]} align="middle">
           <Col xs={24} lg={18}>
-            <Radio.Group
-              value={selectedDataset}
-              onChange={(e) => setSelectedDataset(e.target.value)}
-              className="benchmark-dataset-grid"
-            >
-              <Row gutter={[12, 12]}>
-                {DATASET_PRESETS.map((preset) => (
-                  <Col xs={24} sm={12} md={6} key={preset.key}>
-                    <Radio.Button value={preset.key} className="benchmark-radio-card">
-                      <div className="radio-card-header">
-                        <Text strong>{preset.label}</Text>
+            <div className="benchmark-dataset-grid">
+              {DATASET_PRESETS.map((preset) => {
+                const isSelected = selectedDataset === preset.key;
+                return (
+                  <div
+                    key={preset.key}
+                    onClick={() => setSelectedDataset(preset.key)}
+                    className={`bento-dataset-card ${isSelected ? 'active' : ''}`}
+                  >
+                    <div>
+                      <div className="bento-card-title-row">
+                        <span className="bento-card-title">{preset.label}</span>
+                        {isSelected && (
+                          <Tag color="indigo" style={{ margin: 0, borderRadius: 4, fontWeight: 700, fontSize: 10 }}>
+                            ĐANG CHỌN
+                          </Tag>
+                        )}
                       </div>
-                      <div className="radio-card-meta">
-                        <Tag color="blue">{preset.tasks} Tasks</Tag>
-                        <Tag color="cyan">{preset.resources} Nhân sự</Tag>
+                      <div className="bento-card-tags">
+                        <Tag color="blue" style={{ borderRadius: 4, fontWeight: 600 }}>
+                          <CheckCircleOutlined style={{ marginRight: 4 }} />
+                          {preset.tasks} Tasks
+                        </Tag>
+                        <Tag color="cyan" style={{ borderRadius: 4, fontWeight: 600 }}>
+                          <TeamOutlined style={{ marginRight: 4 }} />
+                          {preset.resources} Nhân sự
+                        </Tag>
                       </div>
-                      <div className="radio-card-desc">{preset.desc}</div>
-                    </Radio.Button>
-                  </Col>
-                ))}
-              </Row>
-            </Radio.Group>
+                    </div>
+                    <div className="bento-card-desc">{preset.desc}</div>
+                  </div>
+                );
+              })}
+            </div>
           </Col>
 
           <Col xs={24} lg={6} style={{ textAlign: 'right' }}>
@@ -489,7 +516,15 @@ export default function BenchmarkStudio() {
 
             {/* Academic Thesis Conclusion */}
             <Col xs={24} md={12}>
-              <Card title="📄 Tóm tắt Kết luận Thực nghiệm cho Luận văn" className="benchmark-chart-card">
+              <Card
+                title={
+                  <Space size={8}>
+                    <FileTextOutlined style={{ color: '#818cf8' }} />
+                    <span>Tóm tắt Kết luận Thực nghiệm cho Luận văn</span>
+                  </Space>
+                }
+                className="benchmark-chart-card"
+              >
                 <Paragraph className="thesis-summary-text">
                   Dựa trên kết quả thực nghiệm trên tập dữ liệu <strong>{benchmarkData.summary?.taskCount} công việc và {benchmarkData.summary?.resourceCount} nhân sự</strong>:
                 </Paragraph>

@@ -1,0 +1,214 @@
+/**
+ * ============================================================================
+ * DESIGN TOKENS ARCHITECTURE (Base Resource AI Design System)
+ * ============================================================================
+ * Compliant with:
+ *   - .agents/skills/design-system (Three-layer tokens: Primitive -> Semantic -> Component)
+ *   - .agents/skills/ui-ux-pro-max (Color contrast >= 4.5:1, 4/8dp scale, typography hierarchy)
+ *   - .agents/skills/ui-styling (Ant Design v5 + modern SaaS utility aesthetics)
+ */
+
+:root {
+  /* ==========================================================================
+     1. PRIMITIVE TOKENS (Raw values)
+     ========================================================================== */
+  /* Colors: Indigo (Brand Primary) */
+  --primitive-indigo-50:  #eef2ff;
+  --primitive-indigo-100: #e0e7ff;
+  --primitive-indigo-200: #c7d2fe;
+  --primitive-indigo-300: #a5b4fc;
+  --primitive-indigo-400: #818cf8;
+  --primitive-indigo-500: #6366f1;
+  --primitive-indigo-600: #4f46e5;
+  --primitive-indigo-700: #4338ca;
+  --primitive-indigo-800: #3730a3;
+  --primitive-indigo-900: #312e81;
+
+  /* Colors: Violet (Secondary / AI Accent) */
+  --primitive-violet-400: #a78bfa;
+  --primitive-violet-500: #8b5cf6;
+  --primitive-violet-600: #7c3aed;
+
+  /* Colors: Cyan (Tech Accent & Informational) */
+  --primitive-cyan-400:   #22d3ee;
+  --primitive-cyan-500:   #06b6d4;
+  --primitive-cyan-600:   #0891b2;
+
+  /* Colors: Emerald (Success / High Fit) */
+  --primitive-emerald-400: #34d399;
+  --primitive-emerald-500: #10b981;
+  --primitive-emerald-600: #059669;
+
+  /* Colors: Amber (Warning / Moderate Fit) */
+  --primitive-amber-400:  #fbbf24;
+  --primitive-amber-500:  #f59e0b;
+  --primitive-amber-600:  #d97706;
+
+  /* Colors: Rose/Red (Danger / Violations) */
+  --primitive-rose-400:   #f87171;
+  --primitive-rose-500:   #ef4444;
+  --primitive-rose-600:   #dc2626;
+
+  /* Dark Obsidian / Deep Slate Scale */
+  --primitive-obsidian-950: #060911;
+  --primitive-obsidian-900: #0a0f1d;
+  --primitive-obsidian-850: #0f172a;
+  --primitive-obsidian-800: #131c31;
+  --primitive-obsidian-750: #19243d;
+  --primitive-obsidian-700: #1e293b;
+  --primitive-obsidian-600: #334155;
+
+  /* Light Canvas & Slate Scale */
+  --primitive-slate-50:  #f8fafc;
+  --primitive-slate-100: #f1f5f9;
+  --primitive-slate-200: #e2e8f0;
+  --primitive-slate-300: #cbd5e1;
+  --primitive-slate-400: #94a3b8;
+  --primitive-slate-500: #64748b;
+  --primitive-slate-600: #475569;
+  --primitive-slate-700: #334155;
+  --primitive-slate-800: #1e293b;
+  --primitive-slate-900: #0f172a;
+
+  /* Spacing Scale (4/8dp Rhythm) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Border Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-pill: 9999px;
+
+  /* Timing & Motion Tokens */
+  --motion-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-duration-fast: 150ms;
+  --motion-duration-base: 220ms;
+  --motion-duration-slow: 350ms;
+
+  /* ==========================================================================
+     2. SEMANTIC TOKENS - DARK THEME (Default: High-end Obsidian SaaS)
+     ========================================================================== */
+  --surface-canvas: var(--primitive-obsidian-950);
+  --surface-ground: var(--primitive-obsidian-900);
+  --surface-card:   #0e1526;
+  --surface-elevated: #152037;
+  --surface-overlay: rgba(10, 15, 29, 0.82);
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --surface-active: rgba(99, 102, 241, 0.12);
+
+  --text-primary:   #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary:  #94a3b8;
+  --text-muted:     #64748b;
+  --text-inverse:   #0f172a;
+
+  --border-subtle:    rgba(255, 255, 255, 0.08);
+  --border-highlight: rgba(255, 255, 255, 0.16);
+  --border-top-glow:  rgba(255, 255, 255, 0.12);
+  --border-focus:     var(--primitive-indigo-500);
+
+  --brand-primary:      var(--primitive-indigo-500);
+  --brand-primary-hover: var(--primitive-indigo-400);
+  --brand-primary-glow: rgba(99, 102, 241, 0.28);
+  --brand-accent:       var(--primitive-cyan-400);
+  --brand-ai:           var(--primitive-violet-500);
+
+  --status-success:     var(--primitive-emerald-400);
+  --status-success-bg:  rgba(16, 185, 129, 0.12);
+  --status-warning:     var(--primitive-amber-400);
+  --status-warning-bg:  rgba(245, 158, 11, 0.12);
+  --status-danger:      var(--primitive-rose-400);
+  --status-danger-bg:   rgba(239, 68, 68, 0.12);
+  --status-info:        var(--primitive-cyan-400);
+  --status-info-bg:     rgba(6, 182, 212, 0.12);
+
+  --shadow-card:        0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --shadow-card-hover:  0 12px 32px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(99, 102, 241, 0.35);
+  --shadow-modal:       0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --shadow-glow:        0 0 24px -2px rgba(99, 102, 241, 0.38);
+}
+
+/* ==========================================================================
+   SEMANTIC TOKENS - LIGHT THEME (Crisp Slate SaaS)
+   ========================================================================== */
+[data-theme="light"] {
+  --surface-canvas: var(--primitive-slate-50);
+  --surface-ground: #ffffff;
+  --surface-card:   #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-overlay: rgba(255, 255, 255, 0.9);
+  --surface-hover: var(--primitive-slate-100);
+  --surface-active: rgba(79, 70, 229, 0.08);
+
+  --text-primary:   #0f172a;
+  --text-secondary: #334155;
+  --text-tertiary:  #64748b;
+  --text-muted:     #94a3b8;
+  --text-inverse:   #f8fafc;
+
+  --border-subtle:    #e2e8f0;
+  --border-highlight: #cbd5e1;
+  --border-top-glow:  #e2e8f0;
+  --border-focus:     var(--primitive-indigo-600);
+
+  --brand-primary:      var(--primitive-indigo-600);
+  --brand-primary-hover: var(--primitive-indigo-500);
+  --brand-primary-glow: rgba(79, 70, 229, 0.16);
+  --brand-accent:       var(--primitive-cyan-600);
+  --brand-ai:           var(--primitive-violet-600);
+
+  --status-success:     var(--primitive-emerald-600);
+  --status-success-bg:  rgba(5, 150, 105, 0.1);
+  --status-warning:     var(--primitive-amber-600);
+  --status-warning-bg:  rgba(217, 119, 6, 0.1);
+  --status-danger:      var(--primitive-rose-600);
+  --status-danger-bg:   rgba(220, 38, 38, 0.1);
+  --status-info:        var(--primitive-cyan-600);
+  --status-info-bg:     rgba(8, 145, 178, 0.1);
+
+  --shadow-card:        0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover:  0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(79, 70, 229, 0.25);
+  --shadow-modal:       0 20px 40px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  --shadow-glow:        0 0 20px -2px rgba(79, 70, 229, 0.2);
+}
+
+/* ==========================================================================
+   3. COMPONENT TOKENS (Mapped to semantics)
+   ========================================================================== */
+:root {
+  --btn-primary-bg: linear-gradient(135deg, var(--brand-primary) 0%, #4338ca 100%);
+  --btn-primary-shadow: 0 4px 14px -2px var(--brand-primary-glow);
+  --btn-radius: var(--radius-md);
+  
+  --card-radius: var(--radius-lg);
+  --card-bg: var(--surface-card);
+  --card-border: var(--border-subtle);
+
+  --badge-radius: var(--radius-pill);
+  --badge-font-size: 11px;
+  --badge-font-weight: 700;
+
+  --input-bg: var(--surface-elevated);
+  --input-border: var(--border-subtle);
+  --input-radius: var(--radius-md);
+
+  --table-header-bg: rgba(12, 18, 30, 0.85);
+  --table-row-hover-bg: var(--surface-active);
+}
+
+[data-theme="light"] {
+  --btn-primary-bg: linear-gradient(135deg, var(--brand-primary) 0%, #3730a3 100%);
+  --input-bg: #ffffff;
+  --table-header-bg: #f8fafc;
+}

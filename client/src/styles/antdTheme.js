@@ -15,11 +15,11 @@ export const darkTheme = {
     colorError: '#ef4444', // Rose/Red
 
     // Backgrounds (Layered Deep Slate & Obsidian)
-    colorBgLayout: '#090d16',
-    colorBgContainer: '#101726',
-    colorBgElevated: '#172033',
+    colorBgLayout: '#060911',
+    colorBgContainer: '#0e1526',
+    colorBgElevated: '#152037',
     colorBgSpotlight: '#1e293b',
-    colorBgMask: 'rgba(0, 0, 0, 0.75)',
+    colorBgMask: 'rgba(6, 9, 17, 0.82)',
 
     // Text & Content (Sharp Contrast)
     colorText: '#f8fafc',
@@ -33,7 +33,7 @@ export const darkTheme = {
     colorSplit: 'rgba(255, 255, 255, 0.06)',
 
     // Typography
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    fontFamily: "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     fontSize: 14,
     fontSizeHeading1: 28,
     fontSizeHeading2: 22,
@@ -188,7 +188,7 @@ export const lightTheme = {
     colorSplit: '#f1f5f9',
 
     // Typography
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    fontFamily: "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     fontSize: 14,
     fontSizeHeading1: 28,
     fontSizeHeading2: 22,

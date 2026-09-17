@@ -573,8 +573,8 @@ export default function Tasks() {
           { key: 'all', label: 'Tất cả' },
           { key: 'today', label: 'Hôm nay' },
           { key: 'this_week', label: 'Tuần này' },
-          { key: 'overdue', label: 'Quá hạn ⚠️' },
-          { key: 'done', label: 'Đã hoàn thành ✓' },
+          { key: 'overdue', label: 'Quá hạn' },
+          { key: 'done', label: 'Đã hoàn thành' },
         ].map((item) => (
           <Tag.CheckableTag
             key={item.key}

@@ -98,47 +98,65 @@ export default function TaskDetailModal({ open, task, onClose, onUpdated }) {
       ]}
       width={680}
       title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 24 }}>
-          <ProjectOutlined style={{ color: '#6366f1', fontSize: 18 }} />
-          <span style={{ fontSize: 16, fontWeight: 700 }}>Chi tiết công việc</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: 'rgba(99, 102, 241, 0.12)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#818cf8',
+              fontSize: 18,
+            }}
+          >
+            <ProjectOutlined />
+          </div>
+          <div>
+            <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+              Chi tiết công việc
+            </span>
+          </div>
         </div>
       }
     >
-      <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ padding: '6px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Header Task Title & Project */}
         <div>
-          <Title level={4} style={{ margin: '0 0 6px 0', fontWeight: 800 }}>
+          <Title level={4} style={{ margin: '0 0 8px 0', fontWeight: 800, fontFamily: 'Plus Jakarta Sans, sans-serif', letterSpacing: '-0.015em' }}>
             {task.title}
           </Title>
-          <Space size="middle" wrap>
+          <Space size="small" wrap>
             {task.project && (
-              <Tag color="indigo" style={{ borderRadius: 6, fontWeight: 600 }}>
+              <Tag color="indigo" style={{ borderRadius: 6, fontWeight: 600, padding: '2px 8px' }}>
+                <ApartmentOutlined style={{ marginRight: 4 }} />
                 {task.project.name}
               </Tag>
             )}
-            <Tag color={priority.color} style={{ borderRadius: 6, fontWeight: 600 }}>
+            <Tag color={priority.color} style={{ borderRadius: 6, fontWeight: 600, padding: '2px 8px' }}>
               Ưu tiên: {priority.label}
             </Tag>
           </Space>
         </div>
 
-        <Divider style={{ margin: '8px 0' }} />
-
-        {/* Nhanh: Đổi trạng thái & Tiến độ */}
+        {/* Nhanh: Đổi trạng thái & Tiến độ Bento-card */}
         <div
-          className="saas-card"
+          className="bento-card"
           style={{
-            padding: '14px 16px',
-            background: 'rgba(99, 102, 241, 0.04)',
-            border: '1px solid rgba(99, 102, 241, 0.15)',
+            padding: '16px 18px',
+            background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.06) 0%, var(--surface-card) 100%)',
+            border: '1px solid rgba(99, 102, 241, 0.2)',
             display: 'flex',
             flexDirection: 'column',
-            gap: 12,
+            gap: 14,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <Text strong style={{ fontSize: 13 }}>
-              Trạng thái:
+            <Text strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>
+              Trạng thái thực hiện:
             </Text>
             <Select
               value={task.status}
@@ -151,8 +169,8 @@ export default function TaskDetailModal({ open, task, onClose, onUpdated }) {
 
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Text strong style={{ fontSize: 13 }}>
-                Tiến độ: {currentProgress}%
+              <Text strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>
+                Tiến độ: <span className="tabular-nums" style={{ color: '#818cf8', fontWeight: 700 }}>{currentProgress}%</span>
               </Text>
             </div>
             <Slider
@@ -174,29 +192,29 @@ export default function TaskDetailModal({ open, task, onClose, onUpdated }) {
         </div>
 
         {/* Thông tin chi tiết */}
-        <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
+        <Descriptions column={{ xs: 1, sm: 2 }} bordered size="middle" style={{ borderRadius: 10, overflow: 'hidden' }}>
           <Descriptions.Item label="Thời gian thực hiện">
             <CalendarOutlined style={{ marginRight: 6, color: '#6366f1' }} />
-            {start} — {end}
+            <span className="tabular-nums">{start} — {end}</span>
           </Descriptions.Item>
 
           <Descriptions.Item label="Giờ ước tính / Thực tế">
             <ClockCircleOutlined style={{ marginRight: 6, color: '#f59e0b' }} />
-            {task.estimatedHours || 0}h / {task.actualHours || 0}h
+            <span className="tabular-nums">{task.estimatedHours || 0}h / {task.actualHours || 0}h</span>
           </Descriptions.Item>
 
           <Descriptions.Item label="Người thực hiện" span={2}>
             {task.assignee ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Avatar
-                  size="small"
+                  size="default"
                   icon={<UserOutlined />}
-                  style={{ backgroundColor: '#6366f1' }}
+                  style={{ backgroundColor: '#6366f1', fontWeight: 700 }}
                 >
                   {task.assignee.name ? task.assignee.name[0].toUpperCase() : 'U'}
                 </Avatar>
                 <div>
-                  <Text strong>{task.assignee.name}</Text>
+                  <Text strong style={{ color: 'var(--text-primary)' }}>{task.assignee.name}</Text>
                   {task.assignee.email && (
                     <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
                       ({task.assignee.email})
@@ -211,9 +229,9 @@ export default function TaskDetailModal({ open, task, onClose, onUpdated }) {
 
           {task.requiredSkills && task.requiredSkills.length > 0 && (
             <Descriptions.Item label="Kỹ năng yêu cầu" span={2}>
-              <Space size={[0, 4]} wrap>
+              <Space size={[0, 6]} wrap>
                 {task.requiredSkills.map((sk, idx) => (
-                  <Tag key={idx} color="purple">
+                  <Tag key={idx} color="purple" style={{ borderRadius: 6, fontWeight: 500 }}>
                     {sk.name} (Lv.{sk.level})
                   </Tag>
                 ))}
@@ -223,7 +241,7 @@ export default function TaskDetailModal({ open, task, onClose, onUpdated }) {
 
           {task.description && (
             <Descriptions.Item label="Mô tả công việc" span={2}>
-              <Paragraph style={{ margin: 0, whiteSpace: 'pre-line' }}>
+              <Paragraph style={{ margin: 0, whiteSpace: 'pre-line', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
                 {task.description}
               </Paragraph>
             </Descriptions.Item>

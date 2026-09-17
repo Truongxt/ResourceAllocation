@@ -50,7 +50,7 @@ const PRIORITY_MAP = {
   low: { label: 'Thấp', color: '#64748b', icon: '○' },
   medium: { label: 'Trung bình', color: '#3b82f6', icon: '◐' },
   high: { label: 'Cao', color: '#f59e0b', icon: '●' },
-  critical: { label: 'Khẩn cấp', color: '#ef4444', icon: '🔴' },
+  critical: { label: 'Khẩn cấp', color: '#ef4444', icon: '▲' },
 };
 
 export default function TaskDetailDrawer({
