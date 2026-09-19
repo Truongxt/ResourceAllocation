@@ -625,6 +625,25 @@ S('7. Analytics');
   ok(dash.data.projects && dash.data.tasks && dash.data.resources, 'dashboard trả đủ 3 nhóm');
   ok(Array.isArray(dash.data.recentTasks) && Array.isArray(dash.data.recentOptimizations), 'dashboard có recentTasks/recentOptimizations');
 
+  const fixtures = [];
+  for (const body of [
+    { title: 'Attention: overdue and unassigned', status: 'todo', startDate: '2000-01-01', endDate: '2000-01-02' },
+    { title: 'Attention: completed in the past', status: 'done', startDate: '2000-01-01', endDate: '2000-01-02' },
+    { title: 'Attention: no deadline', status: 'todo' },
+  ]) {
+    const created = await call('POST', '/tasks', { token: TOK.admin, body: { ...body, project: projectId } });
+    fixtures.push(created.data?.task?._id);
+  }
+  const attention = await call('GET', '/analytics/dashboard', { token: TOK.admin });
+  ok(attention.data.tasks.overdue === dash.data.tasks.overdue + 1, 'Trễ hạn loại công việc đã xong và công việc không có hạn');
+  ok(attention.data.tasks.unassigned === dash.data.tasks.unassigned + 2, 'Chưa phân công chỉ đếm công việc chưa hoàn thành');
+  const unassigned = await call('GET', `/tasks?unassigned=true&includeSubtasks=true&project=${projectId}`, { token: TOK.admin });
+  ok(unassigned.data.tasks.some(t => t._id === fixtures[0]) && unassigned.data.tasks.some(t => t._id === fixtures[2]), 'Bộ lọc chưa phân công trả về công việc cần người phụ trách');
+  ok(unassigned.data.tasks.every(t => !t.assignee && t.status !== 'done'), 'Bộ lọc chưa phân công loại công việc đã giao và đã xong');
+  const resourceList = await call('GET', '/resources?isActive=true&limit=100', { token: TOK.admin });
+  ok(attention.data.resources.overloaded === resourceList.data.resources.filter(r => r.isOverloaded).length, 'Quá tải dựa trên giờ công vượt capacity, không suy ra từ trạng thái sẵn sàng');
+  for (const id of fixtures.filter(Boolean)) await call('DELETE', `/tasks/${id}`, { token: TOK.admin });
+
   const util = await call('GET', '/analytics/utilization', { token: TOK.admin });
   ok('highBurnout' in util.data.summary, 'summary.highBurnout tồn tại (lỗi cũ: client đọc highBurnoutRisk)');
   ok(util.data.resources.every((r) => ['low', 'medium', 'high'].includes(r.burnoutRisk)), 'burnoutRisk chỉ nhận low/medium/high');
@@ -680,7 +699,7 @@ S('8. Notifications & Activity Logs');
   ok(Array.isArray(n.data.notifications) && typeof n.unreadCount === 'number', 'GET /notifications + unreadCount');
   ok((await call('PATCH', '/notifications/read-all', { token: TOK.admin })).status === 200, 'Đánh dấu tất cả đã đọc');
 
-  const logs = await call('GET', '/activity-logs', { token: TOK.admin });
+  const logs = await call('GET', '/activity-logs?limit=100', { token: TOK.admin });
   ok(logs.data.logs.length > 0, 'ActivityLog đã ghi nhận hành động', `(${logs.total} bản ghi)`);
   const actions = new Set(logs.data.logs.map((l) => l.action));
   ok(actions.has('CREATE_PROJECT') && actions.has('CREATE_TASK'), 'ghi nhận CREATE_PROJECT và CREATE_TASK');

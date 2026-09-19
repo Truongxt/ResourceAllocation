@@ -55,6 +55,15 @@ const getDashboardOverview = async (req, res, next) => {
             review: { $sum: { $cond: [{ $eq: ['$status', 'review'] }, 1, 0] } },
             done: { $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] } },
             blocked: { $sum: { $cond: [{ $eq: ['$status', 'blocked'] }, 1, 0] } },
+            overdue: { $sum: { $cond: [{ $and: [
+              { $ne: ['$status', 'done'] },
+              { $ne: [{ $ifNull: ['$endDate', null] }, null] },
+              { $lt: ['$endDate', new Date()] },
+            ] }, 1, 0] } },
+            unassigned: { $sum: { $cond: [{ $and: [
+              { $ne: ['$status', 'done'] },
+              { $eq: [{ $ifNull: ['$assignee', null] }, null] },
+            ] }, 1, 0] } },
             totalEstimatedHours: { $sum: '$estimatedHours' },
             totalActualHours: { $sum: '$actualHours' },
           },
@@ -74,6 +83,9 @@ const getDashboardOverview = async (req, res, next) => {
             totalCapacity: { $sum: { $multiply: ['$maxCapacity', '$fte'] } },
             totalWorkload: { $sum: '$currentWorkload' },
             avgFte: { $avg: '$fte' },
+            overloaded: { $sum: { $cond: [
+              { $gt: ['$currentWorkload', { $multiply: ['$maxCapacity', '$fte'] }] }, 1, 0,
+            ] } },
           },
         },
       ]),
@@ -94,11 +106,11 @@ const getDashboardOverview = async (req, res, next) => {
     ]);
 
     const ps = projectStats[0] || { total: 0, active: 0, completed: 0, planning: 0, avgProgress: 0, totalBudget: 0 };
-    const ts = taskStats[0] || { total: 0, todo: 0, inProgress: 0, review: 0, done: 0, blocked: 0, totalEstimatedHours: 0, totalActualHours: 0 };
-    const rs = resourceStats[0] || { total: 0, available: 0, partial: 0, unavailable: 0, totalCapacity: 0, totalWorkload: 0, avgFte: 0 };
+    const ts = taskStats[0] || { total: 0, todo: 0, inProgress: 0, review: 0, done: 0, blocked: 0, overdue: 0, unassigned: 0, totalEstimatedHours: 0, totalActualHours: 0 };
+    const rs = resourceStats[0] || { total: 0, available: 0, partial: 0, unavailable: 0, totalCapacity: 0, totalWorkload: 0, avgFte: 0, overloaded: 0 };
 
     const avgUtilization = rs.totalCapacity > 0 ? Math.round((rs.totalWorkload / rs.totalCapacity) * 100) : 0;
-    const overloaded = rs.unavailable + (avgUtilization > 100 ? rs.partial : 0);
+    const overloaded = rs.overloaded;
 
     res.json({
       success: true,

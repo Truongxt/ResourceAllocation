@@ -35,7 +35,7 @@ vi.mock('../src/services/analyticsService', () => ({
 
 const { default: App } = await import('../src/App.jsx');
 
-const DASHBOARD_TEXT = 'Tổng quan hệ thống quản lý nguồn lực và phân bổ nhân sự';
+const DASHBOARD_TEXT = 'Theo dõi tiến độ và những việc cần điều chỉnh trong nhóm.';
 
 describe('Định tuyến và nạp trang theo chunk', () => {
   it('khung layout đứng yên trong lúc chunk của trang đang tải', async () => {

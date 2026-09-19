@@ -1,8 +1,4 @@
-/**
- * Ant Design Theme Configuration
- * Precision B2B Enterprise SaaS (Linear / Stripe / Vercel Craft Standard)
- * Completely eliminates AI tropes (purple gradients, glowing halos, washed-out glass)
- */
+/** Ant Design tokens aligned with the shared application palette. */
 
 export const darkTheme = {
   token: {
@@ -34,16 +30,16 @@ export const darkTheme = {
     colorSplit: 'rgba(255, 255, 255, 0.06)',
 
     // Typography
-    fontFamily: "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    fontSize: 13.5,
-    fontSizeHeading1: 26,
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    fontSize: 14,
+    fontSizeHeading1: 28,
     fontSizeHeading2: 20,
     fontSizeHeading3: 16,
     fontSizeHeading4: 14,
 
     // Border Radius: Restrained & Modern
-    borderRadius: 8,
-    borderRadiusLG: 10,
+    borderRadius: 6,
+    borderRadiusLG: 8,
     borderRadiusSM: 6,
     borderRadiusXS: 4,
 
@@ -190,16 +186,16 @@ export const lightTheme = {
     colorSplit: '#f1f5f9',
 
     // Typography
-    fontFamily: "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    fontSize: 13.5,
-    fontSizeHeading1: 26,
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    fontSize: 14,
+    fontSizeHeading1: 28,
     fontSizeHeading2: 20,
     fontSizeHeading3: 16,
     fontSizeHeading4: 14,
 
     // Border Radius
-    borderRadius: 8,
-    borderRadiusLG: 10,
+    borderRadius: 6,
+    borderRadiusLG: 8,
     borderRadiusSM: 6,
     borderRadiusXS: 4,
 

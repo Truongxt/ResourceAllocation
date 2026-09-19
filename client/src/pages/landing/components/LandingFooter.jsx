@@ -42,7 +42,7 @@ export default function LandingFooter({
                 <div className="thesis-meta-tags">
                   <Tag color="blue">Sinh viên: Trần Xuân Trường</Tag>
                   <Tag color="cyan">Tech Stack: React · Node.js · MongoDB · React Native Expo</Tag>
-                  <Tag color="green">Hoàn thành 100% 79/79 Tính năng</Tag>
+                  <Tag>Quản lý dự án và phân bổ nhân sự</Tag>
                 </div>
               </Col>
 

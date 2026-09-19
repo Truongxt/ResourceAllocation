@@ -407,8 +407,8 @@ export default function AppPermissionsTab() {
           padding: '20px 24px',
           marginBottom: 20,
           background: isDark
-            ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)'
-            : 'linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%)',
+            ? 'var(--surface-card)'
+            : 'var(--surface-card)',
           border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #bae6fd',
           borderRadius: 14,
         }}
@@ -1055,7 +1055,7 @@ export default function AppPermissionsTab() {
                       onClick={handleSaveCompanySettings}
                       loading={savingSettings}
                       style={{
-                        background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                        background: 'var(--brand-primary)',
                         boxShadow: '0 2px 8px rgba(37, 99, 235, 0.35)',
                         fontWeight: 600,
                         padding: '0 24px',

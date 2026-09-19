@@ -247,7 +247,7 @@ export default function Optimization() {
   }
 
   return (
-    <div style={{ maxWidth: 1400 }}>
+    <div className="workspace-page optimization-page">
       {/* Tiêu đề trang */}
       <div style={{ marginBottom: 24 }}>
         <Title level={3} style={{ marginBottom: 4 }}>
@@ -258,6 +258,9 @@ export default function Optimization() {
         </Text>
       </div>
 
+      <div className="optimization-guide" aria-label={t('workspace.allocationFlow')}>
+        <span><b>1</b>{t('workspace.chooseScope')}</span><span><b>2</b>{t('workspace.reviewProposal')}</span><span><b>3</b>{t('workspace.applyAllocation')}</span>
+      </div>
       <Row gutter={[24, 24]}>
         {/* Cột trái: Panel cấu hình tham số */}
         <Col xs={24} lg={8}>
@@ -278,7 +281,7 @@ export default function Optimization() {
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
-            type="card"
+            type="line"
             items={[
               {
                 key: 'result',

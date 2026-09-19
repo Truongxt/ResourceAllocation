@@ -58,8 +58,8 @@ export default function OptimizationPreflightView({
         style={{
           padding: '24px 26px',
           background: isDark
-            ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%)'
-            : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+            ? 'var(--surface-card)'
+            : 'var(--surface-card)',
           border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
           borderRadius: 14,
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)',
@@ -111,7 +111,7 @@ export default function OptimizationPreflightView({
             loading={running}
             disabled={!isReady}
             style={{
-              background: isReady ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : undefined,
+              background: isReady ? 'var(--brand-primary)' : undefined,
               boxShadow: isReady ? '0 4px 14px rgba(99, 102, 241, 0.4)' : undefined,
               height: 44,
               padding: '0 24px',

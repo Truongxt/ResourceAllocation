@@ -1,5 +1,6 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import './styles/workspace.css';
 import { Layout } from 'antd';
 import { useAuth } from './context/AuthContext';
 import Sidebar from './components/layout/Sidebar';
@@ -33,7 +34,7 @@ function FullPageSpinner() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      height: '100vh',
+      height: '100dvh',
       background: 'var(--bg-primary, #0f172a)',
     }}>
       <div className="spinner" />
@@ -55,7 +56,13 @@ function ContentSpinner() {
 }
 
 function AppLayout({ children }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const onChange = () => setCollapsed(media.matches);
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, []);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

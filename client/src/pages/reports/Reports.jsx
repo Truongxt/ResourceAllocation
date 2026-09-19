@@ -1,3 +1,4 @@
+import MetricStrip from '../../components/common/MetricStrip';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -284,7 +285,7 @@ export default function Reports() {
             icon={<PrinterOutlined />}
             onClick={() => setReportModalOpen(true)}
             style={{
-              background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
+              background: 'var(--brand-primary)',
               fontWeight: 600,
             }}
           >
@@ -297,71 +298,12 @@ export default function Reports() {
       <Spin spinning={loading}>
         {/* Summary Stats */}
         {utilData?.summary && (
-          <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-            <Col xs={12} sm={6}>
-              <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div className="icon-chip icon-chip-primary">
-                  <TeamOutlined />
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                    {t('reports.stats.totalResources') || 'Tổng nhân sự'}
-                  </Text>
-                  <div style={{ fontSize: 22, fontWeight: 800 }} className="tabular-nums">
-                    {utilData.summary.totalResources}
-                  </div>
-                </div>
-              </div>
-            </Col>
-
-            <Col xs={12} sm={6}>
-              <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div className="icon-chip icon-chip-info">
-                  <PieChartOutlined />
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                    {t('reports.stats.avgUtilization') || 'Utilization TB'}
-                  </Text>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: '#06b6d4' }} className="tabular-nums">
-                    {utilData.summary.avgUtilization}%
-                  </div>
-                </div>
-              </div>
-            </Col>
-
-            <Col xs={12} sm={6}>
-              <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div className={`icon-chip ${utilData.summary.overloaded > 0 ? 'icon-chip-danger' : 'icon-chip-primary'}`}>
-                  <WarningOutlined />
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                    {t('dashboard.overloadedResources') || 'Quá tải'}
-                  </Text>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: utilData.summary.overloaded > 0 ? '#ef4444' : '#10b981' }} className="tabular-nums">
-                    {utilData.summary.overloaded}
-                  </div>
-                </div>
-              </div>
-            </Col>
-
-            <Col xs={12} sm={6}>
-              <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div className={`icon-chip ${(utilData.summary.highBurnout || 0) > 0 ? 'icon-chip-danger' : 'icon-chip-success'}`}>
-                  <WarningOutlined />
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                    {t('reports.stats.highBurnout') || 'Nguy cơ Burnout'}
-                  </Text>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: (utilData.summary.highBurnout || 0) > 0 ? '#ef4444' : '#10b981' }} className="tabular-nums">
-                    {utilData.summary.highBurnout || 0}
-                  </div>
-                </div>
-              </div>
-            </Col>
-          </Row>
+          <MetricStrip items={[
+            { label: t('reports.stats.totalResources'), value: utilData.summary.totalResources },
+            { label: t('workspace.capacityUsed'), value: Math.round(utilData.summary.avgUtilization || 0) + '%' },
+            { label: t('resources.overloaded'), value: utilData.summary.overloaded || 0, danger: utilData.summary.overloaded > 0 },
+            { label: t('workspace.highLoad'), value: utilData.summary.highBurnout || 0, danger: utilData.summary.highBurnout > 0 },
+          ]} />
         )}
 
         <Tabs

@@ -39,252 +39,20 @@ export default function Login() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        background: '#090d16',
-        color: '#f8fafc',
-      }}
-    >
-      {/* Left Column: Brand & Value Proposition Showcase (Hidden on Mobile) */}
-      <div
-        style={{
-          flex: 1.1,
-          background: 'linear-gradient(135deg, #0c1220 0%, #151b2e 50%, #090d16 100%)',
-          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '60px 48px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-        className="auth-hero-pane"
-      >
-        {/* Glow ambient spots */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '20%',
-            left: '10%',
-            width: 400,
-            height: 400,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, rgba(0,0,0,0) 70%)',
-            filter: 'blur(60px)',
-            pointerEvents: 'none',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '15%',
-            right: '5%',
-            width: 350,
-            height: 350,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, rgba(0,0,0,0) 70%)',
-            filter: 'blur(60px)',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* Brand Top */}
-        <div style={{ zIndex: 2 }}>
-          <AppLogo size={40} isDark={true} subtitle="Resource Allocation AI" />
-        </div>
-
-        {/* Hero Central Content */}
-        <div style={{ maxWidth: 540, margin: '60px 0', zIndex: 2 }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '4px 12px',
-              borderRadius: 20,
-              background: 'rgba(99, 102, 241, 0.12)',
-              border: '1px solid rgba(99, 102, 241, 0.25)',
-              color: '#a5b4fc',
-              fontSize: 12,
-              fontWeight: 600,
-              marginBottom: 20,
-            }}
-          >
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
-            Next-Gen Workforce Intelligence v2.0
-          </div>
-          <Title level={2} style={{ color: '#f8fafc', fontWeight: 800, fontSize: 32, lineHeight: 1.25, marginBottom: 16 }}>
-            Tối ưu hóa Phân bổ Nguồn lực & Tiến độ Đa dự án
-          </Title>
-          <Paragraph style={{ color: '#cbd5e1', fontSize: 15, lineHeight: 1.6, marginBottom: 32 }}>
-            Ứng dụng thuật toán kết hợp <strong>Genetic Algorithm (GA)</strong> & <strong>CSP Solver</strong> để tự động lập lịch công việc, cân bằng khối lượng tải và triệt tiêu nguy cơ kiệt sức của nhân sự.
-          </Paragraph>
-
-          {/* Feature Highlights */}
-          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14,
-                padding: '14px 18px',
-                borderRadius: 12,
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.07)',
-                backdropFilter: 'blur(10px)',
-              }}
-            >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  minWidth: 36,
-                  borderRadius: 8,
-                  background: 'rgba(99, 102, 241, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#818cf8',
-                  fontSize: 18,
-                }}
-              >
-                <BranchesOutlined />
-              </div>
-              <div>
-                <Text strong style={{ color: '#f8fafc', fontSize: 14, display: 'block' }}>
-                  Thuật toán Di truyền (Genetic Algorithm)
-                </Text>
-                <Text style={{ color: '#94a3b8', fontSize: 12 }}>
-                  Tối ưu hóa đa mục tiêu: Tối đa hóa khớp kỹ năng & Cân bằng năng suất
-                </Text>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14,
-                padding: '14px 18px',
-                borderRadius: 12,
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.07)',
-                backdropFilter: 'blur(10px)',
-              }}
-            >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  minWidth: 36,
-                  borderRadius: 8,
-                  background: 'rgba(6, 182, 212, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#22d3ee',
-                  fontSize: 18,
-                }}
-              >
-                <ApartmentOutlined />
-              </div>
-              <div>
-                <Text strong style={{ color: '#f8fafc', fontSize: 14, display: 'block' }}>
-                  Bộ giải Ràng buộc (CSP Solver)
-                </Text>
-                <Text style={{ color: '#94a3b8', fontSize: 12 }}>
-                  Thỏa mãn 100% ràng buộc quan hệ công việc tiền nhiệm & thời hạn deadline
-                </Text>
-              </div>
-            </div>
-          </Space>
-        </div>
-
-        {/* Footer Meta */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: 12, zIndex: 2 }}>
-          <span>© 2026 RAO System. Bảo mật cấp doanh nghiệp.</span>
-          <Space size="middle">
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <SafetyCertificateOutlined style={{ color: '#10b981' }} /> AES-256
-            </span>
-          </Space>
-        </div>
-      </div>
-
-      {/* Right Column: Sleek Auth Form */}
-      <div
-        style={{
-          flex: 0.9,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '40px 32px',
-          background: '#090d16',
-        }}
-      >
-        <div style={{ width: '100%', maxWidth: 420 }}>
-          <div style={{ marginBottom: 20 }}>
-            <Link to="/home" style={{ color: '#818cf8', fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-              ← Quay lại Trang giới thiệu (Home)
-            </Link>
-            <Title level={3} style={{ color: '#f8fafc', marginBottom: 6, fontWeight: 700 }}>
-              {t('auth.loginTitle') || 'Đăng nhập hệ thống'}
-            </Title>
-            <Text type="secondary" style={{ fontSize: 14 }}>
-              {t('auth.subtitle') || 'Nhập thông tin để tiếp tục vào không gian làm việc'}
-            </Text>
-          </div>
-
-          {/* Quick Demo Credentials for One-Click Login */}
-          <div
-            style={{
-              padding: '12px 14px',
-              borderRadius: 10,
-              background: 'rgba(99, 102, 241, 0.08)',
-              border: '1px solid rgba(99, 102, 241, 0.2)',
-              marginBottom: 24,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#818cf8', letterSpacing: 0.5, display: 'flex', alignItems: 'center' }}>
-                <ThunderboltOutlined style={{ marginRight: 6 }} />
-                <span>Tài khoản trải nghiệm nhanh</span>
-              </Text>
-            </div>
-            <Button
-              size="small"
-              block
-              onClick={() => handleQuickLogin('truongprolavua2004@gmail.com', '123123')}
-              style={{
-                background: 'rgba(99, 102, 241, 0.15)',
-                borderColor: 'rgba(99, 102, 241, 0.3)',
-                color: '#e2e8f0',
-                fontSize: 12,
-                fontWeight: 600,
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <span>👤 truongprolavua2004@gmail.com</span>
-              <span style={{ fontSize: 11, color: '#a5b4fc' }}>Điền & Đăng nhập →</span>
-            </Button>
-          </div>
-
-          {error && (
-            <Alert
-              message={error}
-              type="error"
-              showIcon
-              closable
-              onClose={clearError}
-              style={{ marginBottom: 20, borderRadius: 8 }}
-            />
-          )}
-
+    <main className="auth-workspace">
+      <aside className="auth-context">
+        <Link to="/home" className="auth-brand"><AppLogo size={36} subtitle="" /></Link>
+        <div><span className="auth-eyebrow">RAO / WORKSPACE</span><h1>{t('workspace.authHeadline')}</h1><p>{t('workspace.authHint')}</p>
+        <ul><li>{t('nav.projects')}</li><li>{t('nav.tasks')}</li><li>{t('nav.resources')}</li></ul></div>
+        <span className="auth-context-footer">Resource Allocation</span>
+      </aside>
+      <section className="auth-form-area">
+        <div className="base-auth-card">
+          <Link to="/home" className="auth-back">← {t('workspace.backHome')}</Link>
+          <Title level={2}>{t('auth.loginTitle')}</Title>
+          <p className="auth-form-hint">{t('workspace.loginHint')}</p>
+          <details className="auth-demo"><summary>{t('workspace.demoAccount')}</summary><Button block onClick={() => handleQuickLogin('truongprolavua2004@gmail.com', '123123')}>{t('workspace.openDemo')}</Button></details>
+          {error && <Alert title={error} type="error" showIcon closable onClose={clearError} className="auth-error" />}
           <Form
             form={form}
             layout="vertical"
@@ -331,25 +99,17 @@ export default function Login() {
                   fontWeight: 600,
                   fontSize: 14,
                   borderRadius: 8,
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+                  background: 'var(--brand-primary)',
+                  boxShadow: 'none',
                 }}
               >
                 {t('auth.login') || 'Đăng nhập'} <ArrowRightOutlined />
               </Button>
             </Form.Item>
           </Form>
-
-          <div style={{ textAlign: 'center', marginTop: 24 }}>
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              {t('auth.noAccount') || 'Chưa có tài khoản?'}{' '}
-            </Text>
-            <Link to="/register" style={{ fontWeight: 600, color: '#818cf8' }}>
-              {t('auth.registerTitle') || 'Tạo tài khoản mới'}
-            </Link>
-          </div>
+          <div className="auth-switch"><Text type="secondary">{t('auth.noAccount')} </Text><Link to="/register">{t('auth.registerTitle')}</Link></div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

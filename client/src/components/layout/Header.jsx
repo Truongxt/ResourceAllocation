@@ -224,7 +224,7 @@ export default function Header({ collapsed }) {
                       height: 8,
                       borderRadius: '50%',
                       background: '#6366f1',
-                      boxShadow: '0 0 8px rgba(99, 102, 241, 0.6)',
+                      boxShadow: 'none',
                       flexShrink: 0,
                     }}
                   />
@@ -240,6 +240,7 @@ export default function Header({ collapsed }) {
   return (
     <>
       <AntHeader
+          className="workspace-header"
         style={{
           position: 'fixed',
           top: 0,
@@ -348,6 +349,7 @@ export default function Header({ collapsed }) {
             placement="bottomRight"
           >
             <Button
+              className="header-quick-create"
               type="primary"
               size="middle"
               icon={<PlusOutlined style={{ fontSize: 12 }} />}
@@ -355,7 +357,7 @@ export default function Header({ collapsed }) {
                 height: 32,
                 padding: '0 12px',
                 fontSize: 13,
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                background: 'var(--brand-primary)',
                 fontWeight: 600,
                 borderRadius: 8,
                 boxShadow: '0 2px 6px rgba(99, 102, 241, 0.3)',
@@ -493,12 +495,12 @@ export default function Header({ collapsed }) {
                 size={26}
                 icon={<UserOutlined />}
                 style={{
-                  background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                  background: 'var(--brand-primary)',
                   fontWeight: 600,
                   fontSize: 12,
                 }}
               />
-              <div style={{ lineHeight: 1.2 }}>
+              <div className="header-user-copy" style={{ lineHeight: 1.2 }}>
                 <Text strong style={{ fontSize: 13, display: 'block', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {user?.name || 'User'}
                 </Text>
@@ -512,7 +514,7 @@ export default function Header({ collapsed }) {
                   height: 6,
                   borderRadius: '50%',
                   background: '#10b981',
-                  boxShadow: '0 0 6px #10b981',
+                  boxShadow: 'none',
                 }}
               />
             </div>

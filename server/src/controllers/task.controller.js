@@ -154,6 +154,9 @@ const getTasks = async (req, res, next) => {
     if (req.query.status) filter.status = req.query.status;
     if (req.query.priority) filter.priority = req.query.priority;
     if (req.query.assignee) filter.assignee = req.query.assignee;
+    if (req.query.unassigned === 'true') {
+      filter.$and = [...(filter.$and || []), { assignee: null }, { status: { $ne: 'done' } }];
+    }
 
     if (req.query.search) {
       const regex = new RegExp(req.query.search, 'i');

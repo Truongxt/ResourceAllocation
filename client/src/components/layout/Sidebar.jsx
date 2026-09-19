@@ -102,6 +102,9 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   return (
     <Sider
+      className="workspace-sidebar"
+      breakpoint="md"
+      onBreakpoint={(broken) => { if (broken && !collapsed) onToggle(); }}
       collapsible
       collapsed={collapsed}
       trigger={null}
@@ -116,7 +119,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         zIndex: 200,
         background: isDark ? '#090d16' : '#ffffff',
         borderRight: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
-        boxShadow: isDark ? '4px 0 24px rgba(0,0,0,0.4)' : '2px 0 12px rgba(0, 0, 0, 0.03)',
+        boxShadow: 'none',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',

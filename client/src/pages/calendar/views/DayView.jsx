@@ -98,8 +98,8 @@ export default function DayView({ currentDate, tasks = [], onTaskClick }) {
           flexWrap: 'wrap',
           gap: 16,
           background: isDark
-            ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)'
-            : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+            ? 'var(--surface-card)'
+            : 'var(--surface-card)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -108,7 +108,7 @@ export default function DayView({ currentDate, tasks = [], onTaskClick }) {
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+              background: 'var(--brand-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

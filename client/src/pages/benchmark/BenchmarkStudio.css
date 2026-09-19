@@ -10,8 +10,8 @@
 
 .benchmark-title {
   margin-bottom: 6px !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  font-weight: 800 !important;
+  font-family: inherit;
+  font-weight: 600 !important;
   letter-spacing: -0.025em;
   font-size: 24px !important;
 }
@@ -31,7 +31,7 @@
   border: 1px solid var(--border-subtle);
   border-top: 1px solid var(--border-top-glow);
   background: var(--surface-card);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
 }
 
 .benchmark-dataset-grid {
@@ -57,15 +57,15 @@
 }
 
 .bento-dataset-card:hover {
-  transform: translateY(-2px);
+  transform: none;
   border-color: var(--border-highlight);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
 }
 
 .bento-dataset-card.active {
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.12) 0%, var(--surface-elevated) 100%);
+  background: var(--surface-active);
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 1px var(--brand-primary), 0 4px 20px -2px rgba(99, 102, 241, 0.25);
+  box-shadow: none;
 }
 
 .bento-dataset-card.active::before {
@@ -75,7 +75,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, var(--brand-primary), var(--brand-accent));
+  background: var(--surface-active);
 }
 
 .bento-card-title-row {
@@ -109,14 +109,14 @@
   font-weight: 700;
   font-size: 15px;
   border-radius: var(--radius-md, 10px);
-  background: linear-gradient(135deg, var(--brand-primary) 0%, #4338ca 100%);
-  box-shadow: 0 4px 14px -2px var(--brand-primary-glow);
+  background: var(--surface-active);
+  box-shadow: none;
   transition: all 0.2s ease;
 }
 
 .benchmark-run-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px -2px var(--brand-primary-glow);
+  transform: none;
+  box-shadow: none;
 }
 
 .benchmark-loading-card {
@@ -138,15 +138,15 @@
   border: 1px solid var(--border-subtle);
   border-top: 1px solid var(--border-top-glow);
   background: var(--surface-card);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
   overflow: hidden;
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .champion-card:hover {
-  transform: translateY(-2px);
+  transform: none;
   border-color: var(--border-highlight);
-  box-shadow: var(--shadow-card-hover);
+  box-shadow: none;
 }
 
 .champion-card .ant-card-body {
@@ -172,21 +172,21 @@
   background: rgba(245, 158, 11, 0.12);
   color: #f59e0b;
   border: 1px solid rgba(245, 158, 11, 0.25);
-  box-shadow: 0 0 16px -2px rgba(245, 158, 11, 0.25);
+  box-shadow: none;
 }
 
 .champion-blue .champion-icon {
   background: rgba(6, 182, 212, 0.12);
   color: #06b6d4;
   border: 1px solid rgba(6, 182, 212, 0.25);
-  box-shadow: 0 0 16px -2px rgba(6, 182, 212, 0.25);
+  box-shadow: none;
 }
 
 .champion-purple .champion-icon {
   background: rgba(139, 92, 246, 0.12);
   color: #8b5cf6;
   border: 1px solid rgba(139, 92, 246, 0.25);
-  box-shadow: 0 0 16px -2px rgba(139, 92, 246, 0.25);
+  box-shadow: none;
 }
 
 .champion-info {
@@ -222,7 +222,7 @@
   border: 1px solid var(--border-subtle);
   border-top: 1px solid var(--border-top-glow);
   background: var(--surface-card);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
 }
 
 .benchmark-highlight-col {
@@ -234,7 +234,7 @@
   border: 1px solid var(--border-subtle);
   border-top: 1px solid var(--border-top-glow);
   background: var(--surface-card);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
   height: 100%;
 }
 
@@ -274,19 +274,19 @@
 }
 
 .bar-greedy {
-  background: linear-gradient(90deg, #64748b, #94a3b8);
+  background: var(--surface-active);
 }
 
 .bar-csp {
-  background: linear-gradient(90deg, #0284c7, #38bdf8);
+  background: var(--surface-active);
 }
 
 .bar-ga {
-  background: linear-gradient(90deg, #7c3aed, #a78bfa);
+  background: var(--surface-active);
 }
 
 .bar-hybrid {
-  background: linear-gradient(90deg, #059669, #34d399);
+  background: var(--surface-active);
 }
 
 .runtime-val {
@@ -318,7 +318,7 @@
   border: 1px solid var(--border-subtle);
   border-top: 1px solid var(--border-top-glow);
   background: var(--surface-card);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
 }
 
 .latex-code-block {

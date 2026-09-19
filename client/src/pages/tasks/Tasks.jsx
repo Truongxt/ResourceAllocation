@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 /**
  * ============================================================================
  * TRANG QUẢN LÝ CÔNG VIỆC (Task Management Page)
@@ -56,6 +57,9 @@ const { Title, Text } = Typography;
 
 export default function Tasks() {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const attentionStatus = searchParams.get('status') === 'blocked' ? 'blocked' : '';
+  const unassignedOnly = searchParams.get('unassigned') === 'true';
   const { user } = useAuth();
   const { isDark } = useTheme();
 
@@ -65,7 +69,7 @@ export default function Tasks() {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [view, setView] = useState('kanban');
+  const [view, setView] = useState('list');
   const [filters, setFilters] = useState({ search: '', project: '', priority: '' });
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -76,10 +80,17 @@ export default function Tasks() {
   const [selectedDetailTaskId, setSelectedDetailTaskId] = useState(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [taskGroups, setTaskGroups] = useState([]);
+  useEffect(() => {
+    const taskId = searchParams.get('taskId');
+    if (taskId) { setSelectedDetailTaskId(taskId); setDetailDrawerOpen(true); }
+  }, [searchParams]);
 
   // Base Wework: Không gian "Công việc của tôi" (Scope) & Lọc nhanh thời gian (Time Filter)
   const [scope, setScope] = useState('all'); // 'all' | 'my_tasks' | 'assigned_by_me' | 'following' | 'subordinates'
-  const [timeFilter, setTimeFilter] = useState('all'); // 'all' | 'today' | 'this_week' | 'overdue' | 'done'
+  const [timeFilter, setTimeFilter] = useState(searchParams.get('timeFilter') === 'overdue' ? 'overdue' : 'all'); // 'all' | 'today' | 'this_week' | 'overdue' | 'done'
+  useEffect(() => {
+    setTimeFilter(searchParams.get('timeFilter') === 'overdue' ? 'overdue' : 'all');
+  }, [searchParams]);
   const [excelModalOpen, setExcelModalOpen] = useState(false);
   const [recurringModalOpen, setRecurringModalOpen] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
@@ -114,6 +125,9 @@ export default function Tasks() {
     setLoading(true);
     try {
       const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
+      if (attentionStatus) params.status = attentionStatus;
+      if (unassignedOnly) params.unassigned = 'true';
+      if (attentionStatus || unassignedOnly || timeFilter === 'overdue') params.includeSubtasks = 'true';
       if (scope !== 'all') params.scope = scope;
       if (timeFilter !== 'all') params.timeFilter = timeFilter;
       const res = await taskService.getAll(params);
@@ -123,7 +137,7 @@ export default function Tasks() {
     } finally {
       setLoading(false);
     }
-  }, [filters, scope, timeFilter, t]);
+  }, [filters, scope, timeFilter, attentionStatus, unassignedOnly, t]);
 
   /**
    * Tải danh sách dự án
@@ -466,7 +480,7 @@ export default function Tasks() {
 
           {/* Base Wework: Nút Việc lặp lại */}
           <Button
-            icon={<SyncOutlined style={{ color: '#6366f1' }} />}
+            icon={<SyncOutlined style={{ color: 'var(--brand-primary)' }} />}
             onClick={() => setRecurringModalOpen(true)}
           >
             Việc lặp lại
@@ -569,13 +583,13 @@ export default function Tasks() {
             checked={timeFilter === item.key}
             onChange={() => setTimeFilter(item.key)}
             style={{
-              borderRadius: 14,
+              borderRadius: 4,
               padding: '2px 12px',
               fontSize: 12,
               fontWeight: timeFilter === item.key ? 700 : 500,
               cursor: 'pointer',
-              border: `1px solid ${timeFilter === item.key ? '#6366f1' : (isDark ? '#334155' : '#e2e8f0')}`,
-              background: timeFilter === item.key ? (item.key === 'overdue' ? '#ef4444' : '#6366f1') : undefined,
+              border: `1px solid ${timeFilter === item.key ? 'var(--brand-primary)' : (isDark ? '#334155' : '#e2e8f0')}`,
+              background: timeFilter === item.key ? (item.key === 'overdue' ? '#ef4444' : 'var(--brand-primary)') : undefined,
               color: timeFilter === item.key ? '#ffffff' : undefined,
             }}
           >
@@ -584,6 +598,7 @@ export default function Tasks() {
         ))}
       </div>
 
+      {(attentionStatus || unassignedOnly) && <div className="task-active-filter"><span>{t(attentionStatus ? 'workspace.blocked' : 'workspace.unassigned')}</span><Button size="small" onClick={() => setSearchParams({})}>{t('workspace.clearFilter')}</Button></div>}
       {/* 1. Khối KPI Chips */}
       <TaskKpiChips stats={stats} isDark={isDark} t={t} />
 

@@ -29,13 +29,13 @@ export default function LandingSandbox({
       <div className="landing-container">
         <div className="section-header-center">
           <Tag color="cyan" className="section-tag">
-            Live Algorithm Sandbox
+            Mô phỏng minh họa
           </Tag>
           <Title level={2} className="section-title">
-            Trải nghiệm Trực tiếp Thuật toán Tối ưu hóa
+            Khám phá một phương án phân bổ
           </Title>
           <Paragraph className="section-subtitle">
-            Kéo thanh trượt để thay đổi số lượng công việc và nhân sự, sau đó bấm nút để xem thuật toán Hybrid (CSP → GA) phân bổ nguồn lực theo thời gian thực!
+            Thay đổi số lượng công việc và nhân sự để xem kết quả minh họa. Các số liệu được mô phỏng, không phải kết quả đo thuật toán. Đăng nhập để chạy trên dữ liệu dự án của bạn.
           </Paragraph>
         </div>
 

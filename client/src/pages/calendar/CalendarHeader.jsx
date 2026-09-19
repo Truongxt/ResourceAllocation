@@ -29,7 +29,7 @@ export default function CalendarHeader({
 
     return (
         <div
-            className="saas-card"
+            className="work-toolbar"
             style={{
                 padding: '16px 20px',
                 display: 'flex',

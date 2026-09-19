@@ -6,7 +6,7 @@
  * Mục đích:
  *   - Thanh thông báo trên cùng về đề tài tốt nghiệp.
  *   - Logo thương hiệu RAO Studio, liên kết điều hướng mượt mà đến các mục:
- *     Tính năng, Thuật toán AI, Live Demo, So sánh với Jira, Đồ án.
+ *     Tính năng, Phương pháp phân bổ, Mô phỏng, So sánh với Jira, Đồ án.
  *   - Nút chuyển đổi Dark/Light mode và nút Đăng nhập / Bắt đầu ngay.
  */
 

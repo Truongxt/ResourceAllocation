@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import MetricStrip from '../../components/common/MetricStrip';
+import './Resources.css';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Table,
@@ -79,9 +82,13 @@ function nextLeave(resource) {
 export default function Resources() {
   const { t } = useTranslation();
   const { isDark } = useTheme();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const workloadFilter = searchParams.get('workload') || 'all';
   const [resources, setResources] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const resourceRequest = useRef(0);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('resources');
   const [filters, setFilters] = useState({ search: '', department: '', availability: '' });
@@ -108,15 +115,23 @@ export default function Resources() {
 
   // Load resources & departments
   const loadResources = useCallback(async () => {
+    const request = ++resourceRequest.current;
     setLoading(true);
+    setLoadError(false);
     try {
       const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
-      const res = await resourceService.getAll(params);
-      setResources(res.data.data.resources || []);
+      const res = await resourceService.getAll({ ...params, isActive: true, limit: 100 });
+      const allResources = [...(res.data.data.resources || [])];
+      for (let page = 2; page <= (res.data.pagination?.pages || 1); page++) {
+        if (request !== resourceRequest.current) return;
+        const next = await resourceService.getAll({ ...params, isActive: true, limit: 100, page });
+        allResources.push(...(next.data.data.resources || []));
+      }
+      if (request === resourceRequest.current) setResources(allResources);
     } catch (err) {
-      message.error(err.response?.data?.message || t('resources.loadFailed'));
+      if (request === resourceRequest.current) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (request === resourceRequest.current) setLoading(false);
     }
   }, [filters, t]);
 
@@ -150,6 +165,12 @@ export default function Resources() {
         : 0;
     return { total, available, overloaded, avgUtil };
   }, [resources]);
+
+  const visibleResources = useMemo(() => resources.filter(r => {
+    if (workloadFilter === 'overloaded') return r.isOverloaded;
+    if (workloadFilter === 'capacity') return !currentLeave(r) && r.availability !== 'unavailable' && (r.utilizationRate || 0) < 100;
+    return true;
+  }).sort((a, b) => (b.utilizationRate || 0) - (a.utilizationRate || 0)), [resources, workloadFilter]);
 
   // Handlers for Resource
   const openCreateResource = () => {
@@ -382,7 +403,7 @@ export default function Resources() {
       render: (_, record) => (
         <Space orientation="horizontal" size="middle">
           <Avatar
-            style={{ backgroundColor: '#6366f1' }}
+            style={{ backgroundColor: 'var(--surface-active)', color: 'var(--brand-accent)' }}
             icon={<UserOutlined />}
             size="large"
           >
@@ -400,7 +421,7 @@ export default function Resources() {
       title: t('reports.columns.department'),
       dataIndex: 'department',
       key: 'department',
-      render: (dept) => dept ? <Tag color="blue">{dept}</Tag> : <Text type="secondary">—</Text>,
+      render: (dept) => dept ? <Text>{dept}</Text> : <Text type="secondary">—</Text>,
     },
     {
       title: t('common.status'),
@@ -441,35 +462,38 @@ export default function Resources() {
       width: 220,
       render: (_, record) => {
         const util = record.utilizationRate || 0;
-        const color = util > 100 ? '#ef4444' : util > 80 ? '#f59e0b' : '#10b981';
+        const color = util > 100 ? 'var(--status-danger)' : 'var(--brand-primary)';
+        const capacity = record.capacity ?? (record.maxCapacity ?? 40) * (record.fte ?? 1);
+        const remaining = capacity - (record.currentWorkload || 0);
         return (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                {record.currentWorkload || 0}h / {record.capacity || record.maxCapacity * record.fte}h
+                {record.currentWorkload || 0}h / {capacity}h
               </Text>
               <Text strong style={{ color, fontSize: 12 }}>{util}%</Text>
             </div>
             <Progress percent={Math.min(util, 100)} showInfo={false} strokeColor={color} size="small" />
+            <span className={remaining < 0 ? 'capacity-note capacity-note-danger' : 'capacity-note'}>{t(remaining < 0 ? 'workspace.excessHours' : 'workspace.freeHours', { count: Math.round(Math.abs(remaining) * 10) / 10 })}</span>
           </div>
         );
       },
     },
     {
-      title: 'Skill Matrix',
+      title: t('workspace.skills'),
       key: 'skills',
       render: (_, record) => {
         const skills = record.skills || [];
         return (
           <Space wrap size={[4, 4]}>
             {skills.slice(0, 3).map((s, idx) => (
-              <Tag key={idx} color="purple" style={{ fontSize: 11 }}>
+              <Tag key={idx} style={{ fontSize: 11 }}>
                 {s.name} (Lv.{s.level})
               </Tag>
             ))}
             {skills.length > 3 && <Tag>+{skills.length - 3}</Tag>}
             <Button
-              type="dashed"
+              type="text"
               size="small"
               icon={<ThunderboltOutlined />}
               onClick={() => openSkillsModal(record)}
@@ -597,15 +621,15 @@ export default function Resources() {
   ];
 
   return (
-    <div style={{ maxWidth: 1400 }}>
+    <div className="workspace-page resources-page">
       {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div className="page-heading">
         <div>
           <Title level={3} style={{ marginBottom: 4 }}>{t('resources.title')}</Title>
           <Text type="secondary">{t('resources.subtitle')}</Text>
         </div>
         {activeTab === 'resources' && (
-          <Space>
+          <Space wrap>
             <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>
               {t('projects.importCsv')}
             </Button>
@@ -616,10 +640,11 @@ export default function Resources() {
         )}
       </div>
 
+      {loadError && <Alert type="error" showIcon title={t('workspace.loadError')} action={<Button onClick={loadResources}>{t('common.reload')}</Button>} style={{ marginBottom: 16 }} />}
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
-        type="card"
+        type="line"
         items={[
           {
             key: 'resources',
@@ -630,77 +655,20 @@ export default function Resources() {
             ),
             children: (
               <>
-      {/* 4 Top Metric KPI Chips */}
-      {activeTab === 'resources' && (
-        <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-          <Col xs={12} sm={6}>
-            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="icon-chip icon-chip-primary">
-                <TeamOutlined />
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('reports.stats.totalResources') || 'Tổng nhân sự'}
-                </Text>
-                <div style={{ fontSize: 22, fontWeight: 800, color: isDark ? '#f8fafc' : '#0f172a' }} className="tabular-nums">
-                  {stats.total}
-                </div>
-              </div>
-            </div>
-          </Col>
-
-          <Col xs={12} sm={6}>
-            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="icon-chip icon-chip-success">
-                <UserOutlined />
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('enums.availability.available') || 'Sẵn sàng'}
-                </Text>
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981' }} className="tabular-nums">
-                  {stats.available}
-                </div>
-              </div>
-            </div>
-          </Col>
-
-          <Col xs={12} sm={6}>
-            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="icon-chip icon-chip-info">
-                <ThunderboltOutlined />
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('reports.avgUtilShort') || 'Utilization TB'}
-                </Text>
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#06b6d4' }} className="tabular-nums">
-                  {stats.avgUtil}%
-                </div>
-              </div>
-            </div>
-          </Col>
-
-          <Col xs={12} sm={6}>
-            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className={`icon-chip ${stats.overloaded > 0 ? 'icon-chip-danger' : 'icon-chip-primary'}`}>
-                <WarningOutlined />
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('resources.overloaded') || 'Quá tải'}
-                </Text>
-                <div style={{ fontSize: 22, fontWeight: 800, color: stats.overloaded > 0 ? '#ef4444' : isDark ? '#f8fafc' : '#0f172a' }} className="tabular-nums">
-                  {stats.overloaded}
-                </div>
-              </div>
-            </div>
-          </Col>
-        </Row>
-      )}
-
+      <MetricStrip items={[
+        { label: t('reports.stats.totalResources'), value: stats.total },
+        { label: t('enums.availability.available'), value: stats.available },
+        { label: t('workspace.capacityUsed'), value: stats.avgUtil + '%' },
+        { label: t('resources.overloaded'), value: stats.overloaded, danger: stats.overloaded > 0 },
+      ]} />
+      <div className="section-heading resource-view-heading">
+        <div><h2>{t('workspace.teamCapacity')}</h2><p>{t('workspace.resourceScope')}</p></div>
+        <Space wrap className="resource-quick-filters">
+          {['all', 'overloaded', 'capacity'].map(key => <Button key={key} type={workloadFilter === key ? 'primary' : 'default'} aria-pressed={workloadFilter === key} onClick={() => setSearchParams(key === 'all' ? {} : { workload: key })}>{t('workspace.filter.' + key)}</Button>)}
+        </Space>
+      </div>
                 {/* Filters */}
-                <div className="saas-card" style={{ padding: '14px 18px', marginBottom: 20 }}>
+                <div className="work-toolbar">
                   <Row gutter={[12, 12]} align="middle">
                     <Col xs={24} md={10}>
                       <Input
@@ -741,7 +709,9 @@ export default function Resources() {
                 <div className="saas-card" style={{ overflow: 'hidden' }}>
                   <Table
                     columns={resourceColumns}
-                    dataSource={resources}
+                    dataSource={visibleResources}
+                    scroll={{ x: 1050 }}
+                    rowClassName={record => record.isOverloaded ? 'resource-row-overloaded' : ''}
                     rowKey="_id"
                     loading={loading}
                     pagination={{

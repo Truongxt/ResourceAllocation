@@ -638,7 +638,7 @@ export default function ProjectDetail() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <Title level={3} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.02em' }}>{project.name}</Title>
+              <Title level={3} style={{ margin: 0, fontWeight: 600, letterSpacing: '-0.02em' }}>{project.name}</Title>
               {project.code && (
                 <span
                   style={{
@@ -682,7 +682,7 @@ export default function ProjectDetail() {
               <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
                 {t('projectDetail.projectProgress') || 'Tiến độ dự án'}
               </Text>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#818cf8' }} className="tabular-nums">
+              <div style={{ fontSize: 24, fontWeight: 600, color: '#818cf8' }} className="tabular-nums">
                 {project.progress || 0}%
               </div>
             </div>
@@ -698,7 +698,7 @@ export default function ProjectDetail() {
               <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
                 {t('nav.tasks') || 'Công việc'}
               </Text>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981' }} className="tabular-nums">
+              <div style={{ fontSize: 24, fontWeight: 600, color: '#10b981' }} className="tabular-nums">
                 {taskStats.done} <span style={{ fontSize: 14, color: '#94a3b8' }}>/ {taskStats.total}</span>
               </div>
             </div>
@@ -714,7 +714,7 @@ export default function ProjectDetail() {
               <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
                 {t('projectDetail.members') || 'Thành viên'}
               </Text>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#f59e0b' }} className="tabular-nums">
+              <div style={{ fontSize: 24, fontWeight: 600, color: '#f59e0b' }} className="tabular-nums">
                 {members.length}
               </div>
             </div>
@@ -730,7 +730,7 @@ export default function ProjectDetail() {
               <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
                 {t('projects.budget') || 'Ngân sách'}
               </Text>
-              <div style={{ fontSize: 18, fontWeight: 800, color: isDark ? '#f8fafc' : '#0f172a' }} className="tabular-nums">
+              <div style={{ fontSize: 18, fontWeight: 600, color: isDark ? '#f8fafc' : '#0f172a' }} className="tabular-nums">
                 {formatCurrency(project.budget)}
               </div>
             </div>
@@ -790,13 +790,13 @@ export default function ProjectDetail() {
                         <Col span={12}>
                           <div style={{ padding: 12, borderRadius: 8, background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc' }}>
                             <Text type="secondary" style={{ fontSize: 11, fontWeight: 600 }}>{t('projectDetail.estimatedHours') || 'Ước tính'}</Text>
-                            <div style={{ fontSize: 20, fontWeight: 800, color: '#818cf8' }} className="tabular-nums">{taskStats.totalEstimated}h</div>
+                            <div style={{ fontSize: 20, fontWeight: 600, color: '#818cf8' }} className="tabular-nums">{taskStats.totalEstimated}h</div>
                           </div>
                         </Col>
                         <Col span={12}>
                           <div style={{ padding: 12, borderRadius: 8, background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc' }}>
                             <Text type="secondary" style={{ fontSize: 11, fontWeight: 600 }}>{t('projectDetail.actualHours') || 'Thực tế'}</Text>
-                            <div style={{ fontSize: 20, fontWeight: 800, color: '#10b981' }} className="tabular-nums">{taskStats.totalActual}h</div>
+                            <div style={{ fontSize: 20, fontWeight: 600, color: '#10b981' }} className="tabular-nums">{taskStats.totalActual}h</div>
                           </div>
                         </Col>
                       </Row>
@@ -831,7 +831,7 @@ export default function ProjectDetail() {
                       icon={<PlusOutlined />}
                       onClick={handleOpenCreateTask}
                       style={{
-                        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                        background: 'var(--brand-primary)',
                         boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
                       }}
                     >
@@ -869,7 +869,7 @@ export default function ProjectDetail() {
                       icon={<PlusOutlined />}
                       onClick={openAddMember}
                       style={{
-                        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                        background: 'var(--brand-primary)',
                         boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
                       }}
                     >
@@ -1126,7 +1126,7 @@ export default function ProjectDetail() {
                 htmlType="submit"
                 loading={submitting}
                 style={{
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  background: 'var(--brand-primary)',
                   boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
                 }}
               >

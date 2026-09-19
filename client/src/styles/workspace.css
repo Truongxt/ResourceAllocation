@@ -1,0 +1,71 @@
+/* Shared working surfaces: readable data, quiet navigation, explicit actions. */
+.workspace-content { min-width: 0; }
+.workspace-content > div { margin-inline: auto; }
+.workspace-page { max-width: 1440px; margin-inline: auto; }
+.page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.page-heading h3.ant-typography { margin: 0 0 6px; font-size: 24px; font-weight: 600; letter-spacing: -.025em; }
+.page-heading p { color: var(--text-secondary); max-width: 65ch; margin: 0; }
+.section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 16px; }
+.section-heading h2 { font-size: 16px; font-weight: 600; margin: 0; }
+.section-heading p { margin: 4px 0 0; font-size: 13px; color: var(--text-secondary); }
+.work-section { padding-block: 24px; border-top: 1px solid var(--border-subtle); }
+.work-toolbar { padding: 12px 0; margin-bottom: 12px; }
+.task-active-filter { display: flex; align-items: center; gap: 12px; padding: 10px 0; color: var(--text-secondary); }
+.optimization-guide { display: flex; gap: 28px; flex-wrap: wrap; border-block: 1px solid var(--border-subtle); padding: 16px 0; margin-bottom: 24px; color: var(--text-secondary); font-size: 13px; }
+.optimization-guide span { display: flex; gap: 10px; align-items: center; }
+.optimization-guide b { font-weight: 500; font-variant-numeric: tabular-nums; color: var(--brand-accent); }
+.settings-sections > .ant-tabs { background: transparent; }
+.settings-sections .ant-card { border-radius: 6px; }
+.metric-strip { display: flex; flex-wrap: wrap; gap: 0; padding: 18px 0; margin: 0 0 24px; border-block: 1px solid var(--border-subtle); }
+.metric-strip-item { flex: 1 1 140px; padding: 0 24px; border-inline-start: 1px solid var(--border-subtle); }
+.metric-strip-item:first-child { padding-inline-start: 0; border: 0; }
+.metric-strip dt { font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
+.metric-strip dd { font-size: 26px; font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; color: var(--text-primary); margin: 0; }
+.metric-strip dd.metric-danger { color: var(--status-danger); }
+.metric-detail { display: block; font-size: 12px; color: var(--text-secondary); margin-top: 5px; }
+.metric-strip-compact .metric-strip { border-top: 0; padding-top: 0; margin-bottom: 16px; }
+.metric-strip-compact .metric-strip-item { display: flex; align-items: baseline; gap: 10px; flex: 0 1 auto; }
+.metric-strip-compact .metric-strip dd { font-size: 16px; }
+.metric-strip-compact .metric-strip dt { margin: 0; }
+.workspace-content .ant-typography h3, .workspace-content h3.ant-typography { font-weight: 600 !important; }
+.workspace-content .ant-card { box-shadow: none; }
+.workspace-content .ant-card-head { border-bottom-color: var(--border-subtle); }
+.workspace-content .ant-tag { border-radius: 4px; font-weight: 400; }
+.workspace-content .icon-chip-primary, .workspace-content .icon-chip-info, .workspace-content .icon-chip-success { background: var(--surface-hover); color: var(--text-secondary); border-color: transparent; }
+.workspace-content .ant-table-cell { vertical-align: middle; }
+.workspace-content .ant-table-wrapper { max-width: 100%; }
+.workspace-content .ant-tabs-nav { margin-bottom: 20px; }
+.workspace-content .ant-btn-primary, .workspace-header .ant-btn-primary { background: var(--brand-primary) !important; box-shadow: none !important; }
+.workspace-content .ant-btn-primary:hover, .workspace-header .ant-btn-primary:hover { background: var(--brand-primary-hover) !important; }
+.workspace-sidebar.ant-layout-sider { background: var(--surface-ground) !important; box-shadow: none !important; border-right: 1px solid var(--border-subtle) !important; }
+.workspace-sidebar .ant-menu { background: transparent !important; }
+.workspace-sidebar .ant-menu-item-group-title span { color: var(--text-secondary) !important; font-weight: 500 !important; letter-spacing: 0 !important; text-transform: none !important; }
+.workspace-sidebar .ant-menu-item .anticon { color: inherit !important; }
+.workspace-sidebar .ant-menu-item-selected { background: var(--surface-active) !important; color: var(--brand-accent) !important; }
+.workspace-header.ant-layout-header { background: var(--surface-ground) !important; backdrop-filter: none !important; border-bottom: 1px solid var(--border-subtle) !important; box-shadow: none !important; }
+.workspace-header h4.ant-typography { font-size: 14px; font-weight: 500 !important; color: var(--text-secondary); }
+.workspace-header .ant-avatar { background: var(--brand-primary) !important; }
+.skip-link { position: fixed; top: -60px; left: 16px; z-index: 1200; background: var(--surface-card); padding: 12px; color: var(--text-primary); }
+.skip-link:focus { top: 8px; }
+:where(button, a, input, select, [tabindex]):focus-visible { outline: 2px solid var(--border-focus); outline-offset: 3px; }
+.spinner { width: 24px; height: 24px; border: 2px solid var(--border-subtle); border-top-color: var(--brand-primary); border-radius: 50%; animation: workspace-spin .8s linear infinite; }
+@keyframes workspace-spin { to { transform: rotate(360deg); } }
+@media (max-width: 1000px) {
+  .workspace-header .header-search-trigger { display: none !important; }
+}
+@media (max-width: 767px) {
+  .workspace-layout { margin-left: 72px !important; }
+  .workspace-header.ant-layout-header { left: 72px !important; padding-inline: 12px !important; gap: 8px; }
+  .workspace-header h4.ant-typography, .workspace-header .header-user-copy, .workspace-header .header-quick-create { display: none !important; }
+  .workspace-content.ant-layout-content { margin: 76px 12px 20px !important; }
+  .page-heading { gap: 12px; margin-bottom: 18px; }
+  .page-heading h3.ant-typography { font-size: 21px; }
+  .metric-strip { row-gap: 20px; }
+  .metric-strip-item { flex-basis: 45%; padding-inline: 12px; }
+  .metric-strip-item:nth-child(odd) { padding-inline-start: 0; border: 0; }
+  .metric-strip dd { font-size: 23px; }
+  .section-heading { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

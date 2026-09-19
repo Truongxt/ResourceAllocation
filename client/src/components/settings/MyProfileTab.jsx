@@ -114,7 +114,7 @@ export default function MyProfileTab({ user, updateProfile }) {
               src={user?.avatar}
               icon={<UserOutlined />}
               style={{
-                background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                background: 'var(--brand-primary)',
                 fontSize: 36,
                 marginBottom: 16,
                 boxShadow: '0 6px 18px rgba(37, 99, 235, 0.35)',

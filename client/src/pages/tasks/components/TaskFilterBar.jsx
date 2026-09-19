@@ -87,7 +87,7 @@ export default function TaskFilterBar({
               label: t('tasks.views.kanban') || 'Kanban',
             },
             {
-              value: 'table',
+              value: 'list',
               icon: <UnorderedListOutlined />,
               label: t('tasks.views.table') || 'Danh sách',
             },

@@ -132,7 +132,7 @@ export default function MyLeavesCard() {
           icon={<PlusOutlined />}
           onClick={() => setModalOpen(true)}
           style={{
-            background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+            background: 'var(--brand-primary)',
             borderRadius: 8,
             fontWeight: 600,
           }}
@@ -265,7 +265,7 @@ export default function MyLeavesCard() {
               htmlType="submit"
               loading={submitting}
               style={{
-                background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                background: 'var(--brand-primary)',
                 borderRadius: 8,
               }}
             >

@@ -219,7 +219,7 @@ export default function OptimizationResultView({
                       flex: 1,
                       minWidth: 4,
                       height: `${heightPct}%`,
-                      background: 'linear-gradient(to top, #6366f1, #14b8a6)',
+                      background: 'var(--brand-primary)',
                       borderRadius: '2px 2px 0 0',
                       opacity: 0.85,
                     }}

@@ -15,7 +15,7 @@
 .kanban-column-antd {
   background: var(--bg-surface, #101726);
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-  border-radius: 12px;
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 280px);

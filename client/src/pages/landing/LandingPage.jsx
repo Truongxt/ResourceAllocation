@@ -29,6 +29,7 @@ import LandingFeatures from './components/LandingFeatures';
 import LandingComparison from './components/LandingComparison';
 import LandingFooter from './components/LandingFooter';
 import './LandingPage.css';
+import './ProductLanding.css';
 
 export default function LandingPage() {
   const navigate = useNavigate();

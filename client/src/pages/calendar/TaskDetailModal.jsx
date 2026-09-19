@@ -147,7 +147,7 @@ export default function TaskDetailModal({ open, task, onClose, onUpdated }) {
           className="bento-card"
           style={{
             padding: '16px 18px',
-            background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.06) 0%, var(--surface-card) 100%)',
+            background: 'var(--surface-card)',
             border: '1px solid rgba(99, 102, 241, 0.2)',
             display: 'flex',
             flexDirection: 'column',

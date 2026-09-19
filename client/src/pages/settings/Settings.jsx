@@ -125,82 +125,15 @@ export default function Settings() {
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', paddingBottom: 40 }}>
-      {/* Base Account Header Banner */}
-      <div
-        className="saas-card"
-        style={{
-          padding: '24px 28px',
-          marginBottom: 20,
-          background: isDark
-            ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.85) 100%)'
-            : 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
-          border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
-          borderRadius: 16,
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-            <Avatar
-              size={68}
-              src={user?.avatar}
-              icon={<UserOutlined />}
-              style={{
-                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
-                fontSize: 28,
-              }}
-            >
-              {user?.name?.[0]?.toUpperCase()}
-            </Avatar>
-
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <Title level={3} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.02em' }}>
-                  {user?.name}
-                </Title>
-                <Tag
-                  color={user?.role === 'admin' ? 'purple' : user?.role === 'project_manager' ? 'blue' : 'cyan'}
-                  style={{ borderRadius: 12, fontWeight: 600, padding: '2px 10px' }}
-                >
-                  <SafetyCertificateOutlined style={{ marginRight: 4 }} />
-                  {roleLabel(user?.role)}
-                </Tag>
-                <Tag color="success" style={{ borderRadius: 12 }}>
-                  <CheckCircleFilled style={{ marginRight: 4 }} />
-                  Base Account Active
-                </Tag>
-              </div>
-
-              <Text type="secondary" style={{ fontSize: 13, marginTop: 4, display: 'block' }}>
-                {user?.email} • {user?.jobTitle || user?.position || 'Thành viên'} • {user?.companyName || 'Công ty Công nghệ RAO'}
-              </Text>
-            </div>
-          </div>
-
-          {/* Platform Identity Badges */}
-          <Space size={12} wrap>
-            <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Hệ sinh thái
-              </Text>
-              <Tag color="#1e3a8a" style={{ border: '1px solid #3b82f6', color: '#93c5fd', margin: 0, fontWeight: 600 }}>
-                Base Platform 2026
-              </Tag>
-            </div>
-          </Space>
-        </div>
-      </div>
+      <header className="page-heading">
+        <div><Title level={3}>{t('workspace.accountSettings')}</Title><Text type="secondary">{user?.name} · {user?.email}</Text></div>
+        <Tag>{roleLabel(user?.role)}</Tag>
+      </header>
 
       {/* Tabs điều hướng chuẩn Base Account */}
       <div
-        className="saas-card"
-        style={{
-          background: isDark ? 'rgba(11, 17, 30, 0.7)' : '#ffffff',
-          border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
-          borderRadius: 16,
-          padding: '8px 24px 24px 24px',
-        }}
+        className="settings-sections"
+        style={{ padding: 0 }}
       >
         <Tabs
           activeKey={activeTab}

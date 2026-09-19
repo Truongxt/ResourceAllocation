@@ -1,3 +1,4 @@
+import MetricStrip from '../../components/common/MetricStrip';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -102,7 +103,7 @@ export default function Projects() {
   const [filters, setFilters] = useState({ search: '', status: '', priority: '', department: '' });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [viewMode, setViewMode] = useState('grid');
+  const [viewMode, setViewMode] = useState('table');
   const [modalOpen, setModalOpen] = useState(false);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
@@ -736,7 +737,7 @@ export default function Projects() {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: '0 0 4px 0', fontWeight: 800, letterSpacing: '-0.02em' }}>
+          <Title level={3} style={{ margin: '0 0 4px 0', fontWeight: 600, letterSpacing: '-0.02em' }}>
             {activeTab === 'projects' ? (t('pageTitle./projects') || 'Dự án & Phòng ban') : 'Phòng ban (Departments)'}
           </Title>
           <Text type="secondary" style={{ fontSize: 13 }}>
@@ -788,7 +789,7 @@ export default function Projects() {
               onClick={openCreate}
               id="btn-create-project"
               style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                background: 'var(--brand-primary)',
                 boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
                 fontWeight: 600,
               }}
@@ -829,57 +830,13 @@ export default function Projects() {
       {/* TAB 1: DỰ ÁN & PHÒNG BAN */}
       {activeTab === 'projects' && (
         <>
-          {/* 3 Metric Chips */}
-          <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-            <Col xs={24} sm={8}>
-              <div className="saas-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div className="icon-chip icon-chip-primary">
-                  <ProjectOutlined />
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                    {t('projects.stats.total') || 'Tổng số dự án'}
-                  </Text>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: isDark ? '#f8fafc' : '#0f172a' }} className="tabular-nums">
-                    {projectStats.total}
-                  </div>
-                </div>
-              </div>
-            </Col>
-            <Col xs={24} sm={8}>
-              <div className="saas-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div className="icon-chip icon-chip-info">
-                  <SyncOutlined spin />
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                    {t('enums.projectStatus.in_progress') || 'Đang thực hiện'}
-                  </Text>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#06b6d4' }} className="tabular-nums">
-                    {projectStats.active}
-                  </div>
-                </div>
-              </div>
-            </Col>
-            <Col xs={24} sm={8}>
-              <div className="saas-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div className="icon-chip icon-chip-success">
-                  <CheckCircleOutlined />
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                    {t('reports.columns.completed') || 'Đã hoàn thành'}
-                  </Text>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981' }} className="tabular-nums">
-                    {projectStats.completed}
-                  </div>
-                </div>
-              </div>
-            </Col>
-          </Row>
-
+          <MetricStrip items={[
+            { label: t('projects.stats.total'), value: projectStats.total },
+            { label: t('enums.projectStatus.in_progress'), value: projectStats.active },
+            { label: t('enums.projectStatus.completed'), value: projectStats.completed },
+          ]} />
           {/* Toolbar / Filters */}
-          <div className="saas-card" style={{ padding: '14px 18px', marginBottom: 20 }}>
+          <div className="work-toolbar">
             <Row gutter={[12, 12]} align="middle">
               <Col xs={24} md={8}>
                 <Input
@@ -1558,7 +1515,7 @@ export default function Projects() {
                 htmlType="submit"
                 loading={submitting}
                 style={{
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  background: 'var(--brand-primary)',
                   boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
                   fontWeight: 600,
                   padding: '0 24px',

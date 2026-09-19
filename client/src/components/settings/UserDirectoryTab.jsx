@@ -1054,7 +1054,7 @@ export default function UserDirectoryTab({ currentUser }) {
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreateUser} style={{ marginTop: 16 }}>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.06) 0%, rgba(99, 102, 241, 0.06) 100%)',
+            background: 'var(--surface-card)',
             border: '1px solid rgba(99, 102, 241, 0.2)',
             borderRadius: 8,
             padding: '10px 14px',
