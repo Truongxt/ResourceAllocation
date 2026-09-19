@@ -135,9 +135,9 @@ export default function ActivityLogs() {
       title: t('activityLogs.columns.time'),
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 170,
+      width: 180,
       render: (date) => (
-        <div>
+        <div className="tabular-nums">
           <Text strong style={{ fontSize: 13, display: 'block' }}>
             {dayjs(date).format('DD/MM/YYYY HH:mm:ss')}
           </Text>
@@ -156,7 +156,7 @@ export default function ActivityLogs() {
           <Avatar
             size="small"
             icon={<UserOutlined />}
-            style={{ backgroundColor: '#4f46e5' }}
+            style={{ backgroundColor: 'var(--brand-primary, #2563eb)' }}
           />
           <div>
             <Text strong style={{ fontSize: 13, display: 'block' }}>
@@ -213,26 +213,61 @@ export default function ActivityLogs() {
     },
   ];
 
+  const hasActiveFilters = Boolean(
+    filters.search || filters.entityType || filters.action || filters.startDate
+  );
+
+  const resetFilters = () => {
+    setFilters({ search: '', entityType: '', action: '', startDate: '', endDate: '' });
+  };
+
   return (
-    <div style={{ maxWidth: 1400 }}>
-      {/* Header */}
+    <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+      {/* Unified Header with Inline Live Telemetry */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 24,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+          marginBottom: 16,
         }}
       >
         <div>
-          <Title level={3} style={{ marginBottom: 4 }}>
-            {t('activityLogs.title')}
-          </Title>
-          <Text type="secondary">{t('activityLogs.subtitle')}</Text>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+              {t('activityLogs.title', 'Nhật ký Hoạt động')}
+            </h1>
+            {stats && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span className="pill-badge status-pill-neutral tabular-nums">
+                  {t('activityLogs.stats.total', 'Tổng')}: <strong style={{ color: 'var(--text-primary)', marginLeft: 4 }}>{stats.total || 0}</strong>
+                </span>
+                <span className="pill-badge status-pill-success tabular-nums">
+                  {t('activityLogs.stats.today', 'Hôm nay')}: <strong style={{ color: 'var(--status-success)', marginLeft: 4 }}>+{stats.todayCount || 0}</strong>
+                </span>
+                {stats.topUsers?.[0]?.userName && (
+                  <span className="pill-badge status-pill-primary">
+                    <UserOutlined style={{ fontSize: 11 }} /> {stats.topUsers[0].userName}
+                  </span>
+                )}
+                {stats.byEntityType?.[0]?.type && (
+                  <span className="pill-badge status-pill-info">
+                    {stats.byEntityType[0].type.toUpperCase()}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <Text type="secondary" style={{ fontSize: 12.5, marginTop: 2, display: 'block' }}>
+            {t('activityLogs.subtitle', 'Theo dõi toàn bộ lịch sử thao tác, phân quyền và biến động dữ liệu')}
+          </Text>
         </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData}>
-            {t('common.reload')}
+
+        <Space size="small">
+          <Button icon={<ReloadOutlined />} onClick={loadData} size="middle">
+            {t('common.reload', 'Tải lại')}
           </Button>
           {user?.role === 'admin' && (
             <Popconfirm
@@ -243,117 +278,57 @@ export default function ActivityLogs() {
               cancelText={t('common.cancel')}
               okButtonProps={{ danger: true }}
             >
-              <Button danger icon={<DeleteOutlined />} loading={clearing}>
-                {t('activityLogs.clear')}
+              <Button danger icon={<DeleteOutlined />} loading={clearing} size="middle">
+                {t('activityLogs.clear', 'Xóa nhật ký')}
               </Button>
             </Popconfirm>
           )}
         </Space>
       </div>
 
-      {/* KPI Stats */}
-      {stats && (
-        <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-          <Col xs={12} sm={6}>
-            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="icon-chip icon-chip-primary">
-                <HistoryOutlined />
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('activityLogs.stats.total', 'Tổng hoạt động')}
-                </Text>
-                <div style={{ fontSize: 22, fontWeight: 800 }} className="tabular-nums">
-                  {stats.total}
-                </div>
-              </div>
-            </div>
-          </Col>
-
-          <Col xs={12} sm={6}>
-            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="icon-chip icon-chip-success">
-                <ClockCircleOutlined />
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('activityLogs.stats.today', 'Hôm nay')}
-                </Text>
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981' }} className="tabular-nums">
-                  {stats.todayCount}
-                </div>
-              </div>
-            </div>
-          </Col>
-
-          <Col xs={12} sm={6}>
-            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="icon-chip icon-chip-info">
-                <UserOutlined />
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('activityLogs.stats.topUser', 'Thao tác nhiều nhất')}
-                </Text>
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#06b6d4' }}>
-                  {stats.topUsers?.[0]?.userName || '—'}
-                </div>
-              </div>
-            </div>
-          </Col>
-
-          <Col xs={12} sm={6}>
-            <div className="saas-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="icon-chip icon-chip-warning">
-                <ApartmentOutlined />
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('activityLogs.stats.topCategory', 'Module sôi nổi')}
-                </Text>
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#f59e0b' }}>
-                  {stats.byEntityType?.[0]?.type?.toUpperCase() || '—'}
-                </div>
-              </div>
-            </div>
-          </Col>
-        </Row>
-      )}
-
-      {/* Filter Toolbar */}
-      <div className="saas-card" style={{ padding: '14px 18px', marginBottom: 20 }}>
-        <Row gutter={[12, 12]} align="middle">
-          <Col xs={24} md={8}>
+      {/* Unified Table Workspace: Filter Header + Table Surface combined into 1 clean container */}
+      <div className="saas-card" style={{ overflow: 'hidden' }}>
+        {/* Integrated Top Control Toolbar */}
+        <div
+          style={{
+            padding: '12px 16px',
+            background: 'var(--surface-card)',
+            borderBottom: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 1 }}>
             <Input
-              prefix={<SearchOutlined style={{ color: '#64748b' }} />}
+              prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
               placeholder={t('activityLogs.searchPlaceholder', 'Tìm theo mô tả, người dùng, IP...')}
               value={filters.search}
               onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
               allowClear
+              style={{ width: 240 }}
             />
-          </Col>
-          <Col xs={12} md={5}>
             <Select
-              style={{ width: '100%' }}
-              placeholder={t('activityLogs.allCategories', 'Tất cả phân loại (Module)')}
+              style={{ width: 180 }}
+              placeholder={t('activityLogs.allCategories', 'Module')}
               value={filters.entityType || undefined}
               onChange={(val) => setFilters((p) => ({ ...p, entityType: val || '' }))}
               allowClear
               options={ENTITY_TYPES.map((item) => ({
                 value: item.value,
                 label: (
-                  <Space>
+                  <Space size={6}>
                     {item.icon}
                     <span>{t(`activityLogs.entity.${item.value}`, item.value)}</span>
                   </Space>
                 ),
               }))}
             />
-          </Col>
-          <Col xs={12} md={5}>
             <Select
-              style={{ width: '100%' }}
-              placeholder={t('activityLogs.allActions', 'Tất cả hành động')}
+              style={{ width: 170 }}
+              placeholder={t('activityLogs.allActions', 'Hành động')}
               value={filters.action || undefined}
               onChange={(val) => setFilters((p) => ({ ...p, action: val || '' }))}
               allowClear
@@ -362,10 +337,8 @@ export default function ActivityLogs() {
                 label: t(`activityLogs.action.${action}`, action),
               }))}
             />
-          </Col>
-          <Col xs={24} md={6}>
             <DatePicker.RangePicker
-              style={{ width: '100%' }}
+              style={{ width: 230 }}
               format="DD/MM/YYYY"
               placeholder={[t('activityLogs.startDate', 'Từ ngày'), t('activityLogs.endDate', 'Đến ngày')]}
               onChange={(dates) => {
@@ -376,13 +349,17 @@ export default function ActivityLogs() {
                 }));
               }}
             />
-          </Col>
-        </Row>
-      </div>
+            {hasActiveFilters && (
+              <Button type="link" size="small" onClick={resetFilters} style={{ padding: 0, color: 'var(--brand-primary)' }}>
+                {t('common.clearFilter', 'Xóa bộ lọc')}
+              </Button>
+            )}
+          </div>
+        </div>
 
-      {/* Table */}
-      <div className="saas-card" style={{ overflow: 'hidden' }}>
+        {/* Data Grid */}
         <Table
+          size="middle"
           columns={columns}
           dataSource={logs}
           rowKey="_id"

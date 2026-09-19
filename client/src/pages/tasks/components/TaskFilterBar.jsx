@@ -102,16 +102,12 @@ export default function TaskFilterBar({
             type="primary"
             icon={<PlusOutlined />}
             onClick={onOpenCreateModal}
-            style={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-              borderRadius: 8,
-              fontWeight: 600,
-            }}
+            size="middle"
           >
             {t('tasks.add') || 'Thêm công việc'}
           </Button>
         )}
-        <Button icon={<ReloadOutlined />} onClick={onReload} style={{ borderRadius: 8 }} />
+        <Button icon={<ReloadOutlined />} onClick={onReload} size="middle" />
       </Space>
     </div>
   );

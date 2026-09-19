@@ -121,16 +121,11 @@ export default function Dashboard() {
               type="primary"
               icon={<ThunderboltOutlined />}
               onClick={() => navigate('/optimization')}
-              style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
-                borderRadius: 8,
-                fontWeight: 600,
-              }}
+              size="middle"
             >
               {t('dashboard.runOptimization') || 'Tối ưu hóa Phân bổ'}
             </Button>
-            <Button icon={<ReloadOutlined />} onClick={load} style={{ borderRadius: 8 }}>
+            <Button icon={<ReloadOutlined />} onClick={load} size="middle">
               {t('common.reload') || 'Làm mới'}
             </Button>
           </Space>

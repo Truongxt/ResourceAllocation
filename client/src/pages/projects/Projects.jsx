@@ -1207,11 +1207,7 @@ export default function Projects() {
                         setEditingDepartment(null);
                         setDeptModalOpen(true);
                       }}
-                      style={{
-                        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
-                        fontWeight: 600,
-                      }}
+                      size="middle"
                     >
                       Tạo Department
                     </Button>

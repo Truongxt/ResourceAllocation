@@ -485,11 +485,7 @@ export default function Tasks() {
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleOpenCreate}
-              style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
-                fontWeight: 600,
-              }}
+              size="middle"
             >
               {t('tasks.create') || 'Tạo công việc'}
             </Button>
@@ -498,15 +494,7 @@ export default function Tasks() {
       </div>
 
       {/* Base Wework: Không gian "Công việc của tôi" - Tabs phân loại vai trò */}
-      <div
-        style={{
-          background: isDark ? 'rgba(30, 41, 59, 0.4)' : '#ffffff',
-          padding: '0 16px',
-          borderRadius: 12,
-          marginBottom: 16,
-          border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-        }}
-      >
+      <div className="saas-card" style={{ padding: '0 16px', marginBottom: 16 }}>
         <Tabs
           activeKey={scope}
           onChange={setScope}

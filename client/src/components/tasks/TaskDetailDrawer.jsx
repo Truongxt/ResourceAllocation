@@ -9,9 +9,9 @@
  * ============================================================================
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
-  Drawer, Tabs, Tag, Space, Avatar, Button, Input, Checkbox, Progress,
+  Drawer, Tag, Space, Avatar, Button, Input, Checkbox, Progress,
   Typography, Tooltip, Popconfirm, Divider, Select, message, Badge, Empty,
   Skeleton, InputNumber, DatePicker, Modal, Card, List,
 } from 'antd';
@@ -21,7 +21,7 @@ import {
   SendOutlined, UnorderedListOutlined,
   TeamOutlined, CalendarOutlined, FlagOutlined, ApartmentOutlined,
   CloseOutlined, EyeOutlined, CopyOutlined, HistoryOutlined, FileDoneOutlined,
-  LinkOutlined,
+  LinkOutlined, LeftOutlined, RightOutlined,
 } from '@ant-design/icons';
 import { useTheme } from '../../context/ThemeContext';
 import taskService from '../../services/taskService';
@@ -52,6 +52,155 @@ const PRIORITY_MAP = {
   high: { label: 'Cao', color: '#f59e0b', icon: '●' },
   critical: { label: 'Khẩn cấp', color: '#ef4444', icon: '▲' },
 };
+
+/**
+ * Thanh Tab Bar tuỳ chỉnh có 2 nút mũi tên Trái & Phải cuộn mượt mà.
+ * Loại bỏ hoàn toàn menu "..." mặc định của Antd bị lỗi hiển thị lặp tab.
+ */
+function TaskDetailTabBar({ activeKey, onChange, items }) {
+  const scrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(hasOverflow && el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    const handleResize = () => checkScroll();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [items, checkScroll]);
+
+  const handleScroll = (direction) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distance = 160;
+    el.scrollBy({
+      left: direction === 'left' ? -distance : distance,
+      behavior: 'smooth',
+    });
+    setTimeout(checkScroll, 320);
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const activeItem = el.querySelector(`[data-tab-key="${activeKey}"]`);
+    if (activeItem) {
+      activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+    setTimeout(checkScroll, 320);
+  }, [activeKey, checkScroll]);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        borderBottom: '1px solid var(--border-subtle)',
+        marginBottom: 16,
+        paddingBottom: 2,
+        position: 'relative',
+      }}
+    >
+      {/* Nút mũi tên lùi (Trái) */}
+      <Button
+        type="text"
+        size="small"
+        icon={<LeftOutlined />}
+        disabled={!canScrollLeft}
+        onClick={() => handleScroll('left')}
+        title="Xem các mục phía trước"
+        style={{
+          width: 28,
+          height: 28,
+          padding: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          color: canScrollLeft ? 'var(--text-primary)' : 'var(--text-muted)',
+          opacity: canScrollLeft ? 1 : 0.25,
+          cursor: canScrollLeft ? 'pointer' : 'not-allowed',
+        }}
+      />
+
+      {/* Dải Tab cuộn ngang mượt mà */}
+      <div
+        ref={scrollRef}
+        onScroll={checkScroll}
+        className="no-scrollbar"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          overflowX: 'auto',
+          scrollBehavior: 'smooth',
+          flex: 1,
+          padding: '2px 0',
+        }}
+      >
+        {items.map((item) => {
+          const isActive = item.key === activeKey;
+          return (
+            <div
+              key={item.key}
+              data-tab-key={item.key}
+              onClick={() => onChange(item.key)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 12px',
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: isActive ? 600 : 500,
+                color: isActive ? 'var(--brand-primary, #2563eb)' : 'var(--text-secondary)',
+                background: isActive ? 'var(--surface-active, rgba(37, 99, 235, 0.08))' : 'transparent',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 150ms cubic-bezier(0.16, 1, 0.3, 1)',
+                borderBottom: isActive ? '2px solid var(--brand-primary, #2563eb)' : '2px solid transparent',
+                userSelect: 'none',
+              }}
+            >
+              {item.label}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Nút mũi tên tiến (Phải) */}
+      <Button
+        type="text"
+        size="small"
+        icon={<RightOutlined />}
+        disabled={!canScrollRight}
+        onClick={() => handleScroll('right')}
+        title="Xem các mục tiếp theo"
+        style={{
+          width: 28,
+          height: 28,
+          padding: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          color: canScrollRight ? 'var(--text-primary)' : 'var(--text-muted)',
+          opacity: canScrollRight ? 1 : 0.25,
+          cursor: canScrollRight ? 'pointer' : 'not-allowed',
+        }}
+      />
+    </div>
+  );
+}
 
 export default function TaskDetailDrawer({
   open,
@@ -1092,7 +1241,7 @@ export default function TaskDetailDrawer({
           setTask(null);
           onClose();
         }}
-        width={680}
+        width={Math.min(740, typeof window !== 'undefined' ? window.innerWidth : 740)}
         destroyOnClose
         styles={{
           header: {
@@ -1248,13 +1397,14 @@ export default function TaskDetailDrawer({
             </div>
           )}
 
-          <Tabs
+          <TaskDetailTabBar
             activeKey={activeTab}
             onChange={setActiveTab}
             items={tabItems}
-            style={{ marginTop: 4 }}
-            size="small"
           />
+          <div style={{ marginTop: 4 }}>
+            {tabItems.find((t) => t.key === activeTab)?.children}
+          </div>
         </>
       )}
     </Drawer>
