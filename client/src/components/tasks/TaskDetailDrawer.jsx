@@ -444,8 +444,10 @@ export default function TaskDetailDrawer({
       await loadTask();
       message.success('Đã xóa người theo dõi');
       if (onTaskUpdated) onTaskUpdated();
-    } catch {
-      message.error('Lỗi khi xóa người theo dõi');
+    } catch (err) {
+      // Server phân biệt được "gỡ xong" với "người này vốn không theo dõi" (404);
+      // nuốt câu của server thì người dùng không biết mình vừa gỡ nhầm ai.
+      message.error(err.response?.data?.message || 'Lỗi khi xóa người theo dõi');
     }
   };
 

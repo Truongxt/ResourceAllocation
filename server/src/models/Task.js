@@ -1,5 +1,10 @@
 const mongoose = require('mongoose');
 
+// Trần người theo dõi trên một công việc. Base Wework để 300; RAO ở quy mô nhỏ hơn
+// nên chặn ở 50 — đủ rộng cho một phòng ban, đủ hẹp để một lần cập nhật task không
+// bắn hàng trăm thông báo.
+const MAX_FOLLOWERS = 50;
+
 const taskSchema = new mongoose.Schema(
   {
     title: {
@@ -64,12 +69,16 @@ const taskSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
-    followers: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+    // Người theo dõi: xem và bình luận, KHÔNG phải người thực hiện. Trần 50 đặt ở
+    // schema chứ không ở controller, để mọi đường ghi (tạo task, nhân bản, import
+    // Excel, sinh từ công việc lặp lại) đều bị chặn như nhau.
+    followers: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+      validate: {
+        validator: (arr) => !arr || arr.length <= MAX_FOLLOWERS,
+        message: `Tối đa ${MAX_FOLLOWERS} người theo dõi trên một công việc`,
       },
-    ],
+    },
     checklist: [
       {
         title: { type: String, required: true, trim: true },
@@ -197,5 +206,7 @@ taskSchema.index({ assignee: 1 });
 taskSchema.index({ createdBy: 1 });
 taskSchema.index({ followers: 1 });
 taskSchema.index({ startDate: 1, endDate: 1 });
+
+taskSchema.statics.MAX_FOLLOWERS = MAX_FOLLOWERS;
 
 module.exports = mongoose.model('Task', taskSchema);

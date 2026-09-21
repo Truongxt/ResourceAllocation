@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const Project = require('../models/Project');
 const User = require('../models/User');
@@ -948,38 +949,87 @@ const removeChecklistItem = async (req, res, next) => {
 };
 
 /**
- * @desc    Thêm người theo dõi công việc
+ * @desc    Thêm người theo dõi công việc (một hoặc nhiều người trong một lần gọi)
  * @route   POST /api/tasks/:id/followers
  * @access  Private
  */
 const addFollower = async (req, res, next) => {
   try {
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ success: false, message: 'Thiếu userId' });
+    // Nhận cả `userIds: []` lẫn `userId` đơn lẻ. Giao diện hiện tại còn gửi dạng đơn,
+    // đổi cứng sang mảng sẽ làm hỏng nút "Thêm người theo dõi" đang chạy.
+    const { userIds, userId } = req.body;
+    const requested = Array.isArray(userIds) ? userIds : userId ? [userId] : [];
+
+    if (!requested.length) {
+      return res.status(400).json({ success: false, message: 'Chưa chọn người theo dõi nào' });
+    }
+
+    const candidates = [...new Set(requested.map(String))].filter((id) =>
+      mongoose.Types.ObjectId.isValid(id)
+    );
+    if (!candidates.length) {
+      return res.status(400).json({ success: false, message: 'Danh sách người theo dõi không hợp lệ' });
+    }
 
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
 
-    if (task.followers.some(f => f.toString() === userId)) {
-      return res.status(400).json({ success: false, message: 'Người dùng đã theo dõi công việc này' });
+    const assigneeId = task.assignee ? task.assignee.toString() : null;
+    const current = new Set((task.followers || []).map((f) => f.toString()));
+
+    // Người thực hiện vốn đã nhận mọi thông báo của công việc; thêm họ làm người
+    // theo dõi chỉ nhân đôi thông báo và thêm một dòng thừa trong danh sách.
+    if (assigneeId && candidates.includes(assigneeId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Người thực hiện đã nhận thông báo của công việc, không cần thêm làm người theo dõi',
+      });
     }
 
-    task.followers.push(userId);
+    const toAdd = candidates.filter((id) => !current.has(id));
+    if (!toAdd.length) {
+      return res.status(400).json({ success: false, message: 'Những người này đã theo dõi công việc' });
+    }
+
+    // Chặn id trỏ tới tài khoản không tồn tại: mongoose vẫn lưu được, nhưng populate
+    // sẽ lặng lẽ bỏ qua, và danh sách hiện ra thiếu người mà không báo lỗi gì.
+    const found = await User.find({ _id: { $in: toAdd } }).select('_id');
+    if (found.length !== toAdd.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'Danh sách có người dùng không tồn tại',
+      });
+    }
+
+    if (current.size + toAdd.length > Task.MAX_FOLLOWERS) {
+      return res.status(400).json({
+        success: false,
+        message: `Tối đa ${Task.MAX_FOLLOWERS} người theo dõi trên một công việc`,
+      });
+    }
+
+    task.followers.push(...toAdd);
     await task.save();
     await task.populate('followers', 'name email avatar');
 
-    sendNotification({
-      recipient: userId,
-      actor: req.user._id,
-      type: 'task_follower_added',
-      title: 'Được thêm vào theo dõi công việc',
-      message: `${req.user.name} đã thêm bạn vào danh sách theo dõi công việc "${task.title}"`,
-      entityType: 'task',
-      entityId: task._id,
-      link: '/tasks',
+    toAdd.forEach((recipient) => {
+      sendNotification({
+        recipient,
+        actor: req.user._id,
+        type: 'task_follower_added',
+        title: 'Được thêm vào theo dõi công việc',
+        message: `${req.user.name} đã thêm bạn vào danh sách theo dõi công việc "${task.title}"`,
+        entityType: 'task',
+        entityId: task._id,
+        link: '/tasks',
+      });
     });
 
-    res.json({ success: true, data: { followers: task.followers }, message: 'Đã thêm người theo dõi' });
+    res.json({
+      success: true,
+      data: { followers: task.followers },
+      message: `Đã thêm ${toAdd.length} người theo dõi`,
+    });
   } catch (error) {
     next(error);
   }
@@ -995,7 +1045,18 @@ const removeFollower = async (req, res, next) => {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
 
-    task.followers = task.followers.filter(f => f.toString() !== req.params.userId);
+    const before = task.followers.length;
+    task.followers = task.followers.filter((f) => f.toString() !== req.params.userId);
+
+    // Trước đây luôn trả 200 kể cả khi người đó chưa từng theo dõi, nên giao diện
+    // không phân biệt được "đã gỡ xong" với "gỡ nhầm người".
+    if (task.followers.length === before) {
+      return res.status(404).json({
+        success: false,
+        message: 'Người này không nằm trong danh sách theo dõi công việc',
+      });
+    }
+
     await task.save();
     await task.populate('followers', 'name email avatar');
 
@@ -1004,7 +1065,6 @@ const removeFollower = async (req, res, next) => {
     next(error);
   }
 };
-
 /**
  * @desc    Lấy subtasks của một task
  * @route   GET /api/tasks/:id/subtasks
