@@ -56,6 +56,27 @@ const getDashboardOverview = async (req, res, next) => {
             done: { $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] } },
             blocked: { $sum: { $cond: [{ $eq: ['$status', 'blocked'] }, 1, 0] } },
             failed: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
+            // Đúng/trễ hạn đo bằng lúc người làm bấm hoàn thành (`completedAt`), KHÔNG
+            // bằng lúc người đánh giá duyệt: người thực hiện không chịu trách nhiệm cho
+            // việc phiếu nằm chờ trên bàn người khác.
+            completedOnTime: { $sum: { $cond: [{ $and: [
+              { $eq: ['$status', 'done'] },
+              { $ne: [{ $ifNull: ['$completedAt', null] }, null] },
+              { $ne: [{ $ifNull: ['$endDate', null] }, null] },
+              { $lte: ['$completedAt', '$endDate'] },
+            ] }, 1, 0] } },
+            completedLate: { $sum: { $cond: [{ $and: [
+              { $eq: ['$status', 'done'] },
+              { $ne: [{ $ifNull: ['$completedAt', null] }, null] },
+              { $ne: [{ $ifNull: ['$endDate', null] }, null] },
+              { $gt: ['$completedAt', '$endDate'] },
+            ] }, 1, 0] } },
+            // Việc hoàn thành trước khi có luồng đánh giá thì không có mốc nào để so.
+            // Đếm riêng chứ không nhét vào "đúng hạn" cho đẹp số.
+            completedWithoutTimestamp: { $sum: { $cond: [{ $and: [
+              { $eq: ['$status', 'done'] },
+              { $eq: [{ $ifNull: ['$completedAt', null] }, null] },
+            ] }, 1, 0] } },
             overdue: { $sum: { $cond: [{ $and: [
               { $not: [{ $in: ['$status', ['done', 'failed']] }] },
               { $ne: [{ $ifNull: ['$endDate', null] }, null] },
@@ -107,7 +128,50 @@ const getDashboardOverview = async (req, res, next) => {
     ]);
 
     const ps = projectStats[0] || { total: 0, active: 0, completed: 0, planning: 0, avgProgress: 0, totalBudget: 0 };
-    const ts = taskStats[0] || { total: 0, todo: 0, inProgress: 0, review: 0, done: 0, blocked: 0, failed: 0, overdue: 0, unassigned: 0, totalEstimatedHours: 0, totalActualHours: 0 };
+    // SLA đánh giá nằm ở cấu hình dự án nên phải ghép bảng; gộp vào aggregate chung
+    // ở trên sẽ bắt mọi công việc đi qua $lookup chỉ để phục vụ một con số.
+    const reviewSla = await Task.aggregate([
+      { $match: { ...taskMatch, status: 'review' } },
+      {
+        $lookup: {
+          from: 'projects',
+          localField: 'project',
+          foreignField: '_id',
+          as: 'projectDoc',
+        },
+      },
+      { $unwind: { path: '$projectDoc', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          overdueReview: {
+            $and: [
+              { $ne: [{ $ifNull: ['$reviewRequestedAt', null] }, null] },
+              {
+                $lt: [
+                  {
+                    $add: [
+                      '$reviewRequestedAt',
+                      { $multiply: [{ $ifNull: ['$projectDoc.reviewConfig.slaHours', 24] }, 3600000] },
+                    ],
+                  },
+                  new Date(),
+                ],
+              },
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          pendingReview: { $sum: 1 },
+          overdueReview: { $sum: { $cond: ['$overdueReview', 1, 0] } },
+        },
+      },
+    ]);
+    const sla = reviewSla[0] || { pendingReview: 0, overdueReview: 0 };
+
+    const ts = taskStats[0] || { total: 0, todo: 0, inProgress: 0, review: 0, done: 0, blocked: 0, failed: 0, completedOnTime: 0, completedLate: 0, completedWithoutTimestamp: 0, overdue: 0, unassigned: 0, totalEstimatedHours: 0, totalActualHours: 0 };
     const rs = resourceStats[0] || { total: 0, available: 0, partial: 0, unavailable: 0, totalCapacity: 0, totalWorkload: 0, avgFte: 0, overloaded: 0 };
 
     const avgUtilization = rs.totalCapacity > 0 ? Math.round((rs.totalWorkload / rs.totalCapacity) * 100) : 0;
@@ -117,7 +181,12 @@ const getDashboardOverview = async (req, res, next) => {
       success: true,
       data: {
         projects: { ...ps, _id: undefined },
-        tasks: { ...ts, _id: undefined },
+        tasks: {
+          ...ts,
+          _id: undefined,
+          pendingReview: sla.pendingReview,
+          overdueReview: sla.overdueReview,
+        },
         resources: { ...rs, _id: undefined, avgUtilization, overloaded },
         recentOptimizations,
         recentTasks,

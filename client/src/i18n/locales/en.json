@@ -590,6 +590,23 @@
       "reasonRequired": "A failure reason is required",
       "reasonPlaceholder": "Why could this task not be completed?",
       "failedBy": "Marked by {{name}}"
+    },
+    "review": {
+      "complete": "Mark complete",
+      "pending": "Pending review",
+      "pendingList": "Waiting for my review",
+      "approve": "Approve",
+      "reject": "Send back",
+      "commentLabel": "Comment",
+      "commentRequired": "A comment is required when sending a task back",
+      "commentPlaceholder": "What needs fixing before it is resubmitted?",
+      "reviewers": "Reviewers",
+      "slaHours": "Review deadline (hours)",
+      "overdue": "Review overdue",
+      "waiting": "Waiting {{hours}}h",
+      "approvedBy": "Approved by {{name}}",
+      "rejectedBy": "Sent back by {{name}}",
+      "sentForReview": "Task sent for review"
     }
   },
   "projectDetail": {

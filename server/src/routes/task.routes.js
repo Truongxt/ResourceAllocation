@@ -8,6 +8,7 @@ const {
   canCreateTask,
   canModifyTask,
   canUpdateTaskStatus,
+  canCompleteTask,
   canUpdateDeadline,
   canDeleteTask,
   canManageFollowers,
@@ -42,6 +43,9 @@ const {
   previewExcelTasks,
   importExcelTasks,
   getTaskReminders,
+  completeTask,
+  reviewTask,
+  getPendingReviews,
 } = require('../controllers/task.controller');
 
 const router = express.Router();
@@ -168,6 +172,10 @@ router.post('/excel/import', upload.single('file'), importExcelTasks);
 // Base Wework: Reminders (Nhắc nhở công việc cần hoàn thành - đặt trước /:id)
 router.get('/reminders', getTaskReminders);
 
+// Việc đang chờ đánh giá. Đặt trên mọi route /:id, nếu không Express hiểu
+// 'pending-review' là một id công việc.
+router.get('/pending-review', getPendingReviews);
+
 router.get('/', listValidation, validate, getTasks);
 router.get('/:id', taskIdValidation, validate, getTaskById);
 
@@ -183,6 +191,10 @@ router.put(
   updateTask
 );
 router.patch('/:id/status', taskIdValidation, statusValidation, validate, canUpdateTaskStatus(), updateTaskStatus);
+
+// Luồng đánh giá kết quả (Base Wework)
+router.patch('/:id/complete', taskIdValidation, validate, canCompleteTask(), completeTask);
+router.post('/:id/review', taskIdValidation, validate, reviewTask);
 
 router.delete('/:id', taskIdValidation, validate, canDeleteTask(), deleteTask);
 

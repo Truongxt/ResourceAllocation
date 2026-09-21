@@ -322,6 +322,41 @@ const canUpdateTaskStatus = () => async (req, res, next) => {
 };
 
 /**
+ * Phân quyền Báo hoàn thành công việc (PATCH /:id/complete)
+ * Cùng tập người với quyền đổi trạng thái thường: người thực hiện là chính, kèm
+ * người giao việc, quản lý dự án, và người theo dõi nếu dự án cho phép.
+ */
+const canCompleteTask = () => async (req, res, next) => {
+  try {
+    if (PRIVILEGED_ROLES.includes(req.user.role)) {
+      return next();
+    }
+
+    const ctx = await getTaskUserContext(req.params.id, req.user);
+    const { task, isProjectManager, isCreator, isAssignee, isFollower, permissions } = ctx;
+
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+    }
+
+    if (isProjectManager || isCreator || isAssignee) {
+      return next();
+    }
+
+    if (isFollower && permissions.allowFollowerMarkDone) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: 'Bạn chỉ có thể báo hoàn thành công việc được giao cho mình.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Phân quyền Điều chỉnh thời hạn hoàn thành (PATCH /:id/deadline)
  */
 const canUpdateDeadline = () => async (req, res, next) => {
@@ -594,6 +629,7 @@ module.exports = {
   canCreateTask,
   canModifyTask,
   canUpdateTaskStatus,
+  canCompleteTask,
   canUpdateDeadline,
   canDeleteTask,
   canManageFollowers,

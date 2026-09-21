@@ -180,6 +180,23 @@ const taskSchema = new mongoose.Schema(
         changedAt: { type: Date, default: Date.now },
       },
     ],
+    // Base Wework: luồng đánh giá kết quả.
+    // Người đánh giá riêng cho công việc này; để trống thì dùng danh sách của dự án.
+    reviewers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    // Mốc người thực hiện bấm Hoàn thành. Đây là nguồn sự thật để tính đúng/trễ hạn —
+    // KHÔNG dùng reviewedAt, vì người thực hiện không chịu trách nhiệm cho việc người
+    // đánh giá duyệt chậm.
+    completedAt: { type: Date, default: null },
+    reviewRequestedAt: { type: Date, default: null },
+    reviewedAt: { type: Date, default: null },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    reviewDecision: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+    },
+    reviewComment: { type: String, trim: true, maxlength: 2000, default: '' },
+
     // Base Wework: vết của việc bị đánh dấu Thất bại. Lý do là bắt buộc — một công
     // việc đóng lại mà không ai biết vì sao thì báo cáo cuối kỳ không trả lời được gì.
     failureReason: { type: String, trim: true, maxlength: 1000, default: '' },

@@ -590,6 +590,23 @@
       "reasonRequired": "Cần nhập lý do thất bại",
       "reasonPlaceholder": "Vì sao công việc này không hoàn thành được?",
       "failedBy": "Đánh dấu bởi {{name}}"
+    },
+    "review": {
+      "complete": "Báo hoàn thành",
+      "pending": "Chờ đánh giá",
+      "pendingList": "Việc chờ tôi đánh giá",
+      "approve": "Duyệt",
+      "reject": "Trả lại",
+      "commentLabel": "Nhận xét",
+      "commentRequired": "Cần nhập lý do khi trả lại công việc",
+      "commentPlaceholder": "Cần sửa gì trước khi nộp lại?",
+      "reviewers": "Người đánh giá",
+      "slaHours": "Thời hạn đánh giá (giờ)",
+      "overdue": "Quá hạn đánh giá",
+      "waiting": "Đã chờ {{hours}} giờ",
+      "approvedBy": "Duyệt bởi {{name}}",
+      "rejectedBy": "Trả lại bởi {{name}}",
+      "sentForReview": "Đã gửi công việc sang bước đánh giá"
     }
   },
   "projectDetail": {

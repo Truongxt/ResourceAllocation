@@ -21,9 +21,10 @@ const CLOSED_STATUSES = ['done', 'failed'];
  * @param {string} args.nextStatus     trạng thái muốn chuyển sang
  * @param {Object} [args.project]      dự án chứa công việc (cần `failureConfig`)
  * @param {string} [args.failureReason] lý do thất bại người dùng nhập
+ * @param {boolean} [args.isReviewer] người gọi có quyền duyệt kết quả công việc này
  * @returns {{ valid: boolean, message?: string }}
  */
-function validateStatusTransition({ currentStatus, nextStatus, project, failureReason } = {}) {
+function validateStatusTransition({ currentStatus, nextStatus, project, failureReason, isReviewer } = {}) {
   if (!TASK_STATUSES.includes(nextStatus)) {
     return { valid: false, message: 'Trạng thái công việc không hợp lệ' };
   }
@@ -52,11 +53,46 @@ function validateStatusTransition({ currentStatus, nextStatus, project, failureR
     }
   }
 
+  if (nextStatus === 'done' && project?.reviewConfig?.enabled && !isReviewer) {
+    // Dự án đã bật đánh giá thì "xong" là kết luận của người đánh giá, không phải
+    // của người làm. Người thực hiện báo xong bằng PATCH /tasks/:id/complete, việc
+    // chuyển sang 'done' chỉ đi qua POST /tasks/:id/review.
+    return {
+      valid: false,
+      message: 'Dự án bật đánh giá kết quả: hãy báo hoàn thành để chuyển sang Chờ đánh giá, việc duyệt thuộc về người đánh giá',
+    };
+  }
+
   return { valid: true };
+}
+
+/**
+ * Danh sách người đánh giá áp dụng cho một công việc.
+ * Cấp công việc đè cấu hình dự án; không khai ở đâu cả thì rỗng, và lúc đó chỉ
+ * Admin/quản lý dự án duyệt được.
+ */
+function resolveReviewers(task, project) {
+  const taskLevel = (task?.reviewers || []).map((r) => String(r?._id || r));
+  if (taskLevel.length) return taskLevel;
+  return (project?.reviewConfig?.reviewers || []).map((r) => String(r?._id || r));
+}
+
+/**
+ * Việc chờ đánh giá đã quá hạn SLA chưa.
+ * Chưa có mốc `reviewRequestedAt` thì trả false — không có mốc thì không có hạn,
+ * đoán bừa một cái sẽ sinh ra cảnh báo giả.
+ */
+function isReviewOverdue(task, project, now = new Date()) {
+  if (task?.status !== 'review' || !task?.reviewRequestedAt) return false;
+  const slaHours = project?.reviewConfig?.slaHours || 24;
+  const deadline = new Date(task.reviewRequestedAt).getTime() + slaHours * 3600 * 1000;
+  return now.getTime() > deadline;
 }
 
 module.exports = {
   TASK_STATUSES,
   CLOSED_STATUSES,
   validateStatusTransition,
+  resolveReviewers,
+  isReviewOverdue,
 };

@@ -741,12 +741,24 @@ const updateProjectPermissions = async (req, res, next) => {
       project.markModified('failureConfig');
     }
 
+    if (req.body.reviewConfig) {
+      project.reviewConfig = {
+        ...(project.reviewConfig?.toObject ? project.reviewConfig.toObject() : project.reviewConfig),
+        ...req.body.reviewConfig,
+      };
+      project.markModified('reviewConfig');
+    }
+
     project.markModified('permissions');
     await project.save();
 
     res.json({
       success: true,
-      data: { permissions: project.permissions, failureConfig: project.failureConfig },
+      data: {
+        permissions: project.permissions,
+        failureConfig: project.failureConfig,
+        reviewConfig: project.reviewConfig,
+      },
       message: 'Cập nhật cấu hình phân quyền dự án thành công',
     });
   } catch (error) {

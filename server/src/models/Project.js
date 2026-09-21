@@ -136,6 +136,14 @@ const projectSchema = new mongoose.Schema(
         default: [],
       },
     },
+    // Base Wework: cấu hình đánh giá công việc trước khi đóng. Tắt mặc định để các
+    // dự án đang chạy không đột ngột mọc thêm một bước duyệt mà không ai được báo.
+    reviewConfig: {
+      enabled: { type: Boolean, default: false },
+      reviewers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+      // Thời hạn người đánh giá phải xử lý, tính từ lúc việc vào trạng thái chờ.
+      slaHours: { type: Number, default: 24, min: 1 },
+    },
   },
   {
     timestamps: true,
