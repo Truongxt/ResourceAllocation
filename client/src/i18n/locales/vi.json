@@ -607,6 +607,20 @@
       "approvedBy": "Duyệt bởi {{name}}",
       "rejectedBy": "Trả lại bởi {{name}}",
       "sentForReview": "Đã gửi công việc sang bước đánh giá"
+    },
+    "reassign": {
+      "title": "Bàn giao công việc",
+      "fromUser": "Người bàn giao",
+      "toUser": "Người nhận",
+      "scopeProject": "Giới hạn trong dự án",
+      "reason": "Lý do bàn giao",
+      "reasonPlaceholder": "Ví dụ: nhân sự nghỉ việc, điều chuyển phòng ban",
+      "preview": "Xem trước",
+      "previewCount": "{{count}} công việc sẽ được bàn giao",
+      "excludedNote": "Công việc đã Hoàn thành hoặc Thất bại không được bàn giao",
+      "confirm": "Bàn giao",
+      "done": "Đã bàn giao {{count}} công việc",
+      "checkWorkload": "Nên kiểm tra tải của người nhận sau khi bàn giao"
     }
   },
   "projectDetail": {

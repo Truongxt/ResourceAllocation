@@ -46,6 +46,8 @@ const {
   completeTask,
   reviewTask,
   getPendingReviews,
+  previewReassign,
+  bulkReassign,
 } = require('../controllers/task.controller');
 
 const router = express.Router();
@@ -175,6 +177,11 @@ router.get('/reminders', getTaskReminders);
 // Việc đang chờ đánh giá. Đặt trên mọi route /:id, nếu không Express hiểu
 // 'pending-review' là một id công việc.
 router.get('/pending-review', getPendingReviews);
+
+// Bàn giao công việc hàng loạt. Cũng phải đứng trên /:id, và chỉ Admin/PM —
+// đây là thao tác đổi chủ hàng loạt, không phải sửa một công việc.
+router.get('/reassign-preview', authorize('admin', 'project_manager'), previewReassign);
+router.post('/bulk-reassign', authorize('admin', 'project_manager'), bulkReassign);
 
 router.get('/', listValidation, validate, getTasks);
 router.get('/:id', taskIdValidation, validate, getTaskById);

@@ -607,6 +607,20 @@
       "approvedBy": "Approved by {{name}}",
       "rejectedBy": "Sent back by {{name}}",
       "sentForReview": "Task sent for review"
+    },
+    "reassign": {
+      "title": "Hand over tasks",
+      "fromUser": "From",
+      "toUser": "To",
+      "scopeProject": "Limit to project",
+      "reason": "Reason",
+      "reasonPlaceholder": "e.g. left the company, moved to another team",
+      "preview": "Preview",
+      "previewCount": "{{count}} tasks will be handed over",
+      "excludedNote": "Completed or failed tasks are never handed over",
+      "confirm": "Hand over",
+      "done": "Handed over {{count}} tasks",
+      "checkWorkload": "Check the new assignee workload afterwards"
     }
   },
   "projectDetail": {
