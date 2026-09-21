@@ -19,7 +19,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Typography, Space, Segmented, Button, Form, Tabs, Tag, message } from 'antd';
+import { Typography, Space, Segmented, Button, Form, Tabs, Tag, Modal, Input, message } from 'antd';
 import {
   AppstoreOutlined,
   UnorderedListOutlined,
@@ -31,6 +31,7 @@ import {
   EyeOutlined,
   TeamOutlined,
   ClockCircleOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import taskService from '../../services/taskService';
@@ -51,6 +52,7 @@ import TaskDetailDrawer from '../../components/tasks/TaskDetailDrawer';
 import TaskExcelImportModal from '../../components/tasks/TaskExcelImportModal';
 import RecurringTaskModal from '../../components/tasks/RecurringTaskModal';
 import RemindersDrawer from '../../components/tasks/RemindersDrawer';
+import PendingReviewDrawer from '../../components/tasks/PendingReviewDrawer';
 import './Tasks.css';
 
 const { Title, Text } = Typography;
@@ -74,6 +76,8 @@ export default function Tasks() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [draggedTaskId, setDraggedTaskId] = useState(null);
+  // { taskId, reason } khi đang hỏi lý do thất bại từ thao tác kéo thả.
+  const [failPrompt, setFailPrompt] = useState(null);
   const [projectTasks, setProjectTasks] = useState([]);
 
   // Base Wework: Drawer chi tiết công việc & Nhóm công việc
@@ -94,6 +98,8 @@ export default function Tasks() {
   const [excelModalOpen, setExcelModalOpen] = useState(false);
   const [recurringModalOpen, setRecurringModalOpen] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const [reviewQueueOpen, setReviewQueueOpen] = useState(false);
+  const [pendingReviewCount, setPendingReviewCount] = useState(0);
 
   const [form] = Form.useForm();
   const selectedProject = Form.useWatch('project', form);
@@ -269,6 +275,14 @@ export default function Tasks() {
       return;
     }
 
+    // Thất bại bắt buộc có lý do, nên không thể chuyển bằng một cú thả chuột. Hỏi
+    // ngay tại đây thay vì để server trả 400 rồi thẻ nhảy ngược về chỗ cũ.
+    if (targetStatus === 'failed') {
+      setDraggedTaskId(null);
+      setFailPrompt({ taskId, reason: '' });
+      return;
+    }
+
     // Cập nhật UI lạc quan (Optimistic update)
     setTasks((prev) =>
       prev.map((tItem) => (tItem._id === taskId ? { ...tItem, status: targetStatus } : tItem))
@@ -277,11 +291,46 @@ export default function Tasks() {
     try {
       await taskService.updateStatus(taskId, targetStatus);
       message.success(t('tasks.statusUpdated') || 'Đã cập nhật trạng thái công việc');
-    } catch {
-      message.error(t('tasks.statusUpdateFailed') || 'Lỗi cập nhật trạng thái');
+    } catch (err) {
+      // Hiện nguyên câu của server. Các lệnh chuyển trạng thái nay có thể bị từ chối
+      // vì lý do cụ thể (chưa bật tính năng, thiếu lý do, phải qua bước đánh giá) —
+      // nuốt hết thành "Lỗi cập nhật trạng thái" thì người dùng không biết làm gì tiếp.
+      message.error(err.response?.data?.message || t('tasks.statusUpdateFailed') || 'Lỗi cập nhật trạng thái');
       loadTasks();
     } finally {
       setDraggedTaskId(null);
+    }
+  };
+
+  // Nút hàng đợi đánh giá chỉ hiện khi thật sự có việc chờ mình: dự án không bật
+  // đánh giá thì đây là một nút vĩnh viễn rỗng, và một nút rỗng dạy người dùng bỏ qua nó.
+  const loadPendingReviewCount = useCallback(async () => {
+    try {
+      const res = await taskService.getPendingReviews();
+      setPendingReviewCount(res.data?.data?.total || 0);
+    } catch {
+      setPendingReviewCount(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPendingReviewCount();
+  }, [loadPendingReviewCount]);
+
+  const handleConfirmFail = async () => {
+    if (!failPrompt?.reason.trim()) {
+      message.warning('Cần nhập lý do thất bại');
+      return;
+    }
+    try {
+      await taskService.updateStatus(failPrompt.taskId, 'failed', {
+        failureReason: failPrompt.reason.trim(),
+      });
+      message.success('Đã đánh dấu công việc Thất bại');
+      setFailPrompt(null);
+      loadTasks();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Không thể đánh dấu thất bại');
     }
   };
 
@@ -485,6 +534,17 @@ export default function Tasks() {
           >
             Việc lặp lại
           </Button>
+
+          {/* Base Wework: Hàng đợi đánh giá kết quả */}
+          {pendingReviewCount > 0 && (
+            <Button
+              icon={<CheckCircleOutlined style={{ color: '#10b981' }} />}
+              onClick={() => setReviewQueueOpen(true)}
+            >
+              Chờ tôi duyệt
+              <Tag color="warning" style={{ marginLeft: 6 }}>{pendingReviewCount}</Tag>
+            </Button>
+          )}
 
           {/* Base Wework: Nút Nhắc việc (Reminders) */}
           <Button
@@ -703,6 +763,43 @@ export default function Tasks() {
         resources={resources}
         onTaskGenerated={loadTasks}
       />
+
+      {/* 9. Hàng đợi công việc chờ tôi đánh giá */}
+      <PendingReviewDrawer
+        open={reviewQueueOpen}
+        onClose={() => setReviewQueueOpen(false)}
+        onSelectTask={(id) => {
+          setSelectedDetailTaskId(id);
+          setDetailDrawerOpen(true);
+        }}
+        onReviewed={() => {
+          loadTasks();
+          loadPendingReviewCount();
+        }}
+      />
+
+      {/* 10. Hỏi lý do khi kéo công việc sang cột Thất bại */}
+      <Modal
+        title="Đánh dấu công việc Thất bại"
+        open={Boolean(failPrompt)}
+        onCancel={() => setFailPrompt(null)}
+        onOk={handleConfirmFail}
+        okText="Đánh dấu thất bại"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+      >
+        <p style={{ color: 'var(--text-secondary, #64748b)', marginTop: 0 }}>
+          Công việc sẽ đóng lại và được đếm riêng trong báo cáo, không còn bị tính là quá hạn.
+        </p>
+        <Input.TextArea
+          rows={4}
+          value={failPrompt?.reason || ''}
+          onChange={(e) => setFailPrompt((prev) => ({ ...prev, reason: e.target.value }))}
+          placeholder="Vì sao công việc này không hoàn thành được?"
+          maxLength={1000}
+          showCount
+        />
+      </Modal>
 
       {/* 8. Drawer Nhắc nhở công việc cần hoàn thành (Base Wework Reminders) */}
       <RemindersDrawer

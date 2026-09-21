@@ -131,6 +131,20 @@ export default function ProjectDetail() {
     }
   };
 
+  // Cấu hình luồng công việc (Thất bại / Đánh giá). Gộp với state tại chỗ để bật
+  // tắt xong thấy ngay, không phải tải lại cả trang dự án.
+  const handleUpdateWorkflowConfig = async (section, patch) => {
+    const current = project?.[section] || {};
+    const next = { ...current, ...patch };
+    try {
+      await projectService.updateWorkflowConfig(id, { [section]: next });
+      setProject((prev) => ({ ...prev, [section]: next }));
+      message.success('Đã cập nhật cấu hình luồng công việc');
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Không thể cập nhật cấu hình');
+    }
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError('');
@@ -908,6 +922,106 @@ export default function ProjectDetail() {
                   message="Phân quyền đối với thao tác trong công việc (Chuẩn Base Wework)"
                   description="Cấu hình các quyền hạn bổ sung (tương ứng với biểu tượng chìa khóa 🔑) cho người thực hiện, người theo dõi và thành viên trong dự án này."
                 />
+
+                {/* Luồng công việc: Thất bại & Đánh giá kết quả */}
+                <Card
+                  title={(
+                    <Space>
+                      <KeyOutlined style={{ color: '#8b5cf6' }} />
+                      <Text strong>Luồng công việc</Text>
+                    </Space>
+                  )}
+                  className="saas-card"
+                  size="small"
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '8px 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+                      <div>
+                        <Text strong style={{ display: 'block' }}>Cho phép đánh dấu công việc Thất bại</Text>
+                        <Text type="secondary" style={{ fontSize: 13 }}>
+                          Công việc không hoàn thành được sẽ đóng lại kèm lý do, và được đếm riêng
+                          trong báo cáo thay vì nằm mãi ở trạng thái quá hạn
+                        </Text>
+                      </div>
+                      <Switch
+                        checked={Boolean(project.failureConfig?.enabled)}
+                        disabled={!canManage}
+                        onChange={(checked) => handleUpdateWorkflowConfig('failureConfig', { enabled: checked })}
+                      />
+                    </div>
+
+                    {project.failureConfig?.enabled && (
+                      <div style={{ paddingLeft: 12, borderLeft: '2px solid var(--border-color, #e2e8f0)' }}>
+                        <Text strong style={{ display: 'block', marginBottom: 6 }}>Ngoài Quản trị viên và Quản lý dự án, ai được đánh dấu?</Text>
+                        <Select
+                          mode="multiple"
+                          allowClear
+                          disabled={!canManage}
+                          style={{ width: '100%', maxWidth: 420 }}
+                          placeholder="Mặc định: chỉ Quản trị viên và Quản lý dự án"
+                          value={project.failureConfig?.allowedRoles || []}
+                          onChange={(value) => handleUpdateWorkflowConfig('failureConfig', { allowedRoles: value })}
+                          options={[
+                            { value: 'assigner', label: 'Người giao việc' },
+                            { value: 'assignee', label: 'Người thực hiện' },
+                            { value: 'follower', label: 'Người theo dõi' },
+                          ]}
+                        />
+                      </div>
+                    )}
+
+                    <Divider style={{ margin: 0 }} />
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+                      <div>
+                        <Text strong style={{ display: 'block' }}>Bắt buộc đánh giá trước khi hoàn thành</Text>
+                        <Text type="secondary" style={{ fontSize: 13 }}>
+                          Người thực hiện báo xong thì công việc chuyển sang Chờ đánh giá; chỉ người
+                          đánh giá mới kết luận Hoàn thành hay trả lại
+                        </Text>
+                      </div>
+                      <Switch
+                        checked={Boolean(project.reviewConfig?.enabled)}
+                        disabled={!canManage}
+                        onChange={(checked) => handleUpdateWorkflowConfig('reviewConfig', { enabled: checked })}
+                      />
+                    </div>
+
+                    {project.reviewConfig?.enabled && (
+                      <div style={{ paddingLeft: 12, borderLeft: '2px solid var(--border-color, #e2e8f0)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div>
+                          <Text strong style={{ display: 'block', marginBottom: 6 }}>Người đánh giá</Text>
+                          <Select
+                            mode="multiple"
+                            allowClear
+                            disabled={!canManage}
+                            style={{ width: '100%', maxWidth: 420 }}
+                            placeholder="Bỏ trống: chỉ Quản trị viên và Quản lý dự án duyệt"
+                            value={(project.reviewConfig?.reviewers || []).map((r) => r?._id || r)}
+                            onChange={(value) => handleUpdateWorkflowConfig('reviewConfig', { reviewers: value })}
+                            options={members.map((m) => ({
+                              value: m.user?._id || m.user,
+                              label: m.user?.name || m.user?.email,
+                            }))}
+                          />
+                        </div>
+                        <div>
+                          <Text strong style={{ display: 'block', marginBottom: 6 }}>Thời hạn đánh giá (giờ)</Text>
+                          <InputNumber
+                            min={1}
+                            max={720}
+                            disabled={!canManage}
+                            value={project.reviewConfig?.slaHours ?? 24}
+                            onChange={(value) => value && handleUpdateWorkflowConfig('reviewConfig', { slaHours: value })}
+                          />
+                          <Text type="secondary" style={{ fontSize: 13, marginLeft: 12 }}>
+                            Quá hạn này, công việc hiện cảnh báo trong danh sách chờ đánh giá
+                          </Text>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
 
                 {/* Group 1: Quyền hạn của Người thực hiện (Assignee) */}
                 <Card

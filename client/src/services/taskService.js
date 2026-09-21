@@ -23,8 +23,9 @@ const taskService = {
     return api.put(`/tasks/${id}`, data);
   },
 
-  updateStatus(id, status) {
-    return api.patch(`/tasks/${id}/status`, { status });
+  // `extra` mang theo failureReason khi chuyển sang Thất bại — server bắt buộc có.
+  updateStatus(id, status, extra = {}) {
+    return api.patch(`/tasks/${id}/status`, { status, ...extra });
   },
 
   remove(id) {
@@ -54,6 +55,9 @@ const taskService = {
   addFollower(taskId, userId) {
     return api.post(`/tasks/${taskId}/followers`, { userId });
   },
+  addFollowers(taskId, userIds) {
+    return api.post(`/tasks/${taskId}/followers`, { userIds });
+  },
   removeFollower(taskId, userId) {
     return api.delete(`/tasks/${taskId}/followers/${userId}`);
   },
@@ -78,6 +82,25 @@ const taskService = {
   },
   updateDeadline(taskId, data) {
     return api.patch(`/tasks/${taskId}/deadline`, data);
+  },
+
+  // === Base Wework: Luồng đánh giá kết quả ===
+  complete(taskId) {
+    return api.patch(`/tasks/${taskId}/complete`);
+  },
+  review(taskId, decision, comment) {
+    return api.post(`/tasks/${taskId}/review`, { decision, comment });
+  },
+  getPendingReviews() {
+    return api.get('/tasks/pending-review');
+  },
+
+  // === Base Wework: Bàn giao công việc hàng loạt ===
+  reassignPreview(params) {
+    return api.get('/tasks/reassign-preview', { params });
+  },
+  bulkReassign(data) {
+    return api.post('/tasks/bulk-reassign', data);
   },
 
   // === Base Wework: Reminders (Nhắc việc) ===

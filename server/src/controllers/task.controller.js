@@ -208,6 +208,9 @@ const getTasks = async (req, res, next) => {
         .populate('parentTask', 'title status')
         .populate('resultReport.submittedBy', 'name email avatar')
         .populate('resultReport.approvedBy', 'name email avatar')
+      .populate('reviewedBy', 'name email avatar')
+      .populate('reviewers', 'name email avatar')
+      .populate('failedBy', 'name email avatar')
         .populate('deadlineHistory.changedBy', 'name email avatar')
         .sort(sort)
         .skip(skip)
@@ -235,7 +238,7 @@ const getTasks = async (req, res, next) => {
 const getTaskById = async (req, res, next) => {
   try {
     const task = await Task.findById(req.params.id)
-      .populate('project', 'name code status members manager permissions companyName')
+      .populate('project', 'name code status members manager permissions failureConfig reviewConfig companyName')
       .populate('assignee', 'name email avatar department')
       .populate('dependencies.task', 'title status priority startDate endDate progress')
       .populate('taskGroup', 'name color order')

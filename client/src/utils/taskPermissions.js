@@ -26,6 +26,8 @@ export function getTaskPermissions(task, project, user) {
       canAddSubtask: false,
       canAddFollower: false,
       canRemoveFollower: () => false,
+      canReview: false,
+      canMarkFailed: false,
     };
   }
 
@@ -101,6 +103,24 @@ export function getTaskPermissions(task, project, user) {
   // 11. Thêm người theo dõi
   const canAddFollower = isOwner || isPM || isCreator || isAssignee;
 
+  // 13. Duyệt / trả lại kết quả công việc.
+  // Danh sách người đánh giá của công việc đè cấu hình dự án; không khai ở đâu thì
+  // chỉ Owner và quản lý dự án duyệt được. Người thực hiện KHÔNG tự duyệt việc mình
+  // làm kể cả khi tên họ nằm trong danh sách — đó là điểm mấu chốt của bước này.
+  const reviewerIds = ((task?.reviewers?.length ? task.reviewers : proj?.reviewConfig?.reviewers) || [])
+    .map((r) => String(r?._id || r));
+  const canReview = !isAssignee && (isOwner || isPM || reviewerIds.includes(String(userId)));
+
+  // 14. Đánh dấu Thất bại — theo allowedRoles của dự án, tách khỏi quyền đổi trạng
+  // thái thường vì thao tác này đóng công việc lại.
+  const failureRoles = proj?.failureConfig?.allowedRoles || [];
+  const canMarkFailed =
+    isOwner ||
+    isPM ||
+    (isCreator && failureRoles.includes('assigner')) ||
+    (isAssignee && failureRoles.includes('assignee')) ||
+    (isFollower && failureRoles.includes('follower'));
+
   // 12. Gỡ người theo dõi
   const canRemoveFollower = (targetUserId) => {
     if (isOwner || isPM || isCreator || isAssignee) return true;
@@ -128,5 +148,7 @@ export function getTaskPermissions(task, project, user) {
     canAddSubtask,
     canAddFollower,
     canRemoveFollower,
+    canReview,
+    canMarkFailed,
   };
 }

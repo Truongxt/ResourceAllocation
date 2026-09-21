@@ -13,7 +13,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   Drawer, Tag, Space, Avatar, Button, Input, Checkbox, Progress,
   Typography, Tooltip, Popconfirm, Divider, Select, message, Badge, Empty,
-  Skeleton, InputNumber, DatePicker, Modal, Card, List,
+  Skeleton, InputNumber, DatePicker, Modal, Card, List, Alert,
 } from 'antd';
 import {
   CheckCircleOutlined, ClockCircleOutlined, UserOutlined, MessageOutlined,
@@ -27,6 +27,7 @@ import { useTheme } from '../../context/ThemeContext';
 import taskService from '../../services/taskService';
 import SubtaskFormModal from './SubtaskFormModal';
 import TaskResultModal from './TaskResultModal';
+import TaskWorkflowActions from './TaskWorkflowActions';
 import { getTaskPermissions } from '../../utils/taskPermissions';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -44,6 +45,7 @@ const STATUS_MAP = {
   review: { label: 'Đánh giá', color: '#f59e0b', bg: '#fffbeb' },
   done: { label: 'Hoàn thành', color: '#10b981', bg: '#ecfdf5' },
   blocked: { label: 'Bị chặn', color: '#ef4444', bg: '#fef2f2' },
+  failed: { label: 'Thất bại', color: '#7c3aed', bg: '#f5f3ff' },
 };
 
 const PRIORITY_MAP = {
@@ -1280,6 +1282,12 @@ export default function TaskDetailDrawer({
         extra={
           task ? (
             <Space size={8}>
+              {/* Báo hoàn thành / Duyệt / Trả lại / Thất bại */}
+              <TaskWorkflowActions task={task} perms={perms} onChanged={() => {
+                loadTask();
+                if (onTaskUpdated) onTaskUpdated();
+              }} />
+
               {/* Báo cáo kết quả */}
               {perms.canReportResult && (
                 <Tooltip title="Báo cáo kết quả / Hoàn thành">
@@ -1358,6 +1366,51 @@ export default function TaskDetailDrawer({
           </div>
         ) : (
           <>
+            {/* Vết của luồng công việc: đang chờ ai, vì sao bị trả lại, vì sao thất bại */}
+            {task.status === 'review' && (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginTop: 8, marginBottom: 12, borderRadius: 10 }}
+                message="Đang chờ đánh giá"
+                description={(
+                  <span style={{ fontSize: 13 }}>
+                    {task.reviewRequestedAt
+                      ? `Đã gửi ${dayjs(task.reviewRequestedAt).fromNow()}`
+                      : 'Đã gửi đi chờ duyệt'}
+                    {(task.reviewers || task.project?.reviewConfig?.reviewers || []).length > 0 && (
+                      <> · Người đánh giá: {(task.reviewers?.length ? task.reviewers : task.project?.reviewConfig?.reviewers || []).map((r) => r?.name || r?.email || r).join(', ')}</>
+                    )}
+                  </span>
+                )}
+              />
+            )}
+
+            {task.reviewDecision === 'rejected' && task.reviewComment && task.status !== 'done' && (
+              <Alert
+                type="error"
+                showIcon
+                style={{ marginTop: 8, marginBottom: 12, borderRadius: 10 }}
+                message={`Bị trả lại${task.reviewedBy?.name ? ` bởi ${task.reviewedBy.name}` : ''}`}
+                description={<span style={{ fontSize: 13 }}>{task.reviewComment}</span>}
+              />
+            )}
+
+            {task.status === 'failed' && (
+              <Alert
+                type="error"
+                showIcon
+                style={{ marginTop: 8, marginBottom: 12, borderRadius: 10, borderColor: '#7c3aed' }}
+                message={`Công việc thất bại${task.failedBy?.name ? ` — đánh dấu bởi ${task.failedBy.name}` : ''}`}
+                description={(
+                  <span style={{ fontSize: 13 }}>
+                    {task.failureReason || 'Không ghi lý do'}
+                    {task.failedAt && <> · {dayjs(task.failedAt).format('DD/MM/YYYY HH:mm')}</>}
+                  </span>
+                )}
+              />
+            )}
+
             {/* Followers select dropdown */}
             {followerSelectVisible && (
               <div style={{
