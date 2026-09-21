@@ -43,6 +43,13 @@ import { getTaskPermissions } from '../../../utils/taskPermissions';
 
 const { TextArea } = Input;
 
+const DEPENDENCY_TYPE_OPTIONS = [
+  { value: 'finish_to_start', label: 'FS — xong trước, mới bắt đầu' },
+  { value: 'start_to_start', label: 'SS — bắt đầu cùng lúc' },
+  { value: 'finish_to_finish', label: 'FF — kết thúc cùng lúc' },
+  { value: 'start_to_finish', label: 'SF — bắt đầu trước, mới kết thúc' },
+];
+
 export default function TaskFormModal({
   open,
   onClose,
@@ -302,25 +309,61 @@ export default function TaskFormModal({
           </Form.List>
         </Form.Item>
 
-        {/* Công việc tiền nhiệm (CSP Dependency H2) */}
+        {/* Công việc tiền nhiệm + loại quan hệ (CSP H4 và đường găng) */}
         {canManageTasks && (
           <Form.Item
-            name="dependencies"
-            label={t('tasks.form.dependencies') || 'Công việc tiền nhiệm (CSP Dependency)'}
+            label={t('tasks.form.dependencies') || 'Công việc tiền nhiệm'}
             extra={
               selectedProject
-                ? 'Công việc này chỉ có thể bắt đầu sau khi các công việc tiền nhiệm hoàn thành'
+                ? 'Loại quan hệ quyết định mốc nào phải xảy ra trước mốc nào — ảnh hưởng tới đường găng trên sơ đồ Gantt'
                 : 'Vui lòng chọn dự án trước'
             }
           >
-            <Select
-              mode="multiple"
-              allowClear
-              disabled={!selectedProject}
-              placeholder="Chọn công việc tiền nhiệm..."
-              options={dependencyOptions}
-              optionFilterProp="label"
-            />
+            <Form.List name="dependencies">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map((field) => (
+                    <Space key={field.key} align="baseline" style={{ display: 'flex', marginBottom: 8 }}>
+                      <Form.Item
+                        {...field}
+                        name={[field.name, 'task']}
+                        rules={[{ required: true, message: 'Chọn công việc tiền nhiệm' }]}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          showSearch
+                          style={{ width: 300 }}
+                          disabled={!selectedProject}
+                          placeholder="Công việc tiền nhiệm..."
+                          options={dependencyOptions}
+                          optionFilterProp="label"
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        {...field}
+                        name={[field.name, 'type']}
+                        initialValue="finish_to_start"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          style={{ width: 210 }}
+                          options={DEPENDENCY_TYPE_OPTIONS}
+                        />
+                      </Form.Item>
+                      <Button type="text" danger onClick={() => remove(field.name)}>Xóa</Button>
+                    </Space>
+                  ))}
+                  <Button
+                    type="dashed"
+                    onClick={() => add({ type: 'finish_to_start' })}
+                    disabled={!selectedProject}
+                    style={{ width: '100%' }}
+                  >
+                    Thêm công việc tiền nhiệm
+                  </Button>
+                </>
+              )}
+            </Form.List>
           </Form.Item>
         )}
 

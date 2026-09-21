@@ -394,7 +394,12 @@ export default function Tasks() {
       estimatedHours: task.estimatedHours || 0,
       actualHours: task.actualHours || 0,
       requiredSkills: task.requiredSkills || [],
-      dependencies: (task.dependencies || []).map(depId),
+      // Giữ nguyên loại quan hệ đã lưu; bản ghi cũ chưa migrate không có `type`
+      // nên rơi về finish_to_start — đúng ngữ nghĩa chúng vẫn đang chạy.
+      dependencies: (task.dependencies || []).map((d) => ({
+        task: depId(d),
+        type: d?.type || 'finish_to_start',
+      })),
       taskGroup: task.taskGroup?._id || task.taskGroup,
       followers: (task.followers || []).map((f) => f._id || f),
       parentTask: task.parentTask?._id || task.parentTask,

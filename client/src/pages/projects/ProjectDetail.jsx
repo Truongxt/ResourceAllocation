@@ -307,7 +307,12 @@ export default function ProjectDetail() {
       estimatedHours: record.estimatedHours || 0,
       actualHours: record.actualHours || 0,
       requiredSkills: record.requiredSkills || [],
-      dependencies: (record.dependencies || []).map(depId),
+      // Giữ nguyên loại quan hệ đã lưu; bản ghi cũ chưa migrate không có `type`
+      // nên rơi về finish_to_start — đúng ngữ nghĩa chúng vẫn đang chạy.
+      dependencies: (record.dependencies || []).map((d) => ({
+        task: depId(d),
+        type: d?.type || 'finish_to_start',
+      })),
       taskGroup: record.taskGroup?._id || record.taskGroup,
       followers: (record.followers || []).map((f) => f._id || f),
       parentTask: record.parentTask?._id || record.parentTask,

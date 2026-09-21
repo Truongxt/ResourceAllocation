@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "npm run test:logic && vitest run",
-    "test:logic": "node tests/gantt.test.mjs && node tests/locales.test.mjs",
+    "test:logic": "node tests/gantt.test.mjs && node tests/locales.test.mjs && node tests/task-permissions.test.mjs",
     "test:component": "vitest run",
     "test:watch": "vitest"
   },
