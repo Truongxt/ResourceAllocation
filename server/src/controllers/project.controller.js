@@ -731,12 +731,22 @@ const updateProjectPermissions = async (req, res, next) => {
       ...(req.body.permissions || req.body),
     };
 
+    // Cấu hình đánh dấu Thất bại dùng chung endpoint này: cùng một người quyết,
+    // cùng một màn hình cài đặt dự án, không cần thêm một route gần như trùng lặp.
+    if (req.body.failureConfig) {
+      project.failureConfig = {
+        ...(project.failureConfig?.toObject ? project.failureConfig.toObject() : project.failureConfig),
+        ...req.body.failureConfig,
+      };
+      project.markModified('failureConfig');
+    }
+
     project.markModified('permissions');
     await project.save();
 
     res.json({
       success: true,
-      data: { permissions: project.permissions },
+      data: { permissions: project.permissions, failureConfig: project.failureConfig },
       message: 'Cập nhật cấu hình phân quyền dự án thành công',
     });
   } catch (error) {

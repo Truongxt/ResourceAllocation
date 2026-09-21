@@ -6,6 +6,7 @@ const TaskGroup = require('../models/TaskGroup');
 const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
+const { validateStatusTransition } = require('../services/taskStatus.service');
 const {
   generateTaskTemplateWorkbook,
   parseTaskExcelBuffer,
@@ -17,12 +18,16 @@ const {
  */
 const recalculateProjectProgress = async (projectId) => {
   const tasks = await Task.find({ project: projectId }).select('progress status');
-  if (!tasks.length) {
+  // Việc đã đánh dấu Thất bại bị loại khỏi mẫu số: giữ lại thì một việc hỏng khiến
+  // dự án không bao giờ chạm 100% dù mọi việc còn lại đã xong. Nó được đếm riêng
+  // trong báo cáo ở mục 'failed'.
+  const counted = tasks.filter((t) => t.status !== 'failed');
+  if (!counted.length) {
     await Project.findByIdAndUpdate(projectId, { progress: 0 });
     return;
   }
-  const total = tasks.reduce((sum, t) => sum + (t.status === 'done' ? 100 : (t.progress || 0)), 0);
-  const progress = Math.round(total / tasks.length);
+  const total = counted.reduce((sum, t) => sum + (t.status === 'done' ? 100 : (t.progress || 0)), 0);
+  const progress = Math.round(total / counted.length);
   await Project.findByIdAndUpdate(projectId, { progress });
 };
 
@@ -559,7 +564,7 @@ const updateTask = async (req, res, next) => {
  */
 const updateTaskStatus = async (req, res, next) => {
   try {
-    const { status } = req.body;
+    const { status, failureReason } = req.body;
     const task = await Task.findById(req.params.id);
 
     if (!task) {
@@ -578,9 +583,33 @@ const updateTaskStatus = async (req, res, next) => {
       });
     }
 
+    // Một chỗ duy nhất phán xét bước chuyển. Đặt trước mọi lệnh ghi để request bị
+    // từ chối không để lại thay đổi nửa vời nào trong DB.
+    const check = validateStatusTransition({
+      currentStatus: task.status,
+      nextStatus: status,
+      project,
+      failureReason,
+    });
+    if (!check.valid) {
+      return res.status(400).json({ success: false, message: check.message });
+    }
+
     const updateData = { status };
     if (status === 'done') updateData.progress = 100;
     if (status === 'todo') updateData.progress = 0;
+
+    if (status === 'failed') {
+      updateData.failureReason = String(failureReason).trim();
+      updateData.failedAt = new Date();
+      updateData.failedBy = req.user._id;
+    } else if (task.status === 'failed') {
+      // Mở lại việc đã đóng: xóa vết thất bại cũ, nếu không báo cáo sẽ đọc được một
+      // công việc 'đang làm' mà vẫn kèm lý do thất bại từ lần trước.
+      updateData.failureReason = '';
+      updateData.failedAt = null;
+      updateData.failedBy = null;
+    }
 
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
@@ -615,12 +644,12 @@ const updateTaskStatus = async (req, res, next) => {
 
     logActivity({
       req,
-      action: 'UPDATE_TASK_STATUS',
+      action: status === 'failed' ? 'TASK_MARKED_FAILED' : 'UPDATE_TASK_STATUS',
       entityType: 'task',
       entityId: updatedTask._id,
       entityTitle: updatedTask.title,
       description: `Đổi trạng thái công việc "${updatedTask.title}" sang "${status}"`,
-      details: { oldStatus: task.status, newStatus: status },
+      details: { oldStatus: task.status, newStatus: status, ...(status === 'failed' ? { failureReason: updateData.failureReason } : {}) },
     });
 
     res.json({

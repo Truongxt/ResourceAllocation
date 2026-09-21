@@ -33,6 +33,7 @@ const SUITES = [
   { name: 'project-detail', file: 'project-detail.test.mjs', label: 'Trang chi tiết dự án' },
   { name: 'task-permissions', file: 'task-permissions.test.mjs', label: 'Ma trận phân quyền Base Wework' },
   { name: 'followers', file: 'followers.test.mjs', label: 'Người theo dõi công việc' },
+  { name: 'task-failed', file: 'task-failed.test.mjs', label: 'Trạng thái Thất bại' },
   { name: 'department-wework', file: 'department-wework.test.mjs', label: 'Quản lý Department chuẩn Base Wework' },
   { name: 'socket', file: 'socket.test.mjs', label: 'Socket.IO realtime' },
 ];

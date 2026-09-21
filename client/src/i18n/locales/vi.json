@@ -68,7 +68,8 @@
       "in_progress": "Đang làm",
       "review": "Đánh giá",
       "done": "Hoàn thành",
-      "blocked": "Bị chặn"
+      "blocked": "Bị chặn",
+      "failed": "Thất bại"
     },
     "priority": {
       "low": "Thấp",
@@ -582,7 +583,14 @@
     "add": "Thêm công việc",
     "titleColumn": "Tiêu đề công việc",
     "permissionDenied": "Bạn không có quyền chuyển trạng thái công việc này",
-    "statusUpdated": "Đã cập nhật trạng thái công việc"
+    "statusUpdated": "Đã cập nhật trạng thái công việc",
+    "failure": {
+      "mark": "Đánh dấu thất bại",
+      "reasonLabel": "Lý do thất bại",
+      "reasonRequired": "Cần nhập lý do thất bại",
+      "reasonPlaceholder": "Vì sao công việc này không hoàn thành được?",
+      "failedBy": "Đánh dấu bởi {{name}}"
+    }
   },
   "projectDetail": {
     "loadFailed": "Không thể tải dự án",

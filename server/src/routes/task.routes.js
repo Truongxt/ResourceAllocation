@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
+const { TASK_STATUSES } = require('../services/taskStatus.service');
 const { protect, authorize } = require('../middleware/auth');
 const {
   canCreateTask,
@@ -54,7 +55,7 @@ const listValidation = [
   query('project').optional().isMongoId().withMessage('ID dự án không hợp lệ'),
   query('status')
     .optional()
-    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .isIn(TASK_STATUSES)
     .withMessage('Trạng thái không hợp lệ'),
   query('priority')
     .optional()
@@ -82,7 +83,7 @@ const createValidation = [
     .withMessage('Mô tả không vượt quá 5000 ký tự'),
   body('status')
     .optional()
-    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .isIn(TASK_STATUSES)
     .withMessage('Trạng thái không hợp lệ'),
   body('priority')
     .optional()
@@ -118,7 +119,7 @@ const updateValidation = [
     .withMessage('Mô tả không vượt quá 5000 ký tự'),
   body('status')
     .optional()
-    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .isIn(TASK_STATUSES)
     .withMessage('Trạng thái không hợp lệ'),
   body('priority')
     .optional()
@@ -151,7 +152,7 @@ const statusValidation = [
   body('status')
     .notEmpty()
     .withMessage('Trạng thái là bắt buộc')
-    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .isIn(TASK_STATUSES)
     .withMessage('Trạng thái không hợp lệ'),
 ];
 

@@ -68,7 +68,8 @@
       "in_progress": "In progress",
       "review": "Review",
       "done": "Done",
-      "blocked": "Blocked"
+      "blocked": "Blocked",
+      "failed": "Failed"
     },
     "priority": {
       "low": "Low",
@@ -582,7 +583,14 @@
     "add": "Add Task",
     "titleColumn": "Task Title",
     "permissionDenied": "You do not have permission to change this task status",
-    "statusUpdated": "Task status updated"
+    "statusUpdated": "Task status updated",
+    "failure": {
+      "mark": "Mark as failed",
+      "reasonLabel": "Failure reason",
+      "reasonRequired": "A failure reason is required",
+      "reasonPlaceholder": "Why could this task not be completed?",
+      "failedBy": "Marked by {{name}}"
+    }
   },
   "projectDetail": {
     "loadFailed": "Could not load the project",

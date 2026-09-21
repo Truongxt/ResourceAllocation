@@ -55,13 +55,14 @@ const getDashboardOverview = async (req, res, next) => {
             review: { $sum: { $cond: [{ $eq: ['$status', 'review'] }, 1, 0] } },
             done: { $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] } },
             blocked: { $sum: { $cond: [{ $eq: ['$status', 'blocked'] }, 1, 0] } },
+            failed: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
             overdue: { $sum: { $cond: [{ $and: [
-              { $ne: ['$status', 'done'] },
+              { $not: [{ $in: ['$status', ['done', 'failed']] }] },
               { $ne: [{ $ifNull: ['$endDate', null] }, null] },
               { $lt: ['$endDate', new Date()] },
             ] }, 1, 0] } },
             unassigned: { $sum: { $cond: [{ $and: [
-              { $ne: ['$status', 'done'] },
+              { $not: [{ $in: ['$status', ['done', 'failed']] }] },
               { $eq: [{ $ifNull: ['$assignee', null] }, null] },
             ] }, 1, 0] } },
             totalEstimatedHours: { $sum: '$estimatedHours' },
@@ -106,7 +107,7 @@ const getDashboardOverview = async (req, res, next) => {
     ]);
 
     const ps = projectStats[0] || { total: 0, active: 0, completed: 0, planning: 0, avgProgress: 0, totalBudget: 0 };
-    const ts = taskStats[0] || { total: 0, todo: 0, inProgress: 0, review: 0, done: 0, blocked: 0, overdue: 0, unassigned: 0, totalEstimatedHours: 0, totalActualHours: 0 };
+    const ts = taskStats[0] || { total: 0, todo: 0, inProgress: 0, review: 0, done: 0, blocked: 0, failed: 0, overdue: 0, unassigned: 0, totalEstimatedHours: 0, totalActualHours: 0 };
     const rs = resourceStats[0] || { total: 0, available: 0, partial: 0, unavailable: 0, totalCapacity: 0, totalWorkload: 0, avgFte: 0, overloaded: 0 };
 
     const avgUtilization = rs.totalCapacity > 0 ? Math.round((rs.totalWorkload / rs.totalCapacity) * 100) : 0;
@@ -157,6 +158,24 @@ const getUtilizationBreakdown = async (req, res, next) => {
       },
     ]);
 
+    // Tỷ lệ thất bại tính trên TOÀN BỘ việc từng giao, không chỉ việc đang mở: chỉ
+    // đếm trong tập đang mở thì người vừa có việc thất bại sẽ có tỷ lệ 0% ngay hôm sau.
+    const outcomes = await Task.aggregate([
+      { $match: Object.keys(taskMatch).length > 0 ? taskMatch : {} },
+      {
+        $group: {
+          _id: '$assignee',
+          totalAssigned: { $sum: 1 },
+          failedCount: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
+        },
+      },
+    ]);
+
+    const outcomeMap = {};
+    outcomes.forEach((o) => {
+      if (o._id) outcomeMap[o._id.toString()] = o;
+    });
+
     const assignMap = {};
     assignments.forEach((a) => {
       if (a._id) assignMap[a._id.toString()] = a;
@@ -166,6 +185,7 @@ const getUtilizationBreakdown = async (req, res, next) => {
       const capacity = (r.maxCapacity || 40) * (r.fte || 1);
       const userId = r.user?._id?.toString();
       const assign = userId ? assignMap[userId] : null;
+      const outcome = userId ? outcomeMap[userId] : null;
       const workload = assign ? assign.totalHours : (r.currentWorkload || 0);
       const utilization = capacity > 0 ? Math.round((workload / capacity) * 100) : 0;
 
@@ -182,6 +202,11 @@ const getUtilizationBreakdown = async (req, res, next) => {
         isOverloaded: utilization > 100,
         burnoutRisk: utilization > 120 ? 'high' : utilization > 90 ? 'medium' : 'low',
         skillCount: (r.skills || []).length,
+        failedCount: outcome ? outcome.failedCount : 0,
+        failedRate:
+          outcome && outcome.totalAssigned > 0
+            ? Math.round((outcome.failedCount / outcome.totalAssigned) * 100)
+            : 0,
       };
     });
 
@@ -211,6 +236,7 @@ const getUtilizationBreakdown = async (req, res, next) => {
           totalResources: breakdown.length,
           overloaded: breakdown.filter((r) => r.isOverloaded).length,
           highBurnout: breakdown.filter((r) => r.burnoutRisk === 'high').length,
+          totalFailedTasks: breakdown.reduce((s, r) => s + r.failedCount, 0),
           avgUtilization: breakdown.length > 0
             ? Math.round(breakdown.reduce((s, r) => s + r.utilization, 0) / breakdown.length)
             : 0,

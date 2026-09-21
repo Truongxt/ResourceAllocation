@@ -35,7 +35,7 @@ const taskSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['todo', 'in_progress', 'review', 'done', 'blocked'],
+      enum: ['todo', 'in_progress', 'review', 'done', 'blocked', 'failed'],
       default: 'todo',
     },
     priority: {
@@ -180,6 +180,12 @@ const taskSchema = new mongoose.Schema(
         changedAt: { type: Date, default: Date.now },
       },
     ],
+    // Base Wework: vết của việc bị đánh dấu Thất bại. Lý do là bắt buộc — một công
+    // việc đóng lại mà không ai biết vì sao thì báo cáo cuối kỳ không trả lời được gì.
+    failureReason: { type: String, trim: true, maxlength: 1000, default: '' },
+    failedAt: { type: Date, default: null },
+    failedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+
     // Base Wework: Liên kết công việc lặp lại gốc
     recurringTaskId: {
       type: mongoose.Schema.Types.ObjectId,

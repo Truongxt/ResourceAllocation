@@ -28,7 +28,7 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
   let task = preloadedTask;
   if (!task && taskId) {
     task = await Task.findById(taskId)
-      .populate('project', 'name manager members permissions companyName');
+      .populate('project', 'name manager members permissions failureConfig companyName');
   }
 
   const isPrivileged = PRIVILEGED_ROLES.includes(user.role);
@@ -79,6 +79,7 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
   }
 
   const permissions = project?.permissions || {};
+  const failureConfig = project?.failureConfig || {};
 
   return {
     task,
@@ -92,6 +93,7 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
     isGuest,
     isProjectMember,
     permissions,
+    failureConfig,
   };
 };
 
@@ -269,6 +271,11 @@ const canModifyTask = ({ restrictFields = false } = {}) => async (req, res, next
  */
 const canUpdateTaskStatus = () => async (req, res, next) => {
   try {
+    // Admin/PM đi qua ở dòng dưới. Với mọi người còn lại, 'failed' là thao tác
+    // riêng: nó đóng công việc lại, nên quyền được cấu hình theo từng dự án thay vì
+    // dùng chung với quyền đổi trạng thái thường.
+    const markingFailed = req.body?.status === 'failed';
+
     if (PRIVILEGED_ROLES.includes(req.user.role)) {
       return next();
     }
@@ -278,6 +285,23 @@ const canUpdateTaskStatus = () => async (req, res, next) => {
 
     if (!task) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+    }
+
+    if (markingFailed) {
+      const allowedRoles = ctx.failureConfig?.allowedRoles || [];
+      const allowed =
+        isProjectManager ||
+        (isCreator && allowedRoles.includes('assigner')) ||
+        (isAssignee && allowedRoles.includes('assignee')) ||
+        (isFollower && allowedRoles.includes('follower'));
+
+      if (!allowed) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không được phép đánh dấu công việc này là Thất bại.',
+        });
+      }
+      return next();
     }
 
     if (isProjectManager || isCreator || isAssignee) {
