@@ -214,7 +214,7 @@ async function seedData() {
       progress: 50,
       startDate: new Date(today.getTime() + 5 * 86400000),
       endDate: new Date(today.getTime() + 18 * 86400000),
-      dependencies: [t1._id],
+      dependencies: [{ task: t1._id, type: 'finish_to_start' }],
       requiredSkills: [
         { name: 'Node.js', level: 3, weight: 1 },
         { name: 'MongoDB', level: 2, weight: 1 },
@@ -233,7 +233,7 @@ async function seedData() {
       progress: 0,
       startDate: new Date(today.getTime() + 12 * 86400000),
       endDate: new Date(today.getTime() + 25 * 86400000),
-      dependencies: [t2._id],
+      dependencies: [{ task: t2._id, type: 'finish_to_start' }],
       requiredSkills: [{ name: 'React', level: 3, weight: 1 }],
     });
 

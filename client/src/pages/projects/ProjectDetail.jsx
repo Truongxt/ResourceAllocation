@@ -64,6 +64,7 @@ import {
 import { projectStatusLabel, priorityLabel, taskStatusLabel } from '../../i18n/enums';
 import { formatCurrency } from '../../i18n/format';
 import './ProjectDetail.css';
+import { depId } from '../../utils/gantt';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -292,7 +293,7 @@ export default function ProjectDetail() {
       estimatedHours: record.estimatedHours || 0,
       actualHours: record.actualHours || 0,
       requiredSkills: record.requiredSkills || [],
-      dependencies: (record.dependencies || []).map((d) => d._id || d),
+      dependencies: (record.dependencies || []).map(depId),
       taskGroup: record.taskGroup?._id || record.taskGroup,
       followers: (record.followers || []).map((f) => f._id || f),
       parentTask: record.parentTask?._id || record.parentTask,

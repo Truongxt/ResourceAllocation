@@ -36,6 +36,7 @@ const SUITES = [
   { name: 'task-failed', file: 'task-failed.test.mjs', label: 'Trạng thái Thất bại' },
   { name: 'task-review', file: 'task-review.test.mjs', label: 'Luồng Chờ đánh giá' },
   { name: 'bulk-reassign', file: 'bulk-reassign.test.mjs', label: 'Bàn giao hàng loạt' },
+  { name: 'dependency-types', file: 'dependency-types.test.mjs', label: 'Loại quan hệ phụ thuộc' },
   { name: 'department-wework', file: 'department-wework.test.mjs', label: 'Quản lý Department chuẩn Base Wework' },
   { name: 'socket', file: 'socket.test.mjs', label: 'Socket.IO realtime' },
 ];

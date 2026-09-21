@@ -5,6 +5,31 @@ const mongoose = require('mongoose');
 // bắn hàng trăm thông báo.
 const MAX_FOLLOWERS = 50;
 
+const { DEPENDENCY_TYPES, DEFAULT_DEPENDENCY_TYPE } = require('../services/taskDependency.service');
+
+// `_id: false`: phần tử phụ thuộc là một cặp (công việc, loại quan hệ), không phải
+// thực thể có danh tính riêng — sinh thêm _id chỉ làm payload nặng và gây nhầm lẫn
+// khi so sánh hai danh sách.
+const dependencySchema = new mongoose.Schema(
+  {
+    task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', required: true },
+    type: { type: String, enum: DEPENDENCY_TYPES, default: DEFAULT_DEPENDENCY_TYPE },
+  },
+  { _id: false }
+);
+
+// Nhận cả mảng id phẳng (dữ liệu cũ, client cũ, và mọi lệnh Task.create viết tay)
+// rồi bọc thành { task, type }. Hàm idempotent nên chạy lại trên dạng mới vô hại.
+const coerceDependencies = (value) => {
+  if (!Array.isArray(value)) return value;
+  return value.map((dep) => {
+    if (dep && typeof dep === 'object' && ('task' in dep || 'taskId' in dep)) {
+      return { task: dep.task || dep.taskId, type: dep.type };
+    }
+    return { task: dep };
+  });
+};
+
 const taskSchema = new mongoose.Schema(
   {
     title: {
@@ -115,12 +140,12 @@ const taskSchema = new mongoose.Schema(
         },
       },
     ],
-    dependencies: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Task',
-      },
-    ],
+    // Mỗi phụ thuộc mang theo loại quan hệ. Bản ghi cũ là mảng ObjectId phẳng và
+    // được migrate sang 'finish_to_start' bằng `npm run migrate:dependencies`.
+    dependencies: {
+      type: [dependencySchema],
+      set: coerceDependencies,
+    },
     companyName: {
       type: String,
       trim: true,

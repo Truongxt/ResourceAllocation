@@ -32,8 +32,26 @@ export function durationOf(task) {
   return 1;
 }
 
-/** Lấy id từ một tham chiếu phụ thuộc, dù đã populate thành object hay còn là ObjectId. */
-const depId = (dep) => String(dep?._id || dep);
+/**
+ * Lấy id từ một tham chiếu phụ thuộc. Dữ liệu tồn tại ở hai dạng: bản ghi cũ là
+ * ObjectId phẳng (hoặc document đã populate), bản ghi mới là { task, type } với
+ * `task` có thể đã populate. Đọc nhầm dạng thì id thành "undefined" và cả sơ đồ
+ * phụ thuộc lặng lẽ rỗng — không có lỗi nào nổ ra.
+ */
+export const depId = (dep) => {
+  if (dep && typeof dep === 'object' && 'task' in dep && dep.task) {
+    return String(dep.task._id || dep.task);
+  }
+  return String(dep?._id || dep);
+};
+
+/** Loại quan hệ của một phụ thuộc; dữ liệu cũ luôn là finish-to-start. */
+export const DEPENDENCY_TYPES = ['finish_to_start', 'start_to_start', 'finish_to_finish', 'start_to_finish'];
+
+export const depType = (dep) => {
+  const type = dep && typeof dep === 'object' ? dep.type : null;
+  return DEPENDENCY_TYPES.includes(type) ? type : 'finish_to_start';
+};
 
 /**
  * Những công việc KHÔNG được chọn làm tiền nhiệm của `taskId`: chính nó, và mọi
@@ -92,10 +110,11 @@ export function computeCriticalPath(tasks) {
 
   tasks.forEach((task) => {
     (task.dependencies || []).forEach((dep) => {
-      const depId = dep?._id || dep;
-      if (!ids.has(depId) || depId === task._id) return;
-      preds.get(task._id).push(depId);
-      succs.get(depId).push(task._id);
+      const from = depId(dep);
+      if (!ids.has(from) || from === task._id) return;
+      const type = depType(dep);
+      preds.get(task._id).push({ id: from, type });
+      succs.get(from).push({ id: task._id, type });
     });
   });
 
@@ -106,29 +125,46 @@ export function computeCriticalPath(tasks) {
   while (queue.length) {
     const id = queue.shift();
     order.push(id);
-    succs.get(id).forEach((next) => {
+    succs.get(id).forEach(({ id: next }) => {
       indegree.set(next, indegree.get(next) - 1);
       if (indegree.get(next) === 0) queue.push(next);
     });
   }
   if (order.length !== tasks.length) return { critical: new Set(), length: 0, cyclic: true };
 
+  // Mỗi loại quan hệ ràng buộc một cặp mốc khác nhau giữa tiền nhiệm và công việc
+  // sau. Viết theo dạng "mốc bên trái phải <= mốc bên phải":
+  //   finish_to_start  EF(trước) <= ES(sau)   — mặc định, và là ngữ nghĩa duy nhất
+  //                                             hệ thống từng có trước khi có type
+  //   start_to_start   ES(trước) <= ES(sau)
+  //   finish_to_finish EF(trước) <= EF(sau)
+  //   start_to_finish  ES(trước) <= EF(sau)
   const earlyStart = new Map();
   const earlyFinish = new Map();
   order.forEach((id) => {
-    const start = preds.get(id).reduce((max, p) => Math.max(max, earlyFinish.get(p)), 0);
-    earlyStart.set(id, start);
-    earlyFinish.set(id, start + duration.get(id));
+    const start = preds.get(id).reduce((max, { id: p, type }) => {
+      const from = type.startsWith('finish') ? earlyFinish.get(p) : earlyStart.get(p);
+      // Ràng buộc đặt lên ES hay EF của công việc sau; quy hết về ES để so sánh.
+      const bound = type.endsWith('start') ? from : from - duration.get(id);
+      return Math.max(max, bound);
+    }, 0);
+    earlyStart.set(id, Math.max(0, start));
+    earlyFinish.set(id, Math.max(0, start) + duration.get(id));
   });
 
   const projectEnd = order.reduce((max, id) => Math.max(max, earlyFinish.get(id)), 0);
 
+  const lateFinish = new Map();
   const lateStart = new Map();
   [...order].reverse().forEach((id) => {
-    const finish = succs.get(id).reduce((min, s) => Math.min(min, lateStart.get(s)), projectEnd);
+    const finish = succs.get(id).reduce((min, { id: s, type }) => {
+      const to = type.endsWith('start') ? lateStart.get(s) : lateFinish.get(s);
+      const bound = type.startsWith('finish') ? to : to + duration.get(id);
+      return Math.min(min, bound);
+    }, projectEnd);
+    lateFinish.set(id, finish);
     lateStart.set(id, finish - duration.get(id));
   });
-
   const critical = new Set(order.filter((id) => lateStart.get(id) - earlyStart.get(id) === 0));
   return { critical, length: projectEnd, cyclic: false };
 }

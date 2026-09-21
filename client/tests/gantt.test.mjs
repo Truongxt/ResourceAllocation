@@ -169,5 +169,87 @@ const sorted = (set) => [...set].sort();
 }
 
 // ──────────────────────────────────────────────
+section('6. Loại quan hệ phụ thuộc');
+// ──────────────────────────────────────────────
+{
+  // Dữ liệu cũ (mảng id phẳng) phải cho kết quả y hệt dạng mới khai báo
+  // finish_to_start — đó là điều kiện để migration không làm đổi bất kỳ sơ đồ nào.
+  const cu = computeCriticalPath([task('A', 3), task('B', 5, ['A'])]);
+  const moi = computeCriticalPath([
+    task('A', 3),
+    task('B', 5, [{ task: 'A', type: 'finish_to_start' }]),
+  ]);
+  check('dạng cũ và finish_to_start cho cùng độ dài đường găng', cu.length, moi.length);
+  check('và cùng tập công việc găng', sortedCritical(cu), sortedCritical(moi));
+  check('độ dài đúng bằng tổng hai thời lượng', moi.length, 8);
+}
+{
+  // start_to_start: B bắt đầu cùng lúc A, nên tổng thời gian chỉ bằng việc dài nhất.
+  const result = computeCriticalPath([
+    task('A', 3),
+    task('B', 5, [{ task: 'A', type: 'start_to_start' }]),
+  ]);
+  check('start_to_start: hai việc chạy song song', result.length, 5);
+  // Cả hai cùng găng: A trễ một ngày thì B phải bắt đầu muộn một ngày, và dự án
+  // dài thêm một ngày. Ràng buộc đặt lên mốc BẮT ĐẦU của A nên slack của A bằng 0,
+  // dù A kết thúc sớm và phần đuôi của nó còn dư thời gian.
+  check('trễ A vẫn kéo dài dự án nên cả hai đều găng', sortedCritical(result), ['A', 'B']);
+}
+{
+  // finish_to_finish: B kết thúc không sớm hơn A. A dài 6, B dài 2 → B kết thúc ở 6.
+  const result = computeCriticalPath([
+    task('A', 6),
+    task('B', 2, [{ task: 'A', type: 'finish_to_finish' }]),
+  ]);
+  check('finish_to_finish: chốt theo mốc kết thúc của việc trước', result.length, 6);
+}
+{
+  // start_to_finish: B kết thúc không sớm hơn lúc A bắt đầu. A bắt đầu ở mốc 0 nên
+  // ràng buộc không kéo dài gì — tổng bằng việc dài nhất.
+  const result = computeCriticalPath([
+    task('A', 4),
+    task('B', 2, [{ task: 'A', type: 'start_to_finish' }]),
+  ]);
+  check('start_to_finish: ràng buộc lỏng nhất, không kéo dài dự án', result.length, 4);
+}
+{
+  // Loại lạ (dữ liệu hỏng, client cũ) phải rơi về finish_to_start chứ không làm vỡ đồ thị.
+  const result = computeCriticalPath([
+    task('A', 3),
+    task('B', 2, [{ task: 'A', type: 'khong_ton_tai' }]),
+  ]);
+  check('loại không hợp lệ rơi về finish_to_start', result.length, 5);
+}
+{
+  // Chu trình vẫn phải bắt được bất kể loại quan hệ.
+  const result = computeCriticalPath([
+    task('A', 3, [{ task: 'B', type: 'start_to_start' }]),
+    task('B', 2, [{ task: 'A', type: 'finish_to_finish' }]),
+  ]);
+  check('phát hiện chu trình dù khác loại quan hệ', result.cyclic, true);
+}
+{
+  // Chặn vòng lặp khi chọn tiền nhiệm cũng phải đọc được dạng mới.
+  const chain = [
+    task('A', 1),
+    task('B', 1, [{ task: 'A', type: 'start_to_start' }]),
+    task('C', 1, [{ task: 'B', type: 'finish_to_start' }]),
+  ];
+  check('loại hậu duệ khi phụ thuộc ở dạng mới', sorted(invalidPredecessors(chain, 'A')), [
+    'A',
+    'B',
+    'C',
+  ]);
+}
+{
+  // Dạng mới mà `task` đã populate thành document.
+  const populated = [
+    task('A', 1),
+    task('B', 1, [{ task: { _id: 'A', title: 'Task A' }, type: 'finish_to_start' }]),
+  ];
+  check('nhận dạng mới đã populate', sorted(invalidPredecessors(populated, 'A')), ['A', 'B']);
+}
+
+// ──────────────────────────────────────────────
 console.log(`\n${failed === 0 ? '✅' : '❌'} ${passed} đạt, ${failed} lỗi\n`);
 process.exit(failed === 0 ? 0 : 1);

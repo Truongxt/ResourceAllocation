@@ -28,6 +28,10 @@ const {
   computeMetrics,
   emptyMetrics,
 } = require('../scoring');
+const {
+  dependencyTaskId,
+  dependencyType,
+} = require('../../services/taskDependency.service');
 
 class CSPSolver {
   constructor(options = {}) {
@@ -243,7 +247,7 @@ class CSPSolver {
 
     tasks.forEach((task, i) => {
       (task.dependencies || []).forEach((dep) => {
-        const j = indexById.get(String(dep?._id || dep));
+        const j = indexById.get(dependencyTaskId(dep));
         // Bỏ qua tiền nhiệm nằm ngoài tập đang tối ưu (đã xong, hoặc khác dự án)
         if (j === undefined || j === i) return;
         if (!this._overlaps(task, tasks[j])) return;
@@ -456,24 +460,26 @@ class CSPSolver {
     const indexById = new Map(tasks.map((t, i) => [String(t._id), i]));
     tasks.forEach((task, i) => {
       (task.dependencies || []).forEach((dep) => {
-        const j = indexById.get(String(dep?._id || dep));
+        const j = indexById.get(dependencyTaskId(dep));
         if (j === undefined || j === i) return;
 
         const predecessor = tasks[j];
-        if (!predecessor.endDate || !task.startDate) return;
+        const relation = dependencyType(dep);
+        // Mốc phải xảy ra trước ← → mốc phải xảy ra sau, theo từng loại quan hệ.
+        const earlier = relation.startsWith('finish') ? predecessor.endDate : predecessor.startDate;
+        const later = relation.endsWith('start') ? task.startDate : task.endDate;
+        if (!earlier || !later) return;
 
         const entry = {
           type: 'dependency',
           subject: `${predecessor.title} → ${task.title}`,
         };
 
-        if (new Date(predecessor.endDate) > new Date(task.startDate)) {
-          const days = Math.ceil(
-            (new Date(predecessor.endDate) - new Date(task.startDate)) / 86400000
-          );
+        if (new Date(earlier) > new Date(later)) {
+          const days = Math.ceil((new Date(earlier) - new Date(later)) / 86400000);
           violated.push({
             ...entry,
-            detail: `công việc sau bắt đầu sớm hơn ${days} ngày so với lúc công việc trước kết thúc`,
+            detail: `quan hệ ${relation} bị vi phạm ${days} ngày`,
           });
         } else {
           satisfied.push({ ...entry, detail: 'đúng thứ tự trước/sau' });

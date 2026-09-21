@@ -36,7 +36,7 @@ import {
 } from '../../constants';
 import { taskStatusLabel, priorityLabel } from '../../i18n/enums';
 import { currentLocale, formatDayMonth as formatDate } from '../../i18n/format';
-import { addDays, computeCriticalPath, daysBetween, isMilestone } from '../../utils/gantt';
+import { addDays, computeCriticalPath, daysBetween, depId, isMilestone } from '../../utils/gantt';
 import './GanttChart.css';
 
 const { Title, Text } = Typography;
@@ -274,7 +274,7 @@ export default function GanttChart() {
       if (!to.startDate || !to.endDate) return;
 
       (to.dependencies || []).forEach((dep) => {
-        const fromId = dep?._id || dep;
+        const fromId = depId(dep);
         const fromIndex = rowIndexOf.get(fromId);
         if (fromIndex === undefined) return;
 

@@ -13,6 +13,10 @@ const {
   CLOSED_STATUSES,
 } = require('../services/taskStatus.service');
 const {
+  dependencyTaskIds,
+  normalizeDependencies,
+} = require('../services/taskDependency.service');
+const {
   generateTaskTemplateWorkbook,
   parseTaskExcelBuffer,
   importTasksFromExcel,
@@ -198,7 +202,7 @@ const getTasks = async (req, res, next) => {
       Task.find(filter)
         .populate('project', 'name code status permissions members manager companyName')
         .populate('assignee', 'name email avatar department')
-        .populate('dependencies', 'title status')
+        .populate('dependencies.task', 'title status')
         .populate('taskGroup', 'name color order')
         .populate('followers', 'name email avatar')
         .populate('parentTask', 'title status')
@@ -233,7 +237,7 @@ const getTaskById = async (req, res, next) => {
     const task = await Task.findById(req.params.id)
       .populate('project', 'name code status members manager permissions companyName')
       .populate('assignee', 'name email avatar department')
-      .populate('dependencies', 'title status priority startDate endDate progress')
+      .populate('dependencies.task', 'title status priority startDate endDate progress')
       .populate('taskGroup', 'name color order')
       .populate('followers', 'name email avatar')
       .populate('parentTask', 'title status priority')
@@ -285,7 +289,7 @@ const getTaskById = async (req, res, next) => {
  * @returns {String|null} thông báo lỗi, hoặc null nếu hợp lệ
  */
 const validateDependencies = async (dependencies, { taskId, projectId }) => {
-  const ids = [...new Set((dependencies || []).map(String))];
+  const ids = [...new Set(dependencyTaskIds(dependencies))];
   if (!ids.length) return null;
 
   if (taskId && ids.includes(String(taskId))) {
@@ -306,7 +310,7 @@ const validateDependencies = async (dependencies, { taskId, projectId }) => {
   // task đang sửa lại nằm trong chuỗi tiền nhiệm của một trong các lựa chọn mới.
   if (taskId) {
     const all = await Task.find({ project: projectId }).select('dependencies');
-    const graph = new Map(all.map((t) => [String(t._id), (t.dependencies || []).map(String)]));
+    const graph = new Map(all.map((t) => [String(t._id), dependencyTaskIds(t.dependencies)]));
 
     const queue = [...ids];
     const seen = new Set(queue);
@@ -357,8 +361,12 @@ const createTask = async (req, res, next) => {
     if (depError) {
       return res.status(400).json({ success: false, message: depError });
     }
-    if (Array.isArray(req.body.dependencies)) {
-      req.body.dependencies = [...new Set(req.body.dependencies.map(String))];
+    if (req.body.dependencies !== undefined) {
+      const normalized = normalizeDependencies(req.body.dependencies);
+      if (!normalized.ok) {
+        return res.status(400).json({ success: false, message: normalized.message });
+      }
+      req.body.dependencies = normalized.value;
     }
 
     const taskData = {
@@ -390,7 +398,7 @@ const createTask = async (req, res, next) => {
     const populated = await Task.findById(task._id)
       .populate('project', 'name code status')
       .populate('assignee', 'name email avatar department')
-      .populate('dependencies', 'title status')
+      .populate('dependencies.task', 'title status')
       .populate('taskGroup', 'name color order')
       .populate('followers', 'name email avatar')
       .populate('parentTask', 'title status');
@@ -461,7 +469,11 @@ const updateTask = async (req, res, next) => {
       if (depError) {
         return res.status(400).json({ success: false, message: depError });
       }
-      req.body.dependencies = [...new Set((req.body.dependencies || []).map(String))];
+      const normalized = normalizeDependencies(req.body.dependencies);
+      if (!normalized.ok) {
+        return res.status(400).json({ success: false, message: normalized.message });
+      }
+      req.body.dependencies = normalized.value;
     }
 
     // Auto-set progress to 100 when status changed to done
@@ -496,7 +508,7 @@ const updateTask = async (req, res, next) => {
     })
       .populate('project', 'name code status permissions members manager companyName')
       .populate('assignee', 'name email avatar department')
-      .populate('dependencies', 'title status')
+      .populate('dependencies.task', 'title status')
       .populate('taskGroup', 'name color order')
       .populate('followers', 'name email avatar')
       .populate('parentTask', 'title status')
@@ -700,8 +712,8 @@ const deleteTask = async (req, res, next) => {
 
     // Remove this task from other tasks' dependencies
     await Task.updateMany(
-      { dependencies: task._id },
-      { $pull: { dependencies: task._id } }
+      { 'dependencies.task': task._id },
+      { $pull: { dependencies: { task: task._id } } }
     );
 
     await task.deleteOne();

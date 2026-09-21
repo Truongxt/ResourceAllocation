@@ -38,7 +38,7 @@ import projectService from '../../services/projectService';
 import resourceService from '../../services/resourceService';
 import taskGroupService from '../../services/taskGroupService';
 import { TASK_STATUSES as STATUS_COLS, ROLES } from '../../constants';
-import { invalidPredecessors } from '../../utils/gantt';
+import { depId, invalidPredecessors } from '../../utils/gantt';
 import { getTaskPermissions } from '../../utils/taskPermissions';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -345,7 +345,7 @@ export default function Tasks() {
       estimatedHours: task.estimatedHours || 0,
       actualHours: task.actualHours || 0,
       requiredSkills: task.requiredSkills || [],
-      dependencies: (task.dependencies || []).map((d) => d._id || d),
+      dependencies: (task.dependencies || []).map(depId),
       taskGroup: task.taskGroup?._id || task.taskGroup,
       followers: (task.followers || []).map((f) => f._id || f),
       parentTask: task.parentTask?._id || task.parentTask,
