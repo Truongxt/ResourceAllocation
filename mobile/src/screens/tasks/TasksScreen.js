@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
@@ -41,6 +42,7 @@ const PRIORITIES = [
 
 export default function TasksScreen() {
   const { theme } = useTheme();
+  const { canManageModule } = useAuth();
 
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -283,13 +285,15 @@ export default function TasksScreen() {
             ) : null}
           </View>
 
-          {/* Add Task Button */}
-          <TouchableOpacity
-            onPress={() => setShowCreateModal(true)}
-            style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
-          >
-            <Ionicons name="add" size={22} color="#ffffff" />
-          </TouchableOpacity>
+          {/* Add Task Button — chỉ hiện khi có quyền sửa, vì server sẽ trả 403 */}
+          {canManageModule('tasks') && (
+            <TouchableOpacity
+              onPress={() => setShowCreateModal(true)}
+              style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
+            >
+              <Ionicons name="add" size={22} color="#ffffff" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Horizontal Status Filter Tabs */}

@@ -15,8 +15,11 @@ const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
   const { theme } = useTheme();
-  const { user } = useAuth();
+  const { user, canViewModule } = useAuth();
   const isMember = user?.role === 'member';
+
+  // Tổng quan không bao giờ bị ẩn: phải còn một chỗ để đứng khi mọi phân hệ khác
+  // đều bị cấm, nếu không người dùng mở app ra là thấy thanh tab trống.
 
   return (
     <Tab.Navigator
@@ -48,27 +51,31 @@ export default function MainTabNavigator() {
         }}
       />
 
-      <Tab.Screen
-        name="ProjectsTab"
-        component={ProjectsScreen}
-        options={{
-          tabBarLabel: 'Dự án',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="folder-outline" size={20} color={color} />
-          ),
-        }}
-      />
+      {canViewModule('projects') && (
+        <Tab.Screen
+          name="ProjectsTab"
+          component={ProjectsScreen}
+          options={{
+            tabBarLabel: 'Dự án',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="folder-outline" size={20} color={color} />
+            ),
+          }}
+        />
+      )}
 
-      <Tab.Screen
-        name="TasksTab"
-        component={TasksScreen}
-        options={{
-          tabBarLabel: 'Công việc',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="checkbox-outline" size={20} color={color} />
-          ),
-        }}
-      />
+      {canViewModule('tasks') && (
+        <Tab.Screen
+          name="TasksTab"
+          component={TasksScreen}
+          options={{
+            tabBarLabel: 'Công việc',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="checkbox-outline" size={20} color={color} />
+            ),
+          }}
+        />
+      )}
 
       {!isMember && (
         <Tab.Screen
@@ -83,16 +90,18 @@ export default function MainTabNavigator() {
         />
       )}
 
-      <Tab.Screen
-        name="OptimizationTab"
-        component={OptimizationScreen}
-        options={{
-          tabBarLabel: 'Tối ưu hóa',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="dna" size={20} color={color} />
-          ),
-        }}
-      />
+      {canViewModule('optimization') && (
+        <Tab.Screen
+          name="OptimizationTab"
+          component={OptimizationScreen}
+          options={{
+            tabBarLabel: 'Tối ưu hóa',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="dna" size={20} color={color} />
+            ),
+          }}
+        />
+      )}
 
       <Tab.Screen
         name="SettingsTab"

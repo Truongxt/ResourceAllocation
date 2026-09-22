@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
@@ -46,6 +47,10 @@ const PRESETS = [
 
 export default function OptimizationScreen() {
   const { theme } = useTheme();
+  // Mặc định của phân hệ này là `view`: chạy thử thì được, nhưng áp phương án
+  // vào hệ thống là ghi đè phân công thật nên phải có quyền sửa.
+  const { canManageModule } = useAuth();
+  const canApply = canManageModule('optimization');
 
   const [activeTab, setActiveTab] = useState('run'); // 'run' | 'history'
   const [selectedAlgo, setSelectedAlgo] = useState('genetic');
@@ -401,13 +406,15 @@ export default function OptimizationScreen() {
                   </View>
                 </View>
 
-                <Button
-                  title="Áp dụng phương án này vào hệ thống"
-                  onPress={() => handleApply(result._id)}
-                  loading={applying}
-                  size="md"
-                  style={styles.applyBtn}
-                />
+                {canApply && (
+                  <Button
+                    title="Áp dụng phương án này vào hệ thống"
+                    onPress={() => handleApply(result._id)}
+                    loading={applying}
+                    size="md"
+                    style={styles.applyBtn}
+                  />
+                )}
               </Card>
 
               {/* Assignments List */}
@@ -528,7 +535,7 @@ export default function OptimizationScreen() {
                   </Text>
                 </View>
 
-                {!isApplied && (
+                {!isApplied && canApply && (
                   <Button
                     title="Áp dụng phương án này"
                     onPress={() => handleApply(item._id)}

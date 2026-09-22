@@ -17,6 +17,14 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 
+// Vai trò trong `User.role` có ba giá trị. Trước đây màn này chỉ phân biệt
+// admin với phần còn lại, nên quản lý dự án bị hiện nhầm thành "Thành viên".
+const ROLE_LABELS = {
+  admin: 'Quản trị viên (Admin)',
+  project_manager: 'Quản lý dự án (PM)',
+  member: 'Thành viên (Member)',
+};
+
 export default function SettingsScreen() {
   const { user, logout, changePassword } = useAuth();
   const { theme, isDark, toggleTheme } = useTheme();
@@ -87,10 +95,13 @@ export default function SettingsScreen() {
               </Text>
               <View style={styles.badgeRow}>
                 <Badge
-                  label={user?.role === 'admin' ? 'Quản trị viên (Admin)' : 'Thành viên (Member)'}
+                  label={ROLE_LABELS[user?.role] || 'Thành viên (Member)'}
                   color={theme.colors.primaryLight}
                   size="sm"
                 />
+                {user?.isOwner && (
+                  <Badge label="Chủ sở hữu" color={theme.colors.primary} size="sm" />
+                )}
               </View>
             </View>
           </View>
