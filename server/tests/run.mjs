@@ -39,6 +39,7 @@ const SUITES = [
   { name: 'dependency-types', file: 'dependency-types.test.mjs', label: 'Loại quan hệ phụ thuộc' },
   { name: 'department-wework', file: 'department-wework.test.mjs', label: 'Quản lý Department chuẩn Base Wework' },
   { name: 'socket', file: 'socket.test.mjs', label: 'Socket.IO realtime' },
+  { name: 'notify-session', file: 'notify-session.test.mjs', label: 'Thông báo và phiên đăng nhập' },
 ];
 
 const filter = process.argv[2];
