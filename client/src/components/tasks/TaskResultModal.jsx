@@ -59,7 +59,7 @@ export default function TaskResultModal({ open, onClose, task, onSuccess }) {
         </Space>
       }
       width={640}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ marginBottom: 16 }}>
         <Text type="secondary" style={{ fontSize: 13 }}>
@@ -119,7 +119,7 @@ export default function TaskResultModal({ open, onClose, task, onSuccess }) {
                     background: 'var(--bg-secondary, rgba(255,255,255,0.04))',
                     borderColor: 'var(--border-color, rgba(255,255,255,0.1))',
                   }}
-                  bodyStyle={{ padding: '8px 12px' }}
+                  styles={{ body: { padding: '8px 12px' } }}
                 >
                   <Space align="baseline" style={{ width: '100%', display: 'flex' }}>
                     <Form.Item

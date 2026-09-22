@@ -204,7 +204,7 @@ export default function GroupsTab() {
           </div>
         }
         footer={null}
-        destroyOnClose
+        destroyOnHidden
         width={480}
       >
         <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 16 }}>

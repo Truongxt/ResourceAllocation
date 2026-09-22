@@ -1,8 +1,13 @@
-# Kiểm thử
+# Kiểm thử phía server
 
 Phần lớn các bộ ở đây gọi vào một server thật đang chạy, trên một database riêng,
 và assert trên nội dung response chứ không chỉ mã HTTP. Riêng bộ `csp` là kiểm thử
 đơn vị: nạp thẳng class thuật toán và chạy trên dữ liệu dựng sẵn.
+
+Đây là **một trong ba lớp** kiểm thử của dự án — lớp này dừng ở ranh giới HTTP, không
+biết gì về giao diện. Phần giao diện do [`client/tests`](../../client/tests/README.md)
+(component trong jsdom) và [`e2e`](../../e2e/README.md) (Chromium thật) đảm nhận.
+Tổng quan: [`docs/TESTING.md`](../../docs/TESTING.md).
 
 ## Chạy
 
@@ -30,6 +35,10 @@ Nhờ vậy database và server dùng để phát triển không bị đụng t�
 
 Ghi đè bằng biến môi trường nếu cần: `TEST_PORT`, `TEST_MONGODB_URI`.
 
+Trình chạy chờ tối đa **60 giây** để server trả lời `/api/health`. Hết thời gian thì in ra
+tám dòng log cuối của tiến trình server; log **trống** nghĩa là nó chưa kịp in ra gì —
+thường vì MongoDB chưa chạy, hoặc máy đang quá tải (chạy ngay sau bộ e2e chẳng hạn).
+
 ## Các bộ
 
 | Bộ | File | Phạm vi |
@@ -42,6 +51,7 @@ Ghi đè bằng biến môi trường nếu cần: `TEST_PORT`, `TEST_MONGODB_UR
 | `api` | `api.test.mjs` | Toàn bộ REST API: health, xác thực, phân quyền 3 role, CRUD Projects/Tasks/Resources/Departments, 3 thuật toán tối ưu hóa, Analytics, Notifications, ActivityLog, dọn dữ liệu theo tầng |
 | `project-detail` | `project-detail.test.mjs` | Các API trang chi tiết dự án dùng, theo đúng thứ tự UI gọi, gồm cả nhánh lỗi và ranh giới phân quyền |
 | `socket` | `socket.test.mjs` | Socket.IO: từ chối kết nối thiếu/sai token, tách room theo user, nhận `notification:new` và `notification:read`, đối chiếu với bản ghi trong DB |
+| `notify-session` | `notify-session.test.mjs` | **Tác dụng phụ**, không phải response: bình luận / thêm người theo dõi / tạo việc con có thực sự sinh ra bản ghi thông báo không, và phiên đăng nhập có liệt kê + thu hồi được không. Cả bốn lỗi bộ này giữ đều từng trả 200 với body hợp lệ, nên bộ nào chỉ assert mã trạng thái sẽ không thấy gì |
 
 ## Viết thêm bộ mới
 

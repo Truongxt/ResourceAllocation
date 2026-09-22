@@ -76,7 +76,7 @@ export function ResultHeader({ result, t }) {
     result.projectFilter?.code || result.projectFilter?.name || t('optimization.wholeSystem');
 
   return (
-    <Space direction="vertical" size={2} style={{ lineHeight: 1.35 }}>
+    <Space orientation="vertical" size={2} style={{ lineHeight: 1.35 }}>
       <Space size={4}>
         <Tag color={meta.color} style={{ margin: 0 }}>{meta.icon} {meta.label}</Tag>
         {result.isApplied && (

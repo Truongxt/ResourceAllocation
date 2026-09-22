@@ -267,9 +267,16 @@ export default function Header({ collapsed }) {
         </div>
 
         {/* Center: Compact Command Palette Trigger */}
-        <div
+        {/* <button> chứ không phải <div onClick>: một div bắt click thì
+            không tab tới được, Enter/Space không kích hoạt, và trình đọc
+            màn hình không đọc ra đây là thứ bấm được. */}
+        <button
+          type="button"
           onClick={() => setSearchOpen(true)}
+          aria-label={t('header.searchPlaceholder', { defaultValue: 'Tìm kiếm...' })}
+          aria-keyshortcuts="Meta+K Control+K"
           style={{
+            font: 'inherit',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -286,10 +293,10 @@ export default function Header({ collapsed }) {
           }}
           className="header-search-trigger"
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: isDark ? '#94a3b8' : '#64748b', fontSize: 12 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: isDark ? '#94a3b8' : '#64748b', fontSize: 12 }}>
             <SearchOutlined style={{ fontSize: 13, color: '#6366f1' }} />
             <span>{t('header.searchPlaceholder', { defaultValue: 'Tìm kiếm...' })}</span>
-          </div>
+          </span>
           <kbd
             style={{
               fontSize: 10,
@@ -304,7 +311,7 @@ export default function Header({ collapsed }) {
           >
             ⌘K
           </kbd>
-        </div>
+        </button>
 
         {/* Right: Quick Controls, Quick Create & Profile */}
         <Space size="middle" align="center">
@@ -448,7 +455,7 @@ export default function Header({ collapsed }) {
           {/* Notification Bell */}
           <Dropdown
             popupRender={() => notifContent}
-            dropdownRender={() => notifContent}
+            popupRender={() => notifContent}
             trigger={['click']}
             placement="bottomRight"
           >

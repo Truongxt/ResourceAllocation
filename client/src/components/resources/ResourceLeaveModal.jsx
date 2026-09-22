@@ -65,7 +65,7 @@ export default function ResourceLeaveModal({
       onCancel={onClose}
       footer={null}
       width={640}
-      destroyOnClose
+      destroyOnHidden
     >
       <Alert
         type="info"

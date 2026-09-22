@@ -186,7 +186,7 @@ export default function TaskExcelImportModal({ open, onClose, projects = [], onI
         </Space>
       }
       width={860}
-      destroyOnClose
+      destroyOnHidden
     >
       <Steps
         current={currentStep}

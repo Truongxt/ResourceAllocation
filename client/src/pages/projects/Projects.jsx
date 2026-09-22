@@ -466,7 +466,7 @@ export default function Projects() {
       render: (members = []) => {
         if (!members || members.length === 0) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
         return (
-          <Avatar.Group maxCount={3} size="small">
+          <Avatar.Group max={{ count: 3 }} size="small">
             {members.map((m, idx) => (
               <Tooltip title={m.user?.name || m.user?.email || 'Thành viên'} key={m.user?._id || idx}>
                 <Avatar src={m.user?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
@@ -1024,7 +1024,7 @@ export default function Projects() {
                             </div>
 
                             {proj.members?.length > 0 && (
-                              <Avatar.Group maxCount={3} size={20}>
+                              <Avatar.Group max={{ count: 3 }} size={20}>
                                 {proj.members.map((m, idx) => (
                                   <Tooltip title={m.user?.name || m.user?.email || 'Thành viên'} key={m.user?._id || idx}>
                                     <Avatar src={m.user?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
@@ -1045,7 +1045,7 @@ export default function Projects() {
                             <Progress
                               percent={progressVal}
                               strokeColor={progressVal === 100 ? '#10b981' : (proj.color || '#6366f1')}
-                              trailColor={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}
+                              railColor={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}
                               showInfo={false}
                               size="small"
                             />
@@ -1205,7 +1205,7 @@ export default function Projects() {
         onCancel={() => setModalOpen(false)}
         footer={null}
         width={720}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleFormSubmit} style={{ marginTop: 16 }}>
           {/* 1. Tên dự án */}
@@ -1415,6 +1415,20 @@ export default function Projects() {
             </Form.Item>
           )}
 
+          {/* Thời gian thực hiện: server bắt buộc có startDate/endDate
+              (server/src/routes/project.routes.js), nên ô này phải nằm ngoài
+              panel "Cài đặt nâng cao". Để trong đó thì người dùng điền hết các
+              trường thấy được rồi bấm Tạo sẽ nhận 400, mà ô còn thiếu thì đang
+              bị gấp lại nên không nhìn thấy để mà sửa. */}
+          <Form.Item
+            name="dateRange"
+            label={<span style={{ fontWeight: 600 }}>{t('projects.form.dateRange') || 'Thời gian thực hiện'}</span>}
+            rules={[{ required: true, message: t('projects.form.dateRangeRequired') || 'Vui lòng chọn thời gian thực hiện' }]}
+            extra="Ngày bắt đầu và hạn hoàn thành dự kiến của dự án"
+          >
+            <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+          </Form.Item>
+
           {/* 7. Cài đặt nâng cao (Collapse Panel) */}
           <Collapse
             ghost
@@ -1476,23 +1490,14 @@ export default function Projects() {
                       </Col>
                     </Row>
 
-                    <Row gutter={16}>
-                      <Col span={14}>
-                        <Form.Item name="dateRange" label={t('projects.form.dateRange') || 'Thời gian thực hiện'}>
-                          <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={10}>
-                        <Form.Item name="budget" label={t('projects.form.budget') || 'Ngân sách (VNĐ)'}>
-                          <InputNumber
-                            style={{ width: '100%' }}
-                            formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={(val) => val.replace(/\$\s?|(,*)/g, '')}
-                            min={0}
-                          />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                    <Form.Item name="budget" label={t('projects.form.budget') || 'Ngân sách (VNĐ)'}>
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        parser={(val) => val.replace(/\$\s?|(,*)/g, '')}
+                        min={0}
+                      />
+                    </Form.Item>
 
                     <Form.Item name="description" label={t('projects.form.description') || 'Mô tả dự án'}>
                       <TextArea rows={3} placeholder="Mô tả mục tiêu, phạm vi và yêu cầu của dự án..." />

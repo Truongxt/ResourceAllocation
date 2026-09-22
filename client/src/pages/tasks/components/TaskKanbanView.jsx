@@ -230,7 +230,7 @@ export default function TaskKanbanView({
                             percent={task.progress || 0}
                             size="small"
                             strokeColor="#6366f1"
-                            trailColor={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}
+                            railColor={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}
                           />
                         </div>
                       )}

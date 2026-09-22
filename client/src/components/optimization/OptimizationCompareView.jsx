@@ -159,7 +159,7 @@ export default function OptimizationCompareView({ benchmark, loading = false, t 
 
   return (
     <Spin spinning={loading}>
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         {/* Cảnh báo nếu so sánh giữa các dự án khác nhau hoặc số task không đồng nhất */}
         {benchmark.warnings.map((warning, idx) => (
           <Alert

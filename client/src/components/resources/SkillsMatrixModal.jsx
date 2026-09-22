@@ -53,7 +53,7 @@ export default function SkillsMatrixModal({
       onCancel={onClose}
       footer={null}
       width={600}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical" onFinish={handleFinish} style={{ marginTop: 16 }}>
         <Form.List name="skills">

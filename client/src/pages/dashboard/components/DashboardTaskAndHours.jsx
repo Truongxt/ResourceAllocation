@@ -114,7 +114,7 @@ export default function DashboardTaskAndHours({
                         percent={percentInt}
                         showInfo={false}
                         strokeColor={seg.color}
-                        trailColor="var(--border-subtle)"
+                        railColor="var(--border-subtle)"
                         size="small"
                       />
                     </div>
@@ -183,7 +183,7 @@ export default function DashboardTaskAndHours({
                   ? '#f59e0b'
                   : '#10b981'
               }
-              trailColor="var(--border-subtle)"
+              railColor="var(--border-subtle)"
             />
           </div>
 

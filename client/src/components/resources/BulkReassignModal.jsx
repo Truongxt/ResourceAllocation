@@ -127,7 +127,7 @@ export default function BulkReassignModal({ open, onClose, fromResource, resourc
         </Space>
       )}
     >
-      <Space direction="vertical" size={14} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={14} style={{ width: '100%' }}>
         <Descriptions column={2} size="small" bordered>
           <Descriptions.Item label="Người bàn giao">{fromName}</Descriptions.Item>
           <Descriptions.Item label="Người nhận">

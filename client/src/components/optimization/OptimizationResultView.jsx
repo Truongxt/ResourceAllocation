@@ -105,7 +105,9 @@ export default function OptimizationResultView({
       dataIndex: 'skillMatch',
       key: 'skillMatch',
       render: (match) => {
-        const pct = Math.round((match || 0) * 100);
+        // Server đã trả sẵn thang 0–100, không nhân thêm 100 nữa
+        // (server/src/algorithms/genetic/GeneticAlgorithm.js:289).
+        const pct = Math.round(match || 0);
         const color = pct >= 80 ? '#10b981' : pct >= 60 ? '#f59e0b' : '#ef4444';
         return (
           <Space>
@@ -130,7 +132,7 @@ export default function OptimizationResultView({
   ];
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
       {/* Khối thẻ KPI tổng quan */}
       <Row gutter={[16, 16]}>
         <Col span={6}>
@@ -161,7 +163,8 @@ export default function OptimizationResultView({
               title={t('optimization.avgSkillMatch') || 'Khớp kỹ năng TB'}
               value={
                 currentResult.metrics?.averageSkillMatch !== undefined
-                  ? `${Math.round(currentResult.metrics.averageSkillMatch * 100)}%`
+                  // Cũng là thang 0–100 sẵn (server/src/algorithms/scoring.js:162)
+                  ? `${Math.round(currentResult.metrics.averageSkillMatch)}%`
                   : '—'
               }
               valueStyle={{ color: '#10b981', fontWeight: 700 }}
@@ -343,7 +346,7 @@ export default function OptimizationResultView({
             </Text>
           }
         >
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             {currentResult.constraintReport.details.violated.map((item, idx) => (
               <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
                 <Tag color={item.type === 'dependency' ? 'orange' : 'red'} style={{ margin: 0 }}>

@@ -128,7 +128,7 @@ export default function SubtaskFormModal({
       onCancel={onClose}
       footer={null}
       width={680}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical" onFinish={handleFinish} style={{ marginTop: 14 }}>
         {/* Tiêu đề công việc con */}

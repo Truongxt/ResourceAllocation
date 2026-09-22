@@ -33,10 +33,19 @@ const ok = (cond, label, extra = '') => {
 
 const section = (name) => console.log(`\n\x1b[1m── ${name}\x1b[0m`);
 
-/** Mọi khóa lá, dạng "a.b.c". */
+/**
+ * Mọi khóa lá, dạng "a.b.c".
+ *
+ * Đi vào cả array, nên `["x","y"]` cho ra `key.0` và `key.1` — đúng cách i18next
+ * tra chúng. Trước đây flatten dừng ở array và trả về khóa của cả mảng; lúc đó
+ * chưa locale nào dùng array nên không ai thấy, nhưng hệ quả là mảng bị kiểm
+ * như một chuỗi (luôn báo "bản dịch rỗng") và **lệch độ dài giữa hai ngôn ngữ
+ * thì không ai bắt** — en có 3 mục, vi có 4 thì mục thứ 4 âm thầm rơi về tiếng
+ * Việt. Đi vào từng phần tử thì lệch độ dài hiện ra dưới dạng thiếu khóa.
+ */
 const flatten = (obj, prefix = '') =>
   Object.entries(obj).flatMap(([key, value]) =>
-    value && typeof value === 'object' && !Array.isArray(value)
+    value && typeof value === 'object'
       ? flatten(value, `${prefix}${key}.`)
       : [`${prefix}${key}`]
   );

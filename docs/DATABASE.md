@@ -1,25 +1,35 @@
 # 🗄️ Database Schema Design
 
 > Tài liệu mô tả chi tiết schema MongoDB cho hệ thống RAO.
-> Đối chiếu trực tiếp với `server/src/models/` — **9 collections**.
+> Đối chiếu trực tiếp với `server/src/models/` — **12 collections**.
+
+> Đếm lại bất cứ lúc nào bằng `ls server/src/models/ | wc -l`. `server/src/utils/seeder.js`
+> xóa theo một mảng model duy nhất và in ra `collections.length`, nên thêm model mới mà quên
+> cập nhật thì con số tự lệch và lộ ra ngay.
 
 ## Tổng quan Collections
 
 ```
-┌──────────┐     ┌───────────┐     ┌──────────┐
-│  Users   │────▶│  Projects │────▶│  Tasks   │
-└────┬─────┘     └───────────┘     └────┬─────┘
-     │                                  │
-     │  ┌──────────┐   ┌────────────┐   │
-     ├─▶│Resources │──▶│ Departments│   │  (Resource.department = Department.name)
-     │  └──────────┘   └────────────┘   │
-     │                                  ▼
-     │  ┌───────────────┐        ┌─────────────┐
-     ├─▶│ Notifications │        │Optimization │
-     │  └───────────────┘        │  Results    │
-     │  ┌───────────────┐        └─────────────┘
-     └─▶│ ActivityLogs  │
-        └───────────────┘
+┌──────────┐     ┌───────────┐     ┌──────────┐     ┌────────────┐
+│  Users   │────▶│  Projects │────▶│  Tasks   │◀────│ TaskGroups │
+└────┬─────┘     └─────┬─────┘     └────┬─────┘     └─────▲──────┘
+     │                 │                │                 │
+     │                 │   ┌────────────────────┐         │
+     │                 └──▶│   RecurringTasks   │─────────┘
+     │                     └────────────────────┘
+     │                      (khuôn sinh ra Tasks)          │
+     │  ┌──────────┐   ┌────────────┐                      ▼
+     ├─▶│Resources │──▶│ Departments│              ┌─────────────┐
+     │  └──────────┘   └────────────┘              │Optimization │
+     │   (Resource.department = Department.name)   │  Results    │
+     │                                             └─────────────┘
+     │  ┌───────────────┐      ┌──────────────────┐
+     ├─▶│ Notifications │      │ CompanySettings  │ (1 bản ghi / companyName)
+     │  └───────────────┘      └──────────────────┘
+     │  ┌───────────────┐      ┌───────────────┐
+     ├─▶│ ActivityLogs  │      │ RefreshTokens │
+     │  └───────────────┘      └───────▲───────┘
+     └──────────────────────────────────┘
 ```
 
 ---
@@ -359,6 +369,103 @@ Trạng thái "đã áp dụng" nằm ở cặp field `isApplied`/`appliedAt`/`a
 
 ---
 
+## 9. TaskGroups Collection
+
+Nhóm công việc trong một dự án — chính là các cột của bảng Kanban. Mẫu dự án (`Project.template`)
+tạo sẵn bộ nhóm tương ứng: Agile/Scrum ra 6 nhóm, Marketing ra 4, Tiêu chuẩn ra 3.
+
+```javascript
+{
+  _id: ObjectId,
+  name: String,          // required, max 150
+  project: ObjectId → Projects,  // required
+  color: String,         // default '#3b82f6'
+  order: Number,         // default 0 — thứ tự cột trên bảng Kanban
+  isOpen: Boolean,       // default true — nhóm đã đóng thì không nhận việc mới
+  companyName: String,   // default 'Công ty Công nghệ RAO'
+  createdBy: ObjectId → Users,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+**Indexes**: `(project, order)`, `companyName`
+
+`Task.taskGroup` trỏ tới đây và cho phép `null` — việc chưa được phân nhóm vẫn hợp lệ.
+
+---
+
+## 10. RecurringTasks Collection
+
+**Khuôn mẫu** để sinh ra `Task`, không phải bản thân công việc. Một bản ghi ở đây mô tả "mỗi
+thứ Hai tạo một việc báo cáo tuần"; các `Task` sinh ra là bản ghi độc lập trong collection
+`Tasks`.
+
+```javascript
+{
+  _id: ObjectId,
+  title: String,         // required, max 300
+  description: String,   // max 5000
+  project: ObjectId → Projects,   // required
+  taskGroup: ObjectId → TaskGroups,  // default null
+  assignee: ObjectId → Users,     // default null
+  followers: [ObjectId → Users],
+  priority: String,      // 'low'|'medium'|'high'|'critical', default 'medium'
+  estimatedHours: Number, // default 8, min 0
+
+  // Khuôn checklist và việc con, sao sang mỗi Task được sinh
+  checklist: [{ title: String, assignee: ObjectId → Users }],
+  subtasks: [{ title: String, assignee: ObjectId → Users, estimatedHours: Number }],
+
+  // --- Chu kỳ lặp ---
+  frequency: String,     // 'daily'|'weekly'|'monthly'|'quarterly'|'yearly', default 'weekly'
+  interval: Number,      // default 1, min 1 — "mỗi N chu kỳ", vd frequency=weekly + interval=2 là hai tuần một lần
+  daysOfWeek: [Number],  // 0=CN … 6=T7; dùng khi frequency='weekly'
+  dayOfMonth: Number,    // 1–31, default 1; dùng khi frequency='monthly' trở lên
+  durationHours: Number, // default 8, min 0.5 — độ dài của việc được sinh
+  startDate: Date,       // required — chu kỳ bắt đầu tính từ đây
+  endDate: Date,         // default null = lặp vô hạn
+
+  isActive: Boolean,     // default true — tắt thì ngừng sinh việc mới
+  lastGeneratedAt: Date, // default null
+  nextRunDate: Date,     // default null — mốc để tìm khuôn đến hạn
+  companyName: String,
+  createdBy: ObjectId → Users,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+**Indexes**: `(project, isActive)`, `(nextRunDate, isActive)`, `companyName`
+
+`(nextRunDate, isActive)` là index phục vụ đúng một câu truy vấn: tìm những khuôn đang bật và
+đã đến hạn sinh việc.
+
+---
+
+## 11. CompanySettings Collection
+
+Cấu hình cấp công ty. Một bản ghi cho mỗi `companyName`, ràng buộc `unique`.
+
+```javascript
+{
+  _id: ObjectId,
+  companyName: String,   // required, unique
+  createProjectPermission: String,     // 'only_admin'|'all_members', default 'only_admin'
+  createDepartmentPermission: String,  // 'only_admin'|'all_members', default 'only_admin'
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+**Indexes**: `companyName` (unique)
+
+Hai cờ này quyết định ai thấy được nút "Tạo dự án" / "Tạo Department" trên giao diện —
+`client/src/pages/projects/Projects.jsx` đọc chúng cùng với vai trò và quyền App Admin.
+Chúng **không** thay thế kiểm tra ở server; route vẫn tự kiểm quyền.
+
+---
+
 ## Relationship Diagram
 
 ```
@@ -372,4 +479,10 @@ Departments (1) ─ (N) Resources     # Liên kết bằng TÊN, không bằng O
 Users (1) ──── (N) Notifications    # recipient
 Users (1) ──── (N) ActivityLogs     # user
 Users (1) ──── (N) OptimizationResults  # runBy / appliedBy
+Users (1) ──── (N) RefreshTokens    # user — một phiên đăng nhập là một chuỗi `family`
+Projects (1) ─ (N) TaskGroups       # Cột Kanban của dự án
+TaskGroups (1) ─ (N) Tasks          # Task.taskGroup, cho phép null
+Projects (1) ─ (N) RecurringTasks   # Khuôn sinh việc theo chu kỳ
+RecurringTasks (1) ─ (N) Tasks      # Không có ref ngược: Task sinh ra là bản ghi độc lập
+CompanySettings                     # Không ref tới ai; khóa theo companyName (unique)
 ```

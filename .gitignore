@@ -34,3 +34,10 @@ Thumbs.db
 # Misc
 *.log
 coverage/
+
+# Playwright (kiểm thử giao diện end-to-end)
+e2e/.artifacts/
+e2e/.report/
+e2e/.mongo/
+playwright-report/
+test-results/

@@ -58,7 +58,7 @@ export default function ExecutiveReportModal({ open, onClose, utilData, taskData
       onCancel={onClose}
       width={980}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { padding: 0 } }}
     >
       {/* Action Bar (Not visible in print) */}

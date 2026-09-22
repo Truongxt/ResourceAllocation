@@ -110,7 +110,7 @@ export default function PendingReviewDrawer({ open, onClose, onSelectTask, onRev
       <Drawer
         open={open}
         onClose={onClose}
-        width={560}
+        size={560}
         title={(
           <Space>
             <CheckCircleOutlined style={{ color: '#f59e0b' }} />
@@ -136,7 +136,7 @@ export default function PendingReviewDrawer({ open, onClose, onSelectTask, onRev
               />
             )}
 
-            <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={12}>
               {tasks.map((task) => (
                 <div
                   key={task._id}

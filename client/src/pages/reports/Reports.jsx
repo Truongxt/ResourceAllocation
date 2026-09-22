@@ -341,7 +341,7 @@ export default function Reports() {
                   {(utilData?.byDepartment || []).map((dept) => (
                     <Col xs={24} sm={12} lg={8} key={dept.name}>
                       <Card title={dept.name} hoverable>
-                        <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        <Space orientation="vertical" style={{ width: '100%' }} size="small">
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <Text type="secondary">{t('reports.columns.resource')}:</Text>
                             <Text strong>{t('reports.peopleCount', { count: dept.count })}</Text>
@@ -391,7 +391,7 @@ export default function Reports() {
               ),
               children: (
                 <Spin spinning={trendLoading}>
-                  <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                  <Space orientation="vertical" style={{ width: '100%' }} size="middle">
                     <Card styles={{ body: { padding: '12px 16px' } }}>
                       <Space wrap size={16}>
                         <Segmented

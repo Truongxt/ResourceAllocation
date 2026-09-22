@@ -730,6 +730,21 @@ const updateUserManager = async (req, res, next) => {
 const updateAppPermissions = async (req, res, next) => {
   try {
     const { appPermissions } = req.body;
+
+    // `appPermissions` khai báo `type: Object` nên Mongoose nhận mọi thứ, kể cả mảng.
+    // Lưu được một mảng vào đây thì giao diện đọc `appPermissions.projects` ra
+    // undefined và người dùng mất quyền mà không có lỗi nào chỉ ra vì sao.
+    if (
+      appPermissions === null ||
+      typeof appPermissions !== 'object' ||
+      Array.isArray(appPermissions)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'appPermissions phải là một object dạng { phân_hệ: quyền }',
+      });
+    }
+
     const targetUser = await User.findById(req.params.id);
     if (!targetUser) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
@@ -938,8 +953,10 @@ const disableUser2FA = async (req, res, next) => {
  */
 const getSessions = async (req, res, next) => {
   try {
+    // Field trong RefreshToken là `user`, không phải `userId`. Lọc sai tên field
+    // không báo lỗi — chỉ khớp 0 bản ghi, nên màn hình phiên đăng nhập luôn trống.
     const sessions = await RefreshToken.find({
-      userId: req.user._id,
+      user: req.user._id,
       revokedAt: null,
       expiresAt: { $gt: new Date() },
     }).sort('-createdAt');
@@ -970,7 +987,7 @@ const revokeSession = async (req, res, next) => {
   try {
     const session = await RefreshToken.findOne({
       _id: req.params.id,
-      userId: req.user._id,
+      user: req.user._id,
     });
     if (!session) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy phiên đăng nhập' });
@@ -1113,13 +1130,18 @@ const updateUserAppAdmin = async (req, res, next) => {
       const { logActivity } = require('../services/activityLog.service');
 
       const appLabels = (user.appAdmins || []).map((k) => (k === 'optimize' ? 'Base Optimize+' : k)).join(', ');
-      sendNotification(user._id, {
+      // sendNotification nhận MỘT object có `recipient`. Gọi kiểu (id, {...}) thì
+      // `recipient` là undefined và hàm lặng lẽ return null — thông báo không bao giờ gửi.
+      sendNotification({
+        recipient: user._id,
+        actor: req.user._id,
+        type: 'system_alert',
         title: 'Cập nhật quyền Quản trị ứng dụng (App Admin)',
         message: user.appAdmins.length > 0
           ? `Bạn đã được chỉ định làm Quản trị ứng dụng cho: ${appLabels}`
           : 'Quyền Quản trị ứng dụng (App Admin) của bạn đã được cập nhật.',
-        type: 'system_alert',
-        actor: req.user._id,
+        entityType: 'user',
+        entityId: user._id,
       });
 
       logActivity({

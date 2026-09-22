@@ -6,6 +6,155 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-09-21
+
+### Testing
+
+Thêm **lớp kiểm thử thứ ba**: giao diện end-to-end bằng Playwright, điều khiển Chromium thật
+trên hệ thống thật (client Vite → server Express → MongoDB, không mock gì cả). 10 bộ, 82 bài,
+~10–15 phút một lượt. Chi tiết: [`e2e/README.md`](../e2e/README.md), chiến lược chung:
+[`TESTING.md`](./TESTING.md).
+
+Chạy trên **cổng và database riêng** (`5098` / `5174` / `resource_allocation_e2e`) nên không
+đụng tới môi trường phát triển lẫn `server/tests`.
+
+Lớp này có lý do tồn tại riêng chứ không phải chạy lại việc hai lớp kia đã làm: nó bắt loại
+lỗi mà **từng mảnh đều đúng, ghép lại thì sai**. Đợt dựng bộ test tìm ra **bảy** lỗi thuộc
+đúng loại đó, không lỗi nào làm đỏ `server/tests` hay `client/tests`. Tất cả đã được sửa —
+xem mục **Fixed** bên dưới; [`TESTING.md`](./TESTING.md) ghi thêm *vì sao từng lỗi lọt qua
+hai lớp kia*, phần đáng đọc hơn bản thân cái lỗi.
+
+Không còn bài `test.fail()` nào trong bộ: các bài từng mô tả hành vi đúng của chỗ đang sai
+giờ đã thành bài chống tái phát bình thường.
+
+### Fixed
+
+Bảy lỗi do lớp e2e tìm ra:
+
+- **Không tạo được dự án nếu chỉ điền các trường nhìn thấy được.** `startDate`/`endDate` bắt
+  buộc ở server nhưng ô nhập chúng nằm trong panel "Cài đặt nâng cao" đang thu gọn và không
+  đánh dấu bắt buộc, nên điền hết trường thấy được vẫn nhận 400 mà không biết thiếu gì.
+  Đã đưa ô ra ngoài panel — trường bắt buộc không được nằm trong phần gấp lại.
+- **Phần trăm khớp kỹ năng hiện `10000%`.** Server trả thang 0–100
+  (`scoring.js:162`, `GeneticAlgorithm.js:289`) nhưng `OptimizationResultView.jsx` nhân thêm
+  100 lần nữa; `OptimizationCompareView.jsx` thì không. Đã bỏ phép nhân thừa.
+- **Giờ công lệch nhau giữa hai trang** — cùng một người hiện 0h ở `/resources` và 32h ở
+  `/reports`. Chẩn đoán đầu tiên sai: tưởng `currentWorkload` không bao giờ được cập nhật vì
+  không màn hình nào gọi `recalculate-workload`. Thực tế **mọi đường ghi task qua API đều gọi
+  `syncResourceWorkload`**; thủ phạm hẹp hơn nhiều — seeder ghi task thẳng qua model nên
+  riêng dữ liệu mẫu không được đồng bộ. Đã thêm một lời gọi ở cuối seeder.
+- **Seeder bỏ sót 3 collection.** `TaskGroup`, `RecurringTask`, `CompanySetting` không bị xóa
+  nên tồn đọng qua mọi lần seed và trỏ vào `_id` đã biến mất — đúng vấn đề mà comment trong
+  chính hàm đó nói là đã chữa cho `notifications` trước đây. Nay xóa theo **một mảng model
+  duy nhất** và in ra `collections.length`, nên bỏ sót lần nữa là con số tự lệch và lộ ra.
+- **Màn hình chặn theo vai trò là ngõ cụt.** Gõ nhầm URL vào trang bị cấm thì kẹt — không
+  sidebar, không nút, chỉ còn nút Back của trình duyệt. Đã thêm nút quay về, và đổi nút của
+  màn hình chặn theo app từ `window.location.href` sang `navigate` (gán location trong SPA
+  bắt trình duyệt tải lại toàn bộ bundle).
+- **`VITE_SOCKET_URL` không có trong `.env.example`.** Thiếu nó thì client mở socket tới
+  `localhost:5000` mặc định; triển khai ở cổng khác là realtime âm thầm không kết nối mà
+  không lỗi nào hiện ra. Đã bổ sung kèm giải thích, và `10-realtime.spec.js` khóa lại bằng
+  cách kiểm địa chỉ WebSocket thật mà trình duyệt mở.
+- **Trang Đăng ký viết cứng toàn bộ tiếng Việt** — 10 nhãn, 12 thông báo validate, 9
+  placeholder, 4 danh sách Select. Bật tiếng Anh thì cả ứng dụng dịch, riêng trang này đứng
+  nguyên. `locales.test.mjs` không bắt được vì nó so hai file locale **với nhau**, không kiểm
+  xem component có dùng chúng hay không. Đã thêm nhóm `auth.register.*` và nối vào; `value`
+  của Select giữ nguyên tiếng Việt vì đó là dữ liệu gửi lên server.
+
+Bốn lỗi nữa lộ ra trong lúc viết bù tài liệu API — cả bốn đều **để request trả 200 với body
+hợp lệ**, cái mất đi nằm ngoài response, nên không lớp test nào đang có bắt được:
+
+- **Bốn nhóm thông báo không bao giờ được tạo.** Enum `Notification.type` thiếu bảy giá trị
+  mà controller vẫn gửi (`task_comment`, `task_follower_added`, `task_subtask_added`,
+  ba giá trị `task_review_*`, `system_alert`); `entityType` thiếu `'user'`.
+  `Notification.create` ném `ValidationError`, `sendNotification` bắt rồi trả `null`, còn
+  request tạo bình luận vẫn trả 201. Đo trên database sạch: bình luận + thêm người theo dõi +
+  tạo việc con → **0 thông báo**, kèm ba dòng lỗi trong log server mà không ai đọc.
+- **Thông báo App Admin gọi sai chữ ký hàm.** `sendNotification` nhận một object có
+  `recipient`; chỗ này gọi `sendNotification(user._id, {...})` nên `recipient` là
+  `undefined` và hàm dừng ngay ở guard đầu — **không log gì cả**. Cùng một hàm, 10 chỗ gọi
+  đúng, 1 chỗ sai.
+- **Danh sách phiên đăng nhập luôn trống.** `getSessions`/`revokeSession` lọc
+  `RefreshToken` theo `userId` trong khi field của model tên là `user`. MongoDB không báo
+  lỗi khi lọc theo field không tồn tại — chỉ khớp 0 bản ghi. Hệ quả: màn hình phiên đăng nhập
+  trống dù đang có phiên sống, và `DELETE /auth/sessions/:id` luôn trả 404 nên **không thu
+  hồi được thiết bị nào**. Xác nhận bằng cách đọc thẳng collection: bản ghi có thật, đang
+  sống, `userId` không tồn tại.
+- **`appPermissions` nhận cả mảng.** Field khai báo `type: Object` nên Mongoose nhận mọi
+  thứ; gửi `['optimize']` trả 200 và ghi đè object quyền thành một mảng, khiến giao diện đọc
+  `appPermissions.projects` ra `undefined` — người dùng mất quyền không rõ lý do. Đã thêm
+  guard ở controller vì schema không diễn tả được ràng buộc này.
+
+Bộ mới **`server/tests/notify-session.test.mjs`** (16 bài) giữ cả bốn, và giữ theo cách khác
+ba lớp cũ: nó đếm **bản ghi thực tế** sau mỗi lời gọi thay vì kiểm mã trạng thái. Tổng số bộ
+`server/tests` lên **19**.
+
+Kèm theo:
+
+- **Thanh chuyển mục trong drawer chi tiết công việc thành tablist thật.** Trước là
+  `div onClick`: không tab tới được, không đọc ra được, và bài e2e phải so theo chữ hiện trên
+  màn hình. Nay là `role="tablist"` với từng mục `<button role="tab">` có `aria-selected` và
+  `aria-controls` trỏ tới `role="tabpanel"`, điều hướng bằng mũi tên / Home / End theo chuẩn
+  một điểm dừng Tab. Đây là mục cuối trong danh sách "vấn đề nhỏ còn lại" của `TESTING.md`.
+- **Gỡ hết cảnh báo deprecated của Ant Design v6.** Đổi tên thuần: `destroyOnClose`→
+  `destroyOnHidden`, `trailColor`→`railColor`, `dropdownRender`→`popupRender`, Space
+  `direction`→`orientation`. Đổi cả hình dạng prop: Progress `strokeWidth={N}`→`size={[-1,N]}`,
+  Drawer `width`→`size`, `bodyStyle`→`styles.body`, `Avatar.Group maxCount`→`max={{count}}`.
+  `Modal width` và `Radio.Group direction` **không** deprecated nên giữ nguyên. Xác nhận bằng
+  cách mở 11 trang và đếm cảnh báo trong console: 0.
+- **Ô mở tìm kiếm toàn cục thành `<button>` thật** thay vì `div` bắt `onClick` — nay tab tới
+  được, Enter kích hoạt, trình đọc màn hình đọc ra. Bài test cũng đổi từ bám class sang
+  `getByRole`, và có thêm một bài mở bằng bàn phím.
+- **`locales.test.mjs` kiểm cả phần tử trong array.** `flatten` dừng ở array nên mảng bị kiểm
+  như một chuỗi, và **lệch độ dài giữa vi/en thì không ai bắt** — en có 3 mục, vi có 4 thì
+  mục thứ 4 âm thầm rơi về tiếng Việt.
+- **Lớp kiểm thử component hết chập chờn.** `client/vite.config.js` nay đặt
+  `testTimeout: 15_000` và `maxWorkers: 2`.
+  Triệu chứng rất dễ đổ oan cho code: `npm test` đỏ ngẫu nhiên, mỗi lần một file khác, mà
+  chạy riêng file đó thì luôn đạt. Đo ra thì thấy biên thời gian gần như bằng không — bài
+  chậm nhất mất **4,5 giây** trong khi `testTimeout` mặc định của vitest đúng **5 giây**,
+  và render một modal/portal của Ant Design trong jsdom vốn tốn 2–3 giây ngay cả lúc máy
+  rảnh. `maxWorkers` mặc định mở theo số nhân CPU, mỗi worker dựng một jsdom rồi nạp cả antd,
+  chính là thứ đẩy 2,5 giây thành 5.
+  Ngưỡng mới gấp ba ca chậm nhất đo được, vẫn đủ ngắn để bắt vòng lặp vô hạn hay promise
+  không bao giờ resolve. Xác nhận bằng ba lượt `npm test` liên tiếp đều xanh.
+- **Trình chạy `server/tests` không còn báo lỗi oan.** Ngưỡng chờ server lên nâng từ 20 lên
+  60 giây: chạy ngay sau một lượt kiểm thử nặng khác (bộ e2e chẳng hạn), server cần lâu hơn
+  hẳn vì cache đĩa còn nguội. Chạm ngưỡng lúc đó in ra `❌ Server không khởi động được:` kèm
+  một dòng log **trống**, trông y hệt lỗi cấu hình. Thông báo nay nói rõ là hết thời gian
+  chờ, và khi log trống thì nói luôn điều đó có nghĩa gì.
+
+### Documentation
+
+Đối chiếu lại tài liệu với mã nguồn thì thấy nó đã chậm hơn code khá xa. Đo lại, viết bù
+phần thiếu, và ghi rõ chỗ nào còn chưa phủ:
+
+- **`DATABASE.md` viết bù 3 collection** — `TaskGroups`, `RecurringTasks`, `CompanySettings`.
+  Trước đó mô tả 9/12. Cập nhật luôn sơ đồ tổng quan và sơ đồ quan hệ.
+- **`API.md` viết bù 3 nhóm route** — `/api/task-groups` (5), `/api/recurring-tasks` (6),
+  `/api/company-settings` (2). Từng endpoint kiểm chứng bằng request thật, đúng chuẩn mà
+  tài liệu tự đặt ra. Nhân đó phát hiện `PUT /task-groups/reorder` nhận `orderedIds` — mảng
+  id theo thứ tự mới, `order` gán bằng chỉ số trong mảng — chứ không phải mảng object như
+  tên gọi dễ khiến người ta đoán.
+- **`API.md` viết bù hai nhóm lớn nhất — nay phủ đủ 118/118 endpoint.** `/api/auth` từ
+  9/27 lên đủ 27 (mục 1.1–1.3), `/api/tasks` từ ~12/30 lên đủ 30 (mục 3.1–3.4). Từng
+  endpoint kiểm chứng bằng request thật.
+  Phần viết bù không chỉ liệt kê đường dẫn. Nó ghi cả những chỗ mà đọc tên endpoint sẽ đoán
+  sai: `POST /auth/users` **tự tạo kèm một Resource** và mật khẩu mặc định là `123456`;
+  `dependencies` gửi vào là mảng id phẳng nhưng đọc ra là `{ task, type }`;
+  `deliverableLinks` là mảng object `{ title, url }` nên gửi mảng chuỗi sẽ nhận lỗi cast
+  nguyên văn của Mongoose; `badgeCount` của `/tasks/reminders` bằng `important` chứ không
+  bằng `total`; bảy endpoint không phân trang nhưng vẫn nhận `?page=` rồi bỏ qua.
+  Ghi luôn cả chỗ code chưa nhất quán thay vì lặng lẽ bỏ: `GET /auth/guests` không lọc theo
+  công ty như mọi endpoint quản trị khác, và chú thích JSDoc của ba endpoint Excel ghi sai
+  đường dẫn (`/import-excel` trong khi route thật là `/excel/import`).
+- **`docs/TESTING.md` (mới)** — chiến lược ba lớp, và với mỗi lỗi e2e tìm ra thì ghi *vì sao
+  nó lọt qua hai lớp kia* cùng bài test nào đang giữ cho nó không quay lại.
+- **`docs/README.md`** cập nhật cây thư mục và các con số (12 controller, 12 model, 12 route
+  file, 118 endpoint), thêm mục ba lớp kiểm thử.
+
+---
+
 ## [Chưa phát hành] - 2026-08-19
 
 ### Security
