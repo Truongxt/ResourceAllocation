@@ -79,11 +79,26 @@ test.describe('Quản lý công việc', () => {
     // Drawer phải nạp được dữ liệu liên quan chứ không chỉ cái tiêu đề truyền vào
     await expect(drawer).toContainText('Nâng cấp Nền tảng E-Commerce');
     await expect(drawer).toContainText('Trần Văn Nam');
-    // Thanh chuyển mục của drawer được dựng bằng thẻ thường chứ không phải
-    // `role="tab"`, nên chỉ so khớp được theo chữ hiện trên màn hình.
+    // Thanh chuyển mục là một tablist thật, nên bám được theo vai trò thay vì
+    // theo chữ hiện trên màn hình.
+    const tablist = drawer.getByRole('tablist', { name: 'Các mục của công việc' });
+    await expect(tablist).toBeVisible();
     for (const section of ['Thông tin', 'Checklist', 'Bình luận', 'Công việc con', 'Lịch sử hạn']) {
-      await expect(drawer.getByText(section, { exact: true }).first()).toBeVisible();
+      await expect(tablist.getByRole('tab', { name: new RegExp(section) }).first()).toBeVisible();
     }
+
+    // Đúng một tab được chọn, và nội dung tương ứng phải là một tabpanel gắn với nó.
+    await expect(drawer.getByRole('tab', { selected: true })).toHaveCount(1);
+    const checklistTab = tablist.getByRole('tab', { name: /Checklist/ }).first();
+    await checklistTab.click();
+    await expect(checklistTab).toHaveAttribute('aria-selected', 'true');
+    const panelId = await checklistTab.getAttribute('aria-controls');
+    await expect(drawer.locator(`#${panelId}`)).toBeVisible();
+
+    // Mũi tên phải chuyển tab: cả dải chỉ có một điểm dừng Tab.
+    await checklistTab.press('ArrowRight');
+    await expect(checklistTab).toHaveAttribute('aria-selected', 'false');
+    await expect(drawer.getByRole('tab', { selected: true })).toHaveCount(1);
 
     await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
     expect(problems).toEqual([]);
