@@ -17,6 +17,7 @@ const {
   canManageChecklist,
   canReportResult,
   canCreateSubtask,
+  guardTaskCompany,
 } = require('../middleware/taskAccess');
 const {
   getTasks,
@@ -162,6 +163,11 @@ const statusValidation = [
 
 router.use(protect);
 router.use(requireAppPermission('tasks'));
+
+// Phân lập công ty cho mọi route có `:id`. Đặt ở `router.param` thay vì rải vào
+// từng guard, vì các guard đều cho admin/PM đi thẳng qua mà không xét công ty —
+// xem giải thích đầy đủ tại `guardTaskCompany`. Route thêm sau này tự được che.
+router.param('id', guardTaskCompany);
 
 router.get('/stats/summary', getTaskSummary);
 
