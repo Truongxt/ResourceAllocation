@@ -14,15 +14,25 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
+      // Danh sách này phải phủ hết mọi giá trị `type` mà controller thực sự gửi.
+      // Thiếu một giá trị thì Notification.create ném ValidationError, và
+      // sendNotification nuốt lỗi rồi trả null — thông báo mất không dấu vết.
       enum: [
         'task_assigned',
         'task_status_changed',
         'task_updated',
+        'task_comment',
+        'task_follower_added',
+        'task_subtask_added',
+        'task_review_requested',
+        'task_review_approved',
+        'task_review_rejected',
         'project_updated',
         'project_member_added',
         'optimization_completed',
         'optimization_applied',
         'system',
+        'system_alert',
       ],
       default: 'system',
       index: true,
@@ -41,7 +51,7 @@ const notificationSchema = new mongoose.Schema(
     },
     entityType: {
       type: String,
-      enum: ['task', 'project', 'resource', 'optimization', 'system'],
+      enum: ['task', 'project', 'resource', 'optimization', 'user', 'system'],
       default: 'system',
     },
     entityId: {
