@@ -471,7 +471,8 @@ gọi. Bốn lỗi vừa tìm ra đều sống sót qua 82 bài e2e vì đúng k
 | **Nhật ký kiểm toán cho hành động Admin**: xóa nhân sự, xóa phòng ban, tính lại workload, xóa nhật ký. Riêng thao tác xóa nhật ký được ghi **sau** lệnh xóa nên vết của nó sống sót | |
 | Stack trace chỉ lộ khi `NODE_ENV=development` | |
 | `JWT_SECRET` bắt buộc khi `NODE_ENV=production`, thiếu là không khởi động | |
-| **Bình luận đã được phân lập theo công ty** (`belongsToCompany` trong `task.controller.js`) | Chưa rà hết: các nhánh khác chỉ `Task.findById` rồi thao tác cũng cần soi lại theo cùng cách |
+| **Phân lập công ty đã rà bằng phép đo trên 24 endpoint** — task, dự án, nhân sự, phòng ban, tối ưu hóa, nhật ký, nhóm việc, việc lặp lại. Chốt cho nhóm task đặt ở `router.param('id')` nên route mới tự được che | `companySetting` không có route theo `:id` (luôn truy vấn bằng `companyName` của người gọi) nên không đo được theo cách này — an toàn do thiết kế chứ không do kiểm chứng |
+| `OptimizationResult` và `ActivityLog` nay có `companyName`, đủ 10/10 model có khóa phân lập | Bản ghi tạo **trước** thay đổi này không có trường đó; chúng được quy về công ty mặc định |
 
 Ngưỡng giới hạn tần suất đặt qua `AUTH_RATE_LIMIT_MAX` / `API_RATE_LIMIT_MAX`.
 

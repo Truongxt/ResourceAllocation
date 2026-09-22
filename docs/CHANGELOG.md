@@ -6,6 +6,94 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-09-22 (rà soát phân lập công ty)
+
+### Security
+
+Một đợt rà **bằng phép đo**, không bằng đọc mã: dựng một công ty thứ hai hoàn toàn
+mới rồi cho admin của nó thao tác lên dữ liệu công ty thứ nhất, chỉ bằng id. Kết
+quả rộng hơn dự đoán nhiều — **19 endpoint** cho phép người ngoài đọc hoặc ghi.
+
+**Nhóm công việc (10 endpoint).** `taskAccess.js` có 11 guard, tất cả đều mở đầu
+bằng `if (PRIVILEGED_ROLES.includes(req.user.role)) return next()` — admin/PM đi
+thẳng, không xét công ty. Bốn endpoint chính vẫn an toàn vì *controller* tự kiểm,
+nhưng checklist, người theo dõi, nhân bản, di chuyển, đổi hạn, nộp kết quả, duyệt,
+đánh dấu hoàn thành và tạo việc con thì không. Nay chặn ở `router.param('id')` nên
+route thêm sau này tự được che.
+
+Hai đường đáng lo nhất không phải ghi đè: `POST /:id/followers` cho người ngoài tự
+thêm mình làm người theo dõi rồi **nhận thông báo** về công việc công ty khác, và
+`POST /:id/duplicate` nhân bản nguyên nội dung.
+
+**Phân hệ tối ưu hóa.** `OptimizationResult` **không có** trường `companyName` nên
+không có gì để lọc; `getHistory` còn bỏ hẳn bộ lọc khi người gọi là `admin`. Công
+ty B **áp được phương án của công ty A** — tức ra lệnh phân công lại toàn bộ công
+việc của A. Đã thêm `companyName` vào model và chặn ở `getResultById`, `apply`,
+`rollback`, `compare`, `history`.
+
+**Nhật ký hoạt động.** Cùng khuôn: model không có `companyName`, nhánh `admin` bỏ
+bộ lọc. Nặng hơn, `clearActivityLogs` gọi `deleteMany({})` — **một admin bất kỳ
+xóa sạch vết kiểm toán của toàn hệ thống**. Nay tất cả giới hạn trong công ty.
+
+**Việc lặp lại.** `getRecurringTasks` lọc theo công ty từ lâu, nhưng ba đường thao
+tác theo id chỉ `findById` trần. Nặng nhất là `POST /:id/run-now`: nó **tạo công
+việc mới** trong dự án của cấu hình, nên người ngoài kích hoạt được việc ghi dữ
+liệu vào dự án công ty khác.
+
+**Ba endpoint lẻ.** `PATCH /projects/:id/permissions` (đổi phân quyền dự án công ty
+khác), `PUT /resources/:id/skills` (xóa sạch kỹ năng nhân sự công ty khác),
+`GET /departments/:id` (đọc phòng ban kèm dự án, ngân sách, người quản lý).
+
+Nhóm việc (`taskGroup`) đã chặn đúng từ trước; bài kiểm vẫn được thêm để giữ.
+
+### Fixed
+
+- **Bộ bắt lỗi toàn cục tự ném lỗi.** Nhánh trùng khóa đọc `err.keyValue`, nhưng
+  lỗi ghi hàng loạt (`insertMany`) cũng mang `code: 11000` mà không có trường đó →
+  `Object.keys(undefined)` ném ngay trong handler → Express trả **500 rỗng**, không
+  `success`, không `message`. Kiểu hỏng này không chỉ làm hỏng một endpoint, nó
+  **xóa mất manh mối** của mọi lỗi đi qua nhánh đó.
+- **Chỉ mục cũ chặn multi-tenant ở phòng ban.** Database còn `name_1` unique không
+  kèm `companyName`, sót lại từ schema đời trước — Mongoose tạo chỉ mục mới nhưng
+  không bao giờ xóa cái cũ. Hệ quả: hai công ty không thể cùng có phòng ban tên
+  "Engineering", và **mọi công ty mới đăng ký gặp 500** khi mở trang Phòng ban.
+  Đây là lỗi *dữ liệu*: chạy `npm run migrate:stale-indexes -- --apply`.
+- **Đăng ký có thể để lại User không kèm Resource.** Bước tạo Resource nằm trong
+  `catch` chỉ ghi log, nên hỏng ở đó là sinh ra tài khoản đăng nhập được nhưng
+  không xuất hiện ở trang Nhân sự, không nhận phân công, thuật toán không thấy —
+  và người dùng không tự sửa được vì email đã bị chiếm. Nay hỏng thì dọn luôn User
+  vừa tạo và trả lỗi.
+- **Tài khoản mới mượn tên phòng ban của công ty khác**: nhánh dự phòng
+  `Department.findOne({ isActive: true })` không kèm công ty.
+- **Chuyển công việc sang dự án khác chỉ kiểm một chiều.** Code kiểm tiền nhiệm của
+  chính nó nhưng bỏ qua hậu nhiệm — chuyển đi là bỏ lại một loạt quan hệ trỏ xuyên
+  dự án, đúng cái bất biến mà chính nó đang giữ.
+- Lỗi không có `message` lọt ra thành `{success:false}` trống trơn.
+
+### Testing
+
+- `server/tests/company-isolation.test.mjs` — 53 assertion quét phân lập trên task,
+  dự án, nhân sự, phòng ban, tối ưu hóa và nhật ký.
+- `server/tests/error-handler.test.mjs` — 28 assertion, kiểm đơn vị không cần
+  database. Nguyên tắc nó khóa: bộ bắt lỗi phải luôn trả JSON có `success` và
+  `message`, với **mọi** hình dạng lỗi, kể cả hình dạng chưa từng thấy.
+
+### Ghi chú về cách rà
+
+Đọc mã cho kết luận **sai cả hai chiều**. Nhìn 11 guard đều bỏ qua công ty, kết
+luận tự nhiên là cả 11 đều hở — đo thật thì 4 endpoint chính vẫn an toàn, và hở nằm
+ở 10 chỗ khác mà việc đọc guard không thể thấy.
+
+Hai lần khác suýt kết luận nhầm là "đã chặn": một lần nhận **404** vì gọi sai method
+HTTP, một lần nhận **400** vì dừng ở bước validate trước khi tới bước phân quyền. Vì
+vậy bộ test chỉ chấp nhận đúng **403**, và bài `compare` phải dựng đủ hai phương án
+khác nhau thì mới chạm được tới chỗ cần kiểm.
+
+Và một bài test **viết sai** lại là thứ mở ra hai lỗi lớn nhất: assertion "công ty
+mới có phòng ban riêng" — viết chỉ để chứng minh bản vá không siết quá tay — đỏ lên,
+lần theo mới ra lỗi chỉ mục lẫn lỗi bộ bắt lỗi. Cả hai đã nằm đó từ lâu.
+
+
 ## [Chưa phát hành] - 2026-09-22 (sau)
 
 ### Fixed — app di động
