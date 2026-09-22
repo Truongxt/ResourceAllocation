@@ -55,6 +55,23 @@ const clearRefreshCookie = (res) => {
   });
 };
 
+/**
+ * Client không phải trình duyệt tự khai báo bằng header này.
+ *
+ * Lý do phải có: app di động không có kho cookie đáng tin — axios trong React
+ * Native giữ `Set-Cookie` khác nhau giữa iOS và Android, nên refresh token đi
+ * bằng cookie sẽ rơi mất và phiên chết sau 15 phút mà không cách nào cứu.
+ *
+ * Với riêng những client khai báo, refresh token đi trong body. Đây là đánh đổi
+ * có ý thức, không phải nới lỏng toàn cục: web KHÔNG khai báo nên KHÔNG bao giờ
+ * nhận refresh token trong body, thế phòng thủ trước XSS của web giữ nguyên.
+ */
+const usesBodyRefresh = (req) => req.get('X-Client-Type') === 'mobile';
+
+/** Refresh token mà người gọi trình ra: cookie với web, body với client di động. */
+const presentedRefresh = (req) =>
+  req.cookies?.[REFRESH_COOKIE] || (usesBodyRefresh(req) ? req.body?.refreshToken : null);
+
 /** Cấp cặp token cho một lần đăng nhập/đăng ký thành công. */
 const issueSession = async (res, req, user) => {
   const { value, expiresAt } = await issueRefreshToken(user._id, {
@@ -62,7 +79,10 @@ const issueSession = async (res, req, user) => {
     ipAddress: req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip,
   });
   setRefreshCookie(res, value, expiresAt);
-  return generateToken(user._id);
+  return {
+    token: generateToken(user._id),
+    ...(usesBodyRefresh(req) ? { refreshToken: value } : {}),
+  };
 };
 
 /**
@@ -162,13 +182,13 @@ const register = async (req, res, next) => {
     }
 
     // Generate token
-    const token = await issueSession(res, req, user);
+    const session = await issueSession(res, req, user);
 
     res.status(201).json({
       success: true,
       data: {
         user: user.toJSON(),
-        token,
+        ...session,
       },
     });
   } catch (error) {
@@ -222,13 +242,13 @@ const login = async (req, res, next) => {
     }
 
     // Generate token
-    const token = await issueSession(res, req, user);
+    const session = await issueSession(res, req, user);
 
     res.json({
       success: true,
       data: {
         user: user.toJSON(),
-        token,
+        ...session,
       },
     });
   } catch (error) {
@@ -339,11 +359,11 @@ const changePassword = async (req, res, next) => {
     // vẫn sống thì thao tác đó gần như vô nghĩa — kẻ đang ở trong nhà không bị đuổi.
     // Thu hồi mọi refresh token rồi cấp phiên mới cho chính thiết bị đang thao tác.
     await revokeAllForUser(user._id, 'password_changed');
-    const token = await issueSession(res, req, user);
+    const session = await issueSession(res, req, user);
 
     res.json({
       success: true,
-      data: { token },
+      data: { ...session },
       message: 'Đổi mật khẩu thành công. Các phiên đăng nhập khác đã bị đăng xuất.',
     });
   } catch (error) {
@@ -1039,7 +1059,7 @@ const revokeSession = async (req, res, next) => {
  */
 const refresh = async (req, res, next) => {
   try {
-    const presented = req.cookies?.[REFRESH_COOKIE];
+    const presented = presentedRefresh(req);
 
     const result = await rotateRefreshToken(presented, {
       userAgent: req.headers['user-agent'],
@@ -1068,7 +1088,14 @@ const refresh = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: { user: user.toJSON(), token: generateToken(user._id) },
+      data: {
+        user: user.toJSON(),
+        token: generateToken(user._id),
+        // Xoay vòng nghĩa là giá trị cũ vừa chết. Client dùng body phải nhận được
+        // giá trị mới ngay tại đây, nếu không lần làm mới sau sẽ trình ra token đã
+        // bị thu hồi và bị xử như tái sử dụng — tự đá chính mình ra.
+        ...(usesBodyRefresh(req) ? { refreshToken: result.value } : {}),
+      },
     });
   } catch (error) {
     next(error);
@@ -1082,7 +1109,7 @@ const refresh = async (req, res, next) => {
  */
 const logout = async (req, res, next) => {
   try {
-    await revokeToken(req.cookies?.[REFRESH_COOKIE], 'logout');
+    await revokeToken(presentedRefresh(req), 'logout');
     clearRefreshCookie(res);
     res.json({ success: true, message: 'Đã đăng xuất' });
   } catch (error) {
