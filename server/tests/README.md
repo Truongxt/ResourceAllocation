@@ -1,8 +1,13 @@
-# Kiểm thử
+# Kiểm thử phía server
 
 Phần lớn các bộ ở đây gọi vào một server thật đang chạy, trên một database riêng,
 và assert trên nội dung response chứ không chỉ mã HTTP. Riêng bộ `csp` là kiểm thử
 đơn vị: nạp thẳng class thuật toán và chạy trên dữ liệu dựng sẵn.
+
+Đây là **một trong ba lớp** kiểm thử của dự án — lớp này dừng ở ranh giới HTTP, không
+biết gì về giao diện. Phần giao diện do [`client/tests`](../../client/tests/README.md)
+(component trong jsdom) và [`e2e`](../../e2e/README.md) (Chromium thật) đảm nhận.
+Tổng quan: [`docs/TESTING.md`](../../docs/TESTING.md).
 
 ## Chạy
 
@@ -29,6 +34,10 @@ Yêu cầu MongoDB đang chạy. Không cần khởi động server trước —
 Nhờ vậy database và server dùng để phát triển không bị đụng tới.
 
 Ghi đè bằng biến môi trường nếu cần: `TEST_PORT`, `TEST_MONGODB_URI`.
+
+Trình chạy chờ tối đa **60 giây** để server trả lời `/api/health`. Hết thời gian thì in ra
+tám dòng log cuối của tiến trình server; log **trống** nghĩa là nó chưa kịp in ra gì —
+thường vì MongoDB chưa chạy, hoặc máy đang quá tải (chạy ngay sau bộ e2e chẳng hạn).
 
 ## Các bộ
 
