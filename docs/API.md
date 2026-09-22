@@ -2,33 +2,29 @@
 
 > Base URL: `http://localhost:5000/api`
 >
-> Phần đã viết dưới đây được đối chiếu trực tiếp với mã nguồn và kiểm chứng bằng request
-> thật, ở thời điểm viết: **56 endpoints**.
+> Mọi endpoint được mô tả ở đây đều đối chiếu trực tiếp với mã nguồn và **kiểm chứng bằng
+> request thật** — không viết theo suy đoán từ tên hàm.
 
-> ⚠️ **Tài liệu này đang chậm hơn mã nguồn.** Đếm lại lúc dựng bộ kiểm thử e2e
-> (2026-09-21): `server/src/routes/` hiện có **118** endpoint trên **12** nhóm route.
+> ⚠️ **Tài liệu chưa phủ hết mã nguồn.** `server/src/routes/` có **118** endpoint trên **12**
+> nhóm route; tài liệu này mô tả đầy đủ 9 nhóm, còn hai nhóm lớn nhất thì chưa:
 >
-> Ba nhóm route **chưa được mô tả dòng nào**:
+> | Nhóm | Endpoint trong code | Đã mô tả |
+> |------|--------------------:|---------:|
+> | `/api/auth` | 27 | 9 |
+> | `/api/tasks` | 30 | ~12 |
+> | 10 nhóm còn lại | 61 | đầy đủ |
 >
-> | Nhóm | Mount tại | Số endpoint |
-> |------|-----------|-------------|
-> | `taskGroup.routes.js` | `/api/task-groups` | 5 |
-> | `recurringTask.routes.js` | `/api/recurring-tasks` | 6 |
-> | `companySetting.routes.js` | `/api/company-settings` | 2 |
+> Phần `/api/auth` còn thiếu là mảng quản trị tài khoản (`/users/:id/role`,
+> `/users/:id/app-permissions`, `/users/:id/owner`…), phiên đăng nhập (`/sessions`), ma trận
+> phân quyền (`/permissions/matrix`) và tài khoản khách (`/guests`).
 >
-> Nhóm `/api/auth` cũng đã phình từ mức được mô tả ở đây lên 27 endpoint — thêm mảng quản
-> trị tài khoản (`/users/:id/role`, `/app-permissions`, `/owner`…), phiên đăng nhập
-> (`/sessions`), ma trận phân quyền (`/permissions/matrix`) và tài khoản khách (`/guests`).
-> Nhóm `/api/tasks` lên 30 endpoint.
->
-> Đếm lại bất cứ lúc nào bằng:
+> Đếm lại bất cứ lúc nào:
 >
 > ```bash
 > grep -rcE "^\s*router\.(get|post|put|patch|delete)\(" server/src/routes/
 > ```
 >
-> Phần đã viết vẫn đúng — nó được kiểm chứng bằng request thật và các endpoint đó không đổi.
-> Chỉ là chưa đủ.
+> Phần đã viết vẫn đúng. Chỉ là chưa đủ.
 
 ## Chú thích
 
@@ -773,6 +769,114 @@ Các `action` đang được ghi: `CREATE_PROJECT`, `UPDATE_PROJECT`, `DELETE_PR
 ```json
 { "status": "ok", "message": "Resource Allocation Optimization API is running", "timestamp": "2026-08-18T12:20:38.360Z" }
 ```
+
+---
+
+## 11. Task Groups (`/api/task-groups`)
+
+Nhóm công việc trong một dự án — các cột của bảng Kanban.
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/:projectId` | Nhóm của một dự án, sắp theo `order` | 🔒 |
+| POST | `/` | Tạo nhóm | 🔒 |
+| PUT | `/reorder` | Đổi thứ tự nhiều nhóm một lượt | 🔒 |
+| PUT | `/:id` | Sửa nhóm | 🔒 |
+| DELETE | `/:id` | Xóa nhóm | 🔒 |
+
+`PUT /reorder` khai báo **trước** `PUT /:id` trong router — đảo lại thì `/reorder` bị hiểu là
+một `:id` và không bao giờ chạy tới.
+
+**POST /** — body: `{ name, project, color?, order? }`. Trả `201`:
+
+```json
+{
+  "success": true,
+  "data": { "group": { "_id": "…", "name": "Backlog", "project": "…", "color": "#64748b",
+                        "order": 0, "isOpen": true, "companyName": "Công ty Công nghệ RAO",
+                        "createdBy": "…", "createdAt": "…", "updatedAt": "…" } },
+  "message": "Đã tạo nhóm công việc"
+}
+```
+
+**PUT /reorder** — body `{ orderedIds: [id1, id2, …] }`; `order` được gán bằng **chỉ số trong
+mảng**, nên chỉ cần gửi đúng thứ tự mong muốn, không cần tự tính số. Sai kiểu thì trả `400`
+`"orderedIds phải là mảng"`. Response chỉ có `message`, không kèm dữ liệu:
+
+```json
+{ "success": true, "message": "Đã cập nhật thứ tự nhóm" }
+```
+
+**GET /:projectId** trả `{ data: { groups: [...] } }` với `createdBy` đã populate
+(`_id`, `name`, `avatar`). **PUT /:id** nhận `{ name?, color?, order?, isOpen? }`.
+`isOpen: false` là nhóm đã đóng, không nhận việc mới.
+
+---
+
+## 12. Recurring Tasks (`/api/recurring-tasks`)
+
+**Khuôn mẫu** sinh ra `Task`, không phải bản thân công việc. Xem
+[DATABASE.md](./DATABASE.md#10-recurringtasks-collection) cho ý nghĩa từng field chu kỳ.
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/` | Danh sách khuôn | 🔒 |
+| POST | `/preview` | Xem trước các mốc ngày sẽ sinh — **không** ghi gì | 🔒 |
+| POST | `/` | Tạo khuôn | 🔑 admin, PM |
+| PUT | `/:id` | Sửa khuôn | 🔑 admin, PM |
+| DELETE | `/:id` | Xóa khuôn | 🔑 admin, PM |
+| POST | `/:id/run-now` | Sinh ngay một Task từ khuôn, không chờ tới hạn | 🔑 admin, PM |
+
+**POST /preview** — body `{ frequency, interval?, daysOfWeek?, dayOfMonth?, startDate, durationHours? }`.
+Trả về 10 mốc kế tiếp. Đây là endpoint **chỉ đọc**, dùng để người dùng kiểm lại cấu hình
+trước khi lưu:
+
+```json
+{
+  "success": true,
+  "data": { "dates": ["2026-10-01T00:00:00.000Z", "2026-10-05T00:00:00.000Z", "…"] }
+}
+```
+
+Ví dụ trên là `frequency: 'weekly'`, `daysOfWeek: [1, 4]` (thứ Hai và thứ Năm) từ 01/10/2026.
+
+**POST /** — body tối thiểu `{ title, project, startDate, frequency }`. Trả `201` với
+`recurringTask` đã populate `project` (`_id`, `name`, `code`) và `assignee`
+(`_id`, `name`, `email`, `avatar`).
+
+**POST /:id/run-now** trả `201` kèm `{ data: { task } }` — một document `Task` mới, đã sao
+`priority`, `estimatedHours`, `checklist`, `subtasks` từ khuôn. `endDate` tính bằng
+`startDate + durationHours`. Task sinh ra là bản ghi **độc lập**, không giữ ref về khuôn.
+
+**GET /** trả `{ success, count, data: { recurringTasks } }`.
+
+---
+
+## 13. Company Settings (`/api/company-settings`)
+
+Cấu hình cấp công ty. Một bản ghi cho mỗi `companyName`; bản ghi được tạo tự động lúc seed.
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/` | Cấu hình của công ty người dùng đang thuộc | 🔒 |
+| PUT | `/` | Cập nhật | 🔒 |
+
+**PUT /** — body `{ createProjectPermission?, createDepartmentPermission? }`, mỗi field nhận
+`'only_admin'` hoặc `'all_members'`.
+
+```json
+{
+  "success": true,
+  "data": { "settings": { "companyName": "Công ty Công nghệ RAO",
+                          "createProjectPermission": "all_members",
+                          "createDepartmentPermission": "only_admin" } },
+  "message": "Cập nhật phân quyền tạo phòng ban / dự án thành công"
+}
+```
+
+Hai cờ này quyết định **giao diện có hiện nút "Tạo dự án" / "Tạo Department"** hay không.
+Chúng không thay thế kiểm tra ở server: route tạo dự án vẫn tự kiểm quyền, nên đặt
+`all_members` rồi gọi API bằng tài khoản không đủ quyền vẫn bị chặn.
 
 ---
 
