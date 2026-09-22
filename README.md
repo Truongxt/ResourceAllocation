@@ -69,7 +69,7 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run dev:server` | gốc | Chỉ chạy server (port 5000) |
 | `npm run build` | gốc | Build client cho production |
 | `npm start` | `server/` | Chạy server không auto-reload |
-| `npm run seed` | `server/` | Tạo dữ liệu mẫu (xóa sạch cả 9 collection trước) |
+| `npm run seed` | `server/` | Tạo dữ liệu mẫu (xóa sạch cả 12 collection, rồi đồng bộ workload) |
 | `npm run cleanup` | `server/` | Liệt kê dữ liệu mồ côi trong DB đang chạy; thêm `-- --apply` để xóa thật |
 | `npm run migrate:skill-level` | `server/` | Hạ `requiredSkills.level` cũ từ 5 về 4; thêm `-- --apply` để sửa thật |
 | `npm run migrate:dependencies` | `server/` | Chuyển `dependencies` cũ sang dạng `{ task, type }`; thêm `-- --apply` để sửa thật |

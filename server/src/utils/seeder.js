@@ -10,6 +10,9 @@ const Notification = require('../models/Notification');
 const ActivityLog = require('../models/ActivityLog');
 const OptimizationResult = require('../models/OptimizationResult');
 const RefreshToken = require('../models/RefreshToken');
+const TaskGroup = require('../models/TaskGroup');
+const RecurringTask = require('../models/RecurringTask');
+const CompanySetting = require('../models/CompanySetting');
 const { syncResourceWorkload } = require('../services/workload.service');
 
 // .env nằm ở thư mục gốc dự án, không phải trong server/
@@ -23,23 +26,21 @@ async function seedData() {
     await mongoose.connect(MONGO_URI);
     console.log('Connected to MongoDB for seeding...');
 
-    // Xóa cả 8 collection. Trước đây chỉ xóa 5 cái đầu, nên notifications,
-    // activitylogs và optimizationresults tồn đọng qua mọi lần seed và trỏ tới
-    // những user/task đã bị xóa — dữ liệu mồ côi làm lệch mọi báo cáo.
-    await Promise.all([
-      User.deleteMany({}),
-      Project.deleteMany({}),
-      Task.deleteMany({}),
-      Resource.deleteMany({}),
-      Department.deleteMany({}),
-      Notification.deleteMany({}),
-      ActivityLog.deleteMany({}),
-      OptimizationResult.deleteMany({}),
+    // Xóa **mọi** collection có model, không chọn lọc. Mỗi lần thêm model mới mà
+    // quên thêm vào đây là một nguồn dữ liệu mồ côi: seed xóa sạch User/Project
+    // rồi tạo lại với _id mới, nên bản ghi cũ còn sót lại sẽ trỏ vào khoảng không
+    // và làm lệch mọi báo cáo. Đã xảy ra hai lần — với notifications/activitylogs
+    // lúc đầu, rồi với taskgroups/recurringtasks/companysettings sau này.
+    const collections = [
+      User, Project, Task, Resource, Department,
+      Notification, ActivityLog, OptimizationResult,
       // Seed xóa sạch User rồi tạo lại với _id mới, nên mọi refresh token cũ đều
       // trỏ vào khoảng không. Bỏ sót thì chúng nằm lại tới khi TTL dọn.
-      RefreshToken.deleteMany({}),
-    ]);
-    console.log('Cleared all 8 collections.');
+      RefreshToken,
+      TaskGroup, RecurringTask, CompanySetting,
+    ];
+    await Promise.all(collections.map((model) => model.deleteMany({})));
+    console.log(`Cleared all ${collections.length} collections.`);
 
     // 1. Create Users
     const adminUser = await User.create({

@@ -12,10 +12,10 @@
 > | `RecurringTask.js` | Công việc lặp lại theo chu kỳ |
 > | `CompanySetting.js` | Cấu hình cấp công ty (ví dụ `createProjectPermission`) |
 >
-> Lưu ý thêm: `server/src/utils/seeder.js` xóa **9** collection nhưng in ra
-> `Cleared all 8 collections.` — `RefreshToken` được thêm vào danh sách xóa sau mà dòng log
-> không được sửa theo. Ba model mới ở trên thì seeder **chưa** xóa, nên dữ liệu của chúng
-> tồn đọng qua các lần seed.
+> Ba model này trước đây **không** bị seeder xóa, nên dữ liệu của chúng tồn đọng qua mọi lần
+> seed và trỏ vào những `_id` đã biến mất. Đã sửa: `server/src/utils/seeder.js` nay xóa theo
+> một mảng model duy nhất và in ra đúng số đếm được, nên thêm model mới mà quên cập nhật thì
+> con số tự lệch và lộ ra ngay.
 
 ## Tổng quan Collections
 
