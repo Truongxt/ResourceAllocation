@@ -208,7 +208,7 @@ const getUtilizationBreakdown = async (req, res, next) => {
 
     const resources = await Resource.find(resourceMatch)
       .populate('user', 'name email avatar')
-      .select('user position department skills maxCapacity fte currentWorkload availability');
+      .select('user position department skills maxCapacity fte currentWorkload unscheduledWorkload availability');
 
     // Get task assignments per resource within user scope
     const matchFilters = [{ status: { $in: ['todo', 'in_progress', 'review'] } }];
@@ -279,6 +279,12 @@ const getUtilizationBreakdown = async (req, res, next) => {
         position: r.position,
         capacity,
         workload: Math.round(workload * 10) / 10,
+        // Giờ của việc đã giao nhưng chưa có ngày: không rơi vào tuần nào nên
+        // không nằm trong `workload`. Vẫn phải trả ra, nếu không thì phần việc
+        // này biến mất khỏi báo cáo và tải trông nhẹ hơn thực tế.
+        unscheduledWorkload: assign
+          ? Math.round((assign.unscheduledHours || 0) * 10) / 10
+          : (r.unscheduledWorkload || 0),
         utilization,
         taskCount: assign ? assign.taskCount : 0,
         availability: r.availability,
