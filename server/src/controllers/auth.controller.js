@@ -1115,15 +1115,21 @@ const updateUserAppAdmin = async (req, res, next) => {
       });
     }
 
-    const { appAdmins } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { appAdmins: Array.isArray(appAdmins) ? appAdmins : [] },
-      { new: true }
-    );
-    if (!user) {
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
     }
+
+    if (!isSameCompany(req.user, targetUser)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền phân quyền App Admin cho tài khoản của công ty khác',
+      });
+    }
+
+    const { appAdmins } = req.body;
+    targetUser.appAdmins = Array.isArray(appAdmins) ? appAdmins : [];
+    const user = await targetUser.save();
 
     try {
       const { sendNotification } = require('../services/socket.service');
@@ -1172,15 +1178,21 @@ const updateUserAppAdmin = async (req, res, next) => {
  */
 const updateUserSpecialGrants = async (req, res, next) => {
   try {
-    const { specialGrants } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { specialGrants: Array.isArray(specialGrants) ? specialGrants : [] },
-      { new: true }
-    );
-    if (!user) {
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
     }
+
+    if (!isSameCompany(req.user, targetUser)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền phân quyền đặc biệt cho tài khoản của công ty khác',
+      });
+    }
+
+    const { specialGrants } = req.body;
+    targetUser.specialGrants = Array.isArray(specialGrants) ? specialGrants : [];
+    const user = await targetUser.save();
     res.json({
       success: true,
       data: { user },
@@ -1237,7 +1249,10 @@ const createGuest = async (req, res, next) => {
  */
 const getGuests = async (req, res, next) => {
   try {
-    const guests = await User.find({ isGuest: true }).select('-password').sort({ createdAt: -1 });
+    const userCompany = req.user.companyName || 'Công ty Công nghệ RAO';
+    const guests = await User.find({ isGuest: true, companyName: userCompany })
+      .select('-password')
+      .sort({ createdAt: -1 });
     res.json({
       success: true,
       data: { guests, count: guests.length },
