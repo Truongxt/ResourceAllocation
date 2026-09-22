@@ -5,26 +5,24 @@
 > Mọi endpoint được mô tả ở đây đều đối chiếu trực tiếp với mã nguồn và **kiểm chứng bằng
 > request thật** — không viết theo suy đoán từ tên hàm.
 
-> ⚠️ **Tài liệu chưa phủ hết mã nguồn.** `server/src/routes/` có **118** endpoint trên **12**
-> nhóm route; tài liệu này mô tả đầy đủ 9 nhóm, còn hai nhóm lớn nhất thì chưa:
+> ✅ **Đã phủ hết 118 endpoint trên 12 nhóm route.** Hai nhóm lớn nhất từng là phần thiếu
+> lớn nhất của tài liệu này, nay đã mô tả đủ:
 >
-> | Nhóm | Endpoint trong code | Đã mô tả |
-> |------|--------------------:|---------:|
-> | `/api/auth` | 27 | 9 |
-> | `/api/tasks` | 30 | ~12 |
+> | Nhóm | Endpoint | Trạng thái |
+> |------|---------:|------------|
+> | `/api/auth` | 27 | đầy đủ (mục 1.1 – 1.3) |
+> | `/api/tasks` | 30 | đầy đủ (mục 3.1 – 3.4) |
 > | 10 nhóm còn lại | 61 | đầy đủ |
 >
-> Phần `/api/auth` còn thiếu là mảng quản trị tài khoản (`/users/:id/role`,
-> `/users/:id/app-permissions`, `/users/:id/owner`…), phiên đăng nhập (`/sessions`), ma trận
-> phân quyền (`/permissions/matrix`) và tài khoản khách (`/guests`).
->
-> Đếm lại bất cứ lúc nào:
+> Đếm lại bất cứ lúc nào — con số phải khớp 118:
 >
 > ```bash
 > grep -rcE "^\s*router\.(get|post|put|patch|delete)\(" server/src/routes/
 > ```
 >
-> Phần đã viết vẫn đúng. Chỉ là chưa đủ.
+> Viết tài liệu cho hai nhóm này làm lộ ra bốn lỗi mà không request nào báo đỏ (thông báo
+> bị nuốt, danh sách phiên đăng nhập luôn trống). Xem [TESTING.md](./TESTING.md) mục
+> "Lỗi tìm ra khi viết tài liệu".
 
 ## Chú thích
 
@@ -83,26 +81,62 @@ Các endpoint danh sách nhận `?page=&limit=&sort=`:
 | `GET /notifications` | 20 | 100 |
 
 `sort` mặc định `-createdAt`. `GET /optimization/history` **không phân trang** (cố định 50 bản ghi mới nhất).
-`GET /departments` không phân trang.
+Cũng không phân trang: `GET /departments`, `GET /auth/users`, `GET /auth/guests`,
+`GET /tasks/reminders`, `GET /tasks/pending-review`, `GET /tasks/:id/subtasks`,
+`GET /tasks/reassign-preview`. Các endpoint này trả toàn bộ tập khớp filter kèm `count` hoặc
+`total`, nên `?page=` gửi vào bị bỏ qua chứ không báo lỗi.
 
 ---
 
 ## 1. Authentication (`/api/auth`)
 
+Nhóm này có **27 endpoint**, chia làm ba mảng: cặp token, tài khoản của chính mình,
+và quản trị nhân sự.
+
+### 1.1. Token và đăng nhập
+
 | Method | Endpoint | Mô tả | Auth |
 |--------|----------|-------|------|
 | POST | `/register` | Đăng ký tài khoản | 🔓 |
 | POST | `/login` | Đăng nhập | 🔓 |
-| GET | `/me` | Lấy thông tin user hiện tại | 🔒 |
-| PUT | `/profile` | Cập nhật profile (name, department, avatar) | 🔒 |
-| PUT | `/password` | Đổi mật khẩu (thu hồi mọi phiên khác) | 🔒 |
 | POST | `/refresh` | Đổi refresh token lấy access token mới | 🔓¹ |
 | POST | `/logout` | Đăng xuất thiết bị hiện tại | 🔓¹ |
-| POST | `/logout-all` | Đăng xuất khỏi mọi thiết bị | 🔒 |
-| GET | `/users` | Danh sách tất cả tài khoản | 👑 |
 
 ¹ Không cần access token vì access token hết hạn chính là lý do gọi tới đây. Xác thực bằng
 cookie `rao_refresh`.
+
+### 1.2. Tài khoản của chính mình
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/me` | Thông tin user hiện tại | 🔒 |
+| PUT | `/profile` | Cập nhật profile (name, department, avatar) | 🔒 |
+| PUT | `/password` | Đổi mật khẩu (thu hồi mọi phiên khác) | 🔒 |
+| POST | `/logout-all` | Đăng xuất khỏi mọi thiết bị | 🔒 |
+| GET | `/sessions` | Các phiên đăng nhập đang hoạt động | 🔒 |
+| DELETE | `/sessions/:id` | Thu hồi một phiên cụ thể | 🔒 |
+| GET | `/company-managers` | Nhân sự cùng công ty (để chọn quản lý trực tiếp) | 🔒 |
+| GET | `/permissions/matrix` | Ma trận phân quyền chuẩn + danh mục phân hệ | 🔒 |
+| GET | `/guests` | Danh sách tài khoản khách | 🔒 |
+
+### 1.3. Quản trị nhân sự
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/users` | Nhân sự trong công ty của người gọi | 👑 |
+| POST | `/users` | Tạo tài khoản nhân sự | 👑 |
+| PUT | `/users/:id/role` | Đổi vai trò | 👑 (Owner nếu đặt `admin`) |
+| PUT | `/users/:id/status` | Bật/tắt tài khoản | 👑 |
+| PUT | `/users/:id/reset-password` | Đặt lại mật khẩu | 👑 |
+| PUT | `/users/:id/manager` | Gán quản lý trực tiếp | 👑 |
+| PUT | `/users/:id/profile` | Sửa name/department/phone/jobTitle | 👑 |
+| PUT | `/users/:id/app-permissions` | Quyền theo phân hệ | 👑 |
+| PUT | `/users/:id/special-grants` | Quyền đặc biệt (🔑) | 👑 |
+| PUT | `/users/:id/app-admin` | Chỉ định App Admin | 👑 + Owner |
+| PUT | `/users/:id/owner` | Cấp/hủy quyền Owner | 👑 + Owner |
+| PUT | `/users/:id/email` | Đổi email tài khoản | 👑 + Owner **hoặc** 🔑 `can_change_email` |
+| PUT | `/users/:id/disable-2fa` | Tắt 2FA của người khác | 👑 + Owner |
+| POST | `/guests` | Tạo tài khoản khách | 📋 PM+ |
 
 ### Cặp token
 
@@ -178,6 +212,163 @@ Trả về **access token mới** và cookie refresh mới cho chính thiết b�
 **Mọi phiên khác bị đăng xuất.** Đổi mật khẩu thường là phản ứng với nghi ngờ bị lộ tài khoản;
 để phiên cũ sống tiếp thì thao tác đó gần như vô nghĩa.
 
+### GET `/api/auth/sessions`
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [
+      {
+        "_id": "...",                       // dùng làm :id cho DELETE
+        "ipAddress": "::1",
+        "userAgent": "Mozilla/5.0 ...",
+        "createdAt": "2026-09-22T03:09:15.462Z",
+        "expiresAt": "2026-09-29T03:09:15.447Z"
+      }
+    ]
+  }
+}
+```
+
+Chỉ liệt kê phiên **chưa thu hồi và chưa hết hạn**, mới nhất trước. Một phiên = một
+refresh token gốc của lần đăng nhập đó; xoay vòng token không sinh thêm dòng mới.
+
+`DELETE /api/auth/sessions/:id` đặt `revokedAt` với `revokedReason: 'user_revoked'` và trả
+`{ success: true, message: "Đã đăng xuất khỏi thiết bị thành công" }`. Phiên của người khác
+hoặc id không tồn tại đều trả **404** — cùng một thông báo, để không tiết lộ phiên đó có thật.
+
+### GET `/api/auth/users`
+**Không phân trang.** Trả toàn bộ nhân sự cùng `companyName` với người gọi:
+
+```json
+{ "success": true, "count": 5, "data": { "users": [ { ..., "manager": { "name": "...", "jobTitle": "..." } } ] } }
+```
+
+Query filter: `role`, `department`, `isActive` (`'true'`/`'false'` dạng chuỗi), `search`
+(quét `name`, `email`, `phone`, `jobTitle`).
+
+**Phân lập theo công ty áp cho toàn nhóm quản trị**: mọi endpoint `/users/:id/*` trả **403**
+nếu tài khoản đích thuộc công ty khác. Tài khoản không có `companyName` được coi là thuộc
+`Công ty Công nghệ RAO`.
+
+Ngoại lệ đã biết: `GET /guests` **không** lọc theo công ty — nó trả mọi tài khoản có
+`isGuest: true` trên toàn hệ thống. `PUT /users/:id/special-grants` và
+`PUT /users/:id/app-admin` cũng không kiểm tra công ty, chỉ kiểm vai trò.
+
+### POST `/api/auth/users`
+```json
+// Request Body — chỉ `name` và `email` là thực sự cần
+{ "name": "Nhân sự mới", "email": "moi@rao.com",
+  "password": "...", "role": "member", "department": "Kỹ thuật",
+  "jobTitle": "Developer", "phone": "", "manager": "user_id" }
+```
+
+Ba tác dụng phụ đáng biết trước khi gọi:
+
+1. **Mật khẩu mặc định là `123456`** nếu không gửi `password`.
+2. **Tự tạo kèm một `Resource`** (`employeeId` sinh tự động, `maxCapacity: 40`, `fte: 1.0`).
+   Lỗi ở bước này chỉ ghi console, không làm request thất bại — nên có thể có User mà không
+   có Resource.
+3. **Gửi email chứa mật khẩu** cho người mới. Kết quả nằm ở `data.emailStatus`.
+
+Ở `NODE_ENV=test` email bị tắt và `emailStatus` trả `{ sent: false, simulated: true, preview: { email, plainPassword } }`
+— **response chứa mật khẩu dạng rõ**. Chỉ xảy ra ở chế độ kiểm thử, nhưng đừng bật chế độ đó
+trên môi trường có người thật.
+
+### Thang phân quyền: Admin không phải cấp cao nhất
+
+Ba mức, không phải hai: `member` → `project_manager` → `admin`, và **`isOwner`** là một cờ
+cộng thêm bên trên `admin`. Bốn thao tác dưới đây admin thường **không** làm được:
+
+| Thao tác | Điều kiện | Mã lỗi nếu thiếu |
+|----------|-----------|------------------|
+| Đặt ai đó thành `admin` | `req.user.isOwner` | 403 |
+| `PUT /users/:id/owner` | `req.user.isOwner` | 403 |
+| `PUT /users/:id/app-admin` | `req.user.isOwner` | 403 |
+| `PUT /users/:id/disable-2fa` | `req.user.isOwner` | 403 |
+| `PUT /users/:id/email` | `isOwner` **hoặc** `specialGrants` chứa `can_change_email` | 403 |
+
+Thêm hai ràng buộc nữa trên `role`: chỉ Owner đổi được vai trò của một Owner khác, và hạ một
+Owner xuống dưới `admin` sẽ **tự gỡ cờ `isOwner`**. Ngược lại, cấp `isOwner: true` **tự nâng
+`role` lên `admin`** — hai trường này không bao giờ lệch nhau.
+
+Owner cuối cùng của công ty không tự hủy quyền của mình được (**400**). Ràng buộc này chỉ
+kiểm khi người gọi tự hủy quyền chính mình.
+
+`role` ngoài ba giá trị hợp lệ trả **400** `Vai trò không hợp lệ`.
+
+### PUT `/api/auth/users/:id/manager`
+```json
+{ "managerId": "user_id" }   // null hoặc bỏ trống = xóa quản lý trực tiếp
+```
+
+Năm ràng buộc, tất cả trả **400** trừ khi ghi khác:
+
+| Trường hợp | Kết quả |
+|-----------|---------|
+| `managerId` trùng chính người đó | `Không thể chỉ định người dùng làm người quản lý trực tiếp của chính mình` |
+| `managerId` không tồn tại | **404** `Không tìm thấy người quản lý được chọn` |
+| Quản lý thuộc công ty khác | `Người quản lý trực tiếp phải thuộc cùng công ty` |
+| Owner mà quản lý không phải Owner | `... là vị trí quản trị cao nhất ...` |
+| `admin` hoặc `project_manager` bị gán quản lý là `member` | `Không thể chỉ định thành viên ... ` |
+| Tạo vòng lặp quản lý (kể cả gián tiếp) | `... sẽ tạo thành vòng lặp quản lý ...` |
+
+Chống vòng lặp đi ngược chuỗi `manager` từ người được chọn lên trên, nên bắt được cả trường
+hợp A→B→C→A. Không có nó thì cây tổ chức trên giao diện sẽ lặp vô hạn.
+
+### PUT `/api/auth/users/:id/app-permissions`
+```json
+{ "appPermissions": { "projects": "manage", "tasks": "manage", "calendar": "view" } }
+```
+
+Phải là **object** dạng `{ phân_hệ: quyền }`. Mảng, `null` hay chuỗi đều trả **400**. Field
+này khai báo `type: Object` nên Mongoose sẵn sàng nhận một mảng — lưu được thì giao diện đọc
+`appPermissions.projects` ra `undefined` và người dùng mất quyền mà không có lỗi nào chỉ ra
+vì sao. Ràng buộc nằm ở controller chứ không ở schema.
+
+### PUT `/api/auth/users/:id/status`
+```json
+{ "isActive": false }
+```
+Vô hiệu hóa tài khoản **thu hồi toàn bộ refresh token** của người đó — họ bị đẩy ra trong
+vòng một lần làm mới token, không phải chờ hết 7 ngày.
+
+### PUT `/api/auth/users/:id/reset-password`
+```json
+{ "newPassword": "..." }     // dưới 6 ký tự → 400
+```
+Cũng thu hồi mọi phiên và gửi email chứa mật khẩu mới. Response **không** trả `user`, chỉ
+`{ success, message }`.
+
+### GET `/api/auth/permissions/matrix`
+Dữ liệu tĩnh, không đọc DB — trả bảng đối chiếu để giao diện dựng màn hình phân quyền:
+
+```json
+{
+  "success": true,
+  "data": {
+    "matrix": [
+      { "id": "acc_create_direct", "module": "account", "moduleName": "Tài khoản",
+        "action": "Tạo TK trực tiếp", "description": "...",
+        "owner": "yes", "appAdmin": "yes", "admin": "yes", "member": "no" }
+    ],
+    "catalog": [ ... ]
+  }
+}
+```
+
+Bảng này **mô tả** quyền, không **thi hành** quyền. Nơi thi hành là `middleware/auth.js` và
+`middleware/taskAccess.js`. Sửa ở đây không đổi hành vi thật của API.
+
+### POST `/api/auth/guests`
+```json
+{ "name": "Khách A", "email": "khach.a@doitac.com", "password": "...", "companyName": "..." }
+```
+Thiếu bất kỳ trong ba field đầu → **400**. Email đã dùng → **400**. Tài khoản khách được đặt
+cứng `role: 'member'`, `isGuest: true`, `department: 'Đối tác / Khách mời'`,
+`jobTitle: 'Khách mời dự án (Guest)'`, `companyName` mặc định `Khách hàng đối tác`.
+Response trả `data.guest` (không phải `data.user`).
+
 ---
 
 ## 2. Projects (`/api/projects`)
@@ -225,15 +416,65 @@ Mỗi phần tử trong `GET /` được bổ sung `taskStats: { totalTasks, com
 
 ## 3. Tasks (`/api/tasks`)
 
+Nhóm lớn nhất — **30 endpoint**. Mọi endpoint đều 🔒; cột Auth dưới đây chỉ ghi phần
+**chặt hơn** mức đăng nhập.
+
+### 3.1. CRUD và trạng thái
+
 | Method | Endpoint | Mô tả | Auth |
 |--------|----------|-------|------|
-| GET | `/stats/summary` | Thống kê task (status, priority, tổng giờ) | 🔒 |
-| GET | `/` | Danh sách tasks | 🔒 |
-| GET | `/:id` | Chi tiết task | 🔒 |
+| GET | `/` | Danh sách tasks | — |
+| GET | `/:id` | Chi tiết task | — |
 | POST | `/` | Tạo task | 📋 PM+ |
 | PUT | `/:id` | Cập nhật task (bao gồm gán `assignee`) | 📋 PM+ hoặc người được giao¹ |
-| PATCH | `/:id/status` | Đổi nhanh status (dùng cho Kanban drag & drop) | 📋 PM+ hoặc người được giao |
+| PATCH | `/:id/status` | Đổi nhanh status (Kanban drag & drop) | 📋 PM+ hoặc người được giao |
 | DELETE | `/:id` | Xóa task | 📋 PM+ |
+| GET | `/stats/summary` | Thống kê task | — |
+| GET | `/summary/stats` | Bí danh của endpoint trên² | — |
+
+² Hai đường dẫn khác nhau trỏ cùng một handler. Giữ cả hai vì phiên bản giao diện cũ gọi
+đường còn lại; dùng `/stats/summary` cho code mới.
+
+### 3.2. Vòng đời công việc (Base Wework)
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| PATCH | `/:id/complete` | Người thực hiện báo hoàn thành | người được giao |
+| POST | `/:id/review` | Người đánh giá duyệt / trả lại | người đánh giá |
+| GET | `/pending-review` | Việc đang chờ chính mình đánh giá | — |
+| POST | `/:id/report-result` | Nộp báo cáo kết quả | người được giao |
+| PATCH | `/:id/deadline` | Đổi thời hạn kèm lý do | — |
+| POST | `/:id/duplicate` | Nhân bản công việc | — |
+| POST | `/:id/move` | Chuyển sang dự án / nhóm khác | — |
+| GET | `/reminders` | Nhắc việc của chính mình | — |
+
+### 3.3. Bình luận, checklist, người theo dõi, việc con
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| POST | `/:id/comments` | Thêm bình luận | — |
+| DELETE | `/:id/comments/:commentId` | Xóa bình luận | tác giả hoặc 👑 |
+| POST | `/:id/checklist` | Thêm mục checklist | — |
+| PUT | `/:id/checklist/:itemId/toggle` | Đổi trạng thái mục | — |
+| DELETE | `/:id/checklist/:itemId` | Xóa mục | — |
+| POST | `/:id/followers` | Thêm người theo dõi | — |
+| DELETE | `/:id/followers/:userId` | Gỡ người theo dõi | — |
+| GET | `/:id/subtasks` | Danh sách việc con | — |
+| POST | `/:id/subtasks` | Tạo việc con | — |
+
+### 3.4. Excel và bàn giao hàng loạt
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| GET | `/excel/template` | Tải file mẫu `.xlsx` | — |
+| POST | `/excel/preview` | Xem trước dữ liệu từ file | — |
+| POST | `/excel/import` | Nhập hàng loạt vào một dự án | — |
+| GET | `/reassign-preview` | Xem trước tập việc sẽ bàn giao | 📋 PM+ |
+| POST | `/bulk-reassign` | Bàn giao hàng loạt | 📋 PM+ |
+
+Ba endpoint Excel nhận `multipart/form-data`, field file tên **`file`**. Chú thích JSDoc
+trong controller ghi `/template-excel`, `/preview-excel`, `/import-excel` — **sai**; đường
+dẫn thật là `/excel/*` như bảng trên.
 
 ¹ **Người được giao việc** (`assignee`) sửa được task của chính mình, nhưng chỉ ba trường
 `status`, `progress`, `actualHours`. Gửi kèm bất kỳ trường nào khác → **403** kèm danh sách
@@ -294,6 +535,16 @@ một chữ sẽ cho điểm khớp 0 mà không có lỗi nào. `level` dùng c
 ID trùng trong danh sách được gộp lại trước khi lưu. Ràng buộc vòng lặp là bắt buộc vì
 CPM trên sơ đồ Gantt và ràng buộc H4 của CSP đều giả định đồ thị không có chu trình.
 
+**Gửi vào phẳng, đọc ra có cấu trúc.** Request nhận mảng ObjectId, nhưng response trả:
+
+```json
+"dependencies": [ { "task": { "_id": "...", "title": "...", "status": "todo" },
+                    "type": "finish_to_start" } ]
+```
+
+Schema có setter tự bọc mỗi ObjectId thành `{ task, type }` với `type` mặc định
+`finish_to_start`. Client đọc `dependencies[i]` như một id sẽ nhận về object.
+
 ### Hành vi tự động
 - Tạo/sửa/xóa task đều **tính lại `progress` của dự án** (trung bình progress các task, task `done` tính 100).
 - `PUT /:id` khi đổi status sang `done` → `progress` tự set 100.
@@ -301,6 +552,247 @@ CPM trên sơ đồ Gantt và ràng buộc H4 của CSP đều giả định đ�
 - Không cho phép đổi `project` của task qua `PUT`.
 - Xóa task sẽ gỡ nó khỏi `dependencies` của mọi task khác.
 - Gán `assignee` cho người khác sẽ tạo **notification real-time** qua Socket.IO.
+
+### PATCH `/api/tasks/:id/complete` và POST `/api/tasks/:id/review`
+
+Hai endpoint này là một luồng, và **luồng nào chạy phụ thuộc vào dự án**:
+
+| `project.reviewConfig.enabled` | `PATCH /:id/complete` đưa việc tới |
+|--------------------------------|-------------------------------------|
+| `false` (hoặc không có) | `done`, `progress: 100` |
+| `true` | `review`, `reviewDecision: 'pending'` |
+
+`completedAt` được ghi ở **cả hai** nhánh, ngay tại lúc người làm báo xong — đúng/trễ hạn
+tính theo lúc việc thực sự hoàn thành, không theo lúc người đánh giá rảnh tay bấm duyệt.
+
+Gọi `complete` trên việc đã `done` → **400** `Công việc đã hoàn thành`.
+
+```json
+// POST /:id/review — request
+{ "decision": "approve", "comment": "..." }    // 'approve' | 'reject'
+```
+
+| Trường hợp | Kết quả |
+|-----------|---------|
+| `decision` khác `approve`/`reject` | **400** `Quyết định đánh giá không hợp lệ` |
+| Task không ở trạng thái `review` | **400** `Công việc không ở trạng thái Chờ đánh giá` |
+| Người gọi không có quyền đánh giá | **403** |
+| `reject` mà `comment` trống | **400** `Cần nhập lý do khi trả lại công việc` |
+
+`approve` → `status: 'done'`, `progress: 100`, và nếu đã có báo cáo kết quả thì đóng luôn
+`resultReport.approvedBy/approvedAt`. `reject` → `status: 'in_progress'` (không phải `todo`:
+việc đã làm dở, không quay về vạch xuất phát).
+
+Bắt buộc có lý do khi trả lại là có chủ ý — trả về mà không nói vì sao thì vòng sau rất dễ
+hỏng lại đúng chỗ cũ.
+
+**Ai được đánh giá**: `admin`, `project_manager`, quản lý của dự án, hoặc người có tên trong
+`task.reviewers` (thiếu thì lấy `project.reviewConfig.reviewers`).
+
+`GET /pending-review` chỉ trả những việc mà **chính người gọi** được quyền kết luận, kèm ba
+field tính thêm:
+
+```json
+{ "tasks": [ { ..., "slaHours": 24, "isOverdueReview": false, "waitingHours": 3.5 } ],
+  "total": 1, "overdue": 0 }
+```
+
+### POST `/api/tasks/:id/report-result`
+```json
+{
+  "summary": "Đã xong phần API",
+  "deliverableLinks": [ { "title": "Pull request", "url": "https://..." } ],
+  "attachments": [ { "name": "bao-cao.pdf", "url": "https://..." } ],
+  "actualHours": 12,
+  "markAsDone": true
+}
+```
+
+`deliverableLinks` và `attachments` là mảng **object**, không phải mảng chuỗi. Gửi
+`["https://..."]` trả **400** kèm nguyên văn lỗi Mongoose
+(`Cast to embedded failed ... ObjectParameterError`) — thông báo không dịch, vì đây là lỗi
+cast của schema chứ không phải một ca validate được viết tay.
+
+`markAsDone: true` đi qua đúng luồng đánh giá của dự án như `PATCH /:id/complete`: dự án bật
+đánh giá thì việc chỉ tới `review`, không tự nhảy sang `done`. Để nguyên đường vòng cũ thì ai
+nộp báo cáo cũng tự tuyên bố việc mình xong và bước duyệt thành hình thức.
+
+### PATCH `/api/tasks/:id/deadline`
+```json
+{ "newEndDate": "2026-12-01", "reason": "Chờ dữ liệu từ đối tác" }
+```
+
+Nhận cả `newEndDate`, `dueDate` hay `endDate` — lấy field nào có trước. Không có field nào →
+**400** `Thời hạn mới là bắt buộc`. `reason` để trống thì ghi
+`Gia hạn theo yêu cầu công việc`.
+
+Mỗi lần đổi **ghi thêm một dòng** vào `task.deadlineHistory` (`oldEndDate`, `newEndDate`,
+`changedBy`, `reason`, `changedAt`), không ghi đè dòng cũ. Response populate `changedBy`.
+
+### POST `/api/tasks/:id/duplicate` và `/:id/move`
+```json
+// duplicate
+{ "newTitle": "...", "targetProjectId": "...", "targetTaskGroupId": "..." }
+```
+
+Bản sao **luôn về vạch xuất phát**: `status: 'todo'`, `progress: 0`, `startDate` là hôm nay,
+mọi mục checklist `isCompleted: false`. Giữ nguyên `assignee`, `followers`, `priority`,
+`estimatedHours`, `endDate`, `requiredSkills`. Không sao chép `comments`, `dependencies`,
+`resultReport` hay `deadlineHistory`. Tiêu đề mặc định là `"<tiêu đề gốc> (Bản sao)"`.
+
+**Việc con được nhân bản theo** và trỏ vào bản sao mới, mỗi cái cũng thêm hậu tố `(Bản sao)`.
+
+`POST /:id/move` chỉ đổi `project` và/hoặc `taskGroup`, rồi **kéo việc con theo cùng**. Gửi
+`targetTaskGroupId: null` để bỏ task ra khỏi nhóm. Endpoint này **không** kiểm tra dự án đích
+có tồn tại hay `dependencies` có còn hợp lệ sau khi chuyển.
+
+### GET `/api/tasks/reminders`
+Chỉ lấy việc **giao cho chính người gọi**, có `endDate`, và chưa `done`. Trả bốn tập
+cùng lúc — cùng một tập việc, cắt theo bốn mốc thời gian:
+
+| Khóa | Nội dung |
+|------|----------|
+| `important` | Hạn trong khoảng ±7 ngày so với hôm nay |
+| `today` | Hạn trong hôm nay |
+| `overdue` | Hạn đã qua, chưa hoàn thành |
+| `schedule` | Toàn bộ, kể cả xa hơn 7 ngày |
+
+```json
+"counts": { "important": 3, "today": 1, "overdue": 2, "total": 9, "badgeCount": 3 }
+```
+
+`badgeCount` bằng `important`, **không** bằng `total` — con số trên chuông là số việc cần để
+ý tuần này, không phải tổng số việc còn mở.
+
+### Bình luận và checklist
+
+```json
+// POST /:id/comments
+{ "content": "Nhờ bạn cập nhật tiến độ" }     // trống hoặc chỉ khoảng trắng → 400
+
+// Response 201 — chỉ trả bình luận vừa thêm, đã populate user
+{ "success": true, "data": { "comment": { "_id": "...", "content": "...",
+    "user": { "name": "...", "avatar": null }, "createdAt": "..." } } }
+```
+
+Bình luận **gửi thông báo** cho `assignee` và toàn bộ `followers`, trừ chính người viết.
+
+`DELETE /:id/comments/:commentId` chỉ cho tác giả hoặc `admin` — người khác nhận **403**
+`Bạn chỉ được xóa bình luận của mình`. PM **không** xóa được bình luận của người khác.
+
+```json
+// POST /:id/checklist
+{ "title": "Viết unit test", "assignee": "user_id" }   // title trống → 400
+
+// PUT /:id/checklist/:itemId/toggle — response kèm tiến độ đã tính sẵn
+{ "success": true, "data": { "item": { ..., "isCompleted": true },
+    "checklistProgress": { "total": 4, "completed": 3, "percent": 75 } } }
+```
+
+`toggle` **đảo** trạng thái, không nhận giá trị mong muốn — gọi hai lần là về như cũ.
+`order` của mục mới bằng số mục đang có; xóa mục **không** đánh lại `order` của các mục sau.
+
+### Người theo dõi
+
+```json
+// POST /:id/followers — nhận cả hai dạng
+{ "userIds": ["id1", "id2"] }
+{ "userId": "id1" }              // dạng đơn, giao diện cũ còn dùng
+```
+
+| Trường hợp | Kết quả |
+|-----------|---------|
+| Không có id nào | **400** `Chưa chọn người theo dõi nào` |
+| Không id nào hợp lệ về hình thức | **400** `Danh sách người theo dõi không hợp lệ` |
+| Có id không trỏ tới tài khoản nào | **400** `Danh sách có người dùng không tồn tại` |
+| Trong danh sách có `assignee` | **400** `Người thực hiện đã nhận thông báo ...` |
+| Tất cả đã theo dõi rồi | **400** `Những người này đã theo dõi công việc` |
+| Vượt 50 người | **400** `Tối đa 50 người theo dõi trên một công việc` |
+
+Chặn `assignee` làm follower là có chủ ý: họ vốn đã nhận mọi thông báo của công việc, thêm
+vào chỉ nhân đôi thông báo và thêm một dòng thừa trong danh sách.
+
+`DELETE /:id/followers/:userId` trả **404** nếu người đó chưa từng theo dõi. Trước đây luôn
+trả 200, nên giao diện không phân biệt được "đã gỡ xong" với "gỡ nhầm người".
+
+Người theo dõi **không** sinh khối lượng công việc — họ không vào `currentWorkload` của
+Resource. Chỉ `assignee` mới tính.
+
+### Việc con
+
+`POST /:id/subtasks` kế thừa từ việc cha: `project`, `taskGroup`, `companyName`, và
+`priority` nếu không gửi. Mặc định `estimatedHours: 2`, `status: 'todo'`. `title` trống →
+**400**. Việc cha không tồn tại → **404**.
+
+Việc con là **Task đầy đủ** với `parentTask` trỏ về cha, nên nó cũng vào danh sách
+`GET /tasks` và cũng được tính vào `progress` của dự án.
+
+Tạo việc con **gửi thông báo** cho người phụ trách việc cha, trừ khi đó chính là người tạo.
+
+### GET `/api/tasks/reassign-preview` và POST `/api/tasks/bulk-reassign`
+
+```
+GET /api/tasks/reassign-preview?fromUserId=<id>&projectId=<id>
+```
+
+`fromUserId` thiếu hoặc sai định dạng → **400**. Response:
+
+```json
+{
+  "tasks": [ { "_id": "...", "title": "...", "status": "in_progress", "estimatedHours": 32,
+               "project": { "name": "...", "code": "ECOM-01" } } ],
+  "total": 1,
+  "totalEstimatedHours": 32,
+  "byStatus": { "in_progress": 1 },
+  "excludedNote": "Công việc đã Hoàn thành hoặc Thất bại không được bàn giao"
+}
+```
+
+Việc đã `done` hoặc `failed` **không bao giờ** nằm trong tập bàn giao — đổi người thực hiện
+của một việc đã ngã ngũ là viết lại lịch sử ai đã thực sự làm nó. `excludedNote` nói thẳng
+điều đó thay vì để người dùng tự đoán vì sao con số nhỏ hơn họ tưởng.
+
+```json
+// POST /bulk-reassign
+{ "fromUserId": "...", "toUserId": "...", "projectId": "...", "taskIds": [...], "reason": "..." }
+```
+
+| Trường hợp | Kết quả |
+|-----------|---------|
+| `fromUserId` / `toUserId` thiếu hoặc sai | **400** |
+| Hai id trùng nhau | **400** `Người bàn giao và người nhận phải khác nhau` |
+| Người nhận không tồn tại | **404** |
+| Người nhận `isActive: false` | **400** `Không bàn giao được cho tài khoản đã bị vô hiệu hóa` |
+| Không việc nào khớp bộ lọc | **400** `Không có công việc nào phù hợp để bàn giao` |
+
+Chỉ đổi `assignee`. **`reviewers` giữ nguyên** kể cả với việc đang chờ đánh giá: người nộp và
+người duyệt là hai vai khác nhau, gộp lại thì người mới có thể tự duyệt việc vừa nhận.
+
+Sau khi bàn giao: tính lại `progress` của mọi dự án liên quan, đồng bộ `currentWorkload` của
+**cả hai** người, gửi một thông báo cho người nhận, và ghi **một** dòng ActivityLog cho cả lô
+— thao tác này là một quyết định duy nhất, tách thành 40 dòng sẽ chôn vùi nhật ký của mọi thứ khác.
+
+```json
+"suggestion": { "message": "Nên kiểm tra tải của người nhận sau khi bàn giao",
+                "endpoint": "/api/optimization/readiness?projectId=..." }
+```
+
+Chỉ là gợi ý, server **không** tự chạy lại tối ưu hóa: đây là thao tác bàn giao, không phải
+lệnh phân bổ lại cả dự án.
+
+### GET `/api/tasks/stats/summary`
+```json
+{
+  "totals": { "totalTasks": 5, "averageProgress": 50,
+              "totalEstimatedHours": 140, "totalActualHours": 38 },
+  "byStatus":   [ { "_id": "done", "count": 2 }, { "_id": "todo", "count": 2 } ],
+  "byPriority": [ { "_id": "high", "count": 4 }, { "_id": "critical", "count": 1 } ]
+}
+```
+
+`byStatus` và `byPriority` là kết quả `$group` thô — **chỉ có** những giá trị thực sự xuất
+hiện. Status không có task nào sẽ vắng mặt hoàn toàn chứ không trả `count: 0`, nên giao diện
+phải tự điền 0 cho các cột còn lại.
 
 ---
 
