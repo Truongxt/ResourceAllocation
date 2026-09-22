@@ -348,9 +348,9 @@ của mọi mục còn lại theo đúng vị trí trong mảng ngay sau khi xó
 toàn bộ `client/src` và `e2e` xác nhận không còn chỗ nào gọi route cũ (`taskService.js` chỉ
 gọi `/tasks/stats/summary`), nên đã gỡ khỏi `task.routes.js`.
 
-**Chú thích JSDoc của ba endpoint Excel ghi sai đường dẫn** — `/template-excel`,
+**Chú thích JSDoc của ba endpoint Excel ghi sai đường dẫn — đã sửa** — `/template-excel`,
 `/preview-excel`, `/import-excel` trong khi route thật là `/excel/*`. Không ảnh hưởng chạy,
-nhưng đọc controller sẽ ra đường dẫn không tồn tại.
+nhưng đọc controller sẽ ra đường dẫn không tồn tại; nay `@route` khớp `task.routes.js`.
 
 **`authService.updateAppPermissions` chưa có màn hình nào gọi.** Wrapper đã có ở
 `client/src/services/authService.js`, endpoint đã có guard, nhưng chưa có UI phân quyền theo

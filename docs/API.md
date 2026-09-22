@@ -467,9 +467,7 @@ Nhóm lớn nhất — **30 endpoint**. Mọi endpoint đều 🔒; cột Auth d
 | GET | `/reassign-preview` | Xem trước tập việc sẽ bàn giao | 📋 PM+ |
 | POST | `/bulk-reassign` | Bàn giao hàng loạt | 📋 PM+ |
 
-Ba endpoint Excel nhận `multipart/form-data`, field file tên **`file`**. Chú thích JSDoc
-trong controller ghi `/template-excel`, `/preview-excel`, `/import-excel` — **sai**; đường
-dẫn thật là `/excel/*` như bảng trên.
+Ba endpoint Excel nhận `multipart/form-data`, field file tên **`file`**.
 
 ¹ **Người được giao việc** (`assignee`) sửa được task của chính mình, nhưng chỉ ba trường
 `status`, `progress`, `actualHours`. Gửi kèm bất kỳ trường nào khác → **403** kèm danh sách
