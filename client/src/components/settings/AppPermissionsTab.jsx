@@ -985,8 +985,10 @@ export default function AppPermissionsTab() {
                     },
                     {
                       title: 'Công ty / Tổ chức',
-                      dataIndex: 'companyName',
-                      key: 'companyName',
+                      // `guestCompany` chứ không phải `companyName`: field kia là
+                      // công ty chủ quản (khóa phân lập), giống nhau ở mọi dòng.
+                      dataIndex: 'guestCompany',
+                      key: 'guestCompany',
                       render: (val) => val || 'Khách hàng đối tác',
                     },
                     {
@@ -1258,7 +1260,7 @@ export default function AppPermissionsTab() {
           </Form.Item>
 
           <Form.Item
-            name="companyName"
+            name="guestCompany"
             label="Công ty / Tổ chức đối tác"
             rules={[{ required: true, message: 'Vui lòng nhập tên công ty' }]}
           >

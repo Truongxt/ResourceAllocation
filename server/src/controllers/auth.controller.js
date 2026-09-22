@@ -1239,7 +1239,7 @@ const updateUserSpecialGrants = async (req, res, next) => {
  */
 const createGuest = async (req, res, next) => {
   try {
-    const { name, email, password, companyName } = req.body;
+    const { name, email, password, guestCompany } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Vui lòng điền đủ họ tên, email và mật khẩu' });
     }
@@ -1256,7 +1256,11 @@ const createGuest = async (req, res, next) => {
       role: 'member',
       isGuest: true,
       department: 'Đối tác / Khách mời',
-      companyName: companyName || 'Khách hàng đối tác',
+      // Khách thuộc về công ty của người tạo ra nó — đó là điều kiện để công ty
+      // đó còn nhìn thấy và quản lý được khách của mình. Tên tổ chức đối tác đi
+      // vào `guestCompany`, là field chỉ để hiển thị.
+      companyName: req.user.companyName || 'Công ty Công nghệ RAO',
+      guestCompany: guestCompany || 'Khách hàng đối tác',
       jobTitle: 'Khách mời dự án (Guest)',
       isActive: true,
     });
