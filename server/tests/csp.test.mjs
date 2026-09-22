@@ -333,6 +333,54 @@ S('AC-3 — lan truyền ràng buộc H4');
   ok((result.infeasibleTasks || []).length === 1, 'Báo rõ task nào không xếp được');
 }
 
+S('H1 tính theo TUẦN, không theo tổng giờ');
+
+{
+  // Cùng 100 giờ như ca trên, nhưng trải 10 tuần thay vì 10 ngày → ~10h/tuần, thừa
+  // sức với người 40h/tuần. Trước khi H1 đổi sang đơn vị tuần, node consistency so
+  // thẳng 100h với 40h nên loại người này khỏi miền và bài toán thành vô nghiệm —
+  // tức hệ thống từ chối mọi việc lớn hơn một tuần công, bất kể nó dài bao lâu.
+  const spread = {
+    _id: 'LONG',
+    title: 'Việc lớn trải dài',
+    estimatedHours: 100,
+    requiredSkills: [],
+    dependencies: [],
+    startDate: new Date('2026-03-02T00:00:00.000Z'),
+    endDate: new Date('2026-05-08T00:00:00.000Z'),
+  };
+  const result = await solver().solve([spread], [resource('R0', { maxCapacity: 40, fte: 1 })]);
+
+  ok(result.success, '100 giờ trải 10 tuần thì xếp được cho người 40h/tuần');
+  ok((result.infeasibleTasks || []).length === 0, 'Không còn task nào bị báo vô nghiệm');
+}
+
+{
+  // Hai việc 30h nằm CÙNG một tuần cho một người duy nhất: 60h > 40h → phải từ chối.
+  const mk = (id, from, to) => ({
+    _id: id,
+    title: `Task ${id}`,
+    estimatedHours: 30,
+    requiredSkills: [],
+    dependencies: [],
+    startDate: new Date(`2026-03-${from}T00:00:00.000Z`),
+    endDate: new Date(`2026-03-${to}T00:00:00.000Z`),
+  });
+
+  const sameWeek = await solver().solve(
+    [mk('X', '02', '06'), mk('Y', '02', '06')],
+    [resource('R0', { maxCapacity: 40, fte: 1 })]
+  );
+  ok(!sameWeek.success, 'Hai việc 30h dồn cùng một tuần vượt 40h/tuần → vô nghiệm');
+
+  // Vẫn hai việc đó nhưng ở hai tuần khác nhau → mỗi tuần 30h, nằm trong capacity.
+  const apartWeeks = await solver().solve(
+    [mk('X', '02', '06'), mk('Y', '09', '13')],
+    [resource('R0', { maxCapacity: 40, fte: 1 })]
+  );
+  ok(apartWeeks.success, 'Tách ra hai tuần thì cùng khối lượng đó lại xếp được');
+}
+
 {
   // Báo cáo lan truyền để đối chiếu được, thay vì chỉ tin là nó có chạy.
   const tasks = [needing('A', 1, 10, 'COBOL'), task('B', 5, 15, ['A'])];

@@ -10,7 +10,13 @@ import { createRequire } from 'module';
 import { ok, section as S, summary } from './helpers.mjs';
 
 const require = createRequire(import.meta.url);
-const { computeSkillMatch, capacityOf, effortOf } = require('../src/algorithms/scoring');
+const {
+  computeSkillMatch,
+  capacityOf,
+  effortOf,
+  computePeakLoads,
+  computeMetrics,
+} = require('../src/algorithms/scoring');
 
 /** Làm tròn để so sánh số thực cho gọn. */
 const round = (n) => Math.round(n * 1000) / 1000;
@@ -111,6 +117,44 @@ S('Capacity và effort');
   ok(capacityOf({}) === 40, 'Thiếu dữ liệu → mặc định 40h, FTE 1');
   ok(effortOf({ estimatedHours: 12 }) === 12, 'effort lấy theo estimatedHours');
   ok(effortOf({}) === 1, 'Task không có estimatedHours tính là 1h để không bị bỏ qua khi cân tải');
+}
+
+S('Tải đem so với capacity phải là tải TUẦN');
+{
+  const dated = (id, from, to, hours) => ({
+    _id: id,
+    title: id,
+    requiredSkills: [],
+    estimatedHours: hours,
+    startDate: new Date(`2026-03-${from}T00:00:00.000Z`),
+    endDate: new Date(`2026-03-${to}T00:00:00.000Z`),
+  });
+
+  // Cùng 80 giờ, khác thời lượng: dồn một tuần so với trải bốn tuần.
+  const crammed = [dated('A', '02', '06', 80)];
+  const spread = [dated('A', '02', '27', 80)];
+  const one = [{ _id: 'r', userName: 'R', skills: [], maxCapacity: 40, fte: 1 }];
+
+  const peakCrammed = computePeakLoads([0], crammed, 1)[0];
+  const peakSpread = computePeakLoads([0], spread, 1)[0];
+
+  ok(peakCrammed > 40, 'Dồn một tuần thì vượt 40h/tuần', `${Math.round(peakCrammed)}h`);
+  ok(peakSpread <= 40, 'Trải bốn tuần thì nằm trong capacity', `${Math.round(peakSpread)}h`);
+  ok(
+    round(peakCrammed) !== round(peakSpread),
+    'Cùng tổng giờ nhưng tải tuần khác nhau — đúng điều mà cách cộng tổng cũ không phân biệt được'
+  );
+
+  // Và metrics phải đi theo cùng một đại lượng: workload/capacity = utilization.
+  const skillMatrix = [[1]];
+  const m = computeMetrics([0], spread, one, skillMatrix);
+  const row = m.resourceUtilization[0];
+  ok(row.isOverloaded === false, 'Việc trải dài không bị báo quá tải');
+  ok(row.totalHours === 80, 'Tổng giờ cả kỳ vẫn giữ lại ở totalHours', `${row.totalHours}h`);
+  ok(
+    row.utilization === Math.round((row.workload / row.capacity) * 100),
+    'workload/capacity đúng bằng utilization — ba con số cùng đơn vị'
+  );
 }
 
 process.exit(summary() === 0 ? 0 : 1);
