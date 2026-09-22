@@ -1,10 +1,6 @@
 const Resource = require('../models/Resource');
 const Task = require('../models/Task');
-const { spreadTaskHours, startOfWeek } = require('../analytics/workloadTrend');
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-const isValidDate = (value) => value instanceof Date && !Number.isNaN(value.getTime());
+const { weeklyLoadOf } = require('../analytics/workloadTrend');
 
 /**
  * Đồng bộ khối lượng công việc (currentWorkload) và trạng thái sẵn sàng (availability)
@@ -43,11 +39,6 @@ const syncResourceWorkload = async (userIds = null) => {
     const resources = await Resource.find(resourceFilter);
     if (!resources.length) return 0;
 
-    // Cùng một mốc tuần cho cả lượt chạy: tính từng người một mốc khác nhau thì hai
-    // nhân sự cạnh nhau trong bảng có thể đang nói về hai tuần khác nhau.
-    const weekStart = startOfWeek(new Date());
-    const weekEnd = new Date(weekStart.getTime() + 7 * MS_PER_DAY);
-
     for (const resource of resources) {
       if (!resource.user) continue;
 
@@ -57,32 +48,16 @@ const syncResourceWorkload = async (userIds = null) => {
         status: { $in: ['todo', 'in_progress', 'review'] },
       }).select('estimatedHours startDate endDate');
 
-      let weekHours = 0;
-      let unscheduledHours = 0;
+      const { peakWeekHours, unscheduledHours } = weeklyLoadOf(activeTasks);
 
-      for (const task of activeTasks) {
-        const hours = Number(task.estimatedHours) || 0;
-        const start = task.startDate ? new Date(task.startDate) : null;
-        const end = task.endDate ? new Date(task.endDate) : null;
-
-        if (!isValidDate(start) || !isValidDate(end) || end < start) {
-          unscheduledHours += hours;
-          continue;
-        }
-
-        for (const slice of spreadTaskHours(task)) {
-          if (slice.day >= weekStart && slice.day < weekEnd) weekHours += slice.hours;
-        }
-      }
-
-      resource.currentWorkload = Math.round(weekHours * 10) / 10;
+      resource.currentWorkload = Math.round(peakWeekHours * 10) / 10;
       resource.unscheduledWorkload = Math.round(unscheduledHours * 10) / 10;
 
-      // Tính toán lại độ sẵn sàng (availability) theo tải của tuần hiện tại
+      // Tính toán lại độ sẵn sàng (availability) theo tuần nặng nhất
       const capacity = (resource.maxCapacity || 40) * (resource.fte || 1);
-      if (capacity <= 0 || weekHours > capacity) {
+      if (capacity <= 0 || peakWeekHours > capacity) {
         resource.availability = 'unavailable';
-      } else if (weekHours / capacity >= 0.7) {
+      } else if (peakWeekHours / capacity >= 0.7) {
         resource.availability = 'partially_available';
       } else {
         resource.availability = 'available';
