@@ -87,6 +87,26 @@ const getDepartmentById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy phòng ban' });
     }
 
+    // Chỉ công ty của chính mình. Endpoint này trả kèm danh sách dự án của phòng
+    // ban — gồm cả ngân sách và người quản lý — nên đọc nhầm công ty là rò rỉ
+    // thật, không phải chuyện hiển thị.
+    //
+    // Không mở ngoại lệ cho phòng ban "mẫu": `getDepartments` **nhân bản** bộ mẫu
+    // vào từng công ty ngay lần liệt kê đầu tiên, nên không luồng nào cần đọc
+    // bản gốc theo id. Mà bản gốc lại thuộc công ty mặc định — cũng là một tenant
+    // thật, có dự án và ngân sách thật.
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (
+      department.companyName &&
+      department.companyName !== userCompany &&
+      req.user.role !== 'superadmin'
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên phòng ban của công ty khác',
+      });
+    }
+
     const projects = await Project.find({ department: department._id })
       .select('name code status priority progress manager startDate endDate budget')
       .populate('manager', 'name email avatar')
