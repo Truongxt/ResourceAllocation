@@ -305,9 +305,14 @@ Sắp theo mức độ ảnh hưởng, các chỗ còn lại:
 im lặng trước đây. Đã sửa chỗ gọi sai (App Admin), và nay guard tự `console.error` kèm các
 tham số nhận được trước khi bỏ qua, nên lần sau gọi thiếu tham số sẽ không còn im lặng.
 
-**`POST /auth/users` trả mật khẩu dạng rõ khi `NODE_ENV=test`.** `emailStatus.preview` chứa
-`plainPassword` để kiểm thử đọc được. Chỉ xảy ra ở chế độ kiểm thử, nhưng không có gì chặn
-ai đó chạy chế độ đó trên môi trường có người thật.
+**`POST /auth/users` từng trả mật khẩu dạng rõ — đã sửa, và phạm vi rộng hơn mô tả ban đầu.**
+`sendUserWelcomeEmail` trả `preview.plainPassword` bất cứ khi nào email đang tắt
+(`config.enabled === false`), không chỉ ở `NODE_ENV=test` như ghi nhận trước đây — mà email
+**mặc định tắt** (xem 10.6) cho tới khi khai báo đủ `SMTP_HOST` + `MAIL_FROM`. Nghĩa là mọi
+cài đặt mới chưa cấu hình SMTP đều lộ mật khẩu rõ trong response `POST /auth/users`, không
+riêng môi trường kiểm thử. Đã sửa bằng cách lọc `plainPassword` khỏi `emailStatus` trước khi
+trả về client, chỉ giữ lại `email` trong `preview`; console log nội bộ (phục vụ đọc thủ công
+khi email mô phỏng) không đổi.
 
 **`POST /auth/users` có thể tạo User mà không có Resource.** Bước tạo `Resource` kèm theo nằm
 trong `try/catch` chỉ ghi console, nên request vẫn trả 201. Người đó sẽ không xuất hiện ở

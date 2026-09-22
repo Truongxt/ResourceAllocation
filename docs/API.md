@@ -269,9 +269,10 @@ Ba tác dụng phụ đáng biết trước khi gọi:
    có Resource.
 3. **Gửi email chứa mật khẩu** cho người mới. Kết quả nằm ở `data.emailStatus`.
 
-Ở `NODE_ENV=test` email bị tắt và `emailStatus` trả `{ sent: false, simulated: true, preview: { email, plainPassword } }`
-— **response chứa mật khẩu dạng rõ**. Chỉ xảy ra ở chế độ kiểm thử, nhưng đừng bật chế độ đó
-trên môi trường có người thật.
+Khi email đang tắt (mặc định, hoặc `NODE_ENV=test`), `emailStatus` trả
+`{ sent: false, simulated: true, preview: { email } }` — **đã lọc `plainPassword` khỏi
+response**. Mật khẩu khởi tạo chỉ còn hiện ở console log phía server (phục vụ đọc thủ công
+khi email đang mô phỏng), không còn trả về client.
 
 ### Thang phân quyền: Admin không phải cấp cao nhất
 
