@@ -513,7 +513,7 @@
     "noReason": "Không ghi lý do",
     "onLeaveUntil": "Đang nghỉ tới {{date}}",
     "leaveFrom": "Nghỉ từ {{date}}",
-    "workloadColumn": "Công suất tuần này",
+    "workloadColumn": "Công suất tuần cao điểm",
     "rateColumn": "FTE / Lương (h)",
     "perHour": "{{amount}} đ/h",
     "matrixButton": "Matrix ({{count}})",

@@ -300,81 +300,127 @@ S('Vai trò "khách" trong dự án nay dùng được');
   await call('DELETE', `/projects/${projectId}?force=true`, { token: TOK.pm });
 }
 
-S('currentWorkload là tải TUẦN, không phải tổng giờ tích lũy');
+S('currentWorkload là tải tuần CAO ĐIỂM, không phải tổng giờ tích lũy');
 {
-  // `maxCapacity` là giờ mỗi tuần. Trước bản vá, hàm đồng bộ cộng estimatedHours của
-  // mọi task chưa xong rồi so thẳng với con số tuần đó — một việc 80h kéo dài 8 tuần
-  // vẫn bị tính đủ 80h vào "tuần này" và đẩy người ta thành quá tải.
-  const resList = await call('GET', '/resources?limit=100', { token: TOK.admin });
-  const resource = (resList.data?.resources || []).find((r) => r.user?._id || r.user);
-  ok(!!resource, 'Có nhân sự để thử');
+  // Tính chất cần khẳng định: **cùng số giờ, trải dài khác nhau thì tải tuần khác
+  // nhau**. Trước bản vá, cả hai ca dưới đây đều cộng đủ 80h và cho ra cùng một
+  // con số — đó chính là lỗi đơn vị (tổng tích lũy đem so với năng lực TUẦN).
+  //
+  // Dùng một tài khoản mới tinh để mốc so sánh bằng 0, không phụ thuộc việc người
+  // trong dữ liệu mẫu đang gánh bao nhiêu.
+  const fresh = await call('POST', '/auth/users', {
+    token: TOK.admin,
+    body: { name: `Nhân sự đo tải ${stamp}`, email: `dotai.${stamp}@rao.com` },
+  });
+  ok(fresh.status === 201, 'Tạo được nhân sự mới để đo', `status=${fresh.status}`);
+  const freshUserId = fresh.data?.user?._id;
 
-  const assigneeId = resource.user?._id || resource.user;
-  const projects = await call('GET', '/projects', { token: TOK.pm });
-  const projectId = (projects.data?.projects || [])[0]?._id;
+  const resAfterCreate = await call('GET', '/resources?limit=100', { token: TOK.admin });
+  const freshResource = (resAfterCreate.data?.resources || []).find(
+    (r) => String(r.user?._id || r.user) === String(freshUserId)
+  );
+  ok(!!freshResource, 'Tài khoản mới có sẵn hồ sơ nhân sự đi kèm');
 
-  const readWorkload = async () => {
-    const res = await call('GET', `/resources/${resource._id}`, { token: TOK.admin });
+  const projects0 = await call('GET', '/projects', { token: TOK.pm });
+  const projId0 = (projects0.data?.projects || [])[0]?._id;
+
+  const peakOf = async () => {
+    const res = await call('GET', `/resources/${freshResource._id}`, { token: TOK.admin });
     return {
-      week: res.data?.resource?.currentWorkload,
+      peak: res.data?.resource?.currentWorkload,
       unscheduled: res.data?.resource?.unscheduledWorkload,
     };
   };
 
-  const before = await readWorkload();
+  const makeTask = async (title, days, hours) => {
+    const start = new Date();
+    const end = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
+    return call('POST', '/tasks', {
+      token: TOK.pm,
+      body: {
+        title,
+        project: projId0,
+        assignee: freshUserId,
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+        estimatedHours: hours,
+      },
+    });
+  };
 
-  // Một việc 80 giờ trải từ hôm nay tới 8 tuần sau.
-  const farStart = new Date();
-  const farEnd = new Date(farStart.getTime() + 56 * 24 * 60 * 60 * 1000);
-  const longTask = await call('POST', '/tasks', {
-    token: TOK.pm,
-    body: {
-      title: `Việc dài 8 tuần ${stamp}`,
-      project: projectId,
-      assignee: assigneeId,
-      startDate: farStart.toISOString(),
-      endDate: farEnd.toISOString(),
-      estimatedHours: 80,
-    },
-  });
-  ok(longTask.status === 201, 'Tạo được việc dài trải nhiều tuần', `status=${longTask.status}`);
+  ok((await peakOf()).peak === 0, 'Chưa có việc thì tải tuần bằng 0');
 
-  const afterLong = await readWorkload();
-  const addedByLong = (afterLong.week || 0) - (before.week || 0);
-  // 80h / 8 tuần ≈ 10h mỗi tuần. Cho biên rộng vì số ngày làm việc trong tuần đầu
-  // phụ thuộc hôm nay là thứ mấy — điều cần khẳng định là nó KHÔNG cộng cả 80h.
+  // 80 giờ trải 8 tuần ≈ 10 giờ/tuần.
+  const longTask = await makeTask(`Việc dài 8 tuần ${stamp}`, 56, 80);
+  const afterLong = await peakOf();
   ok(
-    addedByLong > 0 && addedByLong < 30,
-    'Chỉ phần giờ rơi vào tuần này được cộng, không phải cả 80h',
-    `tăng thêm ${Math.round(addedByLong * 10) / 10}h`
-  );
-
-  // Việc không có ngày: không trải lên trục thời gian được, phải vào mục riêng.
-  const noDateTask = await call('POST', '/tasks', {
-    token: TOK.pm,
-    body: {
-      title: `Việc chưa xếp lịch ${stamp}`,
-      project: projectId,
-      assignee: assigneeId,
-      estimatedHours: 12,
-    },
-  });
-  ok(noDateTask.status === 201, 'Tạo được việc chưa có ngày', `status=${noDateTask.status}`);
-
-  const afterNoDate = await readWorkload();
-  ok(
-    (afterNoDate.unscheduled || 0) - (afterLong.unscheduled || 0) === 12,
-    'Giờ của việc chưa xếp lịch vào unscheduledWorkload, không bốc hơi',
-    `unscheduled=${afterNoDate.unscheduled}`
-  );
-  ok(
-    afterNoDate.week === afterLong.week,
-    'Và nó KHÔNG bị nhét vào tải của tuần hiện tại',
-    `week=${afterNoDate.week}`
+    afterLong.peak > 0 && afterLong.peak < 20,
+    '80h trải 8 tuần ra tải tuần nhỏ (không phải 80h)',
+    `peak=${afterLong.peak}h`
   );
 
   await call('DELETE', `/tasks/${longTask.data.task._id}`, { token: TOK.pm });
-  await call('DELETE', `/tasks/${noDateTask.data.task._id}`, { token: TOK.pm });
+
+  // Cũng 80 giờ nhưng dồn trong 5 ngày → vượt hẳn năng lực tuần.
+  const shortTask = await makeTask(`Việc dồn 1 tuần ${stamp}`, 4, 80);
+  const afterShort = await peakOf();
+  ok(
+    afterShort.peak > afterLong.peak,
+    'Cùng 80h nhưng dồn 1 tuần thì tải tuần cao hơn hẳn',
+    `dồn=${afterShort.peak}h so với trải=${afterLong.peak}h`
+  );
+  ok(afterShort.peak >= 40, 'Và vượt năng lực tuần (40h)', `peak=${afterShort.peak}h`);
+
+  await call('DELETE', `/tasks/${shortTask.data.task._id}`, { token: TOK.pm });
+
+  // Việc không có ngày: không trải lên trục thời gian được, phải vào mục riêng.
+  const noDate = await call('POST', '/tasks', {
+    token: TOK.pm,
+    body: {
+      title: `Việc chưa xếp lịch ${stamp}`,
+      project: projId0,
+      assignee: freshUserId,
+      estimatedHours: 12,
+    },
+  });
+  const afterNoDate = await peakOf();
+  ok(afterNoDate.unscheduled === 12, 'Giờ việc chưa xếp lịch vào unscheduledWorkload', `=${afterNoDate.unscheduled}`);
+  ok(afterNoDate.peak === 0, 'Và KHÔNG bị nhét vào tải tuần', `peak=${afterNoDate.peak}`);
+
+  await call('DELETE', `/tasks/${noDate.data.task._id}`, { token: TOK.pm });
+}
+
+
+S('Trang Nhân sự và trang Báo cáo phải nói cùng một con số');
+{
+  // Hai trang lấy tải từ hai đường khác nhau: /resources đọc `currentWorkload` lưu
+  // sẵn, /analytics/utilization tính live từ task trong phạm vi người gọi. Trước
+  // đây chúng khớp nhau chỉ vì **cùng sai một kiểu** (cộng tổng tích lũy), nên sửa
+  // một bên là lệch ngay — đó đúng là chuyện vừa xảy ra và bị lớp e2e bắt.
+  // Nay cả hai gọi chung `weeklyLoadOf`, và bài này khóa lại điều đó.
+  const util = await call('GET', '/analytics/utilization', { token: TOK.admin });
+  const rows = util.data?.breakdown || util.data?.resources || [];
+  ok(rows.length > 0, 'Báo cáo trả về danh sách nhân sự', `${rows.length} dòng`);
+
+  const resList = await call('GET', '/resources?limit=100', { token: TOK.admin });
+  const byName = new Map(
+    (resList.data?.resources || []).map((r) => [r.user?.name || r.position, r.currentWorkload])
+  );
+
+  let compared = 0;
+  let mismatch = null;
+  for (const row of rows) {
+    if (!byName.has(row.name)) continue;
+    compared++;
+    const fromResources = byName.get(row.name);
+    // Cho sai số làm tròn 0.1h vì hai đường làm tròn ở hai chỗ khác nhau.
+    if (Math.abs((fromResources || 0) - (row.workload || 0)) > 0.11) {
+      mismatch = `${row.name}: /resources=${fromResources}h nhưng /reports=${row.workload}h`;
+      break;
+    }
+  }
+  ok(compared > 0, 'Có nhân sự xuất hiện ở cả hai nguồn để đối chiếu', `${compared} người`);
+  ok(!mismatch, 'Mọi người đều khớp giữa hai nguồn', mismatch || '');
 }
 
 process.exit(summary() ? 1 : 0);

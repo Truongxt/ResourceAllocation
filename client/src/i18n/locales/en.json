@@ -513,7 +513,7 @@
     "noReason": "No reason given",
     "onLeaveUntil": "On leave until {{date}}",
     "leaveFrom": "On leave from {{date}}",
-    "workloadColumn": "Workload this week",
+    "workloadColumn": "Peak week workload",
     "rateColumn": "FTE / rate (h)",
     "perHour": "{{amount}} ₫/h",
     "matrixButton": "Matrix ({{count}})",
