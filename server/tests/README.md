@@ -51,6 +51,7 @@ thường vì MongoDB chưa chạy, hoặc máy đang quá tải (chạy ngay sa
 | `api` | `api.test.mjs` | Toàn bộ REST API: health, xác thực, phân quyền 3 role, CRUD Projects/Tasks/Resources/Departments, 3 thuật toán tối ưu hóa, Analytics, Notifications, ActivityLog, dọn dữ liệu theo tầng |
 | `project-detail` | `project-detail.test.mjs` | Các API trang chi tiết dự án dùng, theo đúng thứ tự UI gọi, gồm cả nhánh lỗi và ranh giới phân quyền |
 | `socket` | `socket.test.mjs` | Socket.IO: từ chối kết nối thiếu/sai token, tách room theo user, nhận `notification:new` và `notification:read`, đối chiếu với bản ghi trong DB |
+| `notify-session` | `notify-session.test.mjs` | **Tác dụng phụ**, không phải response: bình luận / thêm người theo dõi / tạo việc con có thực sự sinh ra bản ghi thông báo không, và phiên đăng nhập có liệt kê + thu hồi được không. Cả bốn lỗi bộ này giữ đều từng trả 200 với body hợp lệ, nên bộ nào chỉ assert mã trạng thái sẽ không thấy gì |
 
 ## Viết thêm bộ mới
 

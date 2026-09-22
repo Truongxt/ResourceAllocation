@@ -61,8 +61,41 @@ Bảy lỗi do lớp e2e tìm ra:
   xem component có dùng chúng hay không. Đã thêm nhóm `auth.register.*` và nối vào; `value`
   của Select giữ nguyên tiếng Việt vì đó là dữ liệu gửi lên server.
 
+Bốn lỗi nữa lộ ra trong lúc viết bù tài liệu API — cả bốn đều **để request trả 200 với body
+hợp lệ**, cái mất đi nằm ngoài response, nên không lớp test nào đang có bắt được:
+
+- **Bốn nhóm thông báo không bao giờ được tạo.** Enum `Notification.type` thiếu bảy giá trị
+  mà controller vẫn gửi (`task_comment`, `task_follower_added`, `task_subtask_added`,
+  ba giá trị `task_review_*`, `system_alert`); `entityType` thiếu `'user'`.
+  `Notification.create` ném `ValidationError`, `sendNotification` bắt rồi trả `null`, còn
+  request tạo bình luận vẫn trả 201. Đo trên database sạch: bình luận + thêm người theo dõi +
+  tạo việc con → **0 thông báo**, kèm ba dòng lỗi trong log server mà không ai đọc.
+- **Thông báo App Admin gọi sai chữ ký hàm.** `sendNotification` nhận một object có
+  `recipient`; chỗ này gọi `sendNotification(user._id, {...})` nên `recipient` là
+  `undefined` và hàm dừng ngay ở guard đầu — **không log gì cả**. Cùng một hàm, 10 chỗ gọi
+  đúng, 1 chỗ sai.
+- **Danh sách phiên đăng nhập luôn trống.** `getSessions`/`revokeSession` lọc
+  `RefreshToken` theo `userId` trong khi field của model tên là `user`. MongoDB không báo
+  lỗi khi lọc theo field không tồn tại — chỉ khớp 0 bản ghi. Hệ quả: màn hình phiên đăng nhập
+  trống dù đang có phiên sống, và `DELETE /auth/sessions/:id` luôn trả 404 nên **không thu
+  hồi được thiết bị nào**. Xác nhận bằng cách đọc thẳng collection: bản ghi có thật, đang
+  sống, `userId` không tồn tại.
+- **`appPermissions` nhận cả mảng.** Field khai báo `type: Object` nên Mongoose nhận mọi
+  thứ; gửi `['optimize']` trả 200 và ghi đè object quyền thành một mảng, khiến giao diện đọc
+  `appPermissions.projects` ra `undefined` — người dùng mất quyền không rõ lý do. Đã thêm
+  guard ở controller vì schema không diễn tả được ràng buộc này.
+
+Bộ mới **`server/tests/notify-session.test.mjs`** (16 bài) giữ cả bốn, và giữ theo cách khác
+ba lớp cũ: nó đếm **bản ghi thực tế** sau mỗi lời gọi thay vì kiểm mã trạng thái. Tổng số bộ
+`server/tests` lên **19**.
+
 Kèm theo:
 
+- **Thanh chuyển mục trong drawer chi tiết công việc thành tablist thật.** Trước là
+  `div onClick`: không tab tới được, không đọc ra được, và bài e2e phải so theo chữ hiện trên
+  màn hình. Nay là `role="tablist"` với từng mục `<button role="tab">` có `aria-selected` và
+  `aria-controls` trỏ tới `role="tabpanel"`, điều hướng bằng mũi tên / Home / End theo chuẩn
+  một điểm dừng Tab. Đây là mục cuối trong danh sách "vấn đề nhỏ còn lại" của `TESTING.md`.
 - **Gỡ hết cảnh báo deprecated của Ant Design v6.** Đổi tên thuần: `destroyOnClose`→
   `destroyOnHidden`, `trailColor`→`railColor`, `dropdownRender`→`popupRender`, Space
   `direction`→`orientation`. Đổi cả hình dạng prop: Progress `strokeWidth={N}`→`size={[-1,N]}`,
@@ -103,8 +136,18 @@ phần thiếu, và ghi rõ chỗ nào còn chưa phủ:
   tài liệu tự đặt ra. Nhân đó phát hiện `PUT /task-groups/reorder` nhận `orderedIds` — mảng
   id theo thứ tự mới, `order` gán bằng chỉ số trong mảng — chứ không phải mảng object như
   tên gọi dễ khiến người ta đoán.
-- **Còn thiếu, đã ghi rõ ở đầu `API.md`:** `/api/auth` mô tả 9/27 endpoint, `/api/tasks`
-  khoảng 12/30. Header có bảng độ phủ và lệnh tự đếm lại, nên không ai bị dẫn sai trong lúc chờ.
+- **`API.md` viết bù hai nhóm lớn nhất — nay phủ đủ 118/118 endpoint.** `/api/auth` từ
+  9/27 lên đủ 27 (mục 1.1–1.3), `/api/tasks` từ ~12/30 lên đủ 30 (mục 3.1–3.4). Từng
+  endpoint kiểm chứng bằng request thật.
+  Phần viết bù không chỉ liệt kê đường dẫn. Nó ghi cả những chỗ mà đọc tên endpoint sẽ đoán
+  sai: `POST /auth/users` **tự tạo kèm một Resource** và mật khẩu mặc định là `123456`;
+  `dependencies` gửi vào là mảng id phẳng nhưng đọc ra là `{ task, type }`;
+  `deliverableLinks` là mảng object `{ title, url }` nên gửi mảng chuỗi sẽ nhận lỗi cast
+  nguyên văn của Mongoose; `badgeCount` của `/tasks/reminders` bằng `important` chứ không
+  bằng `total`; bảy endpoint không phân trang nhưng vẫn nhận `?page=` rồi bỏ qua.
+  Ghi luôn cả chỗ code chưa nhất quán thay vì lặng lẽ bỏ: `GET /auth/guests` không lọc theo
+  công ty như mọi endpoint quản trị khác, và chú thích JSDoc của ba endpoint Excel ghi sai
+  đường dẫn (`/import-excel` trong khi route thật là `/excel/import`).
 - **`docs/TESTING.md` (mới)** — chiến lược ba lớp, và với mỗi lỗi e2e tìm ra thì ghi *vì sao
   nó lọt qua hai lớp kia* cùng bài test nào đang giữ cho nó không quay lại.
 - **`docs/README.md`** cập nhật cây thư mục và các con số (12 controller, 12 model, 12 route
