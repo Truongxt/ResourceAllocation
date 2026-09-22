@@ -43,6 +43,25 @@ export default defineConfig({
     // chạy thẳng bằng `node`, cố ý không phụ thuộc vitest — để vitest quét vào
     // thì nó nạp file rồi tự chạy runner riêng của file đó, kết quả không được đếm.
     include: ['tests/**/*.test.jsx'],
+
+    // Hai thiết lập dưới đây cùng chữa một bệnh: bộ test lúc xanh lúc đỏ, mỗi
+    // lần đỏ ở một file khác, mà chạy riêng file đó thì luôn đạt.
+    //
+    // Nguyên nhân là biên thời gian quá hẹp chứ không phải logic sai. Bài chậm
+    // nhất ở đây mất ~4,5 giây khi máy đang bận, trong khi `testTimeout` mặc
+    // định của vitest là 5 giây — gần như không còn dư. Render một modal hay
+    // portal của Ant Design trong jsdom vốn tốn 2–3 giây ngay cả lúc rảnh.
+    //
+    //   testTimeout 15s : gấp ba lần ca chậm nhất đo được, vẫn đủ ngắn để bắt
+    //                     được vòng lặp vô hạn hay promise không bao giờ resolve.
+    //   maxWorkers  2   : mặc định vitest mở theo số nhân CPU, mà mỗi worker
+    //                     phải dựng một jsdom rồi nạp cả antd. Mở hết nhân thì
+    //                     chúng giành CPU của nhau và chính là thứ đẩy 2,5 giây
+    //                     thành 5. Đổi ~30 giây tổng thời gian lấy kết quả lặp
+    //                     lại được — bộ test không đáng tin thì không ai dùng.
+    testTimeout: 15_000,
+    minWorkers: 1,
+    maxWorkers: 2,
   },
   server: {
     port: 5173,
