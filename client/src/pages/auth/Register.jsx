@@ -31,6 +31,17 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
 
+  /**
+   * Nhãn của một mục trong các Select của form này.
+   *
+   * `value` của chúng cố tình giữ nguyên tiếng Việt vì đó là **dữ liệu** được
+   * gửi lên server và lưu vào `User.jobTitle` / `companySize` / …; dịch value
+   * đi thì cùng một người chọn cùng một mục sẽ ra hai giá trị khác nhau tùy
+   * ngôn ngữ đang bật. Chỉ phần người dùng đọc mới đi qua i18n.
+   */
+  const registerOption = (list, index) =>
+    t(`auth.register.options.${list}.${index}`);
+
   const onFinish = async (values) => {
     setLoading(true);
     clearError();
@@ -82,28 +93,28 @@ export default function Register() {
             {/* Họ và tên */}
             <Form.Item
               name="name"
-              label="Họ và tên"
-              rules={[{ required: true, message: 'Vui lòng nhập họ và tên của bạn' }]}
+              label={t('auth.register.title')}
+              rules={[{ required: true, message: t('auth.register.nameReq') }]}
             >
               <Input
                 prefix={<UserOutlined style={{ color: '#64748b' }} />}
-                placeholder="Nhập tên của bạn"
+                placeholder={t('auth.register.namePh')}
               />
             </Form.Item>
 
             {/* Sản phẩm quan tâm */}
             <Form.Item
               name="interestedProduct"
-              label="Sản phẩm quan tâm"
-              rules={[{ required: true, message: 'Vui lòng chọn sản phẩm quan tâm' }]}
+              label={t('auth.register.product')}
+              rules={[{ required: true, message: t('auth.register.productReq') }]}
             >
               <Select
                 popupClassName="base-select-dropdown"
                 options={[
-                  { value: 'RAO Work+: Phân bổ nhân sự & Quản trị công việc AI', label: 'RAO Work+: Phân bổ nhân sự & Quản trị công việc AI' },
-                  { value: 'RAO Schedule+: Lịch biểu tác vụ đa góc nhìn (Day/Week/Month)', label: 'RAO Schedule+: Lịch biểu tác vụ đa góc nhìn (Day/Week/Month)' },
-                  { value: 'RAO Optimize+: Tối ưu hóa thuật toán kép CSP & Di truyền (GA)', label: 'RAO Optimize+: Tối ưu hóa thuật toán kép CSP & Di truyền (GA)' },
-                  { value: 'RAO Analytics+: Phân tích khối lượng công việc, FTE & Ngân sách', label: 'RAO Analytics+: Phân tích khối lượng công việc, FTE & Ngân sách' },
+                  { value: 'RAO Work+: Phân bổ nhân sự & Quản trị công việc AI', label: registerOption('products', 0) },
+                  { value: 'RAO Schedule+: Lịch biểu tác vụ đa góc nhìn (Day/Week/Month)', label: registerOption('products', 1) },
+                  { value: 'RAO Optimize+: Tối ưu hóa thuật toán kép CSP & Di truyền (GA)', label: registerOption('products', 2) },
+                  { value: 'RAO Analytics+: Phân tích khối lượng công việc, FTE & Ngân sách', label: registerOption('products', 3) },
                 ]}
               />
             </Form.Item>
@@ -113,27 +124,27 @@ export default function Register() {
               <Col span={12}>
                 <Form.Item
                   name="email"
-                  label="Email doanh nghiệp"
+                  label={t('auth.register.email')}
                   rules={[
-                    { required: true, message: 'Vui lòng nhập email công việc' },
-                    { type: 'email', message: 'Email không hợp lệ' },
+                    { required: true, message: t('auth.register.emailReq') },
+                    { type: 'email', message: t('auth.required.emailInvalid') },
                   ]}
                 >
                   <Input
                     prefix={<MailOutlined style={{ color: '#64748b' }} />}
-                    placeholder="email@congty.com"
+                    placeholder={t('auth.register.emailPh')}
                   />
                 </Form.Item>
               </Col>
               <Col span={12}>
                 <Form.Item
                   name="phone"
-                  label="Số điện thoại"
-                  rules={[{ required: true, message: 'Vui lòng nhập số điện thoại' }]}
+                  label={t('auth.register.phone')}
+                  rules={[{ required: true, message: t('auth.register.phoneReq') }]}
                 >
                   <Input
                     prefix={<PhoneOutlined style={{ color: '#64748b' }} />}
-                    placeholder="0912 345 678"
+                    placeholder={t('auth.register.phonePh')}
                   />
                 </Form.Item>
               </Col>
@@ -144,18 +155,18 @@ export default function Register() {
               <Col span={12}>
                 <Form.Item
                   name="jobTitle"
-                  label="Vị trí công việc"
-                  rules={[{ required: true, message: 'Vui lòng lựa chọn vị trí công việc' }]}
+                  label={t('auth.register.jobTitle')}
+                  rules={[{ required: true, message: t('auth.register.jobTitleReq') }]}
                 >
                   <Select
-                    placeholder="Lựa chọn vị trí công việc"
+                    placeholder={t('auth.register.jobTitlePh')}
                     popupClassName="base-select-dropdown"
                     options={[
-                      { value: 'CEO / Founder / Chủ tịch', label: 'CEO / Founder / Chủ tịch' },
-                      { value: 'Giám đốc (CFO, CTO, GĐ Nhân sự...)', label: 'Giám đốc (CFO, CTO, GĐ Nhân sự...)' },
-                      { value: 'Quản lý (Manager)', label: 'Quản lý (Manager)' },
-                      { value: 'Nhân viên (Staff)', label: 'Nhân viên (Staff)' },
-                      { value: 'Vị trí khác (Others)', label: 'Vị trí khác (Others)' },
+                      { value: 'CEO / Founder / Chủ tịch', label: registerOption('jobTitles', 0) },
+                      { value: 'Giám đốc (CFO, CTO, GĐ Nhân sự...)', label: registerOption('jobTitles', 1) },
+                      { value: 'Quản lý (Manager)', label: registerOption('jobTitles', 2) },
+                      { value: 'Nhân viên (Staff)', label: registerOption('jobTitles', 3) },
+                      { value: 'Vị trí khác (Others)', label: registerOption('jobTitles', 4) },
                     ]}
                   />
                 </Form.Item>
@@ -163,12 +174,12 @@ export default function Register() {
               <Col span={12}>
                 <Form.Item
                   name="companyName"
-                  label="Tên công ty"
-                  rules={[{ required: true, message: 'Vui lòng nhập tên công ty' }]}
+                  label={t('auth.register.companyName')}
+                  rules={[{ required: true, message: t('auth.register.companyNameReq') }]}
                 >
                   <Input
                     prefix={<ApartmentOutlined style={{ color: '#64748b' }} />}
-                    placeholder="Nhập tên công ty..."
+                    placeholder={t('auth.register.companyNamePh')}
                   />
                 </Form.Item>
               </Col>
@@ -179,17 +190,17 @@ export default function Register() {
               <Col span={12}>
                 <Form.Item
                   name="location"
-                  label="Khu vực / Tỉnh thành"
-                  rules={[{ required: true, message: 'Vui lòng chọn khu vực' }]}
+                  label={t('auth.register.location')}
+                  rules={[{ required: true, message: t('auth.register.locationReq') }]}
                 >
                   <Select
-                    placeholder="Lựa chọn khu vực"
+                    placeholder={t('auth.register.locationPh')}
                     popupClassName="base-select-dropdown"
                     options={[
-                      { value: 'Khu vực miền Bắc - VN', label: 'Khu vực miền Bắc - VN' },
-                      { value: 'Khu vực miền Trung - VN', label: 'Khu vực miền Trung - VN' },
-                      { value: 'Khu vực miền Nam - VN', label: 'Khu vực miền Nam - VN' },
-                      { value: 'Quốc tế / Toàn cầu', label: 'Quốc tế / Toàn cầu' },
+                      { value: 'Khu vực miền Bắc - VN', label: registerOption('locations', 0) },
+                      { value: 'Khu vực miền Trung - VN', label: registerOption('locations', 1) },
+                      { value: 'Khu vực miền Nam - VN', label: registerOption('locations', 2) },
+                      { value: 'Quốc tế / Toàn cầu', label: registerOption('locations', 3) },
                     ]}
                   />
                 </Form.Item>
@@ -197,20 +208,20 @@ export default function Register() {
               <Col span={12}>
                 <Form.Item
                   name="companySize"
-                  label="Quy mô nhân sự"
-                  rules={[{ required: true, message: 'Vui lòng chọn quy mô nhân sự' }]}
+                  label={t('auth.register.companySize')}
+                  rules={[{ required: true, message: t('auth.register.companySizeReq') }]}
                 >
                   <Select
-                    placeholder="Lựa chọn quy mô nhân sự"
+                    placeholder={t('auth.register.companySizePh')}
                     popupClassName="base-select-dropdown"
                     options={[
-                      { value: '1–15 nhân sự', label: '1–15 nhân sự' },
-                      { value: '16–30 nhân sự', label: '16–30 nhân sự' },
-                      { value: '31–60 nhân sự', label: '31–60 nhân sự' },
-                      { value: '61–200 nhân sự', label: '61–200 nhân sự' },
-                      { value: '201–500 nhân sự', label: '201–500 nhân sự' },
-                      { value: '501–1000 nhân sự', label: '501–1000 nhân sự' },
-                      { value: 'Hơn 1000 nhân sự', label: 'Hơn 1000 nhân sự' },
+                      { value: '1–15 nhân sự', label: registerOption('companySizes', 0) },
+                      { value: '16–30 nhân sự', label: registerOption('companySizes', 1) },
+                      { value: '31–60 nhân sự', label: registerOption('companySizes', 2) },
+                      { value: '61–200 nhân sự', label: registerOption('companySizes', 3) },
+                      { value: '201–500 nhân sự', label: registerOption('companySizes', 4) },
+                      { value: '501–1000 nhân sự', label: registerOption('companySizes', 5) },
+                      { value: 'Hơn 1000 nhân sự', label: registerOption('companySizes', 6) },
                     ]}
                   />
                 </Form.Item>
@@ -222,10 +233,10 @@ export default function Register() {
               <Col span={12}>
                 <Form.Item
                   name="password"
-                  label="Mật khẩu khởi tạo"
+                  label={t('auth.register.password')}
                   rules={[
-                    { required: true, message: 'Vui lòng nhập mật khẩu' },
-                    { min: 6, message: 'Tối thiểu 6 ký tự' },
+                    { required: true, message: t('auth.required.password') },
+                    { min: 6, message: t('auth.register.passwordMin') },
                   ]}
                 >
                   <Input.Password
@@ -237,14 +248,14 @@ export default function Register() {
               <Col span={12}>
                 <Form.Item
                   name="confirmPassword"
-                  label="Xác nhận mật khẩu"
+                  label={t('auth.register.confirmPassword')}
                   dependencies={['password']}
                   rules={[
-                    { required: true, message: 'Vui lòng xác nhận mật khẩu' },
+                    { required: true, message: t('auth.register.confirmReq') },
                     ({ getFieldValue }) => ({
                       validator(_, value) {
                         if (!value || getFieldValue('password') === value) return Promise.resolve();
-                        return Promise.reject(new Error('Mật khẩu xác nhận không khớp'));
+                        return Promise.reject(new Error(t('auth.register.confirmMismatch')));
                       },
                     }),
                   ]}
@@ -264,13 +275,13 @@ export default function Register() {
               rules={[
                 {
                   validator: (_, value) =>
-                    value ? Promise.resolve() : Promise.reject(new Error('Vui lòng đồng ý với điều khoản sử dụng')),
+                    value ? Promise.resolve() : Promise.reject(new Error(t('auth.register.termsReq'))),
                 },
               ]}
               style={{ marginBottom: 20 }}
             >
               <Checkbox style={{ color: '#94a3b8', fontSize: 12.5, lineHeight: 1.4 }}>
-                Tôi xác nhận đồng ý với mục đích giao tiếp, nhận thông tin tư vấn giải pháp và các điều khoản sử dụng của nền tảng RAO.
+                {t('auth.register.terms')}
               </Checkbox>
             </Form.Item>
 

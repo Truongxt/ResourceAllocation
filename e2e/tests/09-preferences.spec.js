@@ -56,6 +56,43 @@ test.describe('Ngôn ngữ', () => {
     await page.getByRole('button', { name: 'VI', exact: true }).click();
     await expect(page.getByRole('button', { name: 'EN', exact: true })).toBeVisible({ timeout: 15_000 });
   });
+
+});
+
+test.describe('Ngôn ngữ ở trang ngoài', () => {
+  // Nhóm này **không** đăng nhập: /register đẩy người đã đăng nhập về
+  // dashboard, nên bài test phải chạy ở trạng thái khách.
+  test('trang đăng ký dịch cả nhãn, thông báo lỗi và mục trong Select', async ({ page }) => {
+    // Trang này trước đây viết cứng toàn bộ tiếng Việt, nên bật tiếng Anh thì
+    // phần còn lại của ứng dụng dịch mà riêng nó đứng nguyên. Chọn nó làm bài
+    // kiểm vì nó có đủ ba loại chữ dễ bị bỏ sót: nhãn, thông báo validate, và
+    // nhãn các mục trong dropdown.
+    await page.goto('/register');
+    await expect(page.getByLabel('Họ và tên')).toBeVisible();
+
+    // Không có nút đổi ngôn ngữ ở trang ngoài, nên đặt thẳng lựa chọn đã lưu
+    await page.evaluate(() => localStorage.setItem('rao_lang', 'en'));
+    await page.reload();
+
+    await expect(page.getByLabel('Full name')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByLabel('Work email')).toBeVisible();
+    await expect(page.getByLabel('Company size')).toBeVisible();
+
+    // Nhãn các mục trong Select cũng phải đổi
+    await page.locator('#jobTitle').click();
+    await expect(page.locator('.ant-select-dropdown:visible').getByText('Manager', { exact: true }))
+      .toBeVisible({ timeout: 15_000 });
+    await page.keyboard.press('Escape');
+
+    // Và thông báo validate — chỗ bị bỏ sót lâu nhất
+    await page.locator('#password').fill('matkhau123');
+    await page.locator('#confirmPassword').fill('khac-hoan-toan');
+    await page.getByRole('button', { name: /^Create an account/ }).click();
+    await expect(page.getByText('Passwords do not match')).toBeVisible({ timeout: 15_000 });
+
+    await page.evaluate(() => localStorage.setItem('rao_lang', 'vi'));
+  });
+
 });
 
 test.describe('Giao diện sáng/tối', () => {
