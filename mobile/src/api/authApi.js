@@ -5,8 +5,10 @@ export const authApi = {
   register: (userData) => apiClient.post('/auth/register', userData),
   getMe: () => apiClient.get('/auth/me'),
   updateProfile: (data) => apiClient.put('/auth/profile', data),
-  changePassword: (data) => apiClient.put('/auth/change-password', data),
-  logout: () => apiClient.post('/auth/logout'),
+  // Route thật là PUT /auth/password. Trước đây gọi /auth/change-password nên
+  // nút đổi mật khẩu luôn trả 404.
+  changePassword: (data) => apiClient.put('/auth/password', data),
+  logout: (refreshToken) => apiClient.post('/auth/logout', { refreshToken }),
 };
 
 export default authApi;
