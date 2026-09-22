@@ -12,6 +12,8 @@ import {
   appPermissionRank as rankOf,
   canViewModule as canView,
   canManageModule as canManage,
+  hasAppAccess as appAccess,
+  canAccessResources as resourceAccess,
 } from '../utils/appPermissions';
 
 const AuthContext = createContext(null);
@@ -119,6 +121,8 @@ export function AuthProvider({ children }) {
   const appPermissionRank = useCallback((moduleKey) => rankOf(user, moduleKey), [user]);
   const canViewModule = useCallback((moduleKey) => canView(user, moduleKey), [user]);
   const canManageModule = useCallback((moduleKey) => canManage(user, moduleKey), [user]);
+  const hasAppAccess = useCallback((appKey) => appAccess(user, appKey), [user]);
+  const canAccessResources = useCallback(() => resourceAccess(user), [user]);
 
   return (
     <AuthContext.Provider
@@ -134,6 +138,8 @@ export function AuthProvider({ children }) {
         appPermissionRank,
         canViewModule,
         canManageModule,
+        hasAppAccess,
+        canAccessResources,
       }}
     >
       {children}

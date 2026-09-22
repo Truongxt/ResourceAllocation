@@ -28,3 +28,35 @@ export function appPermissionRank(user, moduleKey) {
 export const canViewModule = (user, moduleKey) => appPermissionRank(user, moduleKey) >= 1;
 
 export const canManageModule = (user, moduleKey) => appPermissionRank(user, moduleKey) >= 2;
+
+/**
+ * Quyền **Quản trị ứng dụng** (`User.appAdmins`) — lớp quyền thứ hai, độc lập
+ * hoàn toàn với `appPermissions` ở trên.
+ *
+ * Bản sao của `hasAppAccess` trong `client/src/context/AuthContext.jsx`, và phải
+ * khớp với `authorizeApp` ở server (`server/src/middleware/auth.js`).
+ *
+ * Trước đây mobile không có lớp này: tab Tối ưu hóa hiện ra cho bất kỳ ai có
+ * `appPermissions.optimization >= view`, trong khi server chặn cả phân hệ sau
+ * `authorizeApp('optimize')`. Người dùng thấy tab, bấm vào, nhận 403 — còn trên
+ * web thì tab đó không hề xuất hiện. Hai client nói hai chuyện khác nhau về cùng
+ * một tài khoản.
+ */
+export const hasAppAccess = (user, appKey) => {
+  if (!user) return false;
+  if (user.isOwner) return true;
+  if (user.role === 'admin') return true;
+  return Array.isArray(user.appAdmins) && user.appAdmins.includes(appKey);
+};
+
+/**
+ * Có được vào phân hệ Nhân sự không.
+ *
+ * Quy tắc của web (`Sidebar.jsx`): không phải `member`, **hoặc** là Owner,
+ * **hoặc** được cấp quyền quản trị ứng dụng `resource`.
+ *
+ * Mobile trước đây chỉ kiểm `role !== 'member'`, nên một thành viên đã được cấp
+ * quyền `resource` thấy phân hệ này trên web nhưng không thấy trên điện thoại.
+ */
+export const canAccessResources = (user) =>
+  Boolean(user && (user.role !== 'member' || user.isOwner || hasAppAccess(user, 'resource')));
