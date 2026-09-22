@@ -185,7 +185,7 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 |---|----------|-------|-----------|---------|
 | 10.1 | Real-time Notifications | Socket.IO notifications | ✅ | WebSocket có xác thực JWT, room `user:<id>`, Notification Center, Toast |
 | 10.2 | Dark/Light Theme Toggle | Chuyển đổi theme Sáng/Tối | ✅ | Switch ở Header + CSS `data-theme` |
-| 10.3 | Multi-language | Hỗ trợ Tiếng Việt + English | ✅ | i18next + nút đổi ngôn ngữ ở Header, nhớ lựa chọn, locale Ant Design đổi theo. Toàn bộ **12 trang** và khung ứng dụng đã dịch (605 khóa mỗi ngôn ngữ), kể cả nhãn enum, thông báo lỗi và tiêu đề cột CSV. Ngày/số/tiền định dạng theo ngôn ngữ. **Không dịch**: nội dung thông báo đã lưu trong DB và câu lỗi do server trả về — xem ghi chú dưới |
+| 10.3 | Multi-language | Hỗ trợ Tiếng Việt + English | ✅ | i18next + nút đổi ngôn ngữ ở Header, nhớ lựa chọn, locale Ant Design đổi theo. Toàn bộ **12 trang** và khung ứng dụng đã dịch (809 khóa mỗi ngôn ngữ), kể cả nhãn enum, thông báo lỗi và tiêu đề cột CSV. Ngày/số/tiền định dạng theo ngôn ngữ. **Không dịch**: nội dung thông báo đã lưu trong DB và câu lỗi do server trả về — xem ghi chú dưới |
 | 10.4 | Import Data | Import dự án/nhân sự từ CSV | ✅ | Modal **dán nội dung CSV** (chưa hỗ trợ chọn file) trong Projects & Resources |
 | 10.5 | Activity Log | Nhật ký hoạt động hệ thống | ✅ | Model + service + controller + trang ActivityLogs, lọc theo entity/action/user/thời gian |
 | 10.6 | Email Notifications | Gửi email khi được assign task | ✅ | **Mặc định tắt**, chỉ bật khi khai báo đủ `SMTP_HOST` + `MAIL_FROM`; trạng thái in ra lúc khởi động. Chỉ loại `task_assigned` được gửi mail — gửi mọi loại thì hộp thư ngập ngay ngày đầu. Lỗi SMTP không làm hỏng luồng giao việc |
@@ -211,7 +211,7 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 ### Đa ngôn ngữ — phạm vi và giới hạn
 
 **Đã dịch**: toàn bộ giao diện client — 12 trang, sidebar, header, form, thông báo lỗi
-validation, tiêu đề cột file CSV xuất ra, và mọi nhãn enum. 605 khóa mỗi ngôn ngữ, hai
+validation, tiêu đề cột file CSV xuất ra, và mọi nhãn enum. 809 khóa mỗi ngôn ngữ, hai
 file khớp nhau về khóa lẫn biến nội suy (có bộ test canh, xem dưới).
 
 Ngày, số và tiền cũng đổi theo ngôn ngữ (`src/i18n/format.js`). Đơn vị tiền **không**
@@ -271,18 +271,79 @@ mới chặn. Script là loại một lần, xong hết mọi môi trường th�
   **813 kB** (gzip 266 kB) thay vì 1.544 kB. Chunk entry vẫn 559 kB — lõi antd + cssinjs
   mà khung layout cần ngay — nên cảnh báo >500 kB của Vite còn nguyên; muốn nhỏ hơn nữa
   thì phải đổi thư viện UI chứ không phải chia chunk khác đi.
-- Kiểm thử: end-to-end qua API và Socket.IO (`cd server && npm test`, 8 bộ — xem
-  [server/tests/README.md](../server/tests/README.md)); phía client `cd client && npm test`
-  chạy cả logic thuần (33 assertion) lẫn **render component** (15 test qua vitest + jsdom —
-  xem [client/tests/README.md](../client/tests/README.md)). Phần component hiện phủ
-  ProtectedRoute, định tuyến theo chunk `React.lazy`, và chốt chặn open redirect ở link thông
-  báo; **chưa** phủ các trang nghiệp vụ (Tasks, Resources, Optimization…).
-- Ant Design 6 cảnh báo một số API đã lạc hậu mà code còn dùng: `Dropdown.dropdownRender`
-  (→ `popupRender`), `Statistic.valueStyle` (→ `styles.content`), `Space.direction`
-  (→ `orientation`), và `List` sẽ bị bỏ ở bản major kế tiếp. Chưa hỏng gì, nhưng sẽ hỏng khi
-  lên antd 7. Bộ test component là chỗ phát hiện ra chúng.
+- Kiểm thử nay có **ba lớp**, xem [docs/TESTING.md](./TESTING.md): `server/tests` 19 bộ qua
+  API và Socket.IO, `client/tests` 8 file component (37 bài, vitest + jsdom) kèm logic thuần,
+  và `e2e` 82 bài điều khiển Chromium thật trên hệ thống thật. Các trang nghiệp vụ (Tasks,
+  Resources, Optimization…) nay do lớp e2e phủ, không còn là khoảng trống như trước.
+- Cảnh báo deprecated của Ant Design 6 **đã gỡ hết** (29 file). Xác nhận bằng cách mở 11
+  trang và đếm cảnh báo trong console: 0. Lưu ý `Modal width` và `Radio.Group direction`
+  **không** deprecated — đừng đổi theo. Riêng `List` vẫn sẽ bị bỏ ở bản major kế tiếp.
 - Dữ liệu mẫu của seeder có 2 phụ thuộc bị vi phạm (task sau bắt đầu trước khi task trước
   kết thúc) — sơ đồ Gantt hiện cảnh báo đỏ và CSP báo lại trong `constraintReport` ngay sau khi seed.
+
+### Việc chưa làm — phát hiện khi viết bù `API.md`
+
+Mô tả đủ 118 endpoint làm lộ ra 11 chỗ dưới đây. Bốn lỗi nặng nhất **đã sửa**
+(xem [CHANGELOG](./CHANGELOG.md) và [TESTING.md](./TESTING.md) mục "Lỗi tìm ra khi viết tài
+liệu"); 11 chỗ này thì **cố ý để lại** — đều đã ghi vào `API.md` nên không ai bị dẫn sai, và
+sửa chúng không thuộc phạm vi đợt viết tài liệu.
+
+Sắp theo mức độ ảnh hưởng:
+
+**Phân lập theo công ty còn hở ba chỗ.** Mọi endpoint `/users/:id/*` đều trả 403 nếu tài
+khoản đích thuộc công ty khác, nhưng ba chỗ này không kiểm:
+
+| Endpoint | Thiếu gì |
+|----------|----------|
+| `GET /auth/guests` | Trả **mọi** tài khoản `isGuest: true` trên toàn hệ thống |
+| `PUT /users/:id/special-grants` | Chỉ kiểm vai trò, không kiểm công ty |
+| `PUT /users/:id/app-admin` | Chỉ kiểm `isOwner`, không kiểm công ty |
+
+Đây là loại lỗi rò dữ liệu giữa các công ty, nên nằm đầu danh sách dù sửa rất nhỏ.
+
+**`sendNotification` nuốt lỗi thiếu tham số mà không log.** Guard
+`if (!recipient || !title || !message) return null;` là thứ khiến lỗi gọi sai chữ ký sống sót
+im lặng. Đã sửa chỗ gọi sai, nhưng **chưa sửa cái guard** — lần sau gọi thiếu tham số vẫn sẽ
+im như vậy. Nên cho nó `console.error` hoặc ném lỗi ở `NODE_ENV !== 'production'`.
+
+**`POST /auth/users` trả mật khẩu dạng rõ khi `NODE_ENV=test`.** `emailStatus.preview` chứa
+`plainPassword` để kiểm thử đọc được. Chỉ xảy ra ở chế độ kiểm thử, nhưng không có gì chặn
+ai đó chạy chế độ đó trên môi trường có người thật.
+
+**`POST /auth/users` có thể tạo User mà không có Resource.** Bước tạo `Resource` kèm theo nằm
+trong `try/catch` chỉ ghi console, nên request vẫn trả 201. Người đó sẽ không xuất hiện ở
+`/resources` lẫn trong bài toán phân bổ, mà không có dấu hiệu gì.
+
+**`POST /tasks/:id/move` không kiểm gì cả.** Không kiểm dự án đích có tồn tại, và không kiểm
+`dependencies` còn hợp lệ sau khi chuyển — chuyển một task sang dự án khác là đủ để nó giữ
+tiền nhiệm thuộc dự án cũ, đúng trường hợp mà `POST /tasks` chặn bằng 400.
+
+**`POST /tasks/:id/report-result` để lộ nguyên văn lỗi Mongoose.** Gửi `deliverableLinks`
+dạng mảng chuỗi trả 400 kèm `Cast to embedded failed ... ObjectParameterError` — tiếng Anh,
+lộ tên đường dẫn trong schema. Các ca validate khác trong nhóm này đều có thông báo tiếng
+Việt viết tay.
+
+**Xóa mục checklist không đánh lại `order`.** Mục mới lấy `order = checklist.length`, nên sau
+vài lần xóa rồi thêm sẽ có `order` trùng nhau, và thứ tự hiển thị phụ thuộc vào thứ tự mảng
+chứ không vào `order`.
+
+**`GET /tasks/summary/stats` là route trùng** với `/tasks/stats/summary`, giữ vì giao diện
+bản cũ còn gọi. Xóa được sau khi rà hết chỗ gọi ở client.
+
+**Chú thích JSDoc của ba endpoint Excel ghi sai đường dẫn** — `/template-excel`,
+`/preview-excel`, `/import-excel` trong khi route thật là `/excel/*`. Không ảnh hưởng chạy,
+nhưng đọc controller sẽ ra đường dẫn không tồn tại.
+
+**`authService.updateAppPermissions` chưa có màn hình nào gọi.** Wrapper đã có ở
+`client/src/services/authService.js`, endpoint đã có guard, nhưng chưa có UI phân quyền theo
+phân hệ.
+
+### Khoảng trống kiểm thử đã biết
+
+Ba lớp test đều hỏi *"API trả về gì?"*. Chỉ bộ `notify-session` hỏi *"API đã làm gì?"*, và
+chỉ cho những đường đã biết là hỏng. Các thao tác có tác dụng phụ khác — ghi `ActivityLog`,
+đồng bộ `currentWorkload`, gửi email — vẫn chưa có bộ nào **đếm bản ghi thực tế** sau lời
+gọi. Bốn lỗi vừa tìm ra đều sống sót qua 82 bài e2e vì đúng khoảng trống này.
 
 ### Bảo mật — mức đã đạt và chưa đạt
 
