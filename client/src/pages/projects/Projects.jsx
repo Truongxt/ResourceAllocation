@@ -1415,6 +1415,20 @@ export default function Projects() {
             </Form.Item>
           )}
 
+          {/* Thời gian thực hiện: server bắt buộc có startDate/endDate
+              (server/src/routes/project.routes.js), nên ô này phải nằm ngoài
+              panel "Cài đặt nâng cao". Để trong đó thì người dùng điền hết các
+              trường thấy được rồi bấm Tạo sẽ nhận 400, mà ô còn thiếu thì đang
+              bị gấp lại nên không nhìn thấy để mà sửa. */}
+          <Form.Item
+            name="dateRange"
+            label={<span style={{ fontWeight: 600 }}>{t('projects.form.dateRange') || 'Thời gian thực hiện'}</span>}
+            rules={[{ required: true, message: t('projects.form.dateRangeRequired') || 'Vui lòng chọn thời gian thực hiện' }]}
+            extra="Ngày bắt đầu và hạn hoàn thành dự kiến của dự án"
+          >
+            <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+          </Form.Item>
+
           {/* 7. Cài đặt nâng cao (Collapse Panel) */}
           <Collapse
             ghost
@@ -1476,23 +1490,14 @@ export default function Projects() {
                       </Col>
                     </Row>
 
-                    <Row gutter={16}>
-                      <Col span={14}>
-                        <Form.Item name="dateRange" label={t('projects.form.dateRange') || 'Thời gian thực hiện'}>
-                          <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={10}>
-                        <Form.Item name="budget" label={t('projects.form.budget') || 'Ngân sách (VNĐ)'}>
-                          <InputNumber
-                            style={{ width: '100%' }}
-                            formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={(val) => val.replace(/\$\s?|(,*)/g, '')}
-                            min={0}
-                          />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                    <Form.Item name="budget" label={t('projects.form.budget') || 'Ngân sách (VNĐ)'}>
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        parser={(val) => val.replace(/\$\s?|(,*)/g, '')}
+                        min={0}
+                      />
+                    </Form.Item>
 
                     <Form.Item name="description" label={t('projects.form.description') || 'Mô tả dự án'}>
                       <TextArea rows={3} placeholder="Mô tả mục tiêu, phạm vi và yêu cầu của dự án..." />

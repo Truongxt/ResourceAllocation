@@ -21,9 +21,8 @@ async function fillNewProject(page, name) {
   await modal.locator('#manager').click();
   await page.locator('.ant-select-dropdown:visible .ant-select-item-option').first().click();
 
-  // Ngày bắt đầu/kết thúc nằm trong panel "Cài đặt nâng cao" đang thu gọn, nhưng
-  // server bắt buộc phải có — nên luồng tạo dự án thật sự phải mở panel này ra.
-  await modal.getByText('Cài đặt nâng cao', { exact: false }).click();
+  // Thời gian thực hiện nằm ngay trong phần hiện sẵn của form — không phải mở
+  // panel "Cài đặt nâng cao" nữa.
   await modal.locator('#dateRange').click();
   await page.locator('.ant-picker-dropdown:visible .ant-picker-cell-today').first().click();
   await page.locator('.ant-picker-dropdown:visible .ant-picker-cell-in-view').last().click();
@@ -94,26 +93,37 @@ test.describe('Quản lý dự án', () => {
     expect(created).toEqual([]);
   });
 
-  // Lỗi đã biết: `startDate`/`endDate` là bắt buộc ở server
-  // (`server/src/routes/project.routes.js`) nhưng ô nhập chúng nằm trong panel
-  // "Cài đặt nâng cao" đang thu gọn và **không** được đánh dấu bắt buộc ở form.
-  // Người dùng điền hết các trường thấy được rồi bấm Tạo sẽ nhận 400 chứ không
-  // phải một dòng nhắc ngay tại ô còn thiếu.
-  //
-  // Bài này mô tả hành vi *đúng*; `test.fail()` khiến nó chuyển sang đỏ ngay khi
-  // ai đó sửa xong, để cái chú thích này được gỡ đi cùng lúc.
-  test.fail('chỉ điền các trường bắt buộc nhìn thấy được thì vẫn tạo được dự án', async ({ page }) => {
-    const name = uniqueName('E2E Thiếu ngày');
+  // `startDate`/`endDate` là bắt buộc ở server
+  // (`server/src/routes/project.routes.js`). Trước đây ô nhập chúng nằm trong
+  // panel "Cài đặt nâng cao" đang thu gọn và không đánh dấu bắt buộc, nên người
+  // dùng điền hết những gì thấy được rồi bấm Tạo sẽ nhận 400 mà không biết
+  // thiếu gì. Bài này giữ cho nó không quay lại: thiếu ngày thì phải bị chặn
+  // **ngay tại form**, có dòng nhắc, và không request nào được gửi đi.
+  test('thiếu thời gian thực hiện thì chặn tại form, không gửi request', async ({ page }) => {
+    const posted = [];
+    page.on('request', (r) => {
+      if (r.method() === 'POST' && r.url().endsWith('/api/projects')) posted.push(r.url());
+    });
 
     await page.getByRole('button', { name: 'Tạo dự án' }).click();
     const modal = page.locator('.ant-modal');
-    await modal.locator('#name').fill(name);
-    await modal.locator('#manager').click();
-    await page.locator('.ant-select-dropdown:visible .ant-select-item-option').first().click();
+    await modal.locator('#name').fill(uniqueName('E2E Thiếu ngày'));
     await modal.getByRole('button', { name: 'Tạo dự án' }).click();
 
-    await expect(modal).toBeHidden({ timeout: 10_000 });
-    await expect(page.getByText(name).first()).toBeVisible({ timeout: 10_000 });
+    await expect(modal.getByText('Vui lòng chọn thời gian thực hiện')).toBeVisible();
+    await expect(modal).toBeVisible();
+    expect(posted).toEqual([]);
+  });
+
+  test('ô thời gian thực hiện nằm ngoài panel Cài đặt nâng cao', async ({ page }) => {
+    // Trường bắt buộc mà nằm trong panel gấp lại thì người dùng không thấy để
+    // mà điền — đó chính là lỗi cũ. Khóa lại vị trí của nó.
+    await page.getByRole('button', { name: 'Tạo dự án' }).click();
+    const modal = page.locator('.ant-modal');
+    await expect(modal).toBeVisible();
+
+    await expect(modal.locator('#dateRange')).toBeVisible();
+    await expect(modal.getByText('Cài đặt nâng cao', { exact: false })).toBeVisible();
   });
 
   test('mở chi tiết một dự án thì thấy đủ các tab và số liệu của nó', async ({ page }) => {

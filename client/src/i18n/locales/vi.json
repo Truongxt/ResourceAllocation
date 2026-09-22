@@ -277,6 +277,7 @@
       "description": "Mô tả dự án",
       "descriptionPlaceholder": "Mô tả mục tiêu, phạm vi của dự án...",
       "dateRange": "Thời gian thực hiện",
+      "dateRangeRequired": "Vui lòng chọn thời gian thực hiện",
       "budget": "Ngân sách (VND)",
       "tags": "Thẻ (Tags)",
       "tagsHint": "Phân cách bằng dấu phẩy, ví dụ: AI, Backend, Web"

@@ -277,6 +277,7 @@
       "description": "Description",
       "descriptionPlaceholder": "Describe the goal and scope of the project...",
       "dateRange": "Schedule",
+      "dateRangeRequired": "Please choose a start and end date",
       "budget": "Budget (VND)",
       "tags": "Tags",
       "tagsHint": "Comma-separated, e.g. AI, Backend, Web"
