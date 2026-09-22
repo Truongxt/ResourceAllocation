@@ -95,13 +95,12 @@ test.describe('Tối ưu hóa phân bổ', () => {
       .toBeVisible({ timeout: 20_000 });
   });
 
-  // Lỗi đã biết: server trả `averageSkillMatch` và `assignment.skillMatch` ở
-  // thang 0–100 (`server/src/algorithms/scoring.js:162`,
-  // `server/src/algorithms/genetic/GeneticAlgorithm.js:289`), nhưng
-  // `OptimizationResultView.jsx` nhân thêm 100 lần nữa nên màn hình hiện "10000%".
-  // `OptimizationCompareView.jsx` không nhân — hai chỗ đang hiểu khác nhau về
-  // cùng một con số.
-  test.fail('phần trăm khớp kỹ năng nằm trong khoảng 0–100', async ({ page }) => {
+  // Server trả `averageSkillMatch` và `assignment.skillMatch` ở thang **0–100**
+  // (`server/src/algorithms/scoring.js:162`,
+  // `server/src/algorithms/genetic/GeneticAlgorithm.js:289`). Trước đây
+  // `OptimizationResultView.jsx` nhân thêm 100 lần nữa nên màn hình hiện
+  // "10000%". Bài này giữ cho nó không quay lại.
+  test('mọi phần trăm trên màn hình kết quả đều nằm trong khoảng 0–100', async ({ page }) => {
     await runOptimization(page);
 
     const percents = await page.getByText(/^\d+%$/).allTextContents();
@@ -109,5 +108,16 @@ test.describe('Tối ưu hóa phân bổ', () => {
     for (const text of percents) {
       expect(Number(text.replace('%', ''))).toBeLessThanOrEqual(100);
     }
+  });
+
+  test('khớp kỹ năng hiện cùng một con số ở bảng kết quả và ở KPI', async ({ page }) => {
+    // Hai component đọc cùng một trường nhưng từng quy đổi khác nhau — đó là
+    // gốc của lỗi "10000%". Buộc chúng phải nói giống nhau.
+    await runOptimization(page);
+
+    const kpi = await page.locator('.ant-statistic')
+      .filter({ hasText: 'Khớp kỹ năng TB' })
+      .locator('.ant-statistic-content').textContent();
+    expect(Number(kpi.replace('%', '').trim())).toBeLessThanOrEqual(100);
   });
 });
