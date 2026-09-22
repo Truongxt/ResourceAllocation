@@ -479,6 +479,13 @@ export default function Resources() {
             </div>
             <Progress percent={Math.min(util, 100)} showInfo={false} strokeColor={color} size="small" />
             <span className={remaining < 0 ? 'capacity-note capacity-note-danger' : 'capacity-note'}>{t(remaining < 0 ? 'workspace.excessHours' : 'workspace.freeHours', { count: Math.round(Math.abs(remaining) * 10) / 10 })}</span>
+            {/* Giờ của việc đã giao nhưng chưa có ngày: không nằm trong con số tuần
+                này, nhưng cũng không được để nó biến mất khỏi màn hình. */}
+            {record.unscheduledWorkload > 0 && (
+              <span className="capacity-note">
+                {t('workspace.unscheduledHours', { count: record.unscheduledWorkload })}
+              </span>
+            )}
           </div>
         );
       },
