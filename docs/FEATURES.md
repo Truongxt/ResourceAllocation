@@ -339,9 +339,10 @@ Nay controller tự kiểm `deliverableLinks`/`attachments` phải là mảng đ
 trước khi gán, trả 400 tiếng Việt nếu không đúng dạng — cùng kiểu chặn sớm như các validate
 khác trong nhóm.
 
-**Xóa mục checklist không đánh lại `order`.** Mục mới lấy `order = checklist.length`, nên sau
-vài lần xóa rồi thêm sẽ có `order` trùng nhau, và thứ tự hiển thị phụ thuộc vào thứ tự mảng
-chứ không vào `order`.
+**Xóa mục checklist không đánh lại `order` — đã sửa.** Mục mới lấy `order = checklist.length`,
+nên trước đây sau vài lần xóa rồi thêm sẽ có `order` trùng nhau, và thứ tự hiển thị phụ thuộc
+vào thứ tự mảng chứ không vào `order`. Nay `DELETE /:id/checklist/:itemId` đánh lại `order`
+của mọi mục còn lại theo đúng vị trí trong mảng ngay sau khi xóa.
 
 **`GET /tasks/summary/stats` là route trùng** với `/tasks/stats/summary`, giữ vì giao diện
 bản cũ còn gọi. Xóa được sau khi rà hết chỗ gọi ở client.
