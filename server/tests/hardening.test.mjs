@@ -391,6 +391,38 @@ S('currentWorkload là tải tuần CAO ĐIỂM, không phải tổng giờ tíc
 }
 
 
+S('Đăng ký phải trọn vẹn: có User thì phải có Resource');
+{
+  // Trước đây bước tạo Resource nằm trong `try/catch` chỉ ghi log, nên hỏng ở đó
+  // là sinh ra một User **không có Resource**: đăng nhập được nhưng không xuất
+  // hiện ở trang Nhân sự, không nhận phân công, thuật toán tối ưu không thấy.
+  // Tài khoản tồn tại mà vô hình, và người dùng không tự sửa được vì email đã bị
+  // chiếm mất.
+  const email = `whole.${stamp}@congtymoi.com`;
+  const reg = await call('POST', '/auth/register', {
+    body: {
+      name: 'Người Mới',
+      email,
+      password: 'password123',
+      companyName: `Công ty Trọn Vẹn ${stamp}`,
+    },
+  });
+  ok(reg.status === 201, 'Đăng ký thành công', `status=${reg.status}`);
+
+  const list = await call('GET', '/resources?limit=100', { token: reg.data.token });
+  const mine = (list.data?.resources || []).find(
+    (r) => r.user?.email === email || r.user?._id === reg.data.user._id
+  );
+  ok(!!mine, 'Tài khoản mới có ngay hồ sơ nhân sự', mine ? mine.employeeId : '(không có)');
+  ok(
+    !mine || mine.companyName === reg.data.user.companyName,
+    'Hồ sơ đó thuộc đúng công ty vừa tạo',
+    `${mine?.companyName}`
+  );
+  // Phòng ban phải là của chính công ty này, không mượn tên của công ty khác.
+  ok(!!mine?.department, 'Và có phòng ban', `${mine?.department}`);
+}
+
 S('Bình luận: hợp đồng dữ liệu mà màn chi tiết dựa vào');
 {
   // App di động vừa có màn chi tiết công việc đọc `comments[].user.name`. Nếu
