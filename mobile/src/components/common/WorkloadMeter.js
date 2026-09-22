@@ -2,10 +2,18 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 
+/**
+ * `workload` là giờ của TUẦN CAO ĐIỂM, không phải tổng giờ cả kỳ — vì `capacity`
+ * là năng lực mỗi tuần, so tổng với năng lực tuần là so hai đơn vị khác nhau.
+ *
+ * `unscheduled` là giờ đã giao nhưng chưa có ngày: không rơi vào tuần nào nên
+ * không nằm trong `workload`, nhưng cũng không được để nó biến mất khỏi màn hình.
+ */
 export default function WorkloadMeter({
   workload = 0,
   capacity = 40,
   utilization,
+  unscheduled = 0,
   style,
 }) {
   const { theme } = useTheme();
@@ -54,6 +62,11 @@ export default function WorkloadMeter({
           ]}
         />
       </View>
+      {unscheduled > 0 && (
+        <Text style={[styles.note, { color: theme.colors.textMuted }]}>
+          +{unscheduled}h đã giao nhưng chưa xếp lịch
+        </Text>
+      )}
     </View>
   );
 }
@@ -84,5 +97,9 @@ const styles = StyleSheet.create({
   fill: {
     height: '100%',
     borderRadius: 3,
+  },
+  note: {
+    fontSize: 11,
+    marginTop: 4,
   },
 });

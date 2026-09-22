@@ -102,22 +102,26 @@ export default function ResourcesScreen() {
 
   const renderResourceItem = ({ item }) => {
     const workload = item.currentWorkload || 0;
-    const capacity = item.maxCapacity || 40;
+    // Năng lực phải nhân FTE: người làm bán thời gian có maxCapacity 40 nhưng
+    // fte 0.5 thì năng lực thật là 20h/tuần. Web tính đúng, mobile thì chưa.
+    const capacity = (item.maxCapacity ?? 40) * (item.fte ?? 1);
     const util = capacity > 0 ? Math.round((workload / capacity) * 100) : 0;
 
     return (
       <Card style={styles.resourceCard}>
         {/* Header Profile */}
         <View style={styles.profileRow}>
+          {/* API trả hồ sơ Resource có `user` được populate: tên và email nằm
+              trong `user`, còn `department` là chuỗi chứ không phải object. */}
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {(item.name || 'U').charAt(0).toUpperCase()}
+              {(item.user?.name || item.position || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={styles.profileInfo}>
             <View style={styles.nameRow}>
               <Text style={[styles.name, { color: theme.colors.text }]}>
-                {item.name}
+                {item.user?.name || 'Chưa gắn tài khoản'}
               </Text>
               {util > 100 && (
                 <Badge
@@ -131,13 +135,13 @@ export default function ResourcesScreen() {
             <Text
               style={[styles.position, { color: theme.colors.textSecondary }]}
             >
-              {item.position || 'Nhân sự'} · {item.department?.name || 'Phòng ban'}
+              {item.position || 'Nhân sự'} · {item.department || 'Phòng ban'}
             </Text>
-            {item.email && (
+            {item.user?.email && (
               <Text
                 style={[styles.email, { color: theme.colors.textMuted }]}
               >
-                {item.email}
+                {item.user.email}
               </Text>
             )}
           </View>
@@ -148,9 +152,13 @@ export default function ResourcesScreen() {
           <Text
             style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}
           >
-            Công suất làm việc (Workload)
+            Công suất tuần cao điểm
           </Text>
-          <WorkloadMeter workload={workload} capacity={capacity} />
+          <WorkloadMeter
+            workload={workload}
+            capacity={capacity}
+            unscheduled={item.unscheduledWorkload || 0}
+          />
         </View>
 
         {/* Skill Matrix Pills */}

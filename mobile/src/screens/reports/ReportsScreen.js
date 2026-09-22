@@ -38,7 +38,10 @@ export default function ReportsScreen({ navigation }) {
         analyticsApi.getUtilization(),
       ]);
       setOverview(dashRes.data?.data || {});
-      setUtilizationList(utilRes.data?.data || []);
+      // Endpoint trả `{ resources, departments, summary }`. Trước đây gán cả
+      // object vào state mảng, nên `.filter` ngay dưới ném lỗi và màn này chết
+      // ngay khi mở.
+      setUtilizationList(utilRes.data?.data?.resources || []);
     } catch (e) {
       console.log('Error loading analytics reports:', e);
     } finally {
@@ -56,14 +59,16 @@ export default function ReportsScreen({ navigation }) {
     setRefreshing(false);
   };
 
+  // Tên trường do server đặt là `utilization`, không phải `utilizationRate`:
+  // đọc nhầm tên thì mọi phép tính dưới đây ra 0 mà không báo lỗi gì.
   const highBurnoutCount = utilizationList.filter(
-    (r) => r.burnoutRisk === 'high' || (r.utilizationRate || 0) > 100
+    (r) => r.burnoutRisk === 'high' || (r.utilization || 0) > 100
   ).length;
 
   const avgUtilization =
     utilizationList.length > 0
       ? Math.round(
-          utilizationList.reduce((sum, r) => sum + (r.utilizationRate || 0), 0) /
+          utilizationList.reduce((sum, r) => sum + (r.utilization || 0), 0) /
             utilizationList.length
         )
       : 0;
@@ -71,13 +76,15 @@ export default function ReportsScreen({ navigation }) {
   // Group by department
   const deptMap = {};
   utilizationList.forEach((r) => {
-    const deptName = r.department?.name || 'Chung';
+    // `department` là chuỗi chứ không phải object — `?.name` luôn cho undefined
+    // nên trước đây mọi người đều rơi vào nhóm "Chung".
+    const deptName = r.department || 'Chung';
     if (!deptMap[deptName]) {
       deptMap[deptName] = { name: deptName, count: 0, totalLoad: 0, totalCap: 0 };
     }
     deptMap[deptName].count += 1;
-    deptMap[deptName].totalLoad += r.currentWorkload || 0;
-    deptMap[deptName].totalCap += r.maxCapacity || 40;
+    deptMap[deptName].totalLoad += r.workload || 0;
+    deptMap[deptName].totalCap += r.capacity || 40;
   });
   const deptList = Object.values(deptMap);
 
@@ -200,7 +207,7 @@ export default function ReportsScreen({ navigation }) {
             />
           ) : (
             utilizationList.map((item) => {
-              const util = item.utilizationRate || 0;
+              const util = item.utilization || 0;
               const riskKey =
                 item.burnoutRisk || (util > 100 ? 'high' : util > 80 ? 'medium' : 'low');
               const bMeta = BURNOUT_MAP[riskKey] || BURNOUT_MAP.low;
@@ -218,7 +225,7 @@ export default function ReportsScreen({ navigation }) {
                           { color: theme.colors.textSecondary },
                         ]}
                       >
-                        {item.position || 'Nhân sự'} · {item.department?.name || 'Phòng ban'}
+                        {item.position || 'Nhân sự'} · {item.department || 'Phòng ban'}
                       </Text>
                     </View>
                     <Badge
@@ -229,9 +236,10 @@ export default function ReportsScreen({ navigation }) {
                   </View>
 
                   <WorkloadMeter
-                    workload={item.currentWorkload || 0}
-                    capacity={item.maxCapacity || 40}
+                    workload={item.workload || 0}
+                    capacity={item.capacity || 40}
                     utilization={util}
+                    unscheduled={item.unscheduledWorkload || 0}
                     style={{ marginTop: 8 }}
                   />
                 </Card>
