@@ -4,6 +4,11 @@ const Project = require('../models/Project');
 const CompanySetting = require('../models/CompanySetting');
 const { logActivity } = require('../services/activityLog.service');
 
+const DEFAULT_COMPANY = 'Công ty Công nghệ RAO';
+
+/** Bản ghi thiếu `companyName` là dữ liệu cũ, thuộc về công ty mặc định. */
+const companyOfDept = (department) => department.companyName || DEFAULT_COMPANY;
+
 const getDepartments = async (req, res, next) => {
   try {
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
@@ -11,8 +16,19 @@ const getDepartments = async (req, res, next) => {
     if (req.query.isActive !== undefined) filter.isActive = req.query.isActive === 'true';
     if (req.query.search) filter.name = new RegExp(req.query.search, 'i');
 
-    // Multi-tenant: mỗi công ty chỉ truy xuất và quản lý phòng ban của chính công ty mình
-    filter.companyName = userCompany;
+    // Multi-tenant: mỗi công ty chỉ truy xuất và quản lý phòng ban của chính công ty mình.
+    //
+    // Công ty mặc định nhận luôn bản ghi **thiếu** `companyName`: đó là dữ liệu
+    // tạo trước khi model có giá trị mặc định, và toàn bộ nó vốn thuộc về công ty
+    // này. Đây cũng đúng idiom mà `getProjects`/`getResources` đang dùng.
+    //
+    // Lọc khớp chính xác như trước khiến những bản ghi cũ đó không khớp bộ lọc
+    // nào — mà nhánh nhân bản phòng ban mẫu bên dưới lại bỏ qua công ty mặc định,
+    // nên trang Phòng ban trống trơn và không có gì tự chữa.
+    filter.companyName =
+      userCompany === DEFAULT_COMPANY
+        ? { $in: [userCompany, null, undefined] }
+        : userCompany;
 
     let departments = await Department.find(filter)
       .populate('managers', 'name email avatar jobTitle department')
@@ -95,12 +111,10 @@ const getDepartmentById = async (req, res, next) => {
     // vào từng công ty ngay lần liệt kê đầu tiên, nên không luồng nào cần đọc
     // bản gốc theo id. Mà bản gốc lại thuộc công ty mặc định — cũng là một tenant
     // thật, có dự án và ngân sách thật.
-    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
-    if (
-      department.companyName &&
-      department.companyName !== userCompany &&
-      req.user.role !== 'superadmin'
-    ) {
+    // Bản ghi thiếu `companyName` được quy về công ty mặc định, không phải
+    // "ai cũng xem được" — nếu không, dữ liệu cũ thành cửa mở cho mọi công ty.
+    const userCompany = (req.user && req.user.companyName) || DEFAULT_COMPANY;
+    if (companyOfDept(department) !== userCompany && req.user.role !== 'superadmin') {
       return res.status(403).json({
         success: false,
         message: 'Không có quyền thao tác trên phòng ban của công ty khác',
