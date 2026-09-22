@@ -41,6 +41,24 @@ const recalculateProjectProgress = async (projectId) => {
 };
 
 /**
+ * Công việc này có thuộc công ty của người gọi không.
+ *
+ * Nhận task đã populate `project` (cần `companyName`). Trả `true` khi được phép.
+ *
+ * Có helper riêng vì nhánh bình luận từng bỏ qua hẳn bước này: `addComment` và
+ * `deleteComment` chỉ `findById` rồi làm luôn, nên biết id là chen được vào
+ * công việc của công ty khác — và admin của công ty khác còn xóa được bình luận
+ * của người ta, do điều kiện miễn trừ chỉ xét `role === 'admin'` chứ không xét
+ * cùng công ty.
+ */
+const belongsToCompany = (task, user) => {
+  const userCompany = user?.companyName || 'Công ty Công nghệ RAO';
+  if (user?.role === 'superadmin') return true;
+  if (!task.project?.companyName) return true;
+  return task.project.companyName === userCompany;
+};
+
+/**
  * @desc    Lấy danh sách tasks (filter theo project, status, assignee, search)
  * @route   GET /api/tasks
  * @access  Private
@@ -862,8 +880,15 @@ const addComment = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Nội dung bình luận không được trống' });
     }
 
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findById(req.params.id).populate('project', 'companyName');
     if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    if (!belongsToCompany(task, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền bình luận vào công việc của công ty khác',
+      });
+    }
 
     const comment = { user: req.user._id, content: content.trim(), createdAt: new Date() };
     task.comments.push(comment);
@@ -905,13 +930,21 @@ const addComment = async (req, res, next) => {
  */
 const deleteComment = async (req, res, next) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findById(req.params.id).populate('project', 'companyName');
     if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    if (!belongsToCompany(task, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên công việc của công ty khác',
+      });
+    }
 
     const comment = task.comments.id(req.params.commentId);
     if (!comment) return res.status(404).json({ success: false, message: 'Không tìm thấy bình luận' });
 
-    // Chỉ cho phép xóa bình luận của chính mình hoặc admin
+    // Chỉ cho phép xóa bình luận của chính mình hoặc admin — và admin ở đây đã
+    // chắc chắn cùng công ty nhờ kiểm tra bên trên.
     if (comment.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Bạn chỉ được xóa bình luận của mình' });
     }
