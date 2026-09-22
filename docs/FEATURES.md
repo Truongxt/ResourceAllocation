@@ -271,9 +271,9 @@ mới chặn. Script là loại một lần, xong hết mọi môi trường th�
   **813 kB** (gzip 266 kB) thay vì 1.544 kB. Chunk entry vẫn 559 kB — lõi antd + cssinjs
   mà khung layout cần ngay — nên cảnh báo >500 kB của Vite còn nguyên; muốn nhỏ hơn nữa
   thì phải đổi thư viện UI chứ không phải chia chunk khác đi.
-- Kiểm thử nay có **ba lớp**, xem [docs/TESTING.md](./TESTING.md): `server/tests` 19 bộ qua
+- Kiểm thử nay có **ba lớp**, xem [docs/TESTING.md](./TESTING.md): `server/tests` 20 bộ qua
   API và Socket.IO, `client/tests` 8 file component (37 bài, vitest + jsdom) kèm logic thuần,
-  và `e2e` 84 bài điều khiển Chromium thật trên hệ thống thật. Các trang nghiệp vụ (Tasks,
+  và `e2e` 85 bài điều khiển Chromium thật trên hệ thống thật. Các trang nghiệp vụ (Tasks,
   Resources, Optimization…) nay do lớp e2e phủ, không còn là khoảng trống như trước.
 - Cảnh báo deprecated của Ant Design 6 **đã gỡ hết** (29 file). Xác nhận bằng cách mở 11
   trang và đếm cảnh báo trong console: 0. Lưu ý `Modal width` và `Radio.Group direction`
@@ -373,9 +373,17 @@ UI thì cũng chẳng khác gì, vì đổi giá trị bằng tay qua API cũng 
 - **UI**: tab mới "Quyền theo Phân hệ" trong `AppPermissionsTab.jsx` (Cài đặt → Phân quyền
   Thao tác & Ứng dụng), bảng chọn `Quản lý`/`Chỉ xem`/`Không truy cập` cho ba phân hệ trên
   theo từng người dùng.
+- **Giao diện tôn trọng quyền**: `AuthContext` có `canViewModule`/`canManageModule` dùng
+  **cùng thang bậc và cùng quy ước mặc định** với `requireAppPermission` ở server. Mức
+  `Chỉ xem` ẩn nút tạo/sửa/xóa ở Dự án và Công việc; mức `Không truy cập` chặn hẳn trang qua
+  `ProtectedRoute module="…"` kèm màn hình giải thích và nút quay về Dashboard. `/dashboard`
+  **không** gắn `module` vì mọi màn hình từ chối đều thoát về đó — chặn nốt là hết đường ra.
+  Lịch và Gantt đi theo phân hệ `tasks` vì cả hai vẽ từ `/api/tasks`.
 - **Kiểm chứng bằng request thật**: `notify-session.test.mjs` thêm ca `projects: view` bị
   chặn 403 khi tạo dự án (trước đây tài khoản nào cũng tạo được bất kể field này nói gì) và
-  `tasks: none` bị chặn 403 cả khi xem.
+  `tasks: none` bị chặn 403 cả khi xem; `e2e/tests/11-app-permissions.spec.js` (3 bài) chốt
+  trọn vòng qua trình duyệt — admin hạ quyền trong Cài đặt → người bị hạ mất nút / bị chặn
+  trang → trả quyền lại thì làm được như cũ.
 
 ### Khoảng trống kiểm thử đã biết
 

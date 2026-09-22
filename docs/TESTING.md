@@ -5,9 +5,9 @@ Dự án có **ba lớp kiểm thử**, mỗi lớp trả lời một câu hỏi
 
 | Lớp | Thư mục | Chạy bằng | Quy mô | Trả lời câu hỏi |
 |-----|---------|-----------|--------|-----------------|
-| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 19 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
+| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 20 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
 | Component | `client/tests/` | `npm test` trong `client/` | 3 file logic + 8 file component | Component vẽ đúng, xử lý đúng sự kiện không? |
-| Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 84 bài / 11 file | Ghép tất cả lại thì người dùng **dùng được** không? |
+| Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 85 bài / 11 file | Ghép tất cả lại thì người dùng **dùng được** không? |
 
 Hai lớp đầu chạy trong vòng vài phút. Lớp e2e mất khoảng **10–15 phút** (đo trên máy phát
 triển, 1 worker) vì nó khởi động thật, đăng nhập thật và chờ API thật ở từng bài.
@@ -241,6 +241,30 @@ khoảng cách giữa chúng chính là chỗ bốn lỗi trên sống sót qua 
 Cùng một bài học với chỗ chẩn đoán sai `currentWorkload` ở mục 3: đừng suy ra hành vi runtime
 từ việc đọc xem hàm nào gọi hàm nào — chạy thử rồi đo.
 
+## Ba bộ test hỏng mà vẫn báo xanh
+
+Phát hiện khi viết `hardening.test.mjs`, và nó **vô hiệu hóa một phần lưới an toàn** chứ
+không phải lỗi cosmetic.
+
+Mỗi file test kết thúc bằng `process.exit(summary() ? 1 : 0)` để `run.mjs` biết bộ đó đỏ hay
+xanh — nhưng `email`, `notify-session` và `sanitize` chỉ gọi `summary()` rồi kết thúc, nên
+tiến trình luôn thoát mã 0. Hệ quả: assertion trong ba bộ đó **có đỏ cũng không ai biết**.
+
+Kiểm chứng bằng cách chèn tạm một `ok(false, …)` vào `sanitize` rồi chạy `npm test sanitize`:
+
+```
+  PASS: 18    FAIL: 1    TỔNG: 19      ← bản thân bộ test biết là có lỗi
+  Tất cả 1 bộ đều đạt                  ← nhưng runner kết luận ngược lại, và thoát mã 0
+```
+
+Đáng chú ý là `notify-session` chính là bộ giữ bốn lỗi "request vẫn trả 200" và các bài
+`appPermissions` mới thêm — tức phần test được viết riêng để bắt loại lỗi âm thầm lại đang
+âm thầm y như vậy. Đã bổ sung `process.exit` cho cả ba.
+
+Bài học hợp với tinh thần chung của tài liệu này: **một bộ test chưa bao giờ thấy đỏ thì
+chưa chứng minh được điều gì**. Thêm bài test mới xong nên thử làm nó hỏng một lần để biết
+đường báo lỗi còn thông.
+
 ## Chọn lớp cho từng bản vá
 
 Đợt sửa 11 hạng mục trong `FEATURES.md` cho một ví dụ rõ về việc **không phải bản vá nào
@@ -258,6 +282,28 @@ Nguyên tắc rút ra: **lớp e2e đắt (10–15 phút/lượt) và ghi vào d
 dành cho thứ chỉ nó mới thấy được — mối nối giữa các mảnh. Thứ gì một lớp rẻ hơn kiểm được
 đầy đủ thì để ở lớp đó; và thứ gì lớp e2e *không chứng minh được* thì đừng viết bài e2e cho
 nó, vì một bài xanh-bất-kể-code-đúng-hay-sai còn nguy hiểm hơn khoảng trống đã biết.
+
+Bốn hàng cuối nằm ở bộ mới **`server/tests/hardening.test.mjs`** (27 assertion), và ngay lần
+chạy đầu nó đã bắt được một lỗi thật — xem mục dưới.
+
+### Lỗi `hardening` tìm ra: khách không thuộc công ty nào
+
+Bản vá lọc `GET /auth/guests` theo công ty của người gọi *đúng về ý định* nhưng **sai trên
+thực tế**, và chỉ lộ ra khi có bài test đi trọn đường "tạo khách rồi xem lại danh sách":
+
+`createGuest` ghi `companyName` bằng **tên tổ chức đối tác** lấy từ form (nhãn "Công ty / Tổ
+chức đối tác"), trong khi mọi chỗ khác trong hệ thống dùng `companyName` làm **khóa phân lập
+tenant** (`isSameCompany`, bộ lọc của `GET /auth/users`). Hai nghĩa đụng nhau trên cùng một
+field. Hệ quả sau khi thêm bộ lọc: khách tạo ra mang công ty "Công ty TNHH Đối Tác Alpha",
+không khớp công ty của ai cả — nên **chính công ty vừa tạo ra nó cũng không nhìn thấy nó
+nữa**.
+
+Đã tách hai nghĩa: `companyName` của khách nay là công ty của người tạo (đúng vai trò khóa
+phân lập), còn tên đối tác sang field mới `guestCompany` chỉ để hiển thị.
+
+Lỗi này minh họa vì sao assertion "công ty A **nhìn thấy** khách của chính mình" phải đi kèm
+assertion "công ty B không nhìn thấy": chỉ kiểm vế cấm thì một bộ lọc chặn nhầm tất cả mọi
+người vẫn xanh.
 
 ## Vấn đề nhỏ khác
 

@@ -381,12 +381,21 @@ Bảng này **mô tả** quyền, không **thi hành** quyền. Nơi thi hành l
 
 ### POST `/api/auth/guests`
 ```json
-{ "name": "Khách A", "email": "khach.a@doitac.com", "password": "...", "companyName": "..." }
+{ "name": "Khách A", "email": "khach.a@doitac.com", "password": "...", "guestCompany": "..." }
 ```
 Thiếu bất kỳ trong ba field đầu → **400**. Email đã dùng → **400**. Tài khoản khách được đặt
 cứng `role: 'member'`, `isGuest: true`, `department: 'Đối tác / Khách mời'`,
-`jobTitle: 'Khách mời dự án (Guest)'`, `companyName` mặc định `Khách hàng đối tác`.
-Response trả `data.guest` (không phải `data.user`).
+`jobTitle: 'Khách mời dự án (Guest)'`. Response trả `data.guest` (không phải `data.user`).
+
+**Hai field công ty, hai vai trò khác nhau** — đừng nhầm:
+
+| Field | Nghĩa | Ai đặt |
+|-------|-------|--------|
+| `companyName` | Công ty **chủ quản** — khóa phân lập tenant, quyết định ai còn nhìn thấy tài khoản này | Server đặt bằng công ty của người gọi, **không** nhận từ body |
+| `guestCompany` | Tên tổ chức đối tác, **chỉ để hiển thị** | Lấy từ body, mặc định `Khách hàng đối tác` |
+
+Trước đây tên đối tác bị ghi thẳng vào `companyName`, nên khách không khớp công ty của ai
+cả — kể cả công ty vừa tạo ra nó cũng không thấy nó trong `GET /guests`.
 
 ---
 
