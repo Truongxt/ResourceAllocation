@@ -466,9 +466,16 @@ const createUser = async (req, res, next) => {
       emailStatus = { sent: false, reason: mailErr.message };
     }
 
+    // emailStatus.preview.plainPassword chỉ phục vụ log console nội bộ (xem
+    // sendUserWelcomeEmail) — không được lộ ra response, kể cả khi email đang
+    // tắt (mặc định) hay đang chạy kiểm thử.
+    const safeEmailStatus = emailStatus.preview
+      ? { ...emailStatus, preview: { email: emailStatus.preview.email } }
+      : emailStatus;
+
     res.status(201).json({
       success: true,
-      data: { user, emailStatus },
+      data: { user, emailStatus: safeEmailStatus },
       message: emailStatus.sent
         ? `Tạo tài khoản thành công! Thông tin đăng nhập và mật khẩu đã được gửi đến email ${user.email}.`
         : 'Tạo tài khoản thành công',
