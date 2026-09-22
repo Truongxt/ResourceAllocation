@@ -186,4 +186,4 @@ S('appPermissions thực thi thật trên route (requireAppPermission)');
   ok(blockedList.status === 403, "tasks: none chặn cả xem danh sách (403)");
 }
 
-summary();
+process.exit(summary() ? 1 : 0);
