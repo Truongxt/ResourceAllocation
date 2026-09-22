@@ -444,7 +444,15 @@ const createUser = async (req, res, next) => {
         createdBy: req.user._id,
       });
     } catch (err) {
+      // Không để lại User mồ côi Resource: người đó sẽ không xuất hiện ở
+      // /resources lẫn trong bài toán phân bổ mà không có dấu hiệu gì. Hủy
+      // User vừa tạo và báo lỗi rõ ràng thay vì âm thầm trả 201.
       console.error('Lỗi khi tự động tạo Resource cho user:', err.message);
+      await User.findByIdAndDelete(user._id);
+      return res.status(500).json({
+        success: false,
+        message: 'Không thể tạo hồ sơ nhân sự (Resource) cho tài khoản mới nên đã hủy tài khoản. Vui lòng thử lại.',
+      });
     }
 
     // Gửi email chứa thông tin tài khoản và mật khẩu đăng nhập cho người dùng
