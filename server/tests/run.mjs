@@ -81,7 +81,13 @@ const run = (cmd, args, opts = {}) =>
 
 const seed = () => run('node', ['src/utils/seeder.js']);
 
-const waitForServer = async (timeoutMs = 20000) => {
+// 60 giây chứ không phải 20: chạy ngay sau một lượt kiểm thử nặng khác (ví dụ bộ
+// e2e Playwright), server cần lâu hơn hẳn để lên vì cache đĩa còn nguội. Chạm
+// ngưỡng lúc đó là báo "không khởi động được" oan, mà log lại trống nên trông
+// như lỗi cấu hình — mất thời gian đi tìm nhầm chỗ.
+const STARTUP_TIMEOUT_MS = 60000;
+
+const waitForServer = async (timeoutMs = STARTUP_TIMEOUT_MS) => {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
@@ -117,8 +123,12 @@ process.on('exit', shutdown);
 process.on('SIGINT', () => { shutdown(); process.exit(130); });
 
 if (!(await waitForServer())) {
-  console.error('\n❌ Server không khởi động được:');
-  console.error(serverLog.trim().split('\n').slice(-8).join('\n'));
+  console.error(`\n❌ Server không trả lời /api/health sau ${STARTUP_TIMEOUT_MS / 1000} giây.`);
+  // Log trống là thông tin, không phải thiếu sót: nghĩa là tiến trình chưa in ra
+  // được gì cả — thường vì MongoDB chưa chạy, hoặc máy đang quá tải.
+  const log = serverLog.trim();
+  console.error(log ? log.split('\n').slice(-8).join('\n')
+                    : '(tiến trình server chưa in ra gì — kiểm tra MongoDB đã chạy chưa)');
   shutdown();
   process.exit(1);
 }
