@@ -154,8 +154,14 @@ const register = async (req, res, next) => {
 
     // Tự động tạo hồ sơ nhân sự mặc định cho tài khoản mới trong công ty đó
     try {
-      const defaultDept = await Department.findOne({ isActive: true, companyName: finalCompanyName }).select('name')
-        || await Department.findOne({ isActive: true }).select('name');
+      // Chỉ lấy phòng ban CỦA CHÍNH công ty này. Trước đây có nhánh dự phòng
+      // `Department.findOne({ isActive: true })` không kèm công ty — nó bốc tên
+      // phòng ban của một công ty bất kỳ và gán cho người mới, chỉ vì công ty vừa
+      // tạo thì chưa có phòng ban nào.
+      const defaultDept = await Department.findOne({
+        isActive: true,
+        companyName: finalCompanyName,
+      }).select('name');
       const departmentName = defaultDept?.name || 'Ban Giám Đốc';
       const employeeId = await generateEmployeeId();
 
@@ -179,6 +185,25 @@ const register = async (req, res, next) => {
       });
     } catch (resourceErr) {
       console.error('Lỗi khi tự động tạo hồ sơ Resource cho user mới:', resourceErr.message);
+
+      // Đăng ký phải trọn vẹn hoặc không có gì.
+      //
+      // Trước đây nhánh này chỉ ghi log rồi đi tiếp, nên hệ thống có thể sinh ra
+      // một User **không có Resource**: đăng nhập được nhưng không xuất hiện ở
+      // trang Nhân sự, không nhận được phân công, không có năng lực để thuật toán
+      // tối ưu nhìn thấy. Tài khoản tồn tại mà vô hình — và người dùng không có
+      // cách nào tự sửa, kể cả đăng ký lại, vì email đã bị chiếm.
+      //
+      // Xóa User vừa tạo là thao tác bù có phạm vi rất hẹp: nó được tạo vài mili
+      // giây trước, trong cùng request này, chưa có gì trỏ tới nó.
+      await User.deleteOne({ _id: user._id }).catch((cleanupErr) => {
+        console.error('Không dọn được User mồ côi sau khi tạo Resource hỏng:', cleanupErr.message);
+      });
+
+      return res.status(500).json({
+        success: false,
+        message: 'Không tạo được hồ sơ nhân sự cho tài khoản. Vui lòng thử lại.',
+      });
     }
 
     // Generate token
