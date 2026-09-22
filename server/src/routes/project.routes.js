@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, requireAppPermission } = require('../middleware/auth');
 const {
   getProjects,
   getProjectById,
@@ -139,6 +139,7 @@ const updateMemberValidation = [
 ];
 
 router.use(protect);
+router.use(requireAppPermission('projects'));
 
 router.get('/stats/summary', getProjectSummary);
 router.get('/', listValidation, validate, getProjects);

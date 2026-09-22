@@ -3,7 +3,7 @@ const multer = require('multer');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const { TASK_STATUSES } = require('../services/taskStatus.service');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, requireAppPermission } = require('../middleware/auth');
 const {
   canCreateTask,
   canModifyTask,
@@ -161,6 +161,7 @@ const statusValidation = [
 ];
 
 router.use(protect);
+router.use(requireAppPermission('tasks'));
 
 router.get('/stats/summary', getTaskSummary);
 
