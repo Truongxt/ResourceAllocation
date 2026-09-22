@@ -163,7 +163,6 @@ const statusValidation = [
 router.use(protect);
 
 router.get('/stats/summary', getTaskSummary);
-router.get('/summary/stats', getTaskSummary);
 
 // Base Wework: Excel import & template (Đặt trước /:id)
 router.get('/excel/template', downloadExcelTemplate);
