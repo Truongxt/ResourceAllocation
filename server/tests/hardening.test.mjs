@@ -15,6 +15,8 @@ import { call, login, ok, section as S, summary } from './helpers.mjs';
 
 const TOK = {};
 const stamp = Date.now();
+const guestEmail = `khach.a.${stamp}@doitac.com`;
+let guestId;
 
 S('Chuẩn bị: hai công ty tách biệt');
 {
@@ -39,11 +41,11 @@ S('Chuẩn bị: hai công ty tách biệt');
 
 S('Phân lập công ty: GET /auth/guests');
 {
-  const guestEmail = `khach.a.${stamp}@doitac.com`;
   const created = await call('POST', '/auth/guests', {
     token: TOK.admin,
     body: { name: 'Khách của công ty A', email: guestEmail, password: 'password123' },
   });
+  guestId = created.data?.guest?._id;
   ok(created.status === 201, 'Công ty A tạo được tài khoản khách', `status=${created.status}`);
 
   const seenByA = await call('GET', '/auth/guests', { token: TOK.admin });
@@ -226,6 +228,76 @@ S('Xóa mục checklist thì đánh lại order');
   );
 
   await call('DELETE', `/tasks/${taskId}`, { token: TOK.pm });
+}
+
+S('Vai trò "khách" trong dự án nay dùng được');
+{
+  // Enum `Project.members[].role` trước đây không có 'guest', nên:
+  //   - thêm thành viên với vai trò này bị Mongoose chặn (400),
+  //   - nhánh `role === 'guest'` trong taskAccess.js không bao giờ chạy,
+  //   - và công tắc `allowGuestCreateTask` (có cả trong model lẫn trên màn hình
+  //     Chi tiết dự án) không điều khiển được gì.
+  const guestToken = await login(guestEmail);
+  ok(!!guestToken, 'Đăng nhập được bằng tài khoản khách');
+
+  const proj = await call('POST', '/projects', {
+    token: TOK.pm,
+    body: {
+      name: `Dự án có khách ${stamp}`,
+      description: 'Kiểm thử vai trò guest',
+      startDate: '2026-10-01',
+      endDate: '2026-12-31',
+    },
+  });
+  const projectId = proj.data?.project?._id;
+  ok(!!projectId, 'Tạo được dự án để mời khách vào', `status=${proj.status}`);
+
+  const added = await call('POST', `/projects/${projectId}/members`, {
+    token: TOK.pm,
+    body: { user: guestId, role: 'guest', allocation: 0 },
+  });
+  ok(added.status === 201 || added.status === 200, 'Thêm được thành viên với vai trò guest', `status=${added.status}`);
+
+  const savedRole = (added.data?.project?.members || []).find(
+    (m) => String(m.user?._id || m.user) === String(guestId)
+  )?.role;
+  ok(savedRole === 'guest', 'Vai trò lưu đúng là guest chứ không rơi về mặc định', `role=${savedRole}`);
+
+  const mkTask = () =>
+    call('POST', '/tasks', {
+      token: guestToken,
+      body: {
+        title: `Việc do khách tạo ${stamp}`,
+        project: projectId,
+        startDate: '2026-10-02',
+        endDate: '2026-10-09',
+        estimatedHours: 2,
+      },
+    });
+
+  const blocked = await mkTask();
+  ok(blocked.status === 403, 'Mặc định khách không tạo được công việc', `status=${blocked.status}`);
+  ok(
+    /Khách chưa được cấp quyền/i.test(blocked.message || ''),
+    'Chặn bằng đúng nhánh dành cho khách, không phải nhánh thành viên thường',
+    blocked.message
+  );
+
+  // Bật công tắc mà giao diện Chi tiết dự án vẫn hiển thị — trước bản vá, bật
+  // hay tắt đều không đổi gì vì không ai từng là 'guest'.
+  const toggled = await call('PATCH', `/projects/${projectId}/permissions`, {
+    token: TOK.pm,
+    body: { allowGuestCreateTask: true },
+  });
+  ok(toggled.status === 200, 'Bật allowGuestCreateTask thành công', `status=${toggled.status}`);
+
+  const allowed = await mkTask();
+  ok(allowed.status === 201, 'Bật rồi thì khách tạo được công việc', `status=${allowed.status}`);
+
+  if (allowed.data?.task?._id) {
+    await call('DELETE', `/tasks/${allowed.data.task._id}`, { token: TOK.pm });
+  }
+  await call('DELETE', `/projects/${projectId}?force=true`, { token: TOK.pm });
 }
 
 process.exit(summary() ? 1 : 0);
