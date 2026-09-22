@@ -343,4 +343,59 @@ S('Nhật ký hoạt động — vết kiểm toán không được lẫn giữa
   }
 }
 
+// ══════════════════════════════════════════════
+S('Nhóm việc và việc lặp lại');
+{
+  // `taskGroup` vốn đã lọc đúng (`findOneAndUpdate` kèm `companyName`), giữ bài
+  // kiểm để nó không bị sửa hỏng về sau.
+  //
+  // `recurringTask` thì khác: `getRecurringTasks` lọc theo công ty từ lâu, nhưng
+  // ba đường thao tác theo id chỉ `findById` trần. Nặng nhất là `run-now` — nó
+  // **tạo công việc mới** trong dự án của cấu hình, nên người ngoài kích hoạt
+  // được việc ghi dữ liệu vào dự án công ty khác.
+  const grp = await call('POST', '/task-groups', {
+    token: TA,
+    body: { name: `Nhóm ${stamp}`, project: proj._id },
+  });
+  const grpId = grp.data?.group?._id;
+  ok(!!grpId, 'A tạo được nhóm việc', `status=${grp.status}`);
+
+  if (grpId) {
+    const edit = await call('PUT', `/task-groups/${grpId}`, { token: TB, body: { name: 'BỊ SỬA' } });
+    ok(edit.status !== 200, 'B không sửa được nhóm việc của A', `status=${edit.status}`);
+
+    const del = await call('DELETE', `/task-groups/${grpId}`, { token: TB });
+    ok(del.status !== 200, 'B không xóa được nhóm việc của A', `status=${del.status}`);
+
+    await call('DELETE', `/task-groups/${grpId}`, { token: TA });
+  }
+
+  const rec = await call('POST', '/recurring-tasks', {
+    token: TA,
+    body: {
+      title: `Lặp ${stamp}`,
+      project: proj._id,
+      frequency: 'weekly',
+      daysOfWeek: [1],
+      startDate: '2026-10-01',
+      durationHours: 4,
+    },
+  });
+  const recId = rec.data?.recurringTask?._id || rec.data?.item?._id || rec.data?._id;
+  ok(!!recId, 'A tạo được cấu hình lặp lại', `status=${rec.status}`);
+
+  if (recId) {
+    for (const [method, path, body, label] of [
+      ['PUT', `/recurring-tasks/${recId}`, { title: 'BỊ SỬA' }, 'sửa cấu hình'],
+      ['POST', `/recurring-tasks/${recId}/run-now`, {}, 'CHẠY NGAY — tạo công việc trong dự án của A'],
+      ['DELETE', `/recurring-tasks/${recId}`, null, 'xóa cấu hình'],
+    ]) {
+      const r = await call(method, path, { token: TB, ...(body ? { body } : {}) });
+      ok(r.status === 403, `B không ${label}`, `status=${r.status}`);
+    }
+
+    await call('DELETE', `/recurring-tasks/${recId}`, { token: TA });
+  }
+}
+
 process.exit(summary() ? 1 : 0);
