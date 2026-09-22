@@ -330,6 +330,19 @@ S('Đổi mật khẩu đuổi mọi phiên cũ');
 
   ok(!!changed.cookie && changed.cookie !== current.cookie,
     'Thiết bị vừa đổi mật khẩu được cấp phiên mới, không bị đá ra cùng');
+
+  // Client di động cũng phải nhận được phiên mới, nếu không thì đổi mật khẩu
+  // xong là tự đăng xuất chính mình sau 15 phút.
+  const mobile = await loginMobile();
+  const mobileChanged = await callMobile('PUT', '/auth/password', {
+    token: mobile.data.token,
+    body: { currentPassword: 'password123', newPassword: 'password123' },
+  });
+  ok(mobileChanged.status === 200, 'Mobile đổi mật khẩu → 200 (route là /auth/password)');
+  ok(!!mobileChanged.data?.refreshToken,
+    'Trả refresh token mới trong body để app lưu lại');
+  ok(mobileChanged.data.refreshToken !== mobile.data.refreshToken,
+    'Và đó là giá trị khác token cũ vừa bị thu hồi');
 }
 
 process.exit(summary() === 0 ? 0 : 1);
