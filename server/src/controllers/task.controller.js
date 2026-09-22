@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const Project = require('../models/Project');
 const User = require('../models/User');
@@ -5,6 +6,16 @@ const TaskGroup = require('../models/TaskGroup');
 const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
+const {
+  validateStatusTransition,
+  resolveReviewers,
+  isReviewOverdue,
+  CLOSED_STATUSES,
+} = require('../services/taskStatus.service');
+const {
+  dependencyTaskIds,
+  normalizeDependencies,
+} = require('../services/taskDependency.service');
 const {
   generateTaskTemplateWorkbook,
   parseTaskExcelBuffer,
@@ -16,12 +27,16 @@ const {
  */
 const recalculateProjectProgress = async (projectId) => {
   const tasks = await Task.find({ project: projectId }).select('progress status');
-  if (!tasks.length) {
+  // Việc đã đánh dấu Thất bại bị loại khỏi mẫu số: giữ lại thì một việc hỏng khiến
+  // dự án không bao giờ chạm 100% dù mọi việc còn lại đã xong. Nó được đếm riêng
+  // trong báo cáo ở mục 'failed'.
+  const counted = tasks.filter((t) => t.status !== 'failed');
+  if (!counted.length) {
     await Project.findByIdAndUpdate(projectId, { progress: 0 });
     return;
   }
-  const total = tasks.reduce((sum, t) => sum + (t.status === 'done' ? 100 : (t.progress || 0)), 0);
-  const progress = Math.round(total / tasks.length);
+  const total = counted.reduce((sum, t) => sum + (t.status === 'done' ? 100 : (t.progress || 0)), 0);
+  const progress = Math.round(total / counted.length);
   await Project.findByIdAndUpdate(projectId, { progress });
 };
 
@@ -187,12 +202,15 @@ const getTasks = async (req, res, next) => {
       Task.find(filter)
         .populate('project', 'name code status permissions members manager companyName')
         .populate('assignee', 'name email avatar department')
-        .populate('dependencies', 'title status')
+        .populate('dependencies.task', 'title status')
         .populate('taskGroup', 'name color order')
         .populate('followers', 'name email avatar')
         .populate('parentTask', 'title status')
         .populate('resultReport.submittedBy', 'name email avatar')
         .populate('resultReport.approvedBy', 'name email avatar')
+      .populate('reviewedBy', 'name email avatar')
+      .populate('reviewers', 'name email avatar')
+      .populate('failedBy', 'name email avatar')
         .populate('deadlineHistory.changedBy', 'name email avatar')
         .sort(sort)
         .skip(skip)
@@ -220,9 +238,9 @@ const getTasks = async (req, res, next) => {
 const getTaskById = async (req, res, next) => {
   try {
     const task = await Task.findById(req.params.id)
-      .populate('project', 'name code status members manager permissions companyName')
+      .populate('project', 'name code status members manager permissions failureConfig reviewConfig companyName')
       .populate('assignee', 'name email avatar department')
-      .populate('dependencies', 'title status priority startDate endDate progress')
+      .populate('dependencies.task', 'title status priority startDate endDate progress')
       .populate('taskGroup', 'name color order')
       .populate('followers', 'name email avatar')
       .populate('parentTask', 'title status priority')
@@ -274,7 +292,7 @@ const getTaskById = async (req, res, next) => {
  * @returns {String|null} thông báo lỗi, hoặc null nếu hợp lệ
  */
 const validateDependencies = async (dependencies, { taskId, projectId }) => {
-  const ids = [...new Set((dependencies || []).map(String))];
+  const ids = [...new Set(dependencyTaskIds(dependencies))];
   if (!ids.length) return null;
 
   if (taskId && ids.includes(String(taskId))) {
@@ -295,7 +313,7 @@ const validateDependencies = async (dependencies, { taskId, projectId }) => {
   // task đang sửa lại nằm trong chuỗi tiền nhiệm của một trong các lựa chọn mới.
   if (taskId) {
     const all = await Task.find({ project: projectId }).select('dependencies');
-    const graph = new Map(all.map((t) => [String(t._id), (t.dependencies || []).map(String)]));
+    const graph = new Map(all.map((t) => [String(t._id), dependencyTaskIds(t.dependencies)]));
 
     const queue = [...ids];
     const seen = new Set(queue);
@@ -346,8 +364,12 @@ const createTask = async (req, res, next) => {
     if (depError) {
       return res.status(400).json({ success: false, message: depError });
     }
-    if (Array.isArray(req.body.dependencies)) {
-      req.body.dependencies = [...new Set(req.body.dependencies.map(String))];
+    if (req.body.dependencies !== undefined) {
+      const normalized = normalizeDependencies(req.body.dependencies);
+      if (!normalized.ok) {
+        return res.status(400).json({ success: false, message: normalized.message });
+      }
+      req.body.dependencies = normalized.value;
     }
 
     const taskData = {
@@ -379,7 +401,7 @@ const createTask = async (req, res, next) => {
     const populated = await Task.findById(task._id)
       .populate('project', 'name code status')
       .populate('assignee', 'name email avatar department')
-      .populate('dependencies', 'title status')
+      .populate('dependencies.task', 'title status')
       .populate('taskGroup', 'name color order')
       .populate('followers', 'name email avatar')
       .populate('parentTask', 'title status');
@@ -450,7 +472,11 @@ const updateTask = async (req, res, next) => {
       if (depError) {
         return res.status(400).json({ success: false, message: depError });
       }
-      req.body.dependencies = [...new Set((req.body.dependencies || []).map(String))];
+      const normalized = normalizeDependencies(req.body.dependencies);
+      if (!normalized.ok) {
+        return res.status(400).json({ success: false, message: normalized.message });
+      }
+      req.body.dependencies = normalized.value;
     }
 
     // Auto-set progress to 100 when status changed to done
@@ -485,7 +511,7 @@ const updateTask = async (req, res, next) => {
     })
       .populate('project', 'name code status permissions members manager companyName')
       .populate('assignee', 'name email avatar department')
-      .populate('dependencies', 'title status')
+      .populate('dependencies.task', 'title status')
       .populate('taskGroup', 'name color order')
       .populate('followers', 'name email avatar')
       .populate('parentTask', 'title status')
@@ -558,7 +584,7 @@ const updateTask = async (req, res, next) => {
  */
 const updateTaskStatus = async (req, res, next) => {
   try {
-    const { status } = req.body;
+    const { status, failureReason } = req.body;
     const task = await Task.findById(req.params.id);
 
     if (!task) {
@@ -577,9 +603,38 @@ const updateTaskStatus = async (req, res, next) => {
       });
     }
 
+    // Dự án bật đánh giá thì chỉ người đánh giá mới kết luận được "xong"; người
+    // thực hiện đi đường PATCH /:id/complete.
+    const isReviewer = canApproveReview(task, project, req.user);
+
+    // Một chỗ duy nhất phán xét bước chuyển. Đặt trước mọi lệnh ghi để request bị
+    // từ chối không để lại thay đổi nửa vời nào trong DB.
+    const check = validateStatusTransition({
+      currentStatus: task.status,
+      nextStatus: status,
+      project,
+      failureReason,
+      isReviewer,
+    });
+    if (!check.valid) {
+      return res.status(400).json({ success: false, message: check.message });
+    }
+
     const updateData = { status };
     if (status === 'done') updateData.progress = 100;
     if (status === 'todo') updateData.progress = 0;
+
+    if (status === 'failed') {
+      updateData.failureReason = String(failureReason).trim();
+      updateData.failedAt = new Date();
+      updateData.failedBy = req.user._id;
+    } else if (task.status === 'failed') {
+      // Mở lại việc đã đóng: xóa vết thất bại cũ, nếu không báo cáo sẽ đọc được một
+      // công việc 'đang làm' mà vẫn kèm lý do thất bại từ lần trước.
+      updateData.failureReason = '';
+      updateData.failedAt = null;
+      updateData.failedBy = null;
+    }
 
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
@@ -614,12 +669,12 @@ const updateTaskStatus = async (req, res, next) => {
 
     logActivity({
       req,
-      action: 'UPDATE_TASK_STATUS',
+      action: status === 'failed' ? 'TASK_MARKED_FAILED' : 'UPDATE_TASK_STATUS',
       entityType: 'task',
       entityId: updatedTask._id,
       entityTitle: updatedTask.title,
       description: `Đổi trạng thái công việc "${updatedTask.title}" sang "${status}"`,
-      details: { oldStatus: task.status, newStatus: status },
+      details: { oldStatus: task.status, newStatus: status, ...(status === 'failed' ? { failureReason: updateData.failureReason } : {}) },
     });
 
     res.json({
@@ -660,8 +715,8 @@ const deleteTask = async (req, res, next) => {
 
     // Remove this task from other tasks' dependencies
     await Task.updateMany(
-      { dependencies: task._id },
-      { $pull: { dependencies: task._id } }
+      { 'dependencies.task': task._id },
+      { $pull: { dependencies: { task: task._id } } }
     );
 
     await task.deleteOne();
@@ -948,38 +1003,87 @@ const removeChecklistItem = async (req, res, next) => {
 };
 
 /**
- * @desc    Thêm người theo dõi công việc
+ * @desc    Thêm người theo dõi công việc (một hoặc nhiều người trong một lần gọi)
  * @route   POST /api/tasks/:id/followers
  * @access  Private
  */
 const addFollower = async (req, res, next) => {
   try {
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ success: false, message: 'Thiếu userId' });
+    // Nhận cả `userIds: []` lẫn `userId` đơn lẻ. Giao diện hiện tại còn gửi dạng đơn,
+    // đổi cứng sang mảng sẽ làm hỏng nút "Thêm người theo dõi" đang chạy.
+    const { userIds, userId } = req.body;
+    const requested = Array.isArray(userIds) ? userIds : userId ? [userId] : [];
+
+    if (!requested.length) {
+      return res.status(400).json({ success: false, message: 'Chưa chọn người theo dõi nào' });
+    }
+
+    const candidates = [...new Set(requested.map(String))].filter((id) =>
+      mongoose.Types.ObjectId.isValid(id)
+    );
+    if (!candidates.length) {
+      return res.status(400).json({ success: false, message: 'Danh sách người theo dõi không hợp lệ' });
+    }
 
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
 
-    if (task.followers.some(f => f.toString() === userId)) {
-      return res.status(400).json({ success: false, message: 'Người dùng đã theo dõi công việc này' });
+    const assigneeId = task.assignee ? task.assignee.toString() : null;
+    const current = new Set((task.followers || []).map((f) => f.toString()));
+
+    // Người thực hiện vốn đã nhận mọi thông báo của công việc; thêm họ làm người
+    // theo dõi chỉ nhân đôi thông báo và thêm một dòng thừa trong danh sách.
+    if (assigneeId && candidates.includes(assigneeId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Người thực hiện đã nhận thông báo của công việc, không cần thêm làm người theo dõi',
+      });
     }
 
-    task.followers.push(userId);
+    const toAdd = candidates.filter((id) => !current.has(id));
+    if (!toAdd.length) {
+      return res.status(400).json({ success: false, message: 'Những người này đã theo dõi công việc' });
+    }
+
+    // Chặn id trỏ tới tài khoản không tồn tại: mongoose vẫn lưu được, nhưng populate
+    // sẽ lặng lẽ bỏ qua, và danh sách hiện ra thiếu người mà không báo lỗi gì.
+    const found = await User.find({ _id: { $in: toAdd } }).select('_id');
+    if (found.length !== toAdd.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'Danh sách có người dùng không tồn tại',
+      });
+    }
+
+    if (current.size + toAdd.length > Task.MAX_FOLLOWERS) {
+      return res.status(400).json({
+        success: false,
+        message: `Tối đa ${Task.MAX_FOLLOWERS} người theo dõi trên một công việc`,
+      });
+    }
+
+    task.followers.push(...toAdd);
     await task.save();
     await task.populate('followers', 'name email avatar');
 
-    sendNotification({
-      recipient: userId,
-      actor: req.user._id,
-      type: 'task_follower_added',
-      title: 'Được thêm vào theo dõi công việc',
-      message: `${req.user.name} đã thêm bạn vào danh sách theo dõi công việc "${task.title}"`,
-      entityType: 'task',
-      entityId: task._id,
-      link: '/tasks',
+    toAdd.forEach((recipient) => {
+      sendNotification({
+        recipient,
+        actor: req.user._id,
+        type: 'task_follower_added',
+        title: 'Được thêm vào theo dõi công việc',
+        message: `${req.user.name} đã thêm bạn vào danh sách theo dõi công việc "${task.title}"`,
+        entityType: 'task',
+        entityId: task._id,
+        link: '/tasks',
+      });
     });
 
-    res.json({ success: true, data: { followers: task.followers }, message: 'Đã thêm người theo dõi' });
+    res.json({
+      success: true,
+      data: { followers: task.followers },
+      message: `Đã thêm ${toAdd.length} người theo dõi`,
+    });
   } catch (error) {
     next(error);
   }
@@ -995,7 +1099,18 @@ const removeFollower = async (req, res, next) => {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
 
-    task.followers = task.followers.filter(f => f.toString() !== req.params.userId);
+    const before = task.followers.length;
+    task.followers = task.followers.filter((f) => f.toString() !== req.params.userId);
+
+    // Trước đây luôn trả 200 kể cả khi người đó chưa từng theo dõi, nên giao diện
+    // không phân biệt được "đã gỡ xong" với "gỡ nhầm người".
+    if (task.followers.length === before) {
+      return res.status(404).json({
+        success: false,
+        message: 'Người này không nằm trong danh sách theo dõi công việc',
+      });
+    }
+
     await task.save();
     await task.populate('followers', 'name email avatar');
 
@@ -1004,7 +1119,6 @@ const removeFollower = async (req, res, next) => {
     next(error);
   }
 };
-
 /**
  * @desc    Lấy subtasks của một task
  * @route   GET /api/tasks/:id/subtasks
@@ -1132,8 +1246,23 @@ const reportTaskResult = async (req, res, next) => {
     }
 
     if (markAsDone) {
-      task.status = 'done';
-      task.progress = 100;
+      // Dự án bật đánh giá thì nộp báo cáo cũng chỉ đưa việc tới cửa người đánh
+      // giá. Để nguyên nhánh cũ là mở một đường vòng: ai nộp báo cáo cũng tự tuyên
+      // bố việc mình xong, và bước duyệt thành hình thức.
+      const project = await Project.findById(task.project);
+      if (project?.reviewConfig?.enabled) {
+        task.status = 'review';
+        task.completedAt = new Date();
+        task.reviewRequestedAt = task.completedAt;
+        task.reviewDecision = 'pending';
+        task.reviewedAt = null;
+        task.reviewedBy = null;
+        task.reviewComment = '';
+      } else {
+        task.status = 'done';
+        task.progress = 100;
+        task.completedAt = new Date();
+      }
     }
 
     await task.save();
@@ -1488,6 +1617,453 @@ const getTaskReminders = async (req, res, next) => {
   }
 };
 
+
+// ==========================================================================
+// BASE WEWORK — Luồng đánh giá kết quả công việc (Review)
+// ==========================================================================
+
+/**
+ * Người gọi có quyền kết luận kết quả công việc này không.
+ * Admin và quản lý dự án luôn có; ngoài ra là danh sách người đánh giá của công
+ * việc, thiếu thì lấy của dự án.
+ */
+const canApproveReview = (task, project, user) => {
+  if (['admin', 'project_manager'].includes(user.role)) return true;
+  const managerId = project?.manager?._id || project?.manager;
+  if (managerId && managerId.toString() === user._id.toString()) return true;
+  return resolveReviewers(task, project).includes(user._id.toString());
+};
+
+/**
+ * @desc    Người thực hiện báo hoàn thành công việc
+ * @route   PATCH /api/tasks/:id/complete
+ * @access  Private
+ *
+ * Dự án tắt đánh giá thì đây vẫn là đường cũ: việc chuyển thẳng sang Hoàn thành.
+ * Bật đánh giá thì việc dừng ở Chờ đánh giá — và `completedAt` được ghi ngay tại
+ * đây, vì đúng/trễ hạn phải tính theo lúc người làm xong việc, không theo lúc
+ * người đánh giá rảnh tay bấm duyệt.
+ */
+const completeTask = async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    if (task.status === 'done') {
+      return res.status(400).json({ success: false, message: 'Công việc đã hoàn thành' });
+    }
+
+    const project = await Project.findById(task.project);
+    const now = new Date();
+    const updateData = { completedAt: now };
+
+    if (project?.reviewConfig?.enabled) {
+      updateData.status = 'review';
+      updateData.reviewRequestedAt = now;
+      updateData.reviewDecision = 'pending';
+      // Xóa kết quả của vòng đánh giá trước: việc bị trả về rồi nộp lại mà vẫn còn
+      // dấu "đã duyệt" cũ thì không ai biết vòng này đã được xem hay chưa.
+      updateData.reviewedAt = null;
+      updateData.reviewedBy = null;
+      updateData.reviewComment = '';
+    } else {
+      updateData.status = 'done';
+      updateData.progress = 100;
+    }
+
+    const updated = await Task.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    })
+      .populate('project', 'name code')
+      .populate('assignee', 'name email avatar');
+
+    await recalculateProjectProgress(task.project);
+    if (task.assignee) await syncResourceWorkload(task.assignee);
+
+    if (updateData.status === 'review') {
+      resolveReviewers(task, project)
+        .filter((id) => id !== req.user._id.toString())
+        .forEach((recipient) => {
+          sendNotification({
+            recipient,
+            actor: req.user._id,
+            type: 'task_review_requested',
+            title: 'Công việc chờ bạn đánh giá',
+            message: `${req.user.name} đã báo hoàn thành công việc "${task.title}"`,
+            entityType: 'task',
+            entityId: task._id,
+            link: '/tasks',
+          });
+        });
+    }
+
+    logActivity({
+      req,
+      action: updateData.status === 'review' ? 'TASK_REVIEW_REQUESTED' : 'UPDATE_TASK_STATUS',
+      entityType: 'task',
+      entityId: task._id,
+      entityTitle: task.title,
+      description: `${req.user.name} đã báo hoàn thành công việc "${task.title}"`,
+      details: { oldStatus: task.status, newStatus: updateData.status },
+    });
+
+    res.json({
+      success: true,
+      data: { task: updated },
+      message:
+        updateData.status === 'review'
+          ? 'Đã gửi công việc sang bước đánh giá'
+          : 'Đã hoàn thành công việc',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Người đánh giá duyệt hoặc trả lại công việc
+ * @route   POST /api/tasks/:id/review
+ * @access  Private
+ */
+const reviewTask = async (req, res, next) => {
+  try {
+    const { decision, comment } = req.body;
+
+    if (!['approve', 'reject'].includes(decision)) {
+      return res.status(400).json({ success: false, message: 'Quyết định đánh giá không hợp lệ' });
+    }
+
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    if (task.status !== 'review') {
+      return res.status(400).json({
+        success: false,
+        message: 'Công việc không ở trạng thái Chờ đánh giá',
+      });
+    }
+
+    const project = await Project.findById(task.project);
+    if (!canApproveReview(task, project, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không nằm trong danh sách người đánh giá của công việc này',
+      });
+    }
+
+    // Trả lại mà không nói vì sao thì người làm chỉ biết mình "bị từ chối", và vòng
+    // sau rất dễ hỏng lại đúng chỗ cũ.
+    if (decision === 'reject' && !String(comment || '').trim()) {
+      return res.status(400).json({ success: false, message: 'Cần nhập lý do khi trả lại công việc' });
+    }
+
+    const now = new Date();
+    const approved = decision === 'approve';
+    const updateData = {
+      reviewedAt: now,
+      reviewedBy: req.user._id,
+      reviewDecision: approved ? 'approved' : 'rejected',
+      reviewComment: String(comment || '').trim(),
+      status: approved ? 'done' : 'in_progress',
+    };
+
+    if (approved) {
+      updateData.progress = 100;
+      // Đóng nốt phiếu báo cáo kết quả đã có sẵn trong schema: hai field approvedBy/
+      // approvedAt từ trước tới nay chưa có đường nào ghi vào.
+      if (task.resultReport?.submittedAt) {
+        updateData['resultReport.approvedBy'] = req.user._id;
+        updateData['resultReport.approvedAt'] = now;
+      }
+    }
+
+    const updated = await Task.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    })
+      .populate('project', 'name code')
+      .populate('assignee', 'name email avatar')
+      .populate('reviewedBy', 'name email avatar');
+
+    await recalculateProjectProgress(task.project);
+    if (task.assignee) await syncResourceWorkload(task.assignee);
+
+    if (task.assignee && task.assignee.toString() !== req.user._id.toString()) {
+      sendNotification({
+        recipient: task.assignee,
+        actor: req.user._id,
+        type: approved ? 'task_review_approved' : 'task_review_rejected',
+        title: approved ? 'Công việc đã được duyệt' : 'Công việc bị trả lại',
+        message: approved
+          ? `${req.user.name} đã duyệt công việc "${task.title}"`
+          : `${req.user.name} trả lại công việc "${task.title}": ${updateData.reviewComment}`,
+        entityType: 'task',
+        entityId: task._id,
+        link: '/tasks',
+      });
+    }
+
+    logActivity({
+      req,
+      action: approved ? 'TASK_REVIEW_APPROVED' : 'TASK_REVIEW_REJECTED',
+      entityType: 'task',
+      entityId: task._id,
+      entityTitle: task.title,
+      description: `${req.user.name} đã ${approved ? 'duyệt' : 'trả lại'} công việc "${task.title}"`,
+      details: { decision: updateData.reviewDecision, comment: updateData.reviewComment },
+    });
+
+    res.json({
+      success: true,
+      data: { task: updated },
+      message: approved ? 'Đã duyệt công việc' : 'Đã trả lại công việc cho người thực hiện',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Danh sách công việc đang chờ đánh giá
+ * @route   GET /api/tasks/pending-review
+ * @access  Private
+ */
+const getPendingReviews = async (req, res, next) => {
+  try {
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    const companyProjects = await Project.find({
+      companyName:
+        userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
+    }).select('_id manager reviewConfig');
+
+    const projectMap = new Map(companyProjects.map((p) => [p._id.toString(), p]));
+
+    const tasks = await Task.find({
+      status: 'review',
+      project: { $in: companyProjects.map((p) => p._id) },
+    })
+      .populate('project', 'name code')
+      .populate('assignee', 'name email avatar')
+      .populate('reviewers', 'name email avatar')
+      .sort({ reviewRequestedAt: 1 });
+
+    const now = new Date();
+    const visible = tasks
+      .filter((task) => canApproveReview(task, projectMap.get(String(task.project?._id || task.project)), req.user))
+      .map((task) => {
+        const project = projectMap.get(String(task.project?._id || task.project));
+        return {
+          ...task.toObject(),
+          slaHours: project?.reviewConfig?.slaHours || 24,
+          isOverdueReview: isReviewOverdue(task, project, now),
+          waitingHours: task.reviewRequestedAt
+            ? Math.round(((now - new Date(task.reviewRequestedAt)) / 3600000) * 10) / 10
+            : null,
+        };
+      });
+
+    res.json({
+      success: true,
+      data: {
+        tasks: visible,
+        total: visible.length,
+        overdue: visible.filter((t) => t.isOverdueReview).length,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// ==========================================================================
+// BASE WEWORK — Bàn giao công việc hàng loạt (Bulk reassign)
+// ==========================================================================
+
+/**
+ * Điều kiện lọc tập công việc sẽ bị bàn giao.
+ *
+ * Việc đã `done` hoặc `failed` KHÔNG bao giờ nằm trong tập này: đổi người thực hiện
+ * của một việc đã ngã ngũ là viết lại lịch sử ai đã thực sự làm nó.
+ */
+const buildReassignFilter = ({ fromUserId, projectId, taskIds, projectScopeIds }) => {
+  const filter = {
+    assignee: fromUserId,
+    status: { $nin: CLOSED_STATUSES },
+    project: { $in: projectScopeIds },
+  };
+
+  if (projectId) filter.project = projectId;
+  if (Array.isArray(taskIds) && taskIds.length) filter._id = { $in: taskIds };
+
+  return filter;
+};
+
+/** Các dự án thuộc công ty của người đang đăng nhập. */
+const companyProjectIds = async (user) => {
+  const userCompany = (user && user.companyName) || 'Công ty Công nghệ RAO';
+  const projects = await Project.find({
+    companyName:
+      userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
+  }).select('_id');
+  return projects.map((p) => p._id);
+};
+
+/**
+ * @desc    Xem trước các công việc sẽ bị bàn giao
+ * @route   GET /api/tasks/reassign-preview
+ * @access  Admin, Project Manager
+ *
+ * Bắt buộc gọi trước khi bàn giao thật: một lệnh đổi nhầm phạm vi có thể cuốn theo
+ * hàng chục công việc ở dự án không liên quan, và không có bước xem trước thì người
+ * bấm nút chỉ biết điều đó sau khi đã xong.
+ */
+const previewReassign = async (req, res, next) => {
+  try {
+    const { fromUserId, projectId } = req.query;
+
+    if (!fromUserId || !mongoose.Types.ObjectId.isValid(fromUserId)) {
+      return res.status(400).json({ success: false, message: 'Thiếu hoặc sai người bàn giao' });
+    }
+
+    const scopeIds = await companyProjectIds(req.user);
+    const tasks = await Task.find(buildReassignFilter({ fromUserId, projectId, projectScopeIds: scopeIds }))
+      .populate('project', 'name code')
+      .select('title status priority startDate endDate estimatedHours project reviewers')
+      .sort({ endDate: 1 });
+
+    const totalHours = tasks.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
+
+    res.json({
+      success: true,
+      data: {
+        tasks,
+        total: tasks.length,
+        totalEstimatedHours: Math.round(totalHours * 10) / 10,
+        byStatus: tasks.reduce((acc, t) => {
+          acc[t.status] = (acc[t.status] || 0) + 1;
+          return acc;
+        }, {}),
+        // Nói thẳng cái không nằm trong tập, thay vì để người dùng tự đoán vì sao
+        // con số nhỏ hơn họ tưởng.
+        excludedNote: 'Công việc đã Hoàn thành hoặc Thất bại không được bàn giao',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Bàn giao hàng loạt công việc từ người này sang người khác
+ * @route   POST /api/tasks/bulk-reassign
+ * @access  Admin, Project Manager
+ */
+const bulkReassign = async (req, res, next) => {
+  try {
+    const { fromUserId, toUserId, projectId, taskIds, reason } = req.body;
+
+    if (!fromUserId || !mongoose.Types.ObjectId.isValid(fromUserId)) {
+      return res.status(400).json({ success: false, message: 'Thiếu hoặc sai người bàn giao' });
+    }
+    if (!toUserId || !mongoose.Types.ObjectId.isValid(toUserId)) {
+      return res.status(400).json({ success: false, message: 'Thiếu hoặc sai người nhận bàn giao' });
+    }
+    if (String(fromUserId) === String(toUserId)) {
+      return res.status(400).json({ success: false, message: 'Người bàn giao và người nhận phải khác nhau' });
+    }
+
+    const recipient = await User.findById(toUserId).select('_id name isActive');
+    if (!recipient) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người nhận bàn giao' });
+    }
+    if (recipient.isActive === false) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không bàn giao được cho tài khoản đã bị vô hiệu hóa',
+      });
+    }
+
+    const scopeIds = await companyProjectIds(req.user);
+    const filter = buildReassignFilter({ fromUserId, projectId, taskIds, projectScopeIds: scopeIds });
+
+    const tasks = await Task.find(filter).select('_id title status project');
+    if (!tasks.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có công việc nào phù hợp để bàn giao',
+      });
+    }
+
+    // Chỉ đổi người thực hiện. `reviewers` cố ý giữ nguyên kể cả với việc đang chờ
+    // đánh giá: người nộp và người duyệt là hai vai khác nhau, gộp lại thì người mới
+    // có thể tự duyệt việc vừa nhận.
+    const movedIds = tasks.map((t) => t._id);
+    await Task.updateMany({ _id: { $in: movedIds } }, { assignee: toUserId });
+
+    await recalculateProjectProgressFor(tasks);
+    await syncResourceWorkload([fromUserId, toUserId]);
+
+    sendNotification({
+      recipient: toUserId,
+      actor: req.user._id,
+      type: 'task_assigned',
+      title: 'Bạn được bàn giao công việc',
+      message: `${req.user.name} đã bàn giao ${movedIds.length} công việc cho bạn${
+        reason ? `: ${reason}` : ''
+      }`,
+      entityType: 'task',
+      entityId: movedIds[0],
+      link: '/tasks',
+    });
+
+    // Một bản ghi cho cả lô, không phải mỗi việc một dòng: thao tác này là một quyết
+    // định duy nhất, và tách ra thành 40 dòng sẽ chôn vùi nhật ký của mọi thứ khác.
+    logActivity({
+      req,
+      action: 'BULK_REASSIGN',
+      entityType: 'task',
+      entityId: movedIds[0],
+      entityTitle: `${movedIds.length} công việc`,
+      description: `${req.user.name} đã bàn giao ${movedIds.length} công việc sang người khác`,
+      details: {
+        fromUserId: String(fromUserId),
+        toUserId: String(toUserId),
+        projectId: projectId ? String(projectId) : null,
+        taskIds: movedIds.map(String),
+        reason: reason || '',
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        movedCount: movedIds.length,
+        taskIds: movedIds,
+        // RAO có solver phân bổ, nên sau khi bàn giao thì kiểm tra người nhận có quá
+        // tải không là việc làm được ngay — nhưng chỉ gợi ý, không tự chạy: đây là
+        // thao tác bàn giao, không phải lệnh tối ưu hóa lại cả dự án.
+        suggestion: {
+          message: 'Nên kiểm tra tải của người nhận sau khi bàn giao',
+          endpoint: `/api/optimization/readiness${projectId ? `?projectId=${projectId}` : ''}`,
+        },
+      },
+      message: `Đã bàn giao ${movedIds.length} công việc`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Tính lại tiến độ cho mọi dự án có công việc vừa đổi chủ. */
+const recalculateProjectProgressFor = async (tasks) => {
+  const projectIds = [...new Set(tasks.map((t) => String(t.project)).filter(Boolean))];
+  for (const id of projectIds) {
+    await recalculateProjectProgress(id);
+  }
+};
+
 // Re-export tất cả bao gồm các endpoint mới
 module.exports = {
   getTasks,
@@ -1515,5 +2091,10 @@ module.exports = {
   previewExcelTasks,
   importExcelTasks,
   getTaskReminders,
+  completeTask,
+  reviewTask,
+  getPendingReviews,
+  previewReassign,
+  bulkReassign,
 };
 

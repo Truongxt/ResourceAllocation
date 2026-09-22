@@ -94,7 +94,7 @@ section('Giá trị enum khớp schema');
   const expected = {
     'enums.role': ['admin', 'project_manager', 'member'],
     'enums.projectStatus': ['planning', 'in_progress', 'on_hold', 'completed', 'cancelled'],
-    'enums.taskStatus': ['todo', 'in_progress', 'review', 'done', 'blocked'],
+    'enums.taskStatus': ['todo', 'in_progress', 'review', 'done', 'blocked', 'failed'],
     'enums.priority': ['low', 'medium', 'high', 'critical'],
     'enums.availability': ['available', 'partially_available', 'unavailable'],
   };

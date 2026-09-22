@@ -44,6 +44,12 @@ const projectService = {
     return api.patch(`/projects/${id}/permissions`, { permissions });
   },
 
+  // Cấu hình đánh dấu Thất bại và luồng Đánh giá dùng chung endpoint trên:
+  // cùng một người quyết, cùng một màn hình cài đặt dự án.
+  updateWorkflowConfig(id, config) {
+    return api.patch(`/projects/${id}/permissions`, config);
+  },
+
   // Base Wework: Chỉnh sửa nhanh (Quick Edit) dự án / phòng ban
   quickUpdate(id, data) {
     return api.patch(`/projects/${id}/quick-edit`, data);

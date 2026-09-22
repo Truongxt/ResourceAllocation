@@ -124,6 +124,26 @@ const projectSchema = new mongoose.Schema(
       allowMembersViewAllTasks: { type: Boolean, default: true },
       allowGuestCreateTask: { type: Boolean, default: false },
     },
+    // Base Wework: cấu hình đánh dấu công việc Thất bại. Bật theo từng dự án chứ
+    // không bật toàn hệ thống — một dự án nghiên cứu chấp nhận thất bại là chuyện
+    // thường, một dự án bàn giao khách hàng thì không.
+    failureConfig: {
+      enabled: { type: Boolean, default: false },
+      // Admin và quản lý dự án luôn được phép, không cần khai ở đây.
+      allowedRoles: {
+        type: [String],
+        enum: ['assigner', 'assignee', 'follower'],
+        default: [],
+      },
+    },
+    // Base Wework: cấu hình đánh giá công việc trước khi đóng. Tắt mặc định để các
+    // dự án đang chạy không đột ngột mọc thêm một bước duyệt mà không ai được báo.
+    reviewConfig: {
+      enabled: { type: Boolean, default: false },
+      reviewers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+      // Thời hạn người đánh giá phải xử lý, tính từ lúc việc vào trạng thái chờ.
+      slaHours: { type: Number, default: 24, min: 1 },
+    },
   },
   {
     timestamps: true,

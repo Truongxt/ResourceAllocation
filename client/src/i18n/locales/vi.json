@@ -68,7 +68,8 @@
       "in_progress": "Đang làm",
       "review": "Đánh giá",
       "done": "Hoàn thành",
-      "blocked": "Bị chặn"
+      "blocked": "Bị chặn",
+      "failed": "Thất bại"
     },
     "priority": {
       "low": "Thấp",
@@ -582,7 +583,45 @@
     "add": "Thêm công việc",
     "titleColumn": "Tiêu đề công việc",
     "permissionDenied": "Bạn không có quyền chuyển trạng thái công việc này",
-    "statusUpdated": "Đã cập nhật trạng thái công việc"
+    "statusUpdated": "Đã cập nhật trạng thái công việc",
+    "failure": {
+      "mark": "Đánh dấu thất bại",
+      "reasonLabel": "Lý do thất bại",
+      "reasonRequired": "Cần nhập lý do thất bại",
+      "reasonPlaceholder": "Vì sao công việc này không hoàn thành được?",
+      "failedBy": "Đánh dấu bởi {{name}}"
+    },
+    "review": {
+      "complete": "Báo hoàn thành",
+      "pending": "Chờ đánh giá",
+      "pendingList": "Việc chờ tôi đánh giá",
+      "approve": "Duyệt",
+      "reject": "Trả lại",
+      "commentLabel": "Nhận xét",
+      "commentRequired": "Cần nhập lý do khi trả lại công việc",
+      "commentPlaceholder": "Cần sửa gì trước khi nộp lại?",
+      "reviewers": "Người đánh giá",
+      "slaHours": "Thời hạn đánh giá (giờ)",
+      "overdue": "Quá hạn đánh giá",
+      "waiting": "Đã chờ {{hours}} giờ",
+      "approvedBy": "Duyệt bởi {{name}}",
+      "rejectedBy": "Trả lại bởi {{name}}",
+      "sentForReview": "Đã gửi công việc sang bước đánh giá"
+    },
+    "reassign": {
+      "title": "Bàn giao công việc",
+      "fromUser": "Người bàn giao",
+      "toUser": "Người nhận",
+      "scopeProject": "Giới hạn trong dự án",
+      "reason": "Lý do bàn giao",
+      "reasonPlaceholder": "Ví dụ: nhân sự nghỉ việc, điều chuyển phòng ban",
+      "preview": "Xem trước",
+      "previewCount": "{{count}} công việc sẽ được bàn giao",
+      "excludedNote": "Công việc đã Hoàn thành hoặc Thất bại không được bàn giao",
+      "confirm": "Bàn giao",
+      "done": "Đã bàn giao {{count}} công việc",
+      "checkWorkload": "Nên kiểm tra tải của người nhận sau khi bàn giao"
+    }
   },
   "projectDetail": {
     "loadFailed": "Không thể tải dự án",

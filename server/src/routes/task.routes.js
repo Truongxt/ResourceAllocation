@@ -2,11 +2,13 @@ const express = require('express');
 const multer = require('multer');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
+const { TASK_STATUSES } = require('../services/taskStatus.service');
 const { protect, authorize } = require('../middleware/auth');
 const {
   canCreateTask,
   canModifyTask,
   canUpdateTaskStatus,
+  canCompleteTask,
   canUpdateDeadline,
   canDeleteTask,
   canManageFollowers,
@@ -41,6 +43,11 @@ const {
   previewExcelTasks,
   importExcelTasks,
   getTaskReminders,
+  completeTask,
+  reviewTask,
+  getPendingReviews,
+  previewReassign,
+  bulkReassign,
 } = require('../controllers/task.controller');
 
 const router = express.Router();
@@ -54,7 +61,7 @@ const listValidation = [
   query('project').optional().isMongoId().withMessage('ID dự án không hợp lệ'),
   query('status')
     .optional()
-    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .isIn(TASK_STATUSES)
     .withMessage('Trạng thái không hợp lệ'),
   query('priority')
     .optional()
@@ -82,7 +89,7 @@ const createValidation = [
     .withMessage('Mô tả không vượt quá 5000 ký tự'),
   body('status')
     .optional()
-    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .isIn(TASK_STATUSES)
     .withMessage('Trạng thái không hợp lệ'),
   body('priority')
     .optional()
@@ -96,7 +103,6 @@ const createValidation = [
     .withMessage('Giờ ước tính phải >= 0'),
   body('assignee').optional({ nullable: true }).isMongoId().withMessage('ID nhân sự không hợp lệ'),
   body('dependencies').optional().isArray().withMessage('Dependencies phải là mảng'),
-  body('dependencies.*').optional().isMongoId().withMessage('ID công việc tiền nhiệm không hợp lệ'),
   body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
   body('requiredSkills.*.name').trim().notEmpty().withMessage('Tên kỹ năng yêu cầu không được để trống'),
   body('requiredSkills.*.level').optional().isInt({ min: 1, max: 4 }).withMessage('Level kỹ năng yêu cầu phải từ 1 đến 4'),
@@ -118,7 +124,7 @@ const updateValidation = [
     .withMessage('Mô tả không vượt quá 5000 ký tự'),
   body('status')
     .optional()
-    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .isIn(TASK_STATUSES)
     .withMessage('Trạng thái không hợp lệ'),
   body('priority')
     .optional()
@@ -140,7 +146,6 @@ const updateValidation = [
     .withMessage('Tiến độ phải từ 0 đến 100'),
   body('assignee').optional({ nullable: true }).isMongoId().withMessage('ID nhân sự không hợp lệ'),
   body('dependencies').optional().isArray().withMessage('Dependencies phải là mảng'),
-  body('dependencies.*').optional().isMongoId().withMessage('ID công việc tiền nhiệm không hợp lệ'),
   body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
   body('requiredSkills.*.name').trim().notEmpty().withMessage('Tên kỹ năng yêu cầu không được để trống'),
   body('requiredSkills.*.level').optional().isInt({ min: 1, max: 4 }).withMessage('Level kỹ năng yêu cầu phải từ 1 đến 4'),
@@ -151,7 +156,7 @@ const statusValidation = [
   body('status')
     .notEmpty()
     .withMessage('Trạng thái là bắt buộc')
-    .isIn(['todo', 'in_progress', 'review', 'done', 'blocked'])
+    .isIn(TASK_STATUSES)
     .withMessage('Trạng thái không hợp lệ'),
 ];
 
@@ -166,6 +171,15 @@ router.post('/excel/preview', upload.single('file'), previewExcelTasks);
 router.post('/excel/import', upload.single('file'), importExcelTasks);
 // Base Wework: Reminders (Nhắc nhở công việc cần hoàn thành - đặt trước /:id)
 router.get('/reminders', getTaskReminders);
+
+// Việc đang chờ đánh giá. Đặt trên mọi route /:id, nếu không Express hiểu
+// 'pending-review' là một id công việc.
+router.get('/pending-review', getPendingReviews);
+
+// Bàn giao công việc hàng loạt. Cũng phải đứng trên /:id, và chỉ Admin/PM —
+// đây là thao tác đổi chủ hàng loạt, không phải sửa một công việc.
+router.get('/reassign-preview', authorize('admin', 'project_manager'), previewReassign);
+router.post('/bulk-reassign', authorize('admin', 'project_manager'), bulkReassign);
 
 router.get('/', listValidation, validate, getTasks);
 router.get('/:id', taskIdValidation, validate, getTaskById);
@@ -182,6 +196,10 @@ router.put(
   updateTask
 );
 router.patch('/:id/status', taskIdValidation, statusValidation, validate, canUpdateTaskStatus(), updateTaskStatus);
+
+// Luồng đánh giá kết quả (Base Wework)
+router.patch('/:id/complete', taskIdValidation, validate, canCompleteTask(), completeTask);
+router.post('/:id/review', taskIdValidation, validate, reviewTask);
 
 router.delete('/:id', taskIdValidation, validate, canDeleteTask(), deleteTask);
 

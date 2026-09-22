@@ -68,7 +68,8 @@
       "in_progress": "In progress",
       "review": "Review",
       "done": "Done",
-      "blocked": "Blocked"
+      "blocked": "Blocked",
+      "failed": "Failed"
     },
     "priority": {
       "low": "Low",
@@ -582,7 +583,45 @@
     "add": "Add Task",
     "titleColumn": "Task Title",
     "permissionDenied": "You do not have permission to change this task status",
-    "statusUpdated": "Task status updated"
+    "statusUpdated": "Task status updated",
+    "failure": {
+      "mark": "Mark as failed",
+      "reasonLabel": "Failure reason",
+      "reasonRequired": "A failure reason is required",
+      "reasonPlaceholder": "Why could this task not be completed?",
+      "failedBy": "Marked by {{name}}"
+    },
+    "review": {
+      "complete": "Mark complete",
+      "pending": "Pending review",
+      "pendingList": "Waiting for my review",
+      "approve": "Approve",
+      "reject": "Send back",
+      "commentLabel": "Comment",
+      "commentRequired": "A comment is required when sending a task back",
+      "commentPlaceholder": "What needs fixing before it is resubmitted?",
+      "reviewers": "Reviewers",
+      "slaHours": "Review deadline (hours)",
+      "overdue": "Review overdue",
+      "waiting": "Waiting {{hours}}h",
+      "approvedBy": "Approved by {{name}}",
+      "rejectedBy": "Sent back by {{name}}",
+      "sentForReview": "Task sent for review"
+    },
+    "reassign": {
+      "title": "Hand over tasks",
+      "fromUser": "From",
+      "toUser": "To",
+      "scopeProject": "Limit to project",
+      "reason": "Reason",
+      "reasonPlaceholder": "e.g. left the company, moved to another team",
+      "preview": "Preview",
+      "previewCount": "{{count}} tasks will be handed over",
+      "excludedNote": "Completed or failed tasks are never handed over",
+      "confirm": "Hand over",
+      "done": "Handed over {{count}} tasks",
+      "checkWorkload": "Check the new assignee workload afterwards"
+    }
   },
   "projectDetail": {
     "loadFailed": "Could not load the project",

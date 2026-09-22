@@ -1,5 +1,35 @@
 const mongoose = require('mongoose');
 
+// Trần người theo dõi trên một công việc. Base Wework để 300; RAO ở quy mô nhỏ hơn
+// nên chặn ở 50 — đủ rộng cho một phòng ban, đủ hẹp để một lần cập nhật task không
+// bắn hàng trăm thông báo.
+const MAX_FOLLOWERS = 50;
+
+const { DEPENDENCY_TYPES, DEFAULT_DEPENDENCY_TYPE } = require('../services/taskDependency.service');
+
+// `_id: false`: phần tử phụ thuộc là một cặp (công việc, loại quan hệ), không phải
+// thực thể có danh tính riêng — sinh thêm _id chỉ làm payload nặng và gây nhầm lẫn
+// khi so sánh hai danh sách.
+const dependencySchema = new mongoose.Schema(
+  {
+    task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', required: true },
+    type: { type: String, enum: DEPENDENCY_TYPES, default: DEFAULT_DEPENDENCY_TYPE },
+  },
+  { _id: false }
+);
+
+// Nhận cả mảng id phẳng (dữ liệu cũ, client cũ, và mọi lệnh Task.create viết tay)
+// rồi bọc thành { task, type }. Hàm idempotent nên chạy lại trên dạng mới vô hại.
+const coerceDependencies = (value) => {
+  if (!Array.isArray(value)) return value;
+  return value.map((dep) => {
+    if (dep && typeof dep === 'object' && ('task' in dep || 'taskId' in dep)) {
+      return { task: dep.task || dep.taskId, type: dep.type };
+    }
+    return { task: dep };
+  });
+};
+
 const taskSchema = new mongoose.Schema(
   {
     title: {
@@ -30,7 +60,7 @@ const taskSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['todo', 'in_progress', 'review', 'done', 'blocked'],
+      enum: ['todo', 'in_progress', 'review', 'done', 'blocked', 'failed'],
       default: 'todo',
     },
     priority: {
@@ -64,12 +94,16 @@ const taskSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
-    followers: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+    // Người theo dõi: xem và bình luận, KHÔNG phải người thực hiện. Trần 50 đặt ở
+    // schema chứ không ở controller, để mọi đường ghi (tạo task, nhân bản, import
+    // Excel, sinh từ công việc lặp lại) đều bị chặn như nhau.
+    followers: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+      validate: {
+        validator: (arr) => !arr || arr.length <= MAX_FOLLOWERS,
+        message: `Tối đa ${MAX_FOLLOWERS} người theo dõi trên một công việc`,
       },
-    ],
+    },
     checklist: [
       {
         title: { type: String, required: true, trim: true },
@@ -106,12 +140,12 @@ const taskSchema = new mongoose.Schema(
         },
       },
     ],
-    dependencies: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Task',
-      },
-    ],
+    // Mỗi phụ thuộc mang theo loại quan hệ. Bản ghi cũ là mảng ObjectId phẳng và
+    // được migrate sang 'finish_to_start' bằng `npm run migrate:dependencies`.
+    dependencies: {
+      type: [dependencySchema],
+      set: coerceDependencies,
+    },
     companyName: {
       type: String,
       trim: true,
@@ -171,6 +205,29 @@ const taskSchema = new mongoose.Schema(
         changedAt: { type: Date, default: Date.now },
       },
     ],
+    // Base Wework: luồng đánh giá kết quả.
+    // Người đánh giá riêng cho công việc này; để trống thì dùng danh sách của dự án.
+    reviewers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    // Mốc người thực hiện bấm Hoàn thành. Đây là nguồn sự thật để tính đúng/trễ hạn —
+    // KHÔNG dùng reviewedAt, vì người thực hiện không chịu trách nhiệm cho việc người
+    // đánh giá duyệt chậm.
+    completedAt: { type: Date, default: null },
+    reviewRequestedAt: { type: Date, default: null },
+    reviewedAt: { type: Date, default: null },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    reviewDecision: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+    },
+    reviewComment: { type: String, trim: true, maxlength: 2000, default: '' },
+
+    // Base Wework: vết của việc bị đánh dấu Thất bại. Lý do là bắt buộc — một công
+    // việc đóng lại mà không ai biết vì sao thì báo cáo cuối kỳ không trả lời được gì.
+    failureReason: { type: String, trim: true, maxlength: 1000, default: '' },
+    failedAt: { type: Date, default: null },
+    failedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+
     // Base Wework: Liên kết công việc lặp lại gốc
     recurringTaskId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -197,5 +254,7 @@ taskSchema.index({ assignee: 1 });
 taskSchema.index({ createdBy: 1 });
 taskSchema.index({ followers: 1 });
 taskSchema.index({ startDate: 1, endDate: 1 });
+
+taskSchema.statics.MAX_FOLLOWERS = MAX_FOLLOWERS;
 
 module.exports = mongoose.model('Task', taskSchema);

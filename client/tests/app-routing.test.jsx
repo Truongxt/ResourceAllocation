@@ -35,7 +35,12 @@ vi.mock('../src/services/analyticsService', () => ({
 
 const { default: App } = await import('../src/App.jsx');
 
-const DASHBOARD_TEXT = 'Theo dõi tiến độ và những việc cần điều chỉnh trong nhóm.';
+// Mốc nhận biết chunk Dashboard đã về. Neo vào tiêu đề trang (role heading) chứ không
+// vào câu mô tả bên dưới: câu đó là copy giao diện, đổi theo mỗi lần thiết kế lại, và
+// đã từng làm cả bộ test định tuyến này đỏ oan dù định tuyến không hỏng gì.
+// Cần chốt level: Header cũng in tên trang "Tổng quan" ở một heading khác.
+const dashboardHeading = () => screen.queryByRole('heading', { level: 3, name: 'Tổng quan' });
+const findDashboardHeading = () => screen.findByRole('heading', { level: 3, name: 'Tổng quan' });
 
 describe('Định tuyến và nạp trang theo chunk', () => {
   it('khung layout đứng yên trong lúc chunk của trang đang tải', async () => {
@@ -44,13 +49,13 @@ describe('Định tuyến và nạp trang theo chunk', () => {
 
     // Ngay sau render, chunk Dashboard chưa về: fallback đang hiện...
     expect(container.querySelector('.spinner')).toBeTruthy();
-    expect(screen.queryByText(DASHBOARD_TEXT)).toBeNull();
+    expect(dashboardHeading()).toBeNull();
     // ...nhưng sidebar và header phải còn nguyên. Đây là lý do ranh giới Suspense
     // nằm trong Content chứ không bọc cả <Routes>.
     expect(container.querySelector('.ant-layout-sider')).toBeTruthy();
     expect(container.querySelector('.ant-layout-header')).toBeTruthy();
 
-    await screen.findByText(DASHBOARD_TEXT);
+    await findDashboardHeading();
     expect(container.querySelector('.spinner')).toBeNull();
   });
 
@@ -67,14 +72,14 @@ describe('Định tuyến và nạp trang theo chunk', () => {
     auth.current = authState();
     renderWithProviders(<App />, { route: '/duong-dan-khong-co-that' });
 
-    await screen.findByText(DASHBOARD_TEXT);
+    await findDashboardHeading();
   });
 
   it('đã đăng nhập mà vào /login thì bị đẩy về trang chủ', async () => {
     auth.current = authState();
     renderWithProviders(<App />, { route: '/login' });
 
-    await screen.findByText(DASHBOARD_TEXT);
+    await findDashboardHeading();
     expect(screen.queryByText('Đăng nhập hệ thống')).toBeNull();
   });
 });

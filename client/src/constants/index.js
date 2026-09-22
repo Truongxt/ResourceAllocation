@@ -33,7 +33,7 @@ export const PROJECT_STATUS = Object.fromEntries(
 // vốn không phụ thuộc ngôn ngữ.
 
 // ──────────────────────────────────────────────
-// Task status — khớp Task.status (5 giá trị, gồm 'review' và 'blocked')
+// Task status — khớp Task.status (6 giá trị, gồm 'review', 'blocked' và 'failed')
 // ──────────────────────────────────────────────
 export const TASK_STATUSES = [
   { key: 'todo', color: '#94a3b8', badgeColor: 'default' },
@@ -41,6 +41,7 @@ export const TASK_STATUSES = [
   { key: 'review', color: '#f59e0b', badgeColor: 'warning' },
   { key: 'done', color: '#10b981', badgeColor: 'success' },
   { key: 'blocked', color: '#ef4444', badgeColor: 'error' },
+  { key: 'failed', color: '#7c3aed', badgeColor: 'error' },
 ];
 
 export const TASK_STATUS = Object.fromEntries(

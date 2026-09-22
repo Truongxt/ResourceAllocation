@@ -9,6 +9,9 @@
  *   - "solution" là mảng chỉ số resource theo từng task: solution[taskIndex] = resourceIndex
  *     (chính là chromosome của GA; lời giải CSP được chuyển về cùng dạng này).
  *   - Task không có estimatedHours được tính là 1 giờ để không bị bỏ qua khi cân tải.
+ *   - Chỉ `assignee` mới sinh ra tải. `followers[]` là người theo dõi: họ xem và bình
+ *     luận chứ không làm, nên mọi công thức ở đây cố ý không đọc tới. Cộng nhầm họ vào
+ *     sẽ thổi phồng utilization và khiến thuật toán né những người thực ra đang rảnh.
  */
 
 const DEFAULT_WEIGHTS = {

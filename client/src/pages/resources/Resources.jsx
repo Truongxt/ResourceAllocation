@@ -43,6 +43,7 @@ import {
   ThunderboltOutlined,
   MinusCircleOutlined,
   CalendarOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import resourceService from '../../services/resourceService';
@@ -59,6 +60,7 @@ import ResourceFormModal from '../../components/resources/ResourceFormModal';
 import SkillsMatrixModal from '../../components/resources/SkillsMatrixModal';
 import ResourceLeaveModal from '../../components/resources/ResourceLeaveModal';
 import CsvImportModal from '../../components/resources/CsvImportModal';
+import BulkReassignModal from '../../components/resources/BulkReassignModal';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -98,6 +100,8 @@ export default function Resources() {
   const [skillsModalOpen, setSkillsModalOpen] = useState(false);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
+  // Nhân sự đang được bàn giao công việc; null là đóng hộp thoại.
+  const [reassignFrom, setReassignFrom] = useState(null);
   const [editingResource, setEditingResource] = useState(null);
   const [editingDepartment, setEditingDepartment] = useState(null);
   const [csvContent, setCsvContent] = useState('');
@@ -517,7 +521,7 @@ export default function Resources() {
     {
       title: t('common.actions'),
       key: 'actions',
-      width: 140,
+      width: 180,
       render: (_, record) => (
         <Space size="small">
           <Tooltip
@@ -530,6 +534,13 @@ export default function Resources() {
               icon={<CalendarOutlined />}
               onClick={() => openLeaveModal(record)}
               style={(record.unavailablePeriods || []).length ? { color: '#f59e0b' } : undefined}
+            />
+          </Tooltip>
+          <Tooltip title="Bàn giao công việc sang người khác">
+            <Button
+              type="text"
+              icon={<SwapOutlined />}
+              onClick={() => setReassignFrom(record)}
             />
           </Tooltip>
           <Tooltip title={t('common.edit')}>
@@ -829,6 +840,14 @@ export default function Resources() {
       />
 
       {/* 3. Modal Lịch nghỉ phép / vắng mặt (Ràng buộc H3 CSP) */}
+      <BulkReassignModal
+        open={Boolean(reassignFrom)}
+        fromResource={reassignFrom}
+        resources={resources}
+        onClose={() => setReassignFrom(null)}
+        onDone={loadResources}
+      />
+
       <ResourceLeaveModal
         open={leaveModalOpen}
         onClose={() => setLeaveModalOpen(false)}

@@ -25,10 +25,20 @@ describe('Dashboard working view', () => {
   it('links each exception to the matching filter and opens recent task details', async () => {
     renderWithProviders(<Dashboard />);
     expect(await screen.findByRole('heading', { name: 'Cần xử lý' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /2 Công việc trễ hạn/ })).toHaveAttribute('href', '/tasks?timeFilter=overdue');
-    expect(screen.getByRole('link', { name: /1 Công việc bị chặn/ })).toHaveAttribute('href', '/tasks?status=blocked');
-    expect(screen.getByRole('link', { name: /3 Chưa phân công/ })).toHaveAttribute('href', '/tasks?unassigned=true');
-    expect(screen.getByRole('link', { name: /1 Nhân sự quá tải/ })).toHaveAttribute('href', '/resources?workload=overloaded');
+    // Kiểm đích đến và con số riêng rẽ. Trước đây gộp cả hai vào một chuỗi tên
+    // ("2 Công việc trễ hạn") nên chỉ cần đổi thứ tự số với nhãn trong DOM là test
+    // đỏ, dù liên kết vẫn trỏ đúng chỗ.
+    const exceptions = [
+      ['Công việc trễ hạn', '/tasks?timeFilter=overdue', '2'],
+      ['Công việc bị chặn', '/tasks?status=blocked', '1'],
+      ['Chưa phân công', '/tasks?unassigned=true', '3'],
+      ['Nhân sự quá tải', '/resources?workload=overloaded', '1'],
+    ];
+    for (const [name, href, count] of exceptions) {
+      const row = screen.getByRole('link', { name: new RegExp(name) });
+      expect(row).toHaveAttribute('href', href);
+      expect(row).toHaveTextContent(count);
+    }
     expect(screen.getByRole('link', { name: 'Kiểm tra thanh toán' })).toHaveAttribute('href', '/tasks?taskId=task-1');
   });
 
