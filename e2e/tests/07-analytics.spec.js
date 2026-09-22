@@ -146,12 +146,13 @@ test.describe('Báo cáo', () => {
     expect(file.suggestedFilename()).toMatch(/\.(csv|xlsx?)$/i);
   });
 
-  // Lỗi đã biết: trang Nhân sự đọc trường `currentWorkload` lưu sẵn trong
-  // collection Resource, còn trang Báo cáo cộng lại `estimatedHours` của task
-  // đang mở. `currentWorkload` chỉ đổi khi có người gọi
-  // `POST /api/resources/recalculate-workload`, mà **không màn hình nào gọi** —
-  // nên cùng một người hiện 0h ở /resources và 32h ở /reports.
-  test.fail('giờ công của cùng một người khớp nhau giữa /resources và /reports', async ({ page }) => {
+  // Trang Nhân sự đọc trường `currentWorkload` lưu sẵn trong collection
+  // Resource, còn trang Báo cáo cộng live `estimatedHours` của task đang mở.
+  // Hai nguồn khác nhau nên phải có người giữ cho chúng khớp: mọi đường ghi task
+  // qua API đều gọi `syncResourceWorkload`, và seeder cũng gọi một lần ở cuối.
+  // Trước đây seeder bỏ sót, nên dữ liệu mẫu hiện 0h ở /resources và 32h ở
+  // /reports cho cùng một người.
+  test('giờ công của cùng một người khớp nhau giữa /resources và /reports', async ({ page }) => {
     const reportRow = page.locator('.ant-table-row').filter({ hasText: 'Trần Văn Nam' });
     await expect(reportRow).toHaveCount(1, { timeout: 20_000 });
     const fromReports = (await reportRow.textContent()).match(/(\d+)h \/ \d+h/)[1];

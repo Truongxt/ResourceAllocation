@@ -10,6 +10,7 @@ const Notification = require('../models/Notification');
 const ActivityLog = require('../models/ActivityLog');
 const OptimizationResult = require('../models/OptimizationResult');
 const RefreshToken = require('../models/RefreshToken');
+const { syncResourceWorkload } = require('../services/workload.service');
 
 // .env nằm ở thư mục gốc dự án, không phải trong server/
 dotenv.config({ path: path.join(__dirname, '..', '..', '..', '.env') });
@@ -238,6 +239,14 @@ async function seedData() {
     });
 
     console.log('Created 3 sample tasks with dependencies.');
+
+    // Mọi đường ghi task qua API đều gọi syncResourceWorkload, nhưng seeder ghi
+    // thẳng qua model nên không đi qua đó. Bỏ sót bước này thì currentWorkload
+    // của dữ liệu mẫu đứng nguyên ở 0, và trang Nhân sự (đọc trường đã lưu) nói
+    // khác trang Báo cáo (cộng live từ task) về cùng một con người.
+    const synced = await syncResourceWorkload();
+    console.log(`Synced workload for ${synced} resources.`);
+
     console.log('\n=============================================');
     console.log('SEEDING COMPLETED SUCCESSFULLY!');
     console.log('Admin Account: admin@rao.com / password123 (role: admin)');

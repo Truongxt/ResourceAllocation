@@ -24,12 +24,18 @@ test.describe('Quản lý nhân sự', () => {
     await expect(nam).toContainText('Engineering');
     // Cột công suất phải ra dạng "Xh / Yh", không phải NaN hay rỗng
     await expect(nam).toContainText(/\d+h \/ \d+h/);
+
+    // Và phải là giờ **thật** cộng từ task, không phải số 0 mặc định: seeder gán
+    // cho Nam 32h việc đang mở. Trước đây seeder không gọi syncResourceWorkload
+    // nên cột này đứng ở 0h trong khi trang Báo cáo nói 32h.
+    await expect(nam).toContainText('32h / 40h');
   });
 
   test('bộ lọc theo tải chỉ giữ lại đúng nhóm được chọn', async ({ page }) => {
     await expect(page.locator('.ant-table-row')).toHaveCount(SEED.resourceCount, { timeout: 20_000 });
 
-    // Dữ liệu mẫu chưa phân bổ giờ nào nên không ai quá tải
+    // Dữ liệu mẫu có người 80% và 70% tải, nhưng không ai vượt 100% nên nhóm
+    // "Quá tải" phải rỗng
     await page.getByRole('button', { name: 'Quá tải', exact: true }).click();
     await expect(page.locator('.ant-table-row')).toHaveCount(0);
 

@@ -93,27 +93,30 @@ cả thẻ KPI *"Khớp kỹ năng TB"* lẫn cột *"Độ khớp kỹ năng"* 
 
 **Hướng sửa:** bỏ `* 100` ở cả hai chỗ trong `OptimizationResultView.jsx`.
 
-### 3. Giờ công của cùng một người lệch nhau giữa hai trang
+### 3. ~~Giờ công của cùng một người lệch nhau giữa hai trang~~ — đã sửa
 
-**Ở đâu:** `/resources` ↔ `/reports`
+**Ở đâu:** `server/src/utils/seeder.js`
 **Test:** `e2e/tests/07-analytics.spec.js`
 
 Với dữ liệu mẫu, Trần Văn Nam hiện **0h / 40h** ở trang Nhân sự nhưng **32h / 40h** ở trang
 Báo cáo. Hai trang đọc hai nguồn khác nhau:
 
-| Trang | Nguồn | Cập nhật khi nào |
-|-------|-------|------------------|
-| `/resources` | trường `currentWorkload` lưu sẵn trong collection `Resource` | chỉ khi gọi `POST /api/resources/recalculate-workload` |
-| `/reports` | cộng `estimatedHours` của task đang mở, tính ngay lúc gọi | mỗi lần tải trang |
+| Trang | Nguồn |
+|-------|-------|
+| `/resources` | trường `currentWorkload` lưu sẵn trong collection `Resource` |
+| `/reports` | cộng `estimatedHours` của task đang mở, tính ngay lúc gọi |
 
-`server/src/controllers/analytics.controller.js:495` đã có sẵn comment giải thích rằng
-`currentWorkload` "thường đã cũ" và vì thế analytics cố tình không đọc nó. Vấn đề là
-**không màn hình nào gọi endpoint tính lại** — `resourceService.recalculateWorkload()` tồn
-tại trong `client/src/services/resourceService.js:32` nhưng không có page nào dùng. Nên
-`currentWorkload` đứng yên ở 0 vĩnh viễn, và trang Nhân sự vĩnh viễn nói sai.
+Chẩn đoán đầu tiên là sai, ghi lại đây vì nó là một cái bẫy đáng nhớ: nhìn thấy
+`resourceService.recalculateWorkload()` không màn hình nào gọi, rất dễ kết luận rằng
+`currentWorkload` không bao giờ được cập nhật. Thực tế **mọi đường ghi task qua API đều gọi
+`syncResourceWorkload`** — kiểm bằng cách tạo một task qua `POST /api/tasks` rồi đọc lại
+`/api/resources` thì thấy con số nhảy đúng.
 
-**Hướng sửa:** hoặc cho trang Nhân sự tính live như analytics, hoặc cập nhật `currentWorkload`
-trong chính luồng gán/gỡ task thay vì chờ một lệnh thủ công không ai gọi.
+Thủ phạm hẹp hơn nhiều: **seeder ghi task thẳng qua model, không đi qua controller**, nên
+riêng dữ liệu mẫu không bao giờ được đồng bộ. Đã sửa bằng một lời gọi `syncResourceWorkload()`
+ở cuối seeder.
+
+Bài học: đừng suy ra hành vi runtime từ việc đọc code gọi hàm — chạy thử rồi đo.
 
 ### 4. Hai màn hình từ chối quyền khác nhau, một cái không có lối ra
 
