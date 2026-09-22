@@ -127,6 +127,29 @@ export function AuthProvider({ children }) {
     return Array.isArray(user.appAdmins) && user.appAdmins.includes(appKey);
   }, [user]);
 
+  /**
+   * Quyền theo phân hệ nghiệp vụ (`User.appPermissions`).
+   *
+   * Phải khớp từng chi tiết với `requireAppPermission` ở server
+   * (`server/src/middleware/auth.js`): cùng thang bậc none < view < manage,
+   * cùng quy ước "chưa đặt giá trị thì coi như manage" (tài khoản tạo trước khi
+   * có tính năng này không bị mất quyền), và Owner luôn đi qua.
+   *
+   * Lệch nhau một trong ba điều đó là giao diện và server nói hai chuyện khác
+   * nhau: hoặc hiện nút bấm vào chỉ để nhận 403, hoặc giấu mất thứ người dùng
+   * thật ra làm được.
+   */
+  const appPermissionRank = useCallback((moduleKey) => {
+    if (!user) return 0;
+    if (user.isOwner) return 2;
+    const RANK = { none: 0, view: 1, manage: 2 };
+    const level = user.appPermissions?.[moduleKey];
+    return level === undefined ? 2 : (RANK[level] ?? 2);
+  }, [user]);
+
+  const canViewModule = useCallback((moduleKey) => appPermissionRank(moduleKey) >= 1, [appPermissionRank]);
+  const canManageModule = useCallback((moduleKey) => appPermissionRank(moduleKey) >= 2, [appPermissionRank]);
+
   // Làm mới thông tin người dùng từ máy chủ (sau khi phân quyền hoặc cập nhật profile)
   const refreshUser = useCallback(async () => {
     try {
@@ -155,6 +178,8 @@ export function AuthProvider({ children }) {
     changePassword,
     clearError,
     hasAppAccess,
+    canViewModule,
+    canManageModule,
     refreshUser,
   };
 

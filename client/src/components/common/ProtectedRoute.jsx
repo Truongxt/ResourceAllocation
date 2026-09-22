@@ -16,11 +16,34 @@ import { useAuth } from '../../context/AuthContext';
  * nút quay về Dashboard, còn màn hình sai vai trò trước đây không có gì cả —
  * người dùng gõ nhầm URL là kẹt, chỉ còn nút Back của trình duyệt.
  */
-export default function ProtectedRoute({ children, roles, app }) {
-  const { isAuthenticated, loading, user, hasAppAccess } = useAuth();
+export default function ProtectedRoute({ children, roles, app, module }) {
+  const { isAuthenticated, loading, user, hasAppAccess, canViewModule } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+
+  /** Màn hình từ chối dùng chung cho cả chặn theo vai trò lẫn theo phân hệ. */
+  const forbiddenScreen = (title, text) => (
+    <div className="app-empty-state" style={{ minHeight: '60vh' }}>
+      <div className="app-empty-state-icon" style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.25)' }}>
+        <LockOutlined />
+      </div>
+      <h3 className="empty-state-title" style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px 0' }}>
+        {title}
+      </h3>
+      <p className="empty-state-text" style={{ color: 'var(--text-secondary)', maxWidth: 420 }}>
+        {text}
+      </p>
+      <Button
+        type="primary"
+        size="large"
+        onClick={() => navigate('/dashboard')}
+        style={{ marginTop: 20, borderRadius: 8, height: 42, padding: '0 24px', fontWeight: 600 }}
+      >
+        {t('protectedRoute.backToDashboard')}
+      </Button>
+    </div>
+  );
 
   // Show loading while checking auth
   if (loading) {
@@ -93,29 +116,19 @@ export default function ProtectedRoute({ children, roles, app }) {
     );
   }
 
+  // Quyền theo phân hệ: mức 'none' thì chặn ngay tại đây. Không chặn thì trang
+  // vẫn dựng ra rồi mọi request trong đó nhận 403 — người dùng thấy một màn hình
+  // trống rỗng đầy lỗi thay vì một câu giải thích.
+  if (module && !canViewModule(module)) {
+    return forbiddenScreen(
+      t('protectedRoute.moduleForbiddenTitle'),
+      t('protectedRoute.moduleForbiddenText')
+    );
+  }
+
   // Check role authorization
   if (roles && !roles.includes(user.role) && !user.isOwner) {
-    return (
-      <div className="app-empty-state" style={{ minHeight: '60vh' }}>
-        <div className="app-empty-state-icon" style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.25)' }}>
-          <LockOutlined />
-        </div>
-        <h3 className="empty-state-title" style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px 0' }}>
-          {t('protectedRoute.forbiddenTitle')}
-        </h3>
-        <p className="empty-state-text" style={{ color: 'var(--text-secondary)', maxWidth: 420 }}>
-          {t('protectedRoute.forbiddenText')}
-        </p>
-        <Button
-          type="primary"
-          size="large"
-          onClick={() => navigate('/dashboard')}
-          style={{ marginTop: 20, borderRadius: 8, height: 42, padding: '0 24px', fontWeight: 600 }}
-        >
-          {t('protectedRoute.backToDashboard')}
-        </Button>
-      </div>
-    );
+    return forbiddenScreen(t('protectedRoute.forbiddenTitle'), t('protectedRoute.forbiddenText'));
   }
 
   return children;

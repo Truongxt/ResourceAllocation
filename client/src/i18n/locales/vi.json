@@ -231,6 +231,8 @@
   "protectedRoute": {
     "forbiddenTitle": "Không có quyền truy cập",
     "forbiddenText": "Bạn không có quyền truy cập trang này. Vui lòng liên hệ Admin.",
+    "moduleForbiddenTitle": "Phân hệ này đã bị hạn chế",
+    "moduleForbiddenText": "Quản trị viên đã đặt quyền của bạn ở phân hệ này thành Không truy cập. Liên hệ Quản trị viên nếu bạn cần mở lại.",
     "backToDashboard": "Quay lại Tổng quan Dashboard"
   },
   "settings": {

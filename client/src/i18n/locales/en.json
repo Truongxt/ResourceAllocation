@@ -231,6 +231,8 @@
   "protectedRoute": {
     "forbiddenTitle": "Access denied",
     "forbiddenText": "You do not have permission to view this page. Please contact an administrator.",
+    "moduleForbiddenTitle": "This module is restricted",
+    "moduleForbiddenText": "An administrator set your access to this module to No access. Contact an administrator if you need it reopened.",
     "backToDashboard": "Back to Dashboard"
   },
   "settings": {
