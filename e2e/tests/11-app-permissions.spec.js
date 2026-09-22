@@ -173,17 +173,12 @@ test.describe('Quyền theo phân hệ', () => {
       // "Chỉ xem" phải còn xem được thật, không phải chặn sạch: danh sách vẫn có hàng.
       await expect(pmPage.locator('.ant-table-row').first()).toBeVisible({ timeout: 20_000 });
 
-      const blockedName = uniqueName('E2E Quyền');
-      await fillNewProject(pmPage, blockedName);
-      await pmPage.locator('.ant-modal').getByRole('button', { name: 'Tạo dự án' }).click();
-
-      // Server chặn bằng đúng câu của `requireAppPermission`.
-      await expect(pmPage.getByText(/chỉ được xem ở phân hệ này/i)).toBeVisible({ timeout: 20_000 });
-
-      // Và quan trọng hơn thông báo: dự án **không** được tạo ra.
-      await pmPage.locator('.ant-modal').getByRole('button', { name: /^Hủy/ }).click();
-      await pmPage.reload();
-      await expect(pmPage.getByText(blockedName)).toHaveCount(0);
+      // Mọi lối ghi phải biến mất hẳn. Lúc đầu bộ test này khóa hành vi cũ —
+      // nút vẫn hiện, bấm vào thì nhận 403 — và chính nó làm lộ ra rằng giao
+      // diện chưa đọc `appPermissions` bao giờ. Chặn ở server là hàng rào an
+      // toàn; giấu nút là để người dùng không bấm vào một thứ chắc chắn hỏng.
+      await expect(pmPage.getByRole('button', { name: 'Tạo dự án' })).toHaveCount(0);
+      await expect(pmPage.locator('.ant-table-row').first().locator('.anticon-delete')).toHaveCount(0);
 
       // --- Trả quyền lại: chặn phải gỡ được, không phải khóa một chiều ---
       await setModuleLevel(adminPage, ACCOUNTS.pm.email, 'Dự án', 'Quản lý');
@@ -201,6 +196,40 @@ test.describe('Quyền theo phân hệ', () => {
       await pmPage.getByRole('button', { name: /^(OK|Xóa|Đồng ý)/ }).last().click();
       await expect(pmPage.locator('.ant-table-row').filter({ hasText: allowedName }))
         .toHaveCount(0, { timeout: 20_000 });
+    } finally {
+      await adminCtx.close();
+      await pmCtx.close();
+    }
+  });
+
+  test('hạ "Công việc" xuống Không truy cập thì trang bị chặn tại chỗ, vẫn có lối ra', async ({ browser }) => {
+    const adminCtx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const pmCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+
+    try {
+      const adminPage = await adminCtx.newPage();
+      const pmPage = await pmCtx.newPage();
+
+      await login(adminPage, 'admin');
+      await openModulePermissions(adminPage);
+      await setModuleLevel(adminPage, ACCOUNTS.pm.email, 'Công việc', 'Không truy cập');
+
+      await login(pmPage, 'pm');
+      await pmPage.goto('/tasks');
+
+      // Chặn **tại chỗ** kèm câu giải thích, chứ không phải để trang dựng ra rồi
+      // mọi request bên trong nhận 403 — người dùng sẽ thấy một màn hình trống
+      // không hiểu vì sao. Và không đá về /login: kiểu đó trông như hết phiên,
+      // người dùng đăng nhập lại rồi gặp đúng màn hình đó lần nữa.
+      await expect(pmPage.getByRole('heading', { name: 'Phân hệ này đã bị hạn chế' }))
+        .toBeVisible({ timeout: 20_000 });
+      await expect(pmPage).not.toHaveURL(/\/login/);
+
+      // Chặn tại chỗ thì phải có lối ra — cùng quy ước với hai màn hình từ chối cũ.
+      await pmPage.getByRole('button', { name: /Quay lại Tổng quan Dashboard/ }).click();
+      await expect(pmPage).toHaveURL(/\/dashboard/, { timeout: 20_000 });
+
+      await setModuleLevel(adminPage, ACCOUNTS.pm.email, 'Công việc', 'Quản lý');
     } finally {
       await adminCtx.close();
       await pmCtx.close();
