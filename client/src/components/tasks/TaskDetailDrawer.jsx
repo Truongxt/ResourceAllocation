@@ -576,7 +576,8 @@ export default function TaskDetailDrawer({
             '100%': '#10b981',
           }}
           style={{ marginTop: 8 }}
-          strokeWidth={10}
+          // antd v6: strokeWidth đổi thành size; -1 nghĩa là giữ nguyên chiều rộng
+          size={[-1, 10]}
         />
       </div>
     </div>
@@ -599,7 +600,7 @@ export default function TaskDetailDrawer({
             percent={checklistProgress.percent}
             showInfo={false}
             strokeColor={checklistProgress.percent === 100 ? '#10b981' : '#3b82f6'}
-            strokeWidth={6}
+            size={[-1, 6]}
           />
         </div>
       )}
@@ -1245,8 +1246,8 @@ export default function TaskDetailDrawer({
           setTask(null);
           onClose();
         }}
-        width={Math.min(740, typeof window !== 'undefined' ? window.innerWidth : 740)}
-        destroyOnClose
+        size={Math.min(740, typeof window !== 'undefined' ? window.innerWidth : 740)}
+        destroyOnHidden
         styles={{
           header: {
             background: isDark ? '#0f172a' : '#ffffff',

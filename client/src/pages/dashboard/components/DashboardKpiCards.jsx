@@ -49,7 +49,7 @@ export default function DashboardKpiCards({ proj = {}, task = {}, res = {}, t })
             showInfo={false}
             size="small"
             strokeColor="#3b82f6"
-            trailColor="var(--border-subtle)"
+            railColor="var(--border-subtle)"
             className="kpi-mini-bar"
           />
         </div>
@@ -76,7 +76,7 @@ export default function DashboardKpiCards({ proj = {}, task = {}, res = {}, t })
             showInfo={false}
             size="small"
             strokeColor="#10b981"
-            trailColor="var(--border-subtle)"
+            railColor="var(--border-subtle)"
             className="kpi-mini-bar"
           />
         </div>
@@ -110,7 +110,7 @@ export default function DashboardKpiCards({ proj = {}, task = {}, res = {}, t })
             showInfo={false}
             size="small"
             strokeColor="#10b981"
-            trailColor="var(--border-subtle)"
+            railColor="var(--border-subtle)"
             className="kpi-mini-bar"
           />
         </div>
@@ -140,7 +140,7 @@ export default function DashboardKpiCards({ proj = {}, task = {}, res = {}, t })
             showInfo={false}
             size="small"
             strokeColor={avgUtilization > 100 ? '#ef4444' : avgUtilization >= 75 ? '#f59e0b' : '#0ea5e9'}
-            trailColor="var(--border-subtle)"
+            railColor="var(--border-subtle)"
             className="kpi-mini-bar"
           />
         </div>

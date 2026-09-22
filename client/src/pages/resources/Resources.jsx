@@ -435,7 +435,7 @@ export default function Resources() {
         const now = currentLeave(record);
         const next = nextLeave(record);
         return (
-          <Space direction="vertical" size={2}>
+          <Space orientation="vertical" size={2}>
             <Tag
               color={AVAILABILITY_OPTIONS.find((a) => a.value === avail)?.color || 'default'}
               style={{ margin: 0 }}

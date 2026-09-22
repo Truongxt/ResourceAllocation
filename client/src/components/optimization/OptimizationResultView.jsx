@@ -132,7 +132,7 @@ export default function OptimizationResultView({
   ];
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
       {/* Khối thẻ KPI tổng quan */}
       <Row gutter={[16, 16]}>
         <Col span={6}>
@@ -346,7 +346,7 @@ export default function OptimizationResultView({
             </Text>
           }
         >
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             {currentResult.constraintReport.details.violated.map((item, idx) => (
               <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
                 <Tag color={item.type === 'dependency' ? 'orange' : 'red'} style={{ margin: 0 }}>

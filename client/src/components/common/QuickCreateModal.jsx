@@ -125,7 +125,7 @@ export default function QuickCreateModal({ open, onClose, defaultType = 'task', 
         </div>
       }
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       width={540}
     >
       <div style={{ marginBottom: 20, textAlign: 'center' }}>

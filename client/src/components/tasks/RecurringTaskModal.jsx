@@ -212,7 +212,7 @@ export default function RecurringTaskModal({ open, onClose, projects = [], resou
         </Space>
       }
       width={840}
-      destroyOnClose
+      destroyOnHidden
     >
       <Tabs
         activeKey={activeTab}

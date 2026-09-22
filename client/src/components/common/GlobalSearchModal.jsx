@@ -182,7 +182,7 @@ export default function GlobalSearchModal({ open, onClose }) {
             style={{ padding: '32px 0' }}
           />
         ) : (
-          <Space direction="vertical" size={14} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={14} style={{ width: '100%' }}>
             {/* Pages Section */}
             {filteredPages.length > 0 && (
               <div>

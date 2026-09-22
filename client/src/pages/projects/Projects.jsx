@@ -466,7 +466,7 @@ export default function Projects() {
       render: (members = []) => {
         if (!members || members.length === 0) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
         return (
-          <Avatar.Group maxCount={3} size="small">
+          <Avatar.Group max={{ count: 3 }} size="small">
             {members.map((m, idx) => (
               <Tooltip title={m.user?.name || m.user?.email || 'Thành viên'} key={m.user?._id || idx}>
                 <Avatar src={m.user?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
@@ -1024,7 +1024,7 @@ export default function Projects() {
                             </div>
 
                             {proj.members?.length > 0 && (
-                              <Avatar.Group maxCount={3} size={20}>
+                              <Avatar.Group max={{ count: 3 }} size={20}>
                                 {proj.members.map((m, idx) => (
                                   <Tooltip title={m.user?.name || m.user?.email || 'Thành viên'} key={m.user?._id || idx}>
                                     <Avatar src={m.user?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
@@ -1045,7 +1045,7 @@ export default function Projects() {
                             <Progress
                               percent={progressVal}
                               strokeColor={progressVal === 100 ? '#10b981' : (proj.color || '#6366f1')}
-                              trailColor={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}
+                              railColor={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}
                               showInfo={false}
                               size="small"
                             />
@@ -1205,7 +1205,7 @@ export default function Projects() {
         onCancel={() => setModalOpen(false)}
         footer={null}
         width={720}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleFormSubmit} style={{ marginTop: 16 }}>
           {/* 1. Tên dự án */}

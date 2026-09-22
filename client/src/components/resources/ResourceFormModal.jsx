@@ -55,7 +55,7 @@ export default function ResourceFormModal({
       onCancel={onClose}
       footer={null}
       width={640}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical" onFinish={onSubmit} style={{ marginTop: 16 }}>
         {/* Phần khởi tạo tài khoản đăng nhập (Chỉ hiển thị khi tạo mới) */}

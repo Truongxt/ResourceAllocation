@@ -540,15 +540,17 @@ export default function RemindersDrawer({
           </div>
         }
         placement="right"
-        width={Math.min(540, typeof window !== 'undefined' ? window.innerWidth - 16 : 540)}
+        size={Math.min(540, typeof window !== 'undefined' ? window.innerWidth - 16 : 540)}
         open={open}
         onClose={onClose}
-        bodyStyle={{
-          padding: '12px 16px',
-          background: isDark ? '#090d16' : '#f8fafc',
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
+        styles={{
+          body: {
+            padding: '12px 16px',
+            background: isDark ? '#090d16' : '#f8fafc',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+          },
         }}
       >
         {/* Thanh tìm kiếm nhanh */}
@@ -770,7 +772,7 @@ export default function RemindersDrawer({
         open={snoozeModalOpen}
         onCancel={() => setSnoozeModalOpen(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={snoozeForm} layout="vertical" onFinish={handleSnoozeSubmit} style={{ marginTop: 12 }}>
           <div style={{ marginBottom: 14 }}>

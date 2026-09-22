@@ -801,7 +801,7 @@ export default function ProjectDetail() {
                 <Col xs={24} lg={10}>
                   <div className="saas-card" style={{ padding: 20, height: '100%' }}>
                     <Title level={5} style={{ marginBottom: 16 }}>{t('projectDetail.workload') || 'Khối lượng & Giờ công'}</Title>
-                    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
                       <div>
                         <Text type="secondary" style={{ fontSize: 12 }}>{t('projectDetail.overallProgress') || 'Tiến độ tổng thể'}</Text>
                         <Progress percent={project.progress || 0} strokeColor="#6366f1" status={project.progress === 100 ? 'success' : 'active'} />

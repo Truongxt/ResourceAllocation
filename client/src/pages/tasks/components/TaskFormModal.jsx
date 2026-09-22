@@ -97,7 +97,7 @@ export default function TaskFormModal({
       onCancel={onClose}
       footer={null}
       width={720}
-      destroyOnClose
+      destroyOnHidden
     >
       {!canManageTasks && (
         <Alert

@@ -972,7 +972,7 @@ export default function AppPermissionsTab() {
                       style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
                     >
                       <Radio value="only_admin">
-                        <Space direction="vertical" size={1}>
+                        <Space orientation="vertical" size={1}>
                           <Text strong style={{ fontSize: 13 }}>Chỉ Quản trị viên (Admin & App Admin Wework)</Text>
                           <Text type="secondary" style={{ fontSize: 12 }}>
                             Mặc định chuẩn Base: Chỉ System Owner, Admin và Quản trị ứng dụng Wework mới có quyền tạo dự án.
@@ -980,7 +980,7 @@ export default function AppPermissionsTab() {
                         </Space>
                       </Radio>
                       <Radio value="all_members">
-                        <Space direction="vertical" size={1}>
+                        <Space orientation="vertical" size={1}>
                           <Text strong style={{ fontSize: 13 }}>Tất cả thành viên (All Members)</Text>
                           <Text type="secondary" style={{ fontSize: 12 }}>
                             Cho phép mọi thành viên trong công ty tự do khởi tạo dự án mới.
@@ -1009,7 +1009,7 @@ export default function AppPermissionsTab() {
                       style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
                     >
                       <Radio value="only_admin">
-                        <Space direction="vertical" size={1}>
+                        <Space orientation="vertical" size={1}>
                           <Text strong style={{ fontSize: 13 }}>Chỉ Quản trị viên (Admin & App Admin Wework)</Text>
                           <Text type="secondary" style={{ fontSize: 12 }}>
                             Mặc định chuẩn Base: Chỉ System Owner, Admin và Quản trị ứng dụng Wework mới có quyền tạo phòng ban.
@@ -1017,7 +1017,7 @@ export default function AppPermissionsTab() {
                         </Space>
                       </Radio>
                       <Radio value="all_members">
-                        <Space direction="vertical" size={1}>
+                        <Space orientation="vertical" size={1}>
                           <Text strong style={{ fontSize: 13 }}>Tất cả thành viên (All Members)</Text>
                           <Text type="secondary" style={{ fontSize: 12 }}>
                             Cho phép mọi thành viên trong công ty tự do khởi tạo phòng ban mới.

@@ -232,7 +232,7 @@ export default function MyLeavesCard() {
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleAddLeave} style={{ marginTop: 16 }}>
           <Form.Item
