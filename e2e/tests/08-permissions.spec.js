@@ -62,6 +62,12 @@ test.describe('Phân quyền theo vai trò', () => {
     await expect(page).not.toHaveURL(/\/login/);
     // Và không được rò rỉ dữ liệu của trang bị cấm
     await expect(page.getByText('Quản lý Nhân sự & Phòng ban')).toHaveCount(0);
+
+    // Chặn tại chỗ thì phải có lối ra. Trước đây màn hình này không có nút nào,
+    // người dùng gõ nhầm URL là kẹt, chỉ còn nút Back của trình duyệt.
+    await page.getByRole('button', { name: /Quay lại Tổng quan Dashboard/ }).click();
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 20_000 });
+    await expect(page.getByRole('heading', { name: 'Tổng quan' }).first()).toBeVisible();
   });
 
   test('member gõ thẳng /optimization và /benchmark cũng bị chặn', async ({ page }) => {
@@ -77,9 +83,15 @@ test.describe('Phân quyền theo vai trò', () => {
       await expect(page.getByText('Cấu hình Thuật toán')).toHaveCount(0);
     }
 
-    // Màn hình này có lối quay ra; màn hình của /resources thì không.
+    // Lối quay ra phải điều hướng trong SPA, không tải lại cả trang: gán
+    // `window.location.href` thì trình duyệt dựng lại toàn bộ bundle và phiên.
+    let reloaded = false;
+    page.on('load', () => { reloaded = true; });
+
     await page.getByRole('button', { name: /Quay lại Tổng quan Dashboard/ }).click();
-    await expect(page).toHaveURL(/\/dashboard|\/$/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 20_000 });
+    await expect(page.getByRole('heading', { name: 'Tổng quan' }).first()).toBeVisible();
+    expect(reloaded, 'điều hướng trong SPA không được tải lại trang').toBe(false);
   });
 
   test('member vẫn vào được các trang dùng chung', async ({ page }) => {

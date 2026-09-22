@@ -169,7 +169,8 @@
   },
   "protectedRoute": {
     "forbiddenTitle": "Không có quyền truy cập",
-    "forbiddenText": "Bạn không có quyền truy cập trang này. Vui lòng liên hệ Admin."
+    "forbiddenText": "Bạn không có quyền truy cập trang này. Vui lòng liên hệ Admin.",
+    "backToDashboard": "Quay lại Tổng quan Dashboard"
   },
   "settings": {
     "title": "Cài đặt tài khoản",

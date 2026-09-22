@@ -169,7 +169,8 @@
   },
   "protectedRoute": {
     "forbiddenTitle": "Access denied",
-    "forbiddenText": "You do not have permission to view this page. Please contact an administrator."
+    "forbiddenText": "You do not have permission to view this page. Please contact an administrator.",
+    "backToDashboard": "Back to Dashboard"
   },
   "settings": {
     "title": "Account settings",
