@@ -41,6 +41,7 @@ const SUITES = [
   { name: 'socket', file: 'socket.test.mjs', label: 'Socket.IO realtime' },
   { name: 'notify-session', file: 'notify-session.test.mjs', label: 'Thông báo và phiên đăng nhập' },
   { name: 'hardening', file: 'hardening.test.mjs', label: 'Phân lập công ty, rò mật khẩu, validate payload' },
+  { name: 'task-isolation', file: 'task-isolation.test.mjs', label: 'Phân lập công ty trên toàn nhóm công việc' },
 ];
 
 const filter = process.argv[2];
