@@ -352,9 +352,30 @@ gọi `/tasks/stats/summary`), nên đã gỡ khỏi `task.routes.js`.
 `/preview-excel`, `/import-excel` trong khi route thật là `/excel/*`. Không ảnh hưởng chạy,
 nhưng đọc controller sẽ ra đường dẫn không tồn tại; nay `@route` khớp `task.routes.js`.
 
-**`authService.updateAppPermissions` chưa có màn hình nào gọi.** Wrapper đã có ở
-`client/src/services/authService.js`, endpoint đã có guard, nhưng chưa có UI phân quyền theo
-phân hệ.
+**`authService.updateAppPermissions` chưa có màn hình nào gọi — đã sửa, và phát hiện thêm:
+`appPermissions` trước đó không được thực thi ở đâu cả.** Wrapper đã có ở
+`client/src/services/authService.js`, endpoint đã có guard hợp lệ hóa (object, không phải
+mảng), nhưng rà lại toàn bộ server (middleware, mọi controller) và client thì trường
+`User.appPermissions` (`projects`/`tasks`/`calendar`/`optimization`/`reports`, giá trị
+`view`/`manage`) **chỉ được lưu vào DB chứ không route hay middleware nào đọc nó** — không có
+UI thì cũng chẳng khác gì, vì đổi giá trị bằng tay qua API cũng không có tác dụng thật.
+
+Đã hoàn thiện cả hai phần:
+- **Thực thi thật**: middleware `requireAppPermission(moduleKey)` mới trong
+  `middleware/auth.js`, gắn vào `router.use()` của `project.routes.js` (`'projects'`),
+  `task.routes.js` (`'tasks'`), `analytics.routes.js` (`'reports'`) — ngay sau `protect`.
+  GET cần tối thiểu `'view'`, các thao tác ghi cần `'manage'`; thiếu giá trị coi như
+  `'manage'` để không đổi hành vi tài khoản có sẵn trước khi tính năng này tồn tại. `isOwner`
+  luôn đi qua. **Không** gắn cho `'calendar'` (không có route riêng, dùng chung dữ liệu task)
+  lẫn `'optimization'` (đã bị `authorizeApp('optimize')` dựa trên `appAdmins` khóa toàn bộ
+  cho non-admin từ trước — chồng thêm lớp `appPermissions` ở đây sẽ chồng chéo ngữ nghĩa với
+  cơ chế đang chạy tốt đó).
+- **UI**: tab mới "Quyền theo Phân hệ" trong `AppPermissionsTab.jsx` (Cài đặt → Phân quyền
+  Thao tác & Ứng dụng), bảng chọn `Quản lý`/`Chỉ xem`/`Không truy cập` cho ba phân hệ trên
+  theo từng người dùng.
+- **Kiểm chứng bằng request thật**: `notify-session.test.mjs` thêm ca `projects: view` bị
+  chặn 403 khi tạo dự án (trước đây tài khoản nào cũng tạo được bất kể field này nói gì) và
+  `tasks: none` bị chặn 403 cả khi xem.
 
 ### Khoảng trống kiểm thử đã biết
 

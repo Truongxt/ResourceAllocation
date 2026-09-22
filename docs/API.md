@@ -317,13 +317,33 @@ hợp A→B→C→A. Không có nó thì cây tổ chức trên giao diện sẽ
 
 ### PUT `/api/auth/users/:id/app-permissions`
 ```json
-{ "appPermissions": { "projects": "manage", "tasks": "manage", "calendar": "view" } }
+{ "appPermissions": { "projects": "manage", "tasks": "view", "reports": "none" } }
 ```
 
 Phải là **object** dạng `{ phân_hệ: quyền }`. Mảng, `null` hay chuỗi đều trả **400**. Field
 này khai báo `type: Object` nên Mongoose sẵn sàng nhận một mảng — lưu được thì giao diện đọc
 `appPermissions.projects` ra `undefined` và người dùng mất quyền mà không có lỗi nào chỉ ra
-vì sao. Ràng buộc nằm ở controller chứ không ở schema.
+vì sao. Ràng buộc nằm ở controller chứ không ở schema. Khóa phân hệ chỉ nhận
+`projects`/`tasks`/`calendar`/`optimization`/`reports`; giá trị chỉ nhận
+`none`/`view`/`manage` — sai một trong hai trả **400**.
+
+**Có thực thi thật, không chỉ lưu trữ.** Middleware `requireAppPermission(moduleKey)`
+(`middleware/auth.js`) gắn vào `router.use()` ngay sau `protect` của ba route:
+
+| Route | `moduleKey` |
+|-------|-------------|
+| `project.routes.js` (mọi endpoint `/api/projects/*`) | `projects` |
+| `task.routes.js` (mọi endpoint `/api/tasks/*`) | `tasks` |
+| `analytics.routes.js` (mọi endpoint `/api/analytics/*`, trang Báo cáo) | `reports` |
+
+GET cần tối thiểu `view`; POST/PUT/PATCH/DELETE cần `manage` — thiếu cả hai trả **403**.
+Không set giá trị cho `moduleKey` (tài khoản tạo trước khi middleware này tồn tại) được coi
+như `manage`, và `isOwner` luôn đi qua bất kể `appPermissions` của chính họ ghi gì.
+
+`calendar` và `optimization` **không** bị gắn middleware này: `calendar` không có route
+riêng (dùng chung dữ liệu `/api/tasks`); `optimization` đã bị `authorizeApp('optimize')`
+(dựa trên `User.appAdmins`, khác field) khóa toàn bộ cho non-admin từ trước — set
+`appPermissions.optimization` không có tác dụng gì thêm.
 
 ### PUT `/api/auth/users/:id/status`
 ```json
