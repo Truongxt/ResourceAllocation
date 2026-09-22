@@ -5,7 +5,7 @@ Dự án có **ba lớp kiểm thử**, mỗi lớp trả lời một câu hỏi
 
 | Lớp | Thư mục | Chạy bằng | Quy mô | Trả lời câu hỏi |
 |-----|---------|-----------|--------|-----------------|
-| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 18 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
+| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 19 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
 | Component | `client/tests/` | `npm test` trong `client/` | 3 file logic + 8 file component | Component vẽ đúng, xử lý đúng sự kiện không? |
 | Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 82 bài / 10 file | Ghép tất cả lại thì người dùng **dùng được** không? |
 
@@ -14,7 +14,7 @@ triển, 1 worker) vì nó khởi động thật, đăng nhập thật và chờ
 
 Chi tiết từng lớp:
 
-- [`server/tests/README.md`](../server/tests/README.md) — 18 bộ, gồm cả kiểm thử đơn vị cho GA/CSP/scoring
+- [`server/tests/README.md`](../server/tests/README.md) — 19 bộ, gồm cả kiểm thử đơn vị cho GA/CSP/scoring
 - [`client/tests/README.md`](../client/tests/README.md) — logic thuần chạy bằng `node`, component chạy bằng vitest
 - [`e2e/README.md`](../e2e/README.md) — 10 bộ điều khiển Chromium trên hệ thống thật
 
@@ -158,14 +158,98 @@ Nhân đây cũng sửa `locales.test.mjs`: `flatten` dừng ở array nên mả
 và **lệch độ dài giữa vi/en thì không ai bắt** — en có 3 mục, vi có 4 thì mục thứ 4 âm thầm
 rơi về tiếng Việt. Nay đi vào từng phần tử nên lệch độ dài hiện ra dưới dạng thiếu khóa.
 
+## Lỗi tìm ra khi viết tài liệu
+
+Bốn lỗi dưới đây lộ ra trong lúc mô tả 36 endpoint còn thiếu của `docs/API.md`, không phải
+từ một bài test nào. Chúng khác hẳn bảy lỗi ở trên về **cách biểu hiện**: bảy lỗi kia làm
+màn hình sai hoặc request đỏ, còn bốn lỗi này **để mọi request trả 200 với body hợp lệ**.
+Cái mất đi nằm ngoài response.
+
+Không lớp test nào đang có bắt được chúng, vì cả ba lớp đều kiểm *response*. Bộ mới
+`server/tests/notify-session.test.mjs` kiểm *tác dụng phụ*: đếm bản ghi thực tế sau mỗi lời gọi.
+
+### 8. Bốn loại thông báo không bao giờ được tạo
+
+`Notification.type` là enum, nhưng thiếu `task_comment`, `task_follower_added`,
+`task_subtask_added`, `task_review_requested`, `task_review_approved`,
+`task_review_rejected` và `system_alert` — bảy giá trị mà controller vẫn gửi.
+`entityType` cũng thiếu `'user'`.
+
+`Notification.create` ném `ValidationError`, `sendNotification` bắt lỗi rồi `return null`.
+Request tạo bình luận vẫn trả **201**. Người được giao việc không nhận được gì.
+
+Đo trên database sạch: bình luận một lần, thêm một người theo dõi, tạo một việc con →
+**0 thông báo** trong collection, và ba dòng `ValidationError` trong log server mà không ai
+đọc. Sau khi bổ sung enum: 3 thông báo, 0 lỗi.
+
+**Test giữ:** `notify-session.test.mjs` — ba bài đếm thông báo trước/sau qua
+`GET /api/notifications`.
+
+### 9. Thông báo App Admin gọi sai chữ ký hàm
+
+`sendNotification` nhận **một** object có `recipient`. Chỗ này gọi kiểu hai tham số:
+
+```js
+sendNotification(user._id, { title, message, type, actor })   // sai
+```
+
+Destructure một ObjectId thì `recipient` là `undefined`, hàm dừng ở
+`if (!recipient || !title || !message) return null;` — **không log gì cả**. Lỗi này im lặng
+hơn lỗi trên: không có cả dòng nào trong log server để mà bỏ qua.
+
+Cùng một hàm, 10 chỗ gọi đúng và 1 chỗ gọi sai. Đây là kiểu lỗi mà đọc riêng chỗ gọi không
+thấy được — phải đối chiếu với định nghĩa hàm.
+
+### 10. Danh sách phiên đăng nhập luôn trống
+
+`getSessions` và `revokeSession` lọc `RefreshToken` theo `userId`, nhưng field trong model
+tên là **`user`**. MongoDB không báo lỗi khi lọc theo field không tồn tại — chỉ khớp 0 bản ghi.
+
+Hệ quả: màn hình "Phiên đăng nhập" luôn trống dù đang có phiên sống, và
+`DELETE /api/auth/sessions/:id` luôn trả **404** nên không thể thu hồi thiết bị nào.
+
+Kiểm bằng dữ liệu thật thay vì đọc code: đăng nhập, rồi đọc thẳng collection —
+
+```js
+{ keys: ['_id','user','tokenHash','family','expiresAt','revokedAt',...],
+  user: '6ab1efd5...', userId: 'undefined', revokedAt: null }
+```
+
+Bản ghi có thật, đang sống, `userId` không tồn tại. Đó là lúc chắc chắn, không phải lúc đọc
+xong controller.
+
+**Test giữ:** `notify-session.test.mjs` — liệt kê, thu hồi, và 404 cho phiên không tồn tại.
+
+### 11. `appPermissions` nhận cả mảng
+
+Field khai báo `type: Object` nên Mongoose nhận mọi thứ. `PUT /users/:id/app-permissions`
+với `{ appPermissions: ['optimize'] }` trả **200** và ghi đè object
+`{ projects: 'manage', tasks: 'manage', ... }` thành một mảng.
+
+Giao diện đọc `appPermissions.projects` ra `undefined` → người dùng mất quyền, không có lỗi
+nào chỉ ra vì sao. Đã thêm guard ở controller (schema không diễn tả được ràng buộc này).
+
+Mức độ thấp hơn ba lỗi trên vì chưa có màn hình nào gọi endpoint — chỉ có wrapper trong
+`client/src/services/authService.js`. Sửa trước khi có người gọi thì rẻ hơn.
+
+### Điều rút ra
+
+Ba lớp test đều hỏi *"API trả về gì?"*. Không lớp nào hỏi *"API đã làm gì?"*. Với các thao
+tác có tác dụng phụ — gửi thông báo, ghi log, đồng bộ khối lượng — hai câu này khác nhau, và
+khoảng cách giữa chúng chính là chỗ bốn lỗi trên sống sót qua 82 bài e2e.
+
+Cùng một bài học với chỗ chẩn đoán sai `currentWorkload` ở mục 3: đừng suy ra hành vi runtime
+từ việc đọc xem hàm nào gọi hàm nào — chạy thử rồi đo.
+
 ## Vấn đề nhỏ khác
 
 - **Ô mở tìm kiếm toàn cục từng là `div` bắt `onClick`** — không tab tới được, Enter không
   kích hoạt, trình đọc màn hình không đọc ra. Đã đổi thành `<button>` thật; bài test nay tìm
   nó bằng `getByRole` thay vì bám class, và có thêm một bài mở bằng bàn phím.
-- **Thanh chuyển mục trong drawer chi tiết công việc không dùng `role="tab"`** — vẫn còn.
-  Hệ quả: bài test phải so theo chữ thay vì theo vai trò. Xem
-  `client/src/components/tasks/TaskDetailDrawer.jsx`.
+- **Thanh chuyển mục trong drawer chi tiết công việc không dùng `role="tab"`** — đã sửa.
+  Dải tab nay là `role="tablist"`, từng mục là `<button role="tab">` có `aria-selected` và
+  `aria-controls` trỏ tới `role="tabpanel"`, điều hướng bằng mũi tên / Home / End với một
+  điểm dừng Tab duy nhất. Bài test trong `e2e/tests/04-tasks.spec.js` nay bám theo vai trò.
 - **Cảnh báo deprecated của Ant Design v6** đã gỡ hết (`destroyOnClose`, `trailColor`,
   `dropdownRender`, `bodyStyle`, `strokeWidth`, Drawer `width`, `Avatar.Group maxCount`,
   Space `direction`). Kiểm lại bằng cách mở 11 trang và đếm cảnh báo trong console: 0.
