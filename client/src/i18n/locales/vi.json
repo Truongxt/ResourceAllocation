@@ -735,7 +735,8 @@
       "developer": "Lập trình viên",
       "designer": "Thiết kế",
       "tester": "Kiểm thử",
-      "devops": "DevOps"
+      "devops": "DevOps",
+      "guest": "Khách mời"
     }
   },
   "reports": {

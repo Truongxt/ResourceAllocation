@@ -735,7 +735,8 @@
       "developer": "Developer",
       "designer": "Designer",
       "tester": "QA",
-      "devops": "DevOps"
+      "devops": "DevOps",
+      "guest": "Guest"
     }
   },
   "reports": {
