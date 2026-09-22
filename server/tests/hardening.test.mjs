@@ -421,6 +421,14 @@ S('Trang Nhân sự và trang Báo cáo phải nói cùng một con số');
   }
   ok(compared > 0, 'Có nhân sự xuất hiện ở cả hai nguồn để đối chiếu', `${compared} người`);
   ok(!mismatch, 'Mọi người đều khớp giữa hai nguồn', mismatch || '');
+
+  // Giờ chưa xếp lịch cũng phải có mặt ở báo cáo, không chỉ ở trang Nhân sự.
+  // Thiếu nó thì phần việc đã giao mà chưa có ngày biến mất khỏi màn hình và
+  // tải trông nhẹ hơn thực tế — đúng kiểu sai âm thầm, không ai thấy.
+  ok(
+    rows.every((r) => typeof r.unscheduledWorkload === 'number'),
+    'Mỗi dòng báo cáo đều có unscheduledWorkload'
+  );
 }
 
 process.exit(summary() ? 1 : 0);
