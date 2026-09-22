@@ -273,7 +273,7 @@ mới chặn. Script là loại một lần, xong hết mọi môi trường th�
   thì phải đổi thư viện UI chứ không phải chia chunk khác đi.
 - Kiểm thử nay có **ba lớp**, xem [docs/TESTING.md](./TESTING.md): `server/tests` 19 bộ qua
   API và Socket.IO, `client/tests` 8 file component (37 bài, vitest + jsdom) kèm logic thuần,
-  và `e2e` 82 bài điều khiển Chromium thật trên hệ thống thật. Các trang nghiệp vụ (Tasks,
+  và `e2e` 84 bài điều khiển Chromium thật trên hệ thống thật. Các trang nghiệp vụ (Tasks,
   Resources, Optimization…) nay do lớp e2e phủ, không còn là khoảng trống như trước.
 - Cảnh báo deprecated của Ant Design 6 **đã gỡ hết** (29 file). Xác nhận bằng cách mở 11
   trang và đếm cảnh báo trong console: 0. Lưu ý `Modal width` và `Radio.Group direction`

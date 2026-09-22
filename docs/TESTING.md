@@ -7,7 +7,7 @@ Dự án có **ba lớp kiểm thử**, mỗi lớp trả lời một câu hỏi
 |-----|---------|-----------|--------|-----------------|
 | Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 19 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
 | Component | `client/tests/` | `npm test` trong `client/` | 3 file logic + 8 file component | Component vẽ đúng, xử lý đúng sự kiện không? |
-| Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 82 bài / 10 file | Ghép tất cả lại thì người dùng **dùng được** không? |
+| Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 84 bài / 11 file | Ghép tất cả lại thì người dùng **dùng được** không? |
 
 Hai lớp đầu chạy trong vòng vài phút. Lớp e2e mất khoảng **10–15 phút** (đo trên máy phát
 triển, 1 worker) vì nó khởi động thật, đăng nhập thật và chờ API thật ở từng bài.
@@ -241,6 +241,24 @@ khoảng cách giữa chúng chính là chỗ bốn lỗi trên sống sót qua 
 Cùng một bài học với chỗ chẩn đoán sai `currentWorkload` ở mục 3: đừng suy ra hành vi runtime
 từ việc đọc xem hàm nào gọi hàm nào — chạy thử rồi đo.
 
+## Chọn lớp cho từng bản vá
+
+Đợt sửa 11 hạng mục trong `FEATURES.md` cho một ví dụ rõ về việc **không phải bản vá nào
+cũng thuộc về lớp e2e**. Chỉ một hạng mục được đưa lên e2e:
+
+| Bản vá | Lớp | Vì sao |
+|--------|-----|--------|
+| `appPermissions` được thực thi thật | `server/tests` **và** `e2e` | Hai đầu dây (UI lưu, middleware chặn) đều đúng riêng lẻ vẫn có thể không khớp nhau. Đây đúng là loại "từng mảnh đúng, ghép lại sai" — xem `e2e/tests/11-app-permissions.spec.js` |
+| Phân lập công ty ở `/auth/guests`, `special-grants`, `app-admin` | `server/tests` | Cần **hai công ty**, mà tạo công ty thứ hai phải đăng ký tài khoản mới — và hệ thống **không có endpoint xóa User**, nên bộ e2e sẽ để lại rác vĩnh viễn trong database dùng chung, trái quy ước "mỗi bài tự dọn". `server/tests` seed lại trước từng bộ nên không vướng |
+| `deliverableLinks` sai dạng, `move` sang dự án không tồn tại | `server/tests` | Giao diện không bao giờ gửi được payload sai dạng như vậy. Test qua trình duyệt sẽ phải bịa ra thứ người dùng không làm được |
+| Đánh lại `order` của checklist sau khi xóa | `server/tests` | Drawer render checklist **theo thứ tự mảng**, không theo `order`. Một bài e2e nhìn vào màn hình sẽ xanh cả trước lẫn sau khi sửa — xanh giả, tệ hơn là không có test |
+| Không trả mật khẩu rõ trong response tạo User | `server/tests` | Kiểm được qua e2e (rình response trong trình duyệt) nhưng vướng đúng vấn đề rác dữ liệu như hàng thứ hai |
+
+Nguyên tắc rút ra: **lớp e2e đắt (10–15 phút/lượt) và ghi vào database dùng chung**, nên chỉ
+dành cho thứ chỉ nó mới thấy được — mối nối giữa các mảnh. Thứ gì một lớp rẻ hơn kiểm được
+đầy đủ thì để ở lớp đó; và thứ gì lớp e2e *không chứng minh được* thì đừng viết bài e2e cho
+nó, vì một bài xanh-bất-kể-code-đúng-hay-sai còn nguy hiểm hơn khoảng trống đã biết.
+
 ## Vấn đề nhỏ khác
 
 - **Ô mở tìm kiếm toàn cục từng là `div` bắt `onClick`** — không tab tới được, Enter không
@@ -250,6 +268,12 @@ từ việc đọc xem hàm nào gọi hàm nào — chạy thử rồi đo.
   Dải tab nay là `role="tablist"`, từng mục là `<button role="tab">` có `aria-selected` và
   `aria-controls` trỏ tới `role="tabpanel"`, điều hướng bằng mũi tên / Home / End với một
   điểm dừng Tab duy nhất. Bài test trong `e2e/tests/04-tasks.spec.js` nay bám theo vai trò.
+- **Thanh tab trang Cài đặt tràn ngang ở 1440px** — phát hiện khi dựng
+  `11-app-permissions.spec.js`. Trang có 6 tab nhãn dài; ở viewport mặc định của bộ e2e
+  (1440, trừ 240px sidebar) hai tab cuối bị đẩy vào nút `...`. Người dùng vẫn mở được qua
+  `...` nên **không phải lỗi chặn đường**, nhưng bấm thẳng vào nhãn thì không ăn — bài test
+  ban đầu đỏ vì đúng chuyện này chứ không phải vì phân quyền. Bộ `11` tự cấp viewport 1920
+  cho màn hình admin và ghi rõ lý do; nếu sau này rút bớt hoặc rút gọn nhãn tab thì gỡ được.
 - **Cảnh báo deprecated của Ant Design v6** đã gỡ hết (`destroyOnClose`, `trailColor`,
   `dropdownRender`, `bodyStyle`, `strokeWidth`, Drawer `width`, `Avatar.Group maxCount`,
   Space `direction`). Kiểm lại bằng cách mở 11 trang và đếm cảnh báo trong console: 0.
