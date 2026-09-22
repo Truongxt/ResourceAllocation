@@ -314,9 +314,14 @@ riêng môi trường kiểm thử. Đã sửa bằng cách lọc `plainPassword
 trả về client, chỉ giữ lại `email` trong `preview`; console log nội bộ (phục vụ đọc thủ công
 khi email mô phỏng) không đổi.
 
-**`POST /auth/users` có thể tạo User mà không có Resource.** Bước tạo `Resource` kèm theo nằm
-trong `try/catch` chỉ ghi console, nên request vẫn trả 201. Người đó sẽ không xuất hiện ở
-`/resources` lẫn trong bài toán phân bổ, mà không có dấu hiệu gì.
+**`POST /auth/users` có thể tạo User mà không có Resource — đã sửa.** Bước tạo `Resource` kèm
+theo trước đây nằm trong `try/catch` chỉ ghi console, nên request vẫn trả 201 dù thiếu
+Resource — người đó sẽ không xuất hiện ở `/resources` lẫn trong bài toán phân bổ mà không có
+dấu hiệu gì. Nay lỗi ở bước này khiến `User` vừa tạo bị xóa lại và request trả **500** thay vì
+201, để không bao giờ để lại User mồ côi Resource. Cùng mẫu try/catch-chỉ-log này còn ở
+`register()` (đăng ký demo doanh nghiệp) — **chưa sửa**, vì đó là luồng tự đăng ký công khai
+đã cấp session ngay sau đó; hủy tài khoản người dùng thật chỉ vì tạo Resource lỗi tạm thời sẽ
+đổi UX theo hướng xấu hơn, cần cân nhắc riêng.
 
 **`POST /tasks/:id/move` không kiểm gì cả.** Không kiểm dự án đích có tồn tại, và không kiểm
 `dependencies` còn hợp lệ sau khi chuyển — chuyển một task sang dự án khác là đủ để nó giữ

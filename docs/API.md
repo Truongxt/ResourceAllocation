@@ -265,8 +265,8 @@ Ba tác dụng phụ đáng biết trước khi gọi:
 
 1. **Mật khẩu mặc định là `123456`** nếu không gửi `password`.
 2. **Tự tạo kèm một `Resource`** (`employeeId` sinh tự động, `maxCapacity: 40`, `fte: 1.0`).
-   Lỗi ở bước này chỉ ghi console, không làm request thất bại — nên có thể có User mà không
-   có Resource.
+   Lỗi ở bước này khiến toàn bộ request thất bại: `User` vừa tạo bị xóa lại và trả **500**,
+   thay vì âm thầm để lại User không có Resource.
 3. **Gửi email chứa mật khẩu** cho người mới. Kết quả nằm ở `data.emailStatus`.
 
 Khi email đang tắt (mặc định, hoặc `NODE_ENV=test`), `emailStatus` trả
