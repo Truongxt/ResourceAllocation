@@ -1,10 +1,34 @@
 # 🔌 API Documentation
 
-> Tài liệu mô tả tất cả API endpoints của hệ thống RAO.
 > Base URL: `http://localhost:5000/api`
 >
-> Tài liệu này đã được đối chiếu trực tiếp với mã nguồn (`server/src/routes/`, `server/src/controllers/`)
-> và kiểm chứng bằng request thật. Tổng cộng **56 endpoints**.
+> Phần đã viết dưới đây được đối chiếu trực tiếp với mã nguồn và kiểm chứng bằng request
+> thật, ở thời điểm viết: **56 endpoints**.
+
+> ⚠️ **Tài liệu này đang chậm hơn mã nguồn.** Đếm lại lúc dựng bộ kiểm thử e2e
+> (2026-09-21): `server/src/routes/` hiện có **118** endpoint trên **12** nhóm route.
+>
+> Ba nhóm route **chưa được mô tả dòng nào**:
+>
+> | Nhóm | Mount tại | Số endpoint |
+> |------|-----------|-------------|
+> | `taskGroup.routes.js` | `/api/task-groups` | 5 |
+> | `recurringTask.routes.js` | `/api/recurring-tasks` | 6 |
+> | `companySetting.routes.js` | `/api/company-settings` | 2 |
+>
+> Nhóm `/api/auth` cũng đã phình từ mức được mô tả ở đây lên 27 endpoint — thêm mảng quản
+> trị tài khoản (`/users/:id/role`, `/app-permissions`, `/owner`…), phiên đăng nhập
+> (`/sessions`), ma trận phân quyền (`/permissions/matrix`) và tài khoản khách (`/guests`).
+> Nhóm `/api/tasks` lên 30 endpoint.
+>
+> Đếm lại bất cứ lúc nào bằng:
+>
+> ```bash
+> grep -rcE "^\s*router\.(get|post|put|patch|delete)\(" server/src/routes/
+> ```
+>
+> Phần đã viết vẫn đúng — nó được kiểm chứng bằng request thật và các endpoint đó không đổi.
+> Chỉ là chưa đủ.
 
 ## Chú thích
 

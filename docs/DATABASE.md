@@ -1,7 +1,21 @@
 # 🗄️ Database Schema Design
 
 > Tài liệu mô tả chi tiết schema MongoDB cho hệ thống RAO.
-> Đối chiếu trực tiếp với `server/src/models/` — **9 collections**.
+> Phần dưới đây đối chiếu trực tiếp với `server/src/models/` ở thời điểm viết: **9 collections**.
+
+> ⚠️ **Đã có thêm 3 model chưa được mô tả ở đây.** Đếm lại lúc dựng bộ kiểm thử e2e
+> (2026-09-21): `server/src/models/` hiện có **12** file.
+>
+> | Model | Dùng cho |
+> |-------|----------|
+> | `TaskGroup.js` | Nhóm công việc trong một dự án (cột Kanban tùy biến, mẫu Agile/Marketing) |
+> | `RecurringTask.js` | Công việc lặp lại theo chu kỳ |
+> | `CompanySetting.js` | Cấu hình cấp công ty (ví dụ `createProjectPermission`) |
+>
+> Lưu ý thêm: `server/src/utils/seeder.js` xóa **9** collection nhưng in ra
+> `Cleared all 8 collections.` — `RefreshToken` được thêm vào danh sách xóa sau mà dòng log
+> không được sửa theo. Ba model mới ở trên thì seeder **chưa** xóa, nên dữ liệu của chúng
+> tồn đọng qua các lần seed.
 
 ## Tổng quan Collections
 
