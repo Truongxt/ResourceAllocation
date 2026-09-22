@@ -128,9 +128,10 @@ test.describe('Tìm kiếm toàn cục', () => {
     await login(page, 'admin');
     await page.goto('/dashboard');
 
-    // Ô mở tìm kiếm là một `div` bắt sự kiện click, không phải `input` cũng
-    // không có `role="button"`, nên phải bám vào class.
-    await page.locator('.header-search-trigger').click();
+    // Mở bằng vai trò, không bám class: ô này giờ là `<button>` thật nên
+    // `getByRole` tìm được — và chính điều đó chứng minh nó bấm được bằng bàn
+    // phím và trình đọc màn hình đọc ra được.
+    await page.getByRole('button', { name: 'Tìm kiếm...' }).click();
 
     const modal = page.locator('.ant-modal');
     await expect(modal).toBeVisible({ timeout: 15_000 });
@@ -138,5 +139,19 @@ test.describe('Tìm kiếm toàn cục', () => {
     await modal.getByRole('textbox').first().fill('REST');
     await expect(modal.getByText('Xây dựng REST APIs Quản lý Đơn hàng').first())
       .toBeVisible({ timeout: 15_000 });
+  });
+
+  test('mở được bằng bàn phím, không cần chuột', async ({ page }) => {
+    // Trước đây ô này là `div onClick` nên tab không tới được và Enter không
+    // kích hoạt — người dùng chỉ bàn phím không mở nổi tìm kiếm.
+    await login(page, 'admin');
+    await page.goto('/dashboard');
+
+    const trigger = page.getByRole('button', { name: 'Tìm kiếm...' });
+    await trigger.focus();
+    await expect(trigger).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(page.locator('.ant-modal')).toBeVisible({ timeout: 15_000 });
   });
 });
