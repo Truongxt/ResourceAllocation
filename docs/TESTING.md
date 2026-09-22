@@ -7,9 +7,9 @@ Dự án có **ba lớp kiểm thử**, mỗi lớp trả lời một câu hỏi
 |-----|---------|-----------|--------|-----------------|
 | Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 18 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
 | Component | `client/tests/` | `npm test` trong `client/` | 3 file logic + 8 file component | Component vẽ đúng, xử lý đúng sự kiện không? |
-| Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 78 bài / 10 file | Ghép tất cả lại thì người dùng **dùng được** không? |
+| Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 82 bài / 10 file | Ghép tất cả lại thì người dùng **dùng được** không? |
 
-Hai lớp đầu chạy trong vòng vài phút. Lớp e2e mất khoảng **14 phút** (đo trên máy phát
+Hai lớp đầu chạy trong vòng vài phút. Lớp e2e mất khoảng **10–15 phút** (đo trên máy phát
 triển, 1 worker) vì nó khởi động thật, đăng nhập thật và chờ API thật ở từng bài.
 
 Chi tiết từng lớp:
@@ -46,120 +46,130 @@ môi trường phát triển:
 Hai lớp đầu chạy nhanh và chỉ thẳng ra chỗ hỏng. Nhưng cả hai đều kiểm **từng mảnh riêng**,
 nên có một loại lỗi chúng không bao giờ bắt được: từng mảnh đều đúng, ghép lại thì sai.
 
-Đợt dựng bộ e2e này tìm ra bốn lỗi thuộc đúng loại đó — chi tiết ở phần dưới. Không lỗi nào
-trong số đó làm đỏ `server/tests` hay `client/tests`.
+Đợt dựng bộ e2e này tìm ra **bảy** lỗi thuộc đúng loại đó. Không lỗi nào trong số đó làm đỏ
+`server/tests` hay `client/tests` — và tất cả đều đã được sửa, kèm bài test chống tái phát.
 
-## Lỗi đã biết, đang được test theo dõi
+## Những lỗi bộ e2e đã tìm ra và đã sửa
 
-Bốn bài test dưới đây mô tả hành vi **đúng** của những chỗ hiện đang sai, và được đánh dấu
-`test.fail()`. Lượt chạy hiện tại chúng "đạt" ở dạng *expected failure*. Ngày ai đó sửa
-xong, chính chúng sẽ chuyển sang **đỏ** — đó là lúc gỡ dấu `test.fail()`, xóa mục tương ứng
-ở đây, và bài test trở thành bài chống tái phát bình thường.
+Giữ lại đây vì mỗi lỗi kèm một bài học về **cách nó lọt qua hai lớp test kia**, và vì mỗi
+mục chỉ ra đúng bài test đang giữ cho nó không quay lại.
 
 ### 1. Không tạo được dự án nếu chỉ điền các trường nhìn thấy được
 
-**Ở đâu:** `client/src/pages/projects/Projects.jsx` ↔ `server/src/routes/project.routes.js:69`
-**Test:** `e2e/tests/03-projects.spec.js`
+`startDate`/`endDate` bắt buộc ở server (`server/src/routes/project.routes.js`) nhưng ô nhập
+chúng nằm trong panel *"Cài đặt nâng cao"* đang thu gọn và **không** đánh dấu bắt buộc ở
+form. Người dùng điền tên + PM (hai trường duy nhất có dấu bắt buộc), bấm Tạo → nhận 400 dưới
+dạng toast, không có dòng nhắc nào tại ô còn thiếu, mà ô đó thì đang bị gấp lại.
 
-`startDate` và `endDate` là **bắt buộc** ở server. Nhưng ô nhập chúng
-(`Form.Item name="dateRange"`) nằm trong panel *"Cài đặt nâng cao"* đang thu gọn, và **không**
-được đánh dấu `required` ở form. Người dùng mở modal, điền tên + PM (hai trường duy nhất có
-dấu bắt buộc), bấm Tạo → nhận `400 Ngày bắt đầu là bắt buộc` dưới dạng toast, không có dòng
-nhắc nào tại ô còn thiếu, mà ô đó thì đang bị gấp lại nên cũng không nhìn thấy.
+**Lọt qua thế nào:** test API luôn gửi kèm `startDate`, nên nhánh này chưa bao giờ được đi
+qua theo đúng cách người dùng đi.
 
-Vì sao `server/tests` không bắt được: test API luôn gửi kèm `startDate`, nên nhánh này chưa
-bao giờ được đi qua theo đúng cách người dùng đi.
-
-**Hướng sửa:** thêm `rules={[{ required: true }]}` cho `dateRange`, và mở sẵn panel "Cài đặt
-nâng cao" khi form chưa hợp lệ.
+**Đã sửa:** đưa ô thời gian ra ngoài panel và đánh dấu bắt buộc. Trường bắt buộc không được
+nằm trong phần gấp lại.
+**Test giữ:** `e2e/tests/03-projects.spec.js` — hai bài, một kiểm chặn tại form, một khóa vị
+trí của ô.
 
 ### 2. Phần trăm khớp kỹ năng hiện thành `10000%`
 
-**Ở đâu:** `client/src/components/optimization/OptimizationResultView.jsx:107` và `:163`
-**Test:** `e2e/tests/06-optimization.spec.js`
+Server trả thang **0–100** (`server/src/algorithms/scoring.js:162`,
+`server/src/algorithms/genetic/GeneticAlgorithm.js:289`) nhưng `OptimizationResultView.jsx`
+nhân thêm 100 lần nữa. Đáng chú ý: `OptimizationCompareView.jsx` **không** nhân — hai
+component đang hiểu khác nhau về cùng một con số, và cái đúng là cái không nhân.
 
-Server đã trả về thang **0–100**:
+**Lọt qua thế nào:** không lớp nào kiểm con số *hiển thị*. API trả đúng, component render ra
+sai, và không có assertion nào nhìn vào chuỗi cuối cùng trên màn hình.
 
-- `server/src/algorithms/scoring.js:162` — `averageSkillMatch: Math.round((…) * 100)`
-- `server/src/algorithms/genetic/GeneticAlgorithm.js:289` — `skillMatch: Math.round(… * 100)`
+**Đã sửa:** bỏ `* 100` ở cả hai chỗ.
+**Test giữ:** `e2e/tests/06-optimization.spec.js` — một bài quét mọi chuỗi `\d+%` trên màn
+hình kết quả và bắt buộc ≤ 100.
 
-Nhưng `OptimizationResultView` nhân thêm 100 lần nữa (`Math.round((match || 0) * 100)`), nên
-cả thẻ KPI *"Khớp kỹ năng TB"* lẫn cột *"Độ khớp kỹ năng"* trong bảng phân công đều hiện
-`10000%`.
+### 3. Giờ công của cùng một người lệch nhau giữa hai trang
 
-Đáng chú ý: `OptimizationCompareView.jsx:148` **không** nhân — nó dùng thẳng
-`Math.round(cell.skillMatch)`. Hai component đang hiểu khác nhau về cùng một con số, và cái
-đúng là cái không nhân.
+Với dữ liệu mẫu, Trần Văn Nam hiện **0h / 40h** ở `/resources` nhưng **32h / 40h** ở
+`/reports`. Hai trang đọc hai nguồn: trang Nhân sự đọc trường `currentWorkload` lưu sẵn,
+trang Báo cáo cộng live `estimatedHours` của task đang mở.
 
-**Hướng sửa:** bỏ `* 100` ở cả hai chỗ trong `OptimizationResultView.jsx`.
-
-### 3. ~~Giờ công của cùng một người lệch nhau giữa hai trang~~ — đã sửa
-
-**Ở đâu:** `server/src/utils/seeder.js`
-**Test:** `e2e/tests/07-analytics.spec.js`
-
-Với dữ liệu mẫu, Trần Văn Nam hiện **0h / 40h** ở trang Nhân sự nhưng **32h / 40h** ở trang
-Báo cáo. Hai trang đọc hai nguồn khác nhau:
-
-| Trang | Nguồn |
-|-------|-------|
-| `/resources` | trường `currentWorkload` lưu sẵn trong collection `Resource` |
-| `/reports` | cộng `estimatedHours` của task đang mở, tính ngay lúc gọi |
-
-Chẩn đoán đầu tiên là sai, ghi lại đây vì nó là một cái bẫy đáng nhớ: nhìn thấy
+**Chẩn đoán đầu tiên là sai, ghi lại vì nó là cái bẫy đáng nhớ:** nhìn thấy
 `resourceService.recalculateWorkload()` không màn hình nào gọi, rất dễ kết luận rằng
 `currentWorkload` không bao giờ được cập nhật. Thực tế **mọi đường ghi task qua API đều gọi
-`syncResourceWorkload`** — kiểm bằng cách tạo một task qua `POST /api/tasks` rồi đọc lại
-`/api/resources` thì thấy con số nhảy đúng.
+`syncResourceWorkload`** — tạo một task qua `POST /api/tasks` rồi đọc lại `/api/resources`
+thì thấy con số nhảy đúng. Thủ phạm hẹp hơn nhiều: seeder ghi task thẳng qua model, không đi
+qua controller, nên riêng dữ liệu mẫu không bao giờ được đồng bộ.
 
-Thủ phạm hẹp hơn nhiều: **seeder ghi task thẳng qua model, không đi qua controller**, nên
-riêng dữ liệu mẫu không bao giờ được đồng bộ. Đã sửa bằng một lời gọi `syncResourceWorkload()`
-ở cuối seeder.
+Bài học: đừng suy ra hành vi runtime từ việc đọc xem hàm nào gọi hàm nào — chạy thử rồi đo.
 
-Bài học: đừng suy ra hành vi runtime từ việc đọc code gọi hàm — chạy thử rồi đo.
+**Đã sửa:** thêm `syncResourceWorkload()` ở cuối seeder.
+**Test giữ:** `e2e/tests/07-analytics.spec.js` đối chiếu hai trang; `05-resources.spec.js`
+khóa con số `32h / 40h`.
 
-### 4. Hai màn hình từ chối quyền khác nhau, một cái không có lối ra
+### 4. Seeder bỏ sót 3 collection
 
-**Ở đâu:** `client/src/components/common/ProtectedRoute.jsx`
-**Test:** `e2e/tests/08-permissions.spec.js` (đã kiểm, chưa đánh `test.fail()` — đây là điểm
-cần bàn về thiết kế chứ chưa hẳn là lỗi)
+`TaskGroup`, `RecurringTask`, `CompanySetting` không bị xóa khi seed, nên bản ghi cũ tồn đọng
+qua mọi lần seed và trỏ vào những `_id` đã biến mất — đúng cái vấn đề mà comment trong chính
+hàm đó nói là đã chữa cho `notifications`/`activitylogs` trước đây. Dòng log cũng in `8`
+trong khi xóa `9`.
 
-Member gõ thẳng URL vào trang bị cấm gặp hai màn hình khác hẳn nhau:
+**Đã sửa:** xóa theo **một mảng model duy nhất** và in ra `collections.length`. Thêm model mới
+mà quên cập nhật thì con số tự lệch và lộ ra ngay — không còn chỗ cho việc bỏ sót lần thứ ba.
 
-| URL | Chặn theo | Màn hình | Có lối quay ra? |
-|-----|-----------|----------|-----------------|
-| `/resources` | vai trò (`roles`) | "Không có quyền truy cập" | **Không** — không sidebar, không nút |
-| `/optimization`, `/benchmark` | quyền ứng dụng (`app`) | "Chưa được phân quyền Quản trị ứng dụng (App Admin)" | Có — nút "Quay lại Tổng quan Dashboard" |
+### 5. Màn hình chặn theo vai trò là ngõ cụt
 
-Màn hình thứ nhất là ngõ cụt: người dùng chỉ còn cách bấm nút Back của trình duyệt.
+Member gõ nhầm URL vào trang bị cấm gặp màn hình "Không có quyền truy cập" **không sidebar,
+không nút nào** — chỉ còn nút Back của trình duyệt. Trong khi màn hình chặn theo quyền ứng
+dụng (`/optimization`, `/benchmark`) đã có nút quay về Dashboard.
 
 **Điểm làm đúng, cần giữ:** cả hai đều chặn **tại chỗ** chứ không đá về `/login`. Đá ra sẽ
 trông như phiên hết hạn, người dùng đăng nhập lại rồi gặp đúng màn hình đó lần nữa.
 `client/tests/protected-route.test.jsx` đã khóa hành vi này ở tầng component.
 
-## Vấn đề nhỏ khác, ghi lại để khỏi quên
+**Đã sửa:** thêm nút quay về cho màn hình theo vai trò, và đổi nút của màn hình theo app từ
+`window.location.href` sang `navigate` — gán location trong SPA bắt trình duyệt tải lại toàn
+bộ bundle và dựng lại phiên.
+**Test giữ:** `e2e/tests/08-permissions.spec.js`, kèm một assertion rằng không có `load` event
+nào xảy ra khi bấm nút.
 
-- **`VITE_SOCKET_URL` không có trong `.env.example`.** `client/src/context/SocketContext.jsx:8`
-  đọc biến này, mặc định `http://localhost:5000`. Triển khai server ở cổng/host khác mà quên
-  đặt thì **mọi thứ vẫn chạy bình thường**, chỉ có realtime âm thầm không kết nối — không có
-  lỗi nào hiện ra trên giao diện. Đã bổ sung vào `.env.example`.
-- **Seeder in sai số collection.** `server/src/utils/seeder.js` xóa **9** collection nhưng in
-  `Cleared all 8 collections.` — `RefreshToken` được thêm sau mà dòng log và comment không
-  được sửa theo.
-- **Vài phần tử tương tác không có vai trò ARIA.** Ô mở tìm kiếm toàn cục
-  (`client/src/components/layout/Header.jsx:271`) là một `div` bắt `onClick`, không phải
-  `button`; thanh chuyển mục trong drawer chi tiết công việc cũng không dùng `role="tab"`.
-  Hệ quả: không bấm được bằng bàn phím, trình đọc màn hình không đọc ra được, và bài test
-  phải bám vào class thay vì vai trò.
-- **Cảnh báo deprecated của Ant Design v6** hiện đầy console ở hầu hết trang:
-  `dropdownRender` → `popupRender`, `destroyOnClose` → `destroyOnHidden`, `bodyStyle` →
-  `styles.body`, `trailColor` → `railColor`, `strokeWidth` → `size`. Chưa hỏng gì, nhưng sẽ
-  hỏng ở bản major kế tiếp.
-- **Thông báo validate ở trang Đăng ký viết cứng tiếng Việt.** `client/src/pages/auth/Register.jsx`
-  không dùng `t()` cho `message` của các `rules`, trong khi `vi.json`/`en.json` đã có sẵn
-  nhóm khóa `auth.required.*`. Đổi sang tiếng Anh thì phần còn lại của trang dịch, riêng
-  thông báo lỗi vẫn tiếng Việt. `client/tests/locales.test.mjs` không bắt được vì nó so
-  hai file locale với nhau, không kiểm xem component có dùng chúng hay không.
+### 6. `VITE_SOCKET_URL` không có trong `.env.example`
+
+`client/src/context/SocketContext.jsx:8` đọc biến này, mặc định `http://localhost:5000`.
+Triển khai server ở cổng/host khác mà quên đặt thì **mọi thứ vẫn chạy bình thường**, chỉ có
+realtime âm thầm không kết nối — không một lỗi nào hiện ra trên giao diện.
+
+**Lọt qua thế nào:** đây là loại lỗi *chỉ* lớp e2e bắt được. `server/tests` không có client;
+`client/tests` mock hết tầng mạng.
+
+**Đã sửa:** bổ sung vào `.env.example` kèm giải thích tại sao nó khác `VITE_API_URL`.
+**Test giữ:** `e2e/tests/10-realtime.spec.js` kiểm địa chỉ WebSocket thật mà trình duyệt mở.
+
+### 7. Trang Đăng ký viết cứng toàn bộ tiếng Việt
+
+10 nhãn, 12 thông báo validate, 9 placeholder và 4 danh sách Select đều là chuỗi cố định. Bật
+tiếng Anh thì phần còn lại của ứng dụng dịch, riêng trang này đứng nguyên.
+
+**Lọt qua thế nào:** `client/tests/locales.test.mjs` so hai file locale **với nhau**, không
+kiểm xem component có thật sự dùng chúng hay không. Hai file khớp nhau hoàn hảo trong khi
+trang Đăng ký không đọc khóa nào cả.
+
+**Đã sửa:** thêm nhóm `auth.register.*` (30 khóa + 4 danh sách) và nối vào. `value` của các
+Select giữ nguyên tiếng Việt vì đó là **dữ liệu** gửi lên server — dịch cả value thì cùng một
+người chọn cùng một mục sẽ ra hai giá trị khác nhau tùy ngôn ngữ.
+**Test giữ:** `e2e/tests/09-preferences.spec.js` bật tiếng Anh rồi kiểm cả ba loại chữ.
+
+Nhân đây cũng sửa `locales.test.mjs`: `flatten` dừng ở array nên mảng bị kiểm như một chuỗi,
+và **lệch độ dài giữa vi/en thì không ai bắt** — en có 3 mục, vi có 4 thì mục thứ 4 âm thầm
+rơi về tiếng Việt. Nay đi vào từng phần tử nên lệch độ dài hiện ra dưới dạng thiếu khóa.
+
+## Vấn đề nhỏ khác
+
+- **Ô mở tìm kiếm toàn cục từng là `div` bắt `onClick`** — không tab tới được, Enter không
+  kích hoạt, trình đọc màn hình không đọc ra. Đã đổi thành `<button>` thật; bài test nay tìm
+  nó bằng `getByRole` thay vì bám class, và có thêm một bài mở bằng bàn phím.
+- **Thanh chuyển mục trong drawer chi tiết công việc không dùng `role="tab"`** — vẫn còn.
+  Hệ quả: bài test phải so theo chữ thay vì theo vai trò. Xem
+  `client/src/components/tasks/TaskDetailDrawer.jsx`.
+- **Cảnh báo deprecated của Ant Design v6** đã gỡ hết (`destroyOnClose`, `trailColor`,
+  `dropdownRender`, `bodyStyle`, `strokeWidth`, Drawer `width`, `Avatar.Group maxCount`,
+  Space `direction`). Kiểm lại bằng cách mở 11 trang và đếm cảnh báo trong console: 0.
+  Lưu ý `Modal width` và `Radio.Group direction` **không** deprecated — đừng đổi theo.
 
 ## Ghi chú vận hành
 

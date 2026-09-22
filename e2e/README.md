@@ -150,11 +150,15 @@ Access token của hệ thống nằm trong biến module chứ không ở `loca
 (`client/src/services/tokenStore.js`), nên không có cách nào dựng sẵn phiên từ bên ngoài.
 Đi qua form cũng đúng tinh thần e2e hơn.
 
-### `test.fail()` cho lỗi đã biết
+### `test.fail()` khi gặp lỗi chưa sửa được ngay
 
-Bộ này có mấy bài mô tả hành vi **đúng** của một chỗ đang sai, đánh dấu `test.fail()`. Lượt
-chạy hiện tại chúng "đạt" ở dạng *expected failure*; ngày ai đó sửa xong thì chính chúng
-chuyển sang đỏ, nhắc gỡ dấu `test.fail()` và cái chú thích kèm theo. Xem danh sách ở
+Tìm ra lỗi mà chưa sửa được ngay thì **viết bài test mô tả hành vi đúng** rồi đánh dấu
+`test.fail()`, kèm chú thích chỉ rõ chỗ sai. Lượt chạy sẽ báo *expected failure* — không làm
+đỏ CI — nhưng ngày ai đó sửa xong thì chính bài đó chuyển sang **đỏ**, nhắc gỡ dấu đi cùng
+lúc. Nhờ vậy lỗi không bị quên mà cũng không làm nhiễu.
+
+Bảy lỗi đợt đầu đều đã sửa nên hiện **không còn `test.fail()` nào**; các bài đó giờ là bài
+chống tái phát bình thường. Lược sử từng lỗi và cách nó lọt qua hai lớp test kia:
 [docs/TESTING.md](../docs/TESTING.md).
 
 ## Viết thêm bộ mới
