@@ -1388,7 +1388,29 @@ const moveTask = async (req, res, next) => {
     }
 
     const { targetProjectId, targetTaskGroupId } = req.body;
-    if (targetProjectId) task.project = targetProjectId;
+
+    if (targetProjectId && String(targetProjectId) !== String(task.project)) {
+      const targetProject = await Project.findById(targetProjectId);
+      if (!targetProject) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy dự án đích' });
+      }
+
+      // Tiền nhiệm của task giữ nguyên tham chiếu tới dự án cũ khi chuyển dự án
+      // — cùng lỗi mà POST /tasks đã chặn bằng 400, nên chuyển dự án cũng phải
+      // chặn tương tự thay vì để lại dependency trỏ khác dự án.
+      const depError = await validateDependencies(task.dependencies, {
+        taskId: task._id,
+        projectId: targetProjectId,
+      });
+      if (depError) {
+        return res.status(400).json({
+          success: false,
+          message: `Không thể chuyển dự án: ${depError}. Hãy gỡ tiền nhiệm trước khi chuyển.`,
+        });
+      }
+
+      task.project = targetProjectId;
+    }
     if (targetTaskGroupId !== undefined) task.taskGroup = targetTaskGroupId || null;
 
     await task.save();
