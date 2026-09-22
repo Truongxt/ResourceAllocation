@@ -290,15 +290,23 @@ Trang này chỉ Admin/PM vào được (`ProtectedRoute roles={['admin','projec
 Cả ba dùng chung thang điểm `algorithms/scoring.js` nên `fitness`/`metrics` so sánh được với
 nhau. *Bản ghi CSP tạo trước thay đổi này vẫn còn `fitness: 0` trong DB.*
 
-> ⚠️ **Ràng buộc H1 vẫn dùng đơn vị cũ.** `computeWorkloads` trong `scoring.js` cộng
-> `estimatedHours` của **toàn bộ** task được gán rồi so với `capacityOf` = năng lực **tuần**.
-> Nghĩa là một người không bao giờ được giao quá ~40 giờ cho **cả dự án**, dù dự án dài 6
-> tháng. Với backlog thật, mọi nhân sự đều vượt ngưỡng nên `fOveralloc` bão hòa và thôi phân
-> biệt được phương án tốt/xấu. H4 (`_overlaps`) thì **có** ý thức về thời gian — hai ràng
-> buộc cạnh nhau đang dùng hai mô hình thời gian khác nhau.
->
-> `currentWorkload` ở tầng hiển thị đã sửa (mục 3); phần thuật toán là **giai đoạn 2, chưa
-> làm**, vì nó sẽ đổi kết quả tối ưu nên cần chạy lại benchmark để đánh giá.
+**Ràng buộc H1 tính theo tuần.** `computePeakLoads` trong `scoring.js` trải giờ của task lên
+ngày làm việc, gom theo tuần, rồi so **tuần nặng nhất** với `capacityOf` = năng lực tuần —
+cùng đơn vị. Bốn chỗ cùng dùng đại lượng này: mục tiêu "phạt quá tải" của fitness, `metrics`,
+`_checkCapacityConstraint` (kiểm tăng dần trong backtracking) và `_nodeConsistency`.
+
+Đo trên **cùng một lời giải** của bộ benchmark 30 việc / 6 người:
+
+| | Tổng giờ cả kỳ | Đỉnh giờ/tuần | Năng lực |
+|---|---|---|---|
+| R0…R5 | 62–74h | 25–40h | 40h/tuần |
+| **Số người "quá tải"** | **6/6** (cách cũ) | **0/6** (cách mới) | |
+
+Nghĩa là trước đây `f_overalloc` **luôn bằng 0** — 20% trọng số fitness là trọng số chết, mọi
+phương án chấm điểm như nhau ở mục tiêu đó nên GA không dùng nó để phân biệt được gì.
+
+Việc chưa xếp lịch coi như dồn vào một tuần: mức sàn bảo thủ, để việc thiếu ngày không thành
+"miễn phí" với thuật toán. Nhờ vậy dữ liệu chưa có ngày vẫn hành xử **đúng như trước**.
 
 Mỗi lần chạy ghi một `OptimizationResult` (giữ 50 bản mới nhất).
 
@@ -402,8 +410,6 @@ Chi tiết và danh sách lỗi từng lớp đã bắt được: [`TESTING.md`]
 Danh sách đầy đủ và lý do ở cuối [`FEATURES.md`](./FEATURES.md). Tóm tắt những chỗ **đang có
 thật trong code**:
 
-- **Ràng buộc H1 của thuật toán vẫn so tổng giờ với năng lực tuần** — xem cảnh báo ở mục 5.5.
-  Đây là phần còn lại của bản vá đơn vị; tầng hiển thị đã xong, tầng thuật toán chưa.
 - **Chưa có migration cho tài khoản khách cũ** — khách tạo trước lúc tách `guestCompany` vẫn
   mang tên đối tác trong `companyName`, nên không admin nào nhìn thấy họ nữa (họ **vẫn đăng
   nhập được**).

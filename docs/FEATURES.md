@@ -90,7 +90,7 @@ của `server/tests/api.test.mjs`.
 | 5.1 | Genetic Algorithm | Multi-objective GA cho phân bổ nhân sự | ✅ | Tournament (k=5), Uniform Crossover, Random Mutation, Elitism 5% |
 | 5.2 | CSP Solver | Backtracking + AC-3 + MRV + LCV | ✅ | Node consistency (capacity) và AC-3 (trên đồ thị H4) là hai bước tách bạch. AC-3 trên ràng buộc `≠` chỉ lan truyền từ biến đã bị ép về một giá trị — giới hạn cố hữu, muốn mạnh hơn cần all-different (Régin) |
 | 5.3 | Fitness Function | Workload balance + skill match + cost + overallocation | ✅ | 4 mục tiêu, trọng số cấu hình được |
-| 5.4 | Constraint Validation | Kiểm tra capacity, skill, availability, dependency | ✅ | Đủ H1–H4. **H2 dùng ngưỡng tổng hợp ≥ 0.5** chứ không bắt buộc từng kỹ năng. H4 cấm giao hai việc phụ thuộc nhau, chồng lịch cho cùng một người; sai thứ tự ngày thì báo trong `constraintReport` (thuật toán không đổi được ngày) — xem [ALGORITHMS.md](./ALGORITHMS.md) mục 2.2 |
+| 5.4 | Constraint Validation | Kiểm tra capacity, skill, availability, dependency | ✅ | Đủ H1–H4. **H1 tính theo TUẦN**: giờ của task được trải lên ngày làm việc rồi gom theo tuần, lấy tuần nặng nhất so với `maxCapacity × fte` (giờ/tuần) — cùng đơn vị. Trước đây cộng tổng giờ cả kỳ rồi so với năng lực tuần, khiến một người không nhận nổi quá ~40h cho cả dự án và `f_overalloc` luôn bằng 0 (xem [SYSTEM_WALKTHROUGH.md](./SYSTEM_WALKTHROUGH.md) mục 5.5). **H2 dùng ngưỡng tổng hợp ≥ 0.5** chứ không bắt buộc từng kỹ năng. H4 cấm giao hai việc phụ thuộc nhau, chồng lịch cho cùng một người; sai thứ tự ngày thì báo trong `constraintReport` (thuật toán không đổi được ngày) — xem [ALGORITHMS.md](./ALGORITHMS.md) mục 2.2 |
 | 5.5 | Run Optimization UI | Giao diện chạy tối ưu hóa với parameters | ✅ | Chọn thuật toán, slider tham số, tinh chỉnh trọng số |
 | 5.6 | Results Comparison | So sánh multiple solutions | ✅ | Tick chọn 2–4 lần chạy trong lịch sử → `GET /optimization/compare`. Bảng 9 chỉ số kèm đánh dấu bên thắng, bảng phân công ghép theo từng công việc, và cảnh báo khi các phương án chạy khác phạm vi |
 | 5.7 | Apply Solution | Áp dụng kết quả vào hệ thống | ✅ | Ghi `assignee` cho từng task + notification + ActivityLog |
@@ -239,14 +239,6 @@ khóa trần (`tasks.form.title`) ra màn hình. Vì fallback che lỗi rất gi
 
 Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 
-0. **Ràng buộc H1 của thuật toán còn dùng sai đơn vị** — `computeWorkloads` trong
-   `algorithms/scoring.js` cộng `estimatedHours` của **toàn bộ** task được gán rồi so với
-   `capacityOf` = năng lực **tuần**. Hệ quả: một người không được giao quá ~40 giờ cho cả dự
-   án dù dự án dài bao lâu; với backlog thật thì ai cũng vượt ngưỡng nên `fOveralloc` bão hòa
-   và thôi phân biệt được phương án tốt/xấu. Ràng buộc H4 (`_overlaps`) ngay cạnh thì **có**
-   ý thức về thời gian — hai ràng buộc đang dùng hai mô hình thời gian khác nhau.
-   Tầng hiển thị (`currentWorkload`) **đã sửa**; tầng thuật toán để riêng vì nó đổi kết quả
-   tối ưu nên cần chạy lại benchmark để đánh giá.
 1. **Ảnh chụp workload định kỳ** — 7.7 hiện suy ra chuỗi thời gian từ lịch công việc, đủ để
    nhìn về phía trước nhưng không phải số liệu lịch sử. Muốn trả lời "tháng trước đội thực
    sự chạy ở mức nào" thì phải chụp và lưu theo ngày.
