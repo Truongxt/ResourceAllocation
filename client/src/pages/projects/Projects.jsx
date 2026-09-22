@@ -92,7 +92,7 @@ const BASE_PROJECT_COLORS = [
 export default function Projects() {
   const { t } = useTranslation();
   const { isDark } = useTheme();
-  const { user } = useAuth();
+  const { user, canManageModule } = useAuth();
   const navigate = useNavigate();
 
   // Tab State: 'projects' | 'departments'
@@ -149,11 +149,16 @@ export default function Projects() {
     isWeworkAdmin ||
     companySettings?.createDepartmentPermission === 'all_members';
 
+  // `canManageModule` là **lớp chặn thêm**, không phải lớp cấp quyền: hạ quyền
+  // phân hệ xuống "Chỉ xem" thì dù vai trò có cao tới đâu cũng không ghi được,
+  // vì server đã chặn bằng `requireAppPermission`. Không nhân điều kiện này vào
+  // đây thì nút vẫn hiện và bấm vào chỉ để nhận 403.
   const canCreateProject =
-    isSystemAdmin ||
-    isWeworkAdmin ||
-    isPM ||
-    companySettings?.createProjectPermission === 'all_members';
+    canManageModule('projects') &&
+    (isSystemAdmin ||
+      isWeworkAdmin ||
+      isPM ||
+      companySettings?.createProjectPermission === 'all_members');
 
   const canManageDepartment = canCreateDepartment;
 
@@ -552,7 +557,9 @@ export default function Projects() {
       key: 'actions',
       width: 120,
       align: 'right',
-      render: (_, record) => (
+      // Quyền phân hệ "Chỉ xem" thì không còn thao tác nào ghi được: server chặn
+      // hết, nên hiện nút ra chỉ để người dùng bấm vào rồi nhận 403.
+      render: (_, record) => !canManageModule('projects') ? null : (
         <Space size="small">
           <Tooltip title="Chỉnh sửa nhanh (Base Wework)">
             <Button

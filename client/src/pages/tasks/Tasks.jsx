@@ -62,7 +62,7 @@ export default function Tasks() {
   const [searchParams, setSearchParams] = useSearchParams();
   const attentionStatus = searchParams.get('status') === 'blocked' ? 'blocked' : '';
   const unassignedOnly = searchParams.get('unassigned') === 'true';
-  const { user } = useAuth();
+  const { user, canManageModule } = useAuth();
   const { isDark } = useTheme();
 
   // --- TRẠNG THÁI DỮ LIỆU ---
@@ -106,6 +106,7 @@ export default function Tasks() {
 
   // Phân quyền: Admin và PM có toàn quyền; Creator và Assignee sửa task của mình
   const canManageTasks = user?.role === ROLES.ADMIN || user?.role === ROLES.PM || Boolean(user?.isOwner);
+  const canWriteTasks = canManageModule('tasks');
   const isAssignedToMe = (task) => {
     const assigneeId = task?.assignee?._id || task?.assignee;
     return !!assigneeId && !!user?._id && assigneeId.toString() === user._id.toString();
@@ -116,13 +117,17 @@ export default function Tasks() {
   };
   const canEditTask = (task) => {
     if (!task) return false;
+    // Phân hệ "Công việc" chỉ ở mức xem thì **không đường nào** ghi được: server
+    // chặn mọi method khác GET trên /api/tasks, kể cả đường người được giao tự
+    // cập nhật tiến độ. Phải chặn trước khi rơi xuống `getTaskPermissions`.
+    if (!canWriteTasks) return false;
     if (canManageTasks) return true;
     const taskProj =
       (projects || []).find((p) => (p._id || p.id) === (task.project?._id || task.project)) || task.project;
     const perms = getTaskPermissions(task, taskProj, user);
     return perms.canEditDetails || perms.canEditDeadline || perms.canChangeAssignee || perms.canUpdateStatus;
   };
-  const canCreateAnyTask = canManageTasks || (Array.isArray(projects) && projects.length > 0);
+  const canCreateAnyTask = canWriteTasks && (canManageTasks || (Array.isArray(projects) && projects.length > 0));
 
   /**
    * Tải danh sách công việc theo bộ lọc
