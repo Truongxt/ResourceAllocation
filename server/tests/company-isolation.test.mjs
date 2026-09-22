@@ -223,4 +223,124 @@ S('Phòng ban — và một ngoại lệ có chủ đích');
   }
 }
 
+// ══════════════════════════════════════════════
+S('Tối ưu hóa — cả phân hệ từng không có ranh giới');
+{
+  // `OptimizationResult` trước đây **không có** trường `companyName`, nên không
+  // có gì để lọc theo. `getHistory` còn bỏ hẳn bộ lọc khi người gọi là `admin`
+  // — mà admin công ty nào cũng là admin.
+  //
+  // Đây là lỗ nặng nhất trong đợt rà: áp một phương án là ghi đè phân công thật
+  // của cả một công ty, và công ty ngoài làm được điều đó.
+  // Phân hệ này nằm sau `authorizeApp('optimize')` nên PM không vào được —
+  // phải dùng admin của chính công ty A.
+  const adminA = await call('POST', '/auth/login', {
+    body: { email: 'admin@rao.com', password: 'password123' },
+  });
+  const TAdmin = adminA.data.token;
+
+  const run = await call('POST', '/optimization/run/genetic', {
+    token: TAdmin,
+    body: { populationSize: 20, generations: 10 },
+  });
+  const resultId = run.data?.result?._id;
+  ok(!!resultId, 'Công ty A chạy được một lượt tối ưu', `status=${run.status}`);
+
+  if (resultId) {
+    for (const [method, path, label] of [
+      ['GET', `/optimization/${resultId}`, 'xem kết quả'],
+      ['POST', `/optimization/${resultId}/apply`, 'ÁP phương án — ghi đè phân công của A'],
+      ['POST', `/optimization/${resultId}/rollback`, 'hoàn tác phương án'],
+    ]) {
+      const r = await call(method, path, { token: TB, body: method === 'POST' ? {} : undefined });
+      ok(r.status === 403, `B không ${label}`, `status=${r.status}`);
+    }
+
+    // `compare` cần HAI id khác nhau, nếu không nó dừng ở bước validate và trả
+    // 400 — trông như "đã chặn" trong khi bước phân quyền chưa hề chạy. Phải
+    // dựng đủ hai lượt thì bài kiểm mới chạm được tới chỗ cần kiểm.
+    const run2 = await call('POST', '/optimization/run/genetic', {
+      token: TAdmin,
+      body: { populationSize: 20, generations: 10 },
+    });
+    const secondId = run2.data?.result?._id;
+    ok(!!secondId && secondId !== resultId, 'Dựng được lượt chạy thứ hai để so sánh');
+
+    if (secondId) {
+      const cmp = await call('GET', `/optimization/compare?ids=${resultId},${secondId}`, { token: TB });
+      ok(cmp.status === 403, 'B không so sánh được hai phương án của A', `status=${cmp.status}`);
+
+      const cmpOwn = await call('GET', `/optimization/compare?ids=${resultId},${secondId}`, { token: TAdmin });
+      ok(cmpOwn.status === 200, 'Nhưng A so sánh được của chính mình', `status=${cmpOwn.status}`);
+    }
+
+    const hist = await call('GET', '/optimization/history', { token: TB });
+    const n = (hist.data?.results || []).length;
+    ok(n === 0, 'Lịch sử của B không chứa lượt chạy của A', `${n} bản ghi`);
+
+    const own = await call('GET', '/optimization/history', { token: TAdmin });
+    ok((own.data?.results || []).length > 0,
+      'Nhưng A vẫn thấy lượt chạy của chính mình',
+      `${(own.data?.results || []).length} bản ghi`);
+  }
+}
+
+// ══════════════════════════════════════════════
+S('Nhật ký hoạt động — vết kiểm toán không được lẫn giữa các công ty');
+{
+  // Cùng khuôn với lịch sử tối ưu: model không có `companyName`, và nhánh
+  // `admin` bỏ hẳn bộ lọc. Nhưng ở đây còn một đường phá hoại: `clearActivityLogs`
+  // gọi `deleteMany({})` — một admin bất kỳ xóa sạch nhật ký của mọi công ty.
+  //
+  // Nhật ký là thứ duy nhất ghi lại ai đã làm gì. Mất nó là mất luôn khả năng
+  // điều tra chính lần mất đó.
+  const adminA = await call('POST', '/auth/login', {
+    body: { email: 'admin@rao.com', password: 'password123' },
+  });
+  const TAdmin = adminA.data.token;
+
+  const beforeA = await call('GET', '/activity-logs?limit=100', { token: TAdmin });
+  const countA = beforeA.data?.logs?.length ?? beforeA.data?.activityLogs?.length ?? 0;
+  ok(countA > 0, 'Công ty A có nhật ký', `${countA} bản ghi`);
+
+  const seenByB = await call('GET', '/activity-logs?limit=100', { token: TB });
+  const logsB = seenByB.data?.logs || seenByB.data?.activityLogs || [];
+  ok(logsB.length === 0, 'B KHÔNG thấy nhật ký của A', `${logsB.length} bản ghi`);
+
+  const statsB = await call('GET', '/activity-logs/stats', { token: TB });
+  const topB = statsB.data?.topUsers || [];
+  ok(topB.length === 0, 'Bảng xếp hạng của B không lòi tên người của A', `${topB.length} tên`);
+
+  // Và đường phá hoại: B xóa nhật ký thì chỉ được xóa của chính B.
+  //
+  // Đếm số bản ghi là KHÔNG đủ, và điều đó đã được kiểm bằng cách phá code thử:
+  // `clearActivityLogs` tự ghi một vết "đã xóa nhật ký" SAU khi xóa, nên dù
+  // `deleteMany({})` cuốn sạch mọi công ty, A vẫn "còn 1 bản ghi" — chính vết của
+  // B. Bài kiểm đếm số lượng vẫn xanh trong khi dữ liệu đã mất hết.
+  //
+  // Nên phải tìm một vết CỤ THỂ của A và đòi nó còn nguyên.
+  const marker = `Phòng mốc ${stamp}`;
+  const madeDept = await call('POST', '/departments', {
+    token: TAdmin,
+    body: { name: marker, code: `MK${stamp % 100000}` },
+  });
+  ok(madeDept.status === 201, 'A tạo một thực thể để sinh vết nhật ký', `status=${madeDept.status}`);
+
+  const hasMarker = async (token) => {
+    const r = await call('GET', `/activity-logs?limit=100&search=${encodeURIComponent(marker)}`, { token });
+    return (r.data?.logs || []).some((l) => (l.entityTitle || l.description || '').includes(marker));
+  };
+
+  ok(await hasMarker(TAdmin), 'Vết đó nằm trong nhật ký của A');
+  ok(!(await hasMarker(TB)), 'Và KHÔNG lọt sang nhật ký của B');
+
+  await call('DELETE', '/activity-logs', { token: TB });
+
+  ok(await hasMarker(TAdmin), 'B xóa nhật ký của mình KHÔNG cuốn theo vết của A');
+
+  if (madeDept.data?.department?._id) {
+    await call('DELETE', `/departments/${madeDept.data.department._id}`, { token: TAdmin });
+  }
+}
+
 process.exit(summary() ? 1 : 0);
