@@ -994,6 +994,12 @@ const removeChecklistItem = async (req, res, next) => {
     if (!item) return res.status(404).json({ success: false, message: 'Không tìm thấy mục checklist' });
 
     item.deleteOne();
+    // Đánh lại order theo vị trí còn lại — không thì mục thêm sau (order =
+    // checklist.length) sẽ trùng order với mục đã xóa trước đó, và thứ tự
+    // hiển thị lệ thuộc vào thứ tự mảng thay vì vào order.
+    task.checklist.forEach((c, idx) => {
+      c.order = idx;
+    });
     await task.save();
 
     res.json({ success: true, message: 'Đã xóa mục checklist' });
