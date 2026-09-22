@@ -208,6 +208,38 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 10. Bổ sung | 6 | 6 | 0 | 0 |
 | **Tổng** | **79** | **79 (100%)** | **0** | **0** |
 
+Bảng trên nói về **web client**. App di động là một client riêng và phủ ít hơn hẳn — xem
+mục kế tiếp.
+
+### App di động — phủ được tới đâu
+
+`mobile/` là ứng dụng Expo/React Native dùng chung API với web. Nó **không** phải bản web
+thu nhỏ: nhiều nhánh nghiệp vụ chưa có, và cho tới gần đây còn lệch khỏi server ở vài chỗ
+làm hỏng hẳn tính năng.
+
+| Phân hệ | Mobile | Thiếu so với web |
+|---------|--------|------------------|
+| Đăng nhập / Đăng ký | ✅ | quên mật khẩu |
+| Tổng quan | ✅ | — |
+| Dự án | ✅ + chi tiết | sửa thành viên, phân quyền dự án, cấu hình luồng |
+| Công việc | 🔨 | Kanban, việc lặp lại, nhóm việc, phụ thuộc, người theo dõi, báo cáo kết quả, duyệt việc, nhân bản, di chuyển, bàn giao hàng loạt, nhập/xuất Excel |
+| ↳ checklist, bình luận | ✅ | — |
+| Nhân sự | 🔨 | nghỉ phép, tính lại tải |
+| Tối ưu hóa | 🔨 | chạy riêng GA/CSP/Hybrid, so sánh, rollback |
+| Benchmark | ✅ | — |
+| Báo cáo | 🔨 | xuất CSV, so sánh trước/sau tối ưu |
+| Nhật ký, Thông báo | ✅ | — |
+| Cài đặt | 🔨 | danh bạ người dùng, nhóm, phân quyền phân hệ, phiên đăng nhập, nghỉ phép |
+| **Lịch** | ⬜ | cả màn |
+| **Gantt** | ⬜ | cả màn |
+
+Quyền theo phân hệ (`appPermissions`) nay đã được áp trên mobile giống web: tab và nút bị ẩn
+khi không đủ quyền. Các lớp quyền còn lại (`appAdmins`, quyền theo từng dự án) thì chưa —
+server vẫn chặn đúng, nhưng giao diện có thể bày ra thao tác rồi nhận 403.
+
+Hai màn **Lịch** và **Gantt** là khoảng trống lớn nhất, và cũng là hai thứ khó bê nguyên
+xuống màn hình điện thoại nhất — nên để trống là một lựa chọn, không phải sơ suất.
+
 ### Đa ngôn ngữ — phạm vi và giới hạn
 
 **Đã dịch**: toàn bộ giao diện client — 12 trang, sidebar, header, form, thông báo lỗi
@@ -439,8 +471,23 @@ gọi. Bốn lỗi vừa tìm ra đều sống sót qua 82 bài e2e vì đúng k
 | **Nhật ký kiểm toán cho hành động Admin**: xóa nhân sự, xóa phòng ban, tính lại workload, xóa nhật ký. Riêng thao tác xóa nhật ký được ghi **sau** lệnh xóa nên vết của nó sống sót | |
 | Stack trace chỉ lộ khi `NODE_ENV=development` | |
 | `JWT_SECRET` bắt buộc khi `NODE_ENV=production`, thiếu là không khởi động | |
+| **Bình luận đã được phân lập theo công ty** (`belongsToCompany` trong `task.controller.js`) | Chưa rà hết: các nhánh khác chỉ `Task.findById` rồi thao tác cũng cần soi lại theo cùng cách |
 
 Ngưỡng giới hạn tần suất đặt qua `AUTH_RATE_LIMIT_MAX` / `API_RATE_LIMIT_MAX`.
+
+#### Refresh token cho client không phải trình duyệt
+
+App di động không có kho cookie đáng tin, nên `POST /auth/login|register|refresh` trả refresh
+token **trong body** cho client tự khai báo `X-Client-Type: mobile`.
+
+Đây là nới lỏng có chủ đích và **có giới hạn rõ**: web không khai báo header đó nên không bao
+giờ nhận refresh token trong body — toàn bộ thế phòng thủ trước XSS của web giữ nguyên.
+`refresh-token.test.mjs` có một ca khẳng định đúng điều này, để lần sau ai đó "dọn dẹp" cho
+gọn thì test đỏ ngay.
+
+Đổi lại, trên thiết bị di động refresh token nằm trong `AsyncStorage` — máy bị chiếm quyền
+root thì đọc được. Đây là ranh giới tin cậy khác với trình duyệt, và là cái giá phải trả để
+phiên không chết sau 15 phút.
 
 ## Lỗi đã sửa
 
@@ -458,3 +505,34 @@ Toàn bộ 8 lỗi phát hiện trong đợt rà soát đã được xử lý v�
 | `constants/index.js` | Dead code, enum lạc hậu (`in_review`, thiếu `blocked`) | Sửa khớp server và đưa vào dùng ở Tasks / Projects / GanttChart |
 
 Ghi chú: các bản ghi `OptimizationResult` của CSP tạo **trước** thay đổi này vẫn còn `fitness: 0` trong DB.
+
+## Lỗi của app di động đã sửa
+
+Nhóm lỗi này khác hẳn nhóm ở trên: không lớp test nào **có thể** bắt được, vì cho tới gần đây
+không lớp nào đọc tới `mobile/`. Ba lỗi đầu làm hỏng hẳn tính năng chứ không phải hiển thị sai.
+
+| Vị trí | Lỗi | Hậu quả |
+|--------|-----|---------|
+| `context/AuthContext.js` | Đọc `data.accessToken`; server trả `data.token` | **Đăng nhập luôn thất bại** |
+| `api/authApi.js` | Gọi `PUT /auth/change-password`; route thật là `PUT /auth/password` | Đổi mật khẩu trả 404 |
+| `api/client.js` | Nhánh 401 để trống (`// Optional: Trigger logout or refresh`) | Phiên chết sau 15 phút; app không làm mới, không đá ra, chỉ ngừng tải dữ liệu |
+| `AuthContext.logout` | Không gửi refresh token lên | Server không thu hồi gì; phiên sống tiếp 7 ngày sau khi bấm đăng xuất |
+| `screens/reports/ReportsScreen.js` | Gán cả `{resources, departments, summary}` vào state mảng | `.filter` ném lỗi → **màn Báo cáo chết ngay khi mở** |
+| `ReportsScreen` | Đọc `utilizationRate`, `currentWorkload`, `maxCapacity` | Tên thật là `utilization`, `workload`, `capacity` → mọi con số bằng 0 |
+| `ReportsScreen`, `ResourcesScreen` | `r.department?.name` | `department` là chuỗi → mọi người rơi vào nhóm "Chung" |
+| `ResourcesScreen` | Đọc `item.name`, `item.email` | Tên nằm trong `item.user` → danh sách nhân sự không có tên |
+| `ResourcesScreen` | `capacity = maxCapacity` | Bỏ quên `fte`; người bán thời gian bị tính năng lực gấp đôi |
+| `screens/settings/SettingsScreen.js` | Chỉ phân biệt `admin` với phần còn lại | Quản lý dự án bị hiện là "Thành viên" |
+
+Điểm chung của phần lớn: **sai tên trường hoặc sai đường dẫn**. Không lỗi cú pháp, không cảnh
+báo, không dấu hiệu gì khi đọc mã — chỉ hỏng lúc chạy thật.
+
+### Một lỗi bảo mật lộ ra nhờ việc này
+
+Khi viết bài test cho hợp đồng dữ liệu của màn bình luận trên mobile, bài test dựng thêm một
+công ty thứ hai và phát hiện: `deleteComment` miễn trừ cho **mọi** `role === 'admin'` mà không
+xét cùng công ty, còn `addComment` không kiểm gì cả. Admin công ty B xóa được bình luận trên
+công việc của công ty A, chỉ cần biết id.
+
+Cả hai nay đi qua `belongsToCompany`. Bài học: thêm một client thứ hai buộc phải viết lại hợp
+đồng dữ liệu cho tường minh, và chính lúc viết ra mới thấy chỗ hở đã nằm đó từ lâu.

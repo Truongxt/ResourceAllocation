@@ -1,13 +1,18 @@
 # 🧪 Chiến lược kiểm thử
 
-Dự án có **ba lớp kiểm thử**, mỗi lớp trả lời một câu hỏi khác nhau. Không lớp nào thay thế
+Dự án có **bốn lớp kiểm thử**, mỗi lớp trả lời một câu hỏi khác nhau. Không lớp nào thay thế
 được lớp nào.
 
 | Lớp | Thư mục | Chạy bằng | Quy mô | Trả lời câu hỏi |
 |-----|---------|-----------|--------|-----------------|
 | Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 20 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
 | Component | `client/tests/` | `npm test` trong `client/` | 3 file logic + 8 file component | Component vẽ đúng, xử lý đúng sự kiện không? |
+| Logic di động | `mobile/tests/` | `npm test` trong `mobile/` | 1 bộ logic thuần | Quy tắc quyền trên app có khớp với server không? |
 | Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 85 bài / 11 file | Ghép tất cả lại thì người dùng **dùng được** không? |
+
+Lớp di động mỏng nhất và cố tình như vậy: app Expo không chạy được trong môi trường kiểm
+thử hiện tại, nên chỉ những quy tắc **thuần** — tách sẵn ra `mobile/src/utils/` — mới kiểm
+được. Phần giao diện của app vẫn chưa có lưới nào che; xem [mục cuối](#phần-mobile-còn-hở).
 
 Hai lớp đầu chạy trong vòng vài phút. Lớp e2e mất khoảng **10–15 phút** (đo trên máy phát
 triển, 1 worker) vì nó khởi động thật, đăng nhập thật và chờ API thật ở từng bài.
@@ -27,13 +32,16 @@ cd server && npm test
 # Lớp 2 — không cần gì
 cd client && npm test
 
-# Lớp 3 — cần MongoDB; tự khởi động client + server
+# Lớp 3 — không cần gì, cũng không cần cài node_modules của mobile
+cd mobile && npm test
+
+# Lớp 4 — cần MongoDB; tự khởi động client + server
 npm run test:e2e                    # ở thư mục gốc
 npm run test:e2e:install            # lần đầu: tải trình duyệt cho Playwright
 ```
 
-Ba lớp dùng **ba database và ba cặp cổng khác nhau**, nên chạy lớp nào cũng không đụng tới
-môi trường phát triển:
+Các lớp chạm database dùng **database và cổng riêng**, nên chạy lớp nào cũng không đụng tới
+môi trường phát triển (lớp `client` và `mobile` không cần database):
 
 | | Môi trường phát triển | `server/tests` | `e2e` |
 |-|-----------------------|----------------|-------|
@@ -393,3 +401,47 @@ npx playwright show-report e2e/.report
 Báo cáo HTML kèm ảnh chụp màn hình và trace của mọi bài hỏng. Xem trace bằng
 `npx playwright show-trace <đường-dẫn>.zip` — nó tua lại từng bước, kèm DOM và network tại
 mỗi thời điểm.
+
+## Phần mobile còn hở
+
+App Expo (`mobile/`) là **client thứ hai** của cùng một API, nhưng ba lớp test cũ không chạm
+tới nó một dòng nào — `e2e` chạy Chromium trên web client, còn `client/tests` chỉ nạp mã
+trong `client/src`. Hệ quả: mobile im lặng lệch khỏi server suốt một thời gian dài.
+
+Khi rà lại, bốn lỗi dưới đây đều thuộc loại **không có lớp test nào có thể bắt được**, vì
+không lớp nào đọc mã mobile:
+
+| Lỗi | Hậu quả |
+|-----|---------|
+| `AuthContext` đọc `data.accessToken`, server trả `data.token` | Đăng nhập luôn báo thất bại |
+| Gọi `PUT /auth/change-password`, route thật là `/auth/password` | Nút đổi mật khẩu trả 404 |
+| Nhánh 401 bỏ trống, không làm mới token | Phiên chết sau 15 phút, app không báo gì |
+| Màn Báo cáo gán cả object `{resources, departments, summary}` vào state mảng | `.filter` ném lỗi, màn chết ngay khi mở |
+
+Ba lỗi đầu nằm ở chỗ **tên trường và đường dẫn** — thứ mà TypeScript hoặc một bài test
+chạm vào API thật sẽ bắt ngay, còn đọc mã bằng mắt thì rất dễ trượt.
+
+Điều đáng nói hơn: lỗi thứ tư đứng **ngay cạnh** một lỗi bảo mật thật. Lúc nối chức năng
+bình luận cho mobile, bài test dựng thêm một công ty thứ hai để kiểm hợp đồng dữ liệu, và
+nó cho thấy `deleteComment` miễn trừ cho mọi `role === 'admin'` mà **không xét cùng công ty**
+— admin công ty B xóa được bình luận trên công việc của công ty A. `addComment` còn không
+kiểm gì cả. Cả hai nay đi qua `belongsToCompany`.
+
+Bài học lặp lại đúng cái đã ghi ở trên: lớp test không chạm tới đâu thì chỗ đó tự do trôi.
+
+### Những gì đã che được
+
+- `mobile/tests/app-permissions.test.mjs` — 21 ca cho quy tắc quyền theo phân hệ. Quy tắc
+  được tách khỏi `AuthContext` ra `mobile/src/utils/appPermissions.js` chính là để kiểm được
+  bằng Node thuần, không cần Expo.
+- Phía server, `hardening.test.mjs` thêm nhóm "Bình luận: hợp đồng dữ liệu mà màn chi tiết
+  dựa vào" — khóa việc `comments.user` phải được populate, vì thiếu nó thì mobile hiện
+  "Người dùng" cho mọi bình luận **mà không lỗi gì**.
+- `refresh-token.test.mjs` thêm nhóm cho đường refresh qua body, gồm một ca khẳng định web
+  **không** đi đường đó.
+
+### Những gì vẫn chưa che
+
+Giao diện mobile chưa có lớp nào: không dựng được component, không chạy được điều hướng.
+Cách chắc chắn nhất để không lặp lại nhóm lỗi "sai tên trường" là cho mobile một bài test
+gọi API thật rồi đối chiếu tên trường nó đọc — rẻ hơn nhiều so với dựng cả Detox.

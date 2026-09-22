@@ -150,8 +150,27 @@ cookie `rao_refresh`.
 
 Client phải gửi kèm cookie (`withCredentials: true`) khi gọi nhóm `/api/auth`.
 
+#### Client không phải trình duyệt
+
+App di động không có kho cookie đáng tin (axios trong React Native giữ `Set-Cookie` khác nhau
+giữa iOS và Android), nên nó khai báo header:
+
+```
+X-Client-Type: mobile
+```
+
+Khi có header này, `login`, `register`, `refresh` và `PUT /auth/password` trả thêm
+`data.refreshToken` trong body, và `refresh`/`logout` chấp nhận `{ "refreshToken": "..." }`
+trong body thay cho cookie.
+
+Đây là đường **opt-in**: không khai báo header thì body bị bỏ qua hoàn toàn và không nhận
+được refresh token — nên web giữ nguyên thế phòng thủ cũ. Client dùng đường này **bắt buộc
+phải lưu lại giá trị mới sau mỗi lần làm mới**, vì token cũ chết ngay lúc đó; trình lại nó là
+bị xử như tái sử dụng và mất cả chuỗi.
+
 ### POST `/api/auth/refresh`
-Không có request body — token nằm trong cookie.
+Không có request body với web — token nằm trong cookie. Client di động gửi
+`{ "refreshToken": "..." }` kèm header `X-Client-Type: mobile`.
 
 ```json
 // Response 200 — cookie rao_refresh được thay bằng giá trị MỚI (xoay vòng)
@@ -710,6 +729,10 @@ Bình luận **gửi thông báo** cho `assignee` và toàn bộ `followers`, tr
 `DELETE /:id/comments/:commentId` chỉ cho tác giả hoặc `admin` — người khác nhận **403**
 `Bạn chỉ được xóa bình luận của mình`. PM **không** xóa được bình luận của người khác.
 
+Cả hai endpoint đều kiểm **cùng công ty** trước: công việc thuộc công ty khác → **403**, kể cả
+với `admin`. Trước bản vá, điều kiện miễn trừ chỉ xét `role === 'admin'` nên admin công ty B
+xóa được bình luận trên công việc của công ty A, còn `addComment` thì không kiểm gì cả.
+
 ```json
 // POST /:id/checklist
 { "title": "Viết unit test", "assignee": "user_id" }   // title trống → 400
@@ -1139,6 +1162,7 @@ Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
     "resources": [
       { "_id": "...", "name": "...", "department": "...", "position": "...",
         "capacity": 40, "workload": 32, "utilization": 80, "taskCount": 3,
+        "unscheduledWorkload": 6,    // giờ đã giao nhưng chưa có ngày — KHÔNG nằm trong workload
         "availability": "available", "isOverloaded": false,
         "burnoutRisk": "low",        // >120% = 'high', >90% = 'medium', còn lại 'low'
         "skillCount": 5 }
@@ -1149,6 +1173,12 @@ Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
 }
 ```
 > Field là `summary.highBurnout` (không phải `highBurnoutRisk`).
+>
+> `workload` là giờ của **tuần cao điểm**, cùng đơn vị với `capacity` (giờ/tuần) — không phải
+> tổng giờ cả kỳ. `department` là **chuỗi**, không phải object.
+>
+> `unscheduledWorkload` tách riêng vì việc chưa có ngày không rơi vào tuần nào. Bỏ qua nó thì
+> phần việc đó biến mất khỏi báo cáo và tải trông nhẹ hơn thực tế.
 
 ### GET `/api/analytics/workload-trend`
 

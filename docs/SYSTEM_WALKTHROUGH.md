@@ -50,6 +50,22 @@ Trong `client/src/`:
 | `components/common/` | `ProtectedRoute` — cửa vào của mọi trang |
 | `utils/` | Logic thuần chạy được bằng node: `gantt.js` (CPM), `taskPermissions.js` |
 
+Trong `mobile/src/` — **client thứ hai**, dùng chung API, không dùng chung một dòng code nào
+với `client/`:
+
+| Thư mục | Vai trò |
+|---|---|
+| `screens/` | 11 nhóm màn hình (thiếu Lịch và Gantt so với web) |
+| `api/` | Lớp bọc axios; `client.js` giữ token và tự làm mới khi gặp 401 |
+| `context/` | `AuthContext` (phiên + quyền), `ThemeContext` |
+| `navigation/` | `AppNavigator` (stack) + `MainTabNavigator` (thanh tab dưới) |
+| `utils/` | Logic thuần chạy được bằng node: `appPermissions.js`, `formatters.js` |
+
+Đây là chỗ dễ sinh lỗi nhất của cả hệ thống, vì **hai client phải tự giữ cho khớp với server
+mà không có gì ép buộc**: không TypeScript, không schema dùng chung. Nhóm lỗi thật đã xảy ra
+đúng theo kiểu đó — đọc `data.accessToken` khi server trả `data.token`, gọi
+`/auth/change-password` khi route là `/auth/password`. Không lỗi nào báo gì lúc đọc mã.
+
 ---
 
 ## 2. Đường đi của một request — xương sống chung
@@ -159,6 +175,23 @@ lớp #2 khóa từ trước — chồng thêm sẽ mâu thuẫn ngữ nghĩa.
 Phía client dùng `canViewModule`/`canManageModule` trong `AuthContext`, **cố ý viết trùng
 khít quy ước trên**. Lệch một trong ba điều kia là giao diện và server nói hai chuyện khác
 nhau: hoặc hiện nút bấm vào chỉ để nhận 403, hoặc giấu mất thứ người dùng thật ra làm được.
+
+Quy ước này nay tồn tại ở **ba** chỗ — server, web, mobile:
+
+| Nơi | File |
+|---|---|
+| Server (thực thi thật) | `server/src/middleware/auth.js` — `requireAppPermission` |
+| Web (chỉ ẩn/hiện) | `client/src/context/AuthContext.jsx` |
+| Mobile (chỉ ẩn/hiện) | `mobile/src/utils/appPermissions.js` |
+
+Bản mobile tách hẳn ra `utils/` thay vì viết thẳng trong context, để kiểm thử được bằng node
+thuần — `mobile/tests/app-permissions.test.mjs`, 21 ca. Trong đó ca đáng giá nhất là
+**"thiếu cấu hình = `manage`"**: chọn nhầm chiều thì mọi tài khoản cũ mở app ra thấy thanh
+tab trống trơn, mà lỗi kiểu đó không ném exception nào cả.
+
+Trên mobile, `appPermissions` ẩn tab và ẩn nút thao tác. Ba lớp còn lại (`authorize`,
+`authorizeApp`, `taskAccess`) **chưa được phản ánh trên giao diện mobile** — server vẫn chặn
+đúng, nhưng app có thể bày ra thao tác rồi nhận 403.
 
 Chỉnh ở: **Cài đặt → Phân quyền Thao tác & Ứng dụng → Quyền theo Phân hệ**.
 
@@ -389,11 +422,12 @@ Client đọc địa chỉ từ `VITE_SOCKET_URL`; **thiếu biến này thì m�
 npm run dev          # client :5173 + server :5000 song song
 cd server && npm test        # 20 bộ, vài phút
 cd client && npm test        # logic thuần + 8 file component
+cd mobile && npm test        # quy tắc quyền, node thuần, chưa cần cài gì
 npm run test:e2e             # 85 bài, 11 file, ~10 phút, Chromium thật
 ```
 
-Ba lớp dùng **ba database và ba cặp cổng khác nhau** nên chạy lớp nào cũng không đụng dữ liệu
-đang làm dở:
+Các lớp chạm database dùng **database và cổng riêng** nên chạy lớp nào cũng không đụng dữ liệu
+đang làm dở (`client` và `mobile` không cần database):
 
 | | Phát triển | `server/tests` | `e2e` |
 |---|---|---|---|
@@ -419,3 +453,14 @@ thật trong code**:
 - Chưa có bộ test nào **đếm bản ghi thật** cho `ActivityLog` và email sau lời gọi.
 - Backlog thiết kế: ảnh chụp workload định kỳ, bảng mã lỗi phía server để dịch được, ràng
   buộc all-different (Régin) cho CSP.
+
+Riêng phần app di động:
+
+- **Giao diện mobile chưa có lớp test nào.** Chỉ logic thuần trong `utils/` kiểm được. Nhóm
+  lỗi "sai tên trường" vừa sửa sẽ tái phát theo đúng cách cũ nếu không có gì đối chiếu tên
+  trường mobile đọc với tên server trả.
+- **Lịch và Gantt chưa có trên mobile.**
+- Ba lớp quyền ngoài `appPermissions` chưa phản ánh lên giao diện mobile.
+- Mobile chưa có: việc lặp lại, nhóm việc, phụ thuộc, người theo dõi, duyệt việc, nhập/xuất
+  Excel, các tab quản trị trong Cài đặt. Bảng đầy đủ ở [`FEATURES.md`](./FEATURES.md), mục
+  "App di động — phủ được tới đâu".

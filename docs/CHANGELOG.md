@@ -6,6 +6,48 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-09-22 (sau)
+
+### Fixed — app di động
+
+Rà lại `mobile/` (client Expo, trước nay không tài liệu nào nhắc tới và không lớp test nào
+chạm tới) và sửa nhóm lỗi làm hỏng hẳn tính năng:
+
+- **Đăng nhập luôn thất bại**: `AuthContext` đọc `data.accessToken`, server trả `data.token`.
+- **Phiên chết sau 15 phút**: nhánh 401 trong `api/client.js` để trống. Nay tự làm mới access
+  token rồi chạy lại request, và chỉ cho **một** lượt làm mới chạy khi nhiều request cùng hết
+  hạn — nếu không, request đầu xoay vòng token và những cái sau bị server xử như tái sử dụng.
+- **Đăng xuất không thu hồi gì** ở server vì không gửi refresh token lên.
+- **Đổi mật khẩu trả 404**: gọi `/auth/change-password`, route thật là `/auth/password`.
+- **Màn Báo cáo chết ngay khi mở**: gán cả object `{resources, departments, summary}` vào
+  state mảng rồi gọi `.filter`. Kèm theo là một loạt tên trường đọc sai (`utilizationRate`,
+  `currentWorkload`, `maxCapacity`, `item.name`, `department?.name`) khiến mọi con số về 0.
+- **Quản lý dự án bị hiện là "Thành viên"** ở màn Cài đặt.
+- **Năng lực bỏ quên `fte`**: người bán thời gian bị tính năng lực gấp đôi.
+
+### Added — app di động
+
+- **Refresh token cho client không phải trình duyệt**: `login`/`register`/`refresh` trả refresh
+  token trong body cho client khai báo `X-Client-Type: mobile`. Web không khai báo nên không
+  nhận — thế phòng thủ trước XSS của web giữ nguyên, và có bài test khóa đúng điều đó.
+- **Quyền theo phân hệ** (`appPermissions`) nay được áp trên mobile giống web: ẩn tab và ẩn nút
+  khi không đủ quyền. Quy tắc tách ra `mobile/src/utils/appPermissions.js` để kiểm thử được.
+- **Màn chi tiết công việc** với checklist và bình luận — hai thứ dùng nhiều nhất trên điện
+  thoại, trước đây mobile không có dù API đã sẵn từ lâu.
+- **Giờ chưa xếp lịch** (`unscheduledWorkload`) hiện trên cả trang Nhân sự và Báo cáo của app;
+  endpoint `/analytics/utilization` nay trả kèm trường này.
+- **Lớp kiểm thử thứ tư**: `mobile/tests/` — 21 ca cho quy tắc quyền, chạy bằng node thuần.
+
+### Security
+
+- **Bình luận xuyên công ty**: `deleteComment` miễn trừ cho **mọi** `role === 'admin'` mà không
+  xét cùng công ty — admin công ty B xóa được bình luận trên công việc của công ty A, chỉ cần
+  biết id. `addComment` thì không kiểm gì cả. Cả hai nay đi qua `belongsToCompany`.
+
+  Lỗ hổng này lộ ra nhờ bài test dựng công ty thứ hai để kiểm hợp đồng dữ liệu cho màn bình
+  luận trên mobile — thêm một client thứ hai buộc phải viết lại hợp đồng cho tường minh, và
+  chính lúc đó mới thấy chỗ hở đã nằm sẵn từ lâu.
+
 ## [Chưa phát hành] - 2026-09-22
 
 ### Security
