@@ -344,8 +344,9 @@ nên trước đây sau vài lần xóa rồi thêm sẽ có `order` trùng nhau
 vào thứ tự mảng chứ không vào `order`. Nay `DELETE /:id/checklist/:itemId` đánh lại `order`
 của mọi mục còn lại theo đúng vị trí trong mảng ngay sau khi xóa.
 
-**`GET /tasks/summary/stats` là route trùng** với `/tasks/stats/summary`, giữ vì giao diện
-bản cũ còn gọi. Xóa được sau khi rà hết chỗ gọi ở client.
+**`GET /tasks/summary/stats` là route trùng — đã xóa.** Trùng với `/tasks/stats/summary`. Rà
+toàn bộ `client/src` và `e2e` xác nhận không còn chỗ nào gọi route cũ (`taskService.js` chỉ
+gọi `/tasks/stats/summary`), nên đã gỡ khỏi `task.routes.js`.
 
 **Chú thích JSDoc của ba endpoint Excel ghi sai đường dẫn** — `/template-excel`,
 `/preview-excel`, `/import-excel` trong khi route thật là `/excel/*`. Không ảnh hưởng chạy,

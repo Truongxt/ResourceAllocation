@@ -429,10 +429,6 @@ Nhóm lớn nhất — **30 endpoint**. Mọi endpoint đều 🔒; cột Auth d
 | PATCH | `/:id/status` | Đổi nhanh status (Kanban drag & drop) | 📋 PM+ hoặc người được giao |
 | DELETE | `/:id` | Xóa task | 📋 PM+ |
 | GET | `/stats/summary` | Thống kê task | — |
-| GET | `/summary/stats` | Bí danh của endpoint trên² | — |
-
-² Hai đường dẫn khác nhau trỏ cùng một handler. Giữ cả hai vì phiên bản giao diện cũ gọi
-đường còn lại; dùng `/stats/summary` cho code mới.
 
 ### 3.2. Vòng đời công việc (Base Wework)
 
