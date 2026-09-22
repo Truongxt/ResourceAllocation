@@ -1509,7 +1509,7 @@ const updateDeadline = async (req, res, next) => {
 
 /**
  * @desc    Tải file mẫu Excel (.xlsx) chuẩn Base Wework (Base Wework 3.3)
- * @route   GET /api/tasks/template-excel
+ * @route   GET /api/tasks/excel/template
  * @access  Private
  */
 const downloadExcelTemplate = async (req, res, next) => {
@@ -1525,7 +1525,7 @@ const downloadExcelTemplate = async (req, res, next) => {
 
 /**
  * @desc    Xem nhanh dữ liệu từ file Excel tải lên (Preview) (Base Wework 3.3)
- * @route   POST /api/tasks/preview-excel
+ * @route   POST /api/tasks/excel/preview
  * @access  Private
  */
 const previewExcelTasks = async (req, res, next) => {
@@ -1546,7 +1546,7 @@ const previewExcelTasks = async (req, res, next) => {
 
 /**
  * @desc    Nhập hàng loạt công việc từ file Excel (Base Wework 3.3)
- * @route   POST /api/tasks/import-excel
+ * @route   POST /api/tasks/excel/import
  * @access  Private
  */
 const importExcelTasks = async (req, res, next) => {
