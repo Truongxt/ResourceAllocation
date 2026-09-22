@@ -77,7 +77,7 @@ của `server/tests/api.test.mjs`.
 | 4.5 | Skill Matrix | CRUD kỹ năng + level cho từng nhân sự | ✅ | Skill modal editor, level 1-4 |
 | 4.6 | Availability Calendar | Lịch trình, ngày nghỉ, periods unavailable | ✅ | Modal "Lịch nghỉ" (nút lịch ở cột Hành động): thêm/xóa nhiều kỳ nghỉ kèm lý do. Bảng nhân sự hiện tag "Đang nghỉ tới…" / "Nghỉ từ…". Server chặn ngày đảo ngược, kỳ nghỉ chồng nhau, ngày sai định dạng. Chỉ Admin/PM |
 | 4.7 | Capacity (FTE) | Thiết lập FTE, max hours/week | ✅ | `fte` + `maxCapacity` |
-| 4.8 | Workload View | Hiển thị workload hiện tại, utilization rate | ✅ | Virtual `utilizationRate` + thanh utilization |
+| 4.8 | Workload View | Hiển thị workload hiện tại, utilization rate | ✅ | Virtual `utilizationRate` + thanh utilization. `currentWorkload` là tải **tuần hiện tại** (trải giờ task lên ngày làm việc, dùng lại `analytics/workloadTrend.js`) — cùng đơn vị với `maxCapacity`. Giờ của việc chưa xếp lịch nằm riêng ở `unscheduledWorkload` |
 | 4.9 | Department Filter | Lọc nhân sự theo bộ phận | ✅ | Filter by department |
 | 4.10 | Skill Search | Tìm nhân sự theo skill + level | ✅ | `?skill=&skillLevel=` (lọc `>=`) |
 
@@ -239,6 +239,14 @@ khóa trần (`tasks.form.title`) ra màn hình. Vì fallback che lỗi rất gi
 
 Sắp theo mức độ ảnh hưởng tới trải nghiệm:
 
+0. **Ràng buộc H1 của thuật toán còn dùng sai đơn vị** — `computeWorkloads` trong
+   `algorithms/scoring.js` cộng `estimatedHours` của **toàn bộ** task được gán rồi so với
+   `capacityOf` = năng lực **tuần**. Hệ quả: một người không được giao quá ~40 giờ cho cả dự
+   án dù dự án dài bao lâu; với backlog thật thì ai cũng vượt ngưỡng nên `fOveralloc` bão hòa
+   và thôi phân biệt được phương án tốt/xấu. Ràng buộc H4 (`_overlaps`) ngay cạnh thì **có**
+   ý thức về thời gian — hai ràng buộc đang dùng hai mô hình thời gian khác nhau.
+   Tầng hiển thị (`currentWorkload`) **đã sửa**; tầng thuật toán để riêng vì nó đổi kết quả
+   tối ưu nên cần chạy lại benchmark để đánh giá.
 1. **Ảnh chụp workload định kỳ** — 7.7 hiện suy ra chuỗi thời gian từ lịch công việc, đủ để
    nhìn về phía trước nhưng không phải số liệu lịch sử. Muốn trả lời "tháng trước đội thực
    sự chạy ở mức nào" thì phải chụp và lưu theo ngày.

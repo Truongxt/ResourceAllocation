@@ -97,7 +97,7 @@ Trong từng router, sau `protect` còn có thêm các lớp phân quyền — x
 | Hàm | File | Khi nào chạy | Nó làm gì |
 |---|---|---|---|
 | `recalculateProjectProgress` | `task.controller.js:28` | Mỗi lần tạo/sửa/xóa task (8 chỗ) | Tính lại `Project.progress` = trung bình `progress` của task, **loại task `failed` khỏi mẫu số** |
-| `syncResourceWorkload` | `services/workload.service.js` | Mỗi lần task đổi người/giờ (8 chỗ ở task, 2 ở optimization, 1 ở resource) | Cộng `estimatedHours` của task **chưa xong** (`todo`/`in_progress`/`review`) → ghi `Resource.currentWorkload`, rồi suy ra `availability` |
+| `syncResourceWorkload` | `services/workload.service.js` | Mỗi lần task đổi người/giờ (8 chỗ ở task, 2 ở optimization, 1 ở resource) | Trải giờ của task **chưa xong** lên ngày làm việc, lấy phần rơi vào **tuần hiện tại** → `currentWorkload`; giờ của task chưa xếp lịch vào `unscheduledWorkload`; rồi suy ra `availability` |
 | `logActivity` | `services/activityLog.service.js` | 9 chỗ ở task, 4 ở project, 4 ở department, 3 ở resource/optimization… | Ghi `ActivityLog` |
 | `sendNotification` | `services/socket.service.js` | 9 chỗ ở task, 1 ở optimization, 1 ở auth | Tạo `Notification` → bắn socket vào room `user:<id>` → gửi mail (nếu bật) |
 
@@ -105,7 +105,10 @@ Ba điều cần nhớ:
 
 1. **`availability` là giá trị suy ra, không phải người dùng chọn.** Ngưỡng trong
    `workload.service.js`: quá `capacity` → `unavailable`; từ 70% → `partially_available`;
-   dưới nữa → `available`. `capacity = maxCapacity × fte`.
+   dưới nữa → `available`. `capacity = maxCapacity × fte` (**giờ mỗi tuần**), và thứ đem so
+   với nó là tải **tuần hiện tại** — hai vế cùng đơn vị. Phép trải giờ dùng lại
+   `spreadTaskHours`/`dailyCapacity` của [`analytics/workloadTrend.js`](../server/src/analytics/workloadTrend.js)
+   nên trang Nhân sự và biểu đồ Xu hướng nói cùng một ngôn ngữ.
 2. **Ghi thẳng qua model thì không có tác dụng phụ nào chạy.** Đây đúng là lỗi seeder từng
    mắc: nó tạo task bằng model nên `currentWorkload` không được đồng bộ, khiến trang Nhân sự
    hiện 0h còn trang Báo cáo hiện 32h cho cùng một người.
@@ -287,6 +290,16 @@ Trang này chỉ Admin/PM vào được (`ProtectedRoute roles={['admin','projec
 Cả ba dùng chung thang điểm `algorithms/scoring.js` nên `fitness`/`metrics` so sánh được với
 nhau. *Bản ghi CSP tạo trước thay đổi này vẫn còn `fitness: 0` trong DB.*
 
+> ⚠️ **Ràng buộc H1 vẫn dùng đơn vị cũ.** `computeWorkloads` trong `scoring.js` cộng
+> `estimatedHours` của **toàn bộ** task được gán rồi so với `capacityOf` = năng lực **tuần**.
+> Nghĩa là một người không bao giờ được giao quá ~40 giờ cho **cả dự án**, dù dự án dài 6
+> tháng. Với backlog thật, mọi nhân sự đều vượt ngưỡng nên `fOveralloc` bão hòa và thôi phân
+> biệt được phương án tốt/xấu. H4 (`_overlaps`) thì **có** ý thức về thời gian — hai ràng
+> buộc cạnh nhau đang dùng hai mô hình thời gian khác nhau.
+>
+> `currentWorkload` ở tầng hiển thị đã sửa (mục 3); phần thuật toán là **giai đoạn 2, chưa
+> làm**, vì nó sẽ đổi kết quả tối ưu nên cần chạy lại benchmark để đánh giá.
+
 Mỗi lần chạy ghi một `OptimizationResult` (giữ 50 bản mới nhất).
 
 **Áp dụng** — `POST /optimization/:id/apply`: chặn nếu chưa `completed` hoặc đã áp dụng. Trước
@@ -350,6 +363,7 @@ Client đọc địa chỉ từ `VITE_SOCKET_URL`; **thiếu biến này thì m�
 |---|---|
 | Token nằm trong `localStorage` | Không. Access token ở biến bộ nhớ; phiên khôi phục bằng cookie refresh |
 | `currentWorkload` do người dùng nhập | Suy ra từ task chưa xong, qua `syncResourceWorkload` |
+| `currentWorkload` là tổng giờ còn phải làm | Là tải của **tuần hiện tại**. Việc chưa có ngày nằm ở `unscheduledWorkload` |
 | `availability` do người dùng chọn | Suy ra từ tỉ lệ tải / capacity |
 | Xu hướng tải là số liệu lịch sử | Là khối lượng **đã cam kết** suy ra từ lịch |
 | Quyền chỉ có vai trò admin/PM/member | Có **bốn lớp** độc lập, xem mục 4 |
@@ -388,6 +402,8 @@ Chi tiết và danh sách lỗi từng lớp đã bắt được: [`TESTING.md`]
 Danh sách đầy đủ và lý do ở cuối [`FEATURES.md`](./FEATURES.md). Tóm tắt những chỗ **đang có
 thật trong code**:
 
+- **Ràng buộc H1 của thuật toán vẫn so tổng giờ với năng lực tuần** — xem cảnh báo ở mục 5.5.
+  Đây là phần còn lại của bản vá đơn vị; tầng hiển thị đã xong, tầng thuật toán chưa.
 - **Chưa có migration cho tài khoản khách cũ** — khách tạo trước lúc tách `guestCompany` vẫn
   mang tên đối tác trong `companyName`, nên không admin nào nhìn thấy họ nữa (họ **vẫn đăng
   nhập được**).
