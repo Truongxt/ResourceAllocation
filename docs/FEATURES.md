@@ -332,10 +332,12 @@ với `POST /tasks`. Chưa xử lý chiều ngược lại: các task khác **ph
 chuyển (successor) không bị kiểm — chúng có thể trở thành phụ thuộc khác dự án mà không có
 cảnh báo nào, nằm ngoài phạm vi mô tả gốc của mục này.
 
-**`POST /tasks/:id/report-result` để lộ nguyên văn lỗi Mongoose.** Gửi `deliverableLinks`
-dạng mảng chuỗi trả 400 kèm `Cast to embedded failed ... ObjectParameterError` — tiếng Anh,
-lộ tên đường dẫn trong schema. Các ca validate khác trong nhóm này đều có thông báo tiếng
-Việt viết tay.
+**`POST /tasks/:id/report-result` để lộ nguyên văn lỗi Mongoose — đã sửa.** Gửi
+`deliverableLinks` dạng mảng chuỗi trước đây trả 400 kèm
+`Cast to embedded failed ... ObjectParameterError` — tiếng Anh, lộ tên đường dẫn trong schema.
+Nay controller tự kiểm `deliverableLinks`/`attachments` phải là mảng đối tượng (hoặc bỏ trống)
+trước khi gán, trả 400 tiếng Việt nếu không đúng dạng — cùng kiểu chặn sớm như các validate
+khác trong nhóm.
 
 **Xóa mục checklist không đánh lại `order`.** Mục mới lấy `order = checklist.length`, nên sau
 vài lần xóa rồi thêm sẽ có `order` trùng nhau, và thứ tự hiển thị phụ thuộc vào thứ tự mảng

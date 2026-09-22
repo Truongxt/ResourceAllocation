@@ -608,9 +608,9 @@ field tính thêm:
 ```
 
 `deliverableLinks` và `attachments` là mảng **object**, không phải mảng chuỗi. Gửi
-`["https://..."]` trả **400** kèm nguyên văn lỗi Mongoose
-(`Cast to embedded failed ... ObjectParameterError`) — thông báo không dịch, vì đây là lỗi
-cast của schema chứ không phải một ca validate được viết tay.
+`["https://..."]` trả **400** với thông báo tiếng Việt viết tay
+(`"deliverableLinks phải là mảng đối tượng dạng { title, url }"`), chặn trước khi chạm tới
+Mongoose — trước đây lọt xuống tận lớp cast và lộ nguyên văn lỗi tiếng Anh của schema.
 
 `markAsDone: true` đi qua đúng luồng đánh giá của dự án như `PATCH /:id/complete`: dự án bật
 đánh giá thì việc chỉ tới `review`, không tự nhảy sang `done`. Để nguyên đường vòng cũ thì ai
