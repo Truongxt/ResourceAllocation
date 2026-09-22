@@ -125,7 +125,7 @@ Ngoài ra `GanttChart.jsx` còn có: tooltip chi tiết khi hover, lọc theo d�
 tô màu theo status, chấm màu theo mức ưu tiên, chú giải, đánh dấu cuối tuần và ngày hôm nay.
 
 Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [client/src/utils/gantt.js](../client/src/utils/gantt.js)
-để chạy được bằng node, và có bộ kiểm thử riêng: `cd client && npm test` (24 assertion).
+để chạy được bằng node, và có bộ kiểm thử riêng: `node tests/gantt.test.mjs` (44 assertion).
 
 > **Giới hạn đã biết:** CPM và mũi tên chỉ tính trên tập task đang tải (tối đa 100, có thể
 > đang bị lọc theo dự án). Dependency trỏ ra ngoài tập đó bị bỏ qua chứ không báo lỗi.
