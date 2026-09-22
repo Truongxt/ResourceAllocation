@@ -48,6 +48,7 @@ import TaskFilterBar from './components/TaskFilterBar';
 import TaskKanbanView from './components/TaskKanbanView';
 import TaskTableView from './components/TaskTableView';
 import TaskFormModal from './components/TaskFormModal';
+import TaskGroupManagerModal from '../../components/tasks/TaskGroupManagerModal';
 import TaskDetailDrawer from '../../components/tasks/TaskDetailDrawer';
 import TaskExcelImportModal from '../../components/tasks/TaskExcelImportModal';
 import RecurringTaskModal from '../../components/tasks/RecurringTaskModal';
@@ -84,6 +85,8 @@ export default function Tasks() {
   const [selectedDetailTaskId, setSelectedDetailTaskId] = useState(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [taskGroups, setTaskGroups] = useState([]);
+  const [taskGroupModalOpen, setTaskGroupModalOpen] = useState(false);
+  const [manageGroupProjectId, setManageGroupProjectId] = useState(null);
   useEffect(() => {
     const taskId = searchParams.get('taskId');
     if (taskId) { setSelectedDetailTaskId(taskId); setDetailDrawerOpen(true); }
@@ -677,6 +680,10 @@ export default function Tasks() {
         canManageTasks={canManageTasks}
         onOpenCreateModal={handleOpenCreate}
         onReload={loadTasks}
+        onManageGroups={(projId) => {
+          setManageGroupProjectId(projId);
+          setTaskGroupModalOpen(true);
+        }}
         t={t}
       />
 
@@ -726,6 +733,10 @@ export default function Tasks() {
         dependencyOptions={dependencyOptions}
         selectedProject={selectedProject}
         taskGroups={taskGroups}
+        onManageTaskGroups={(projId) => {
+          setManageGroupProjectId(projId);
+          setTaskGroupModalOpen(true);
+        }}
         onSubmit={handleFormSubmit}
         submitting={submitting}
         t={t}
@@ -815,6 +826,26 @@ export default function Tasks() {
           setDetailDrawerOpen(true);
         }}
         onTaskUpdated={loadTasks}
+      />
+
+      {/* 9. Modal Quản lý Nhóm công việc */}
+      <TaskGroupManagerModal
+        open={taskGroupModalOpen}
+        onClose={() => {
+          setTaskGroupModalOpen(false);
+          setManageGroupProjectId(null);
+        }}
+        projectId={manageGroupProjectId || filters.project || selectedProject}
+        projectName={
+          projects.find((p) => (p._id || p.id) === (manageGroupProjectId || filters.project || selectedProject))?.name || ''
+        }
+        onGroupsUpdated={(newGroups) => {
+          const currentTargetId = manageGroupProjectId || filters.project || selectedProject;
+          if (currentTargetId && currentTargetId === selectedProject) {
+            setTaskGroups(newGroups);
+          }
+          loadTasks();
+        }}
       />
     </div>
   );

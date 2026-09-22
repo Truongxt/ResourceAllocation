@@ -63,6 +63,7 @@ import companySettingService from '../../services/companySettingService';
 import authService from '../../services/authService';
 import DepartmentModal from '../../components/departments/DepartmentModal';
 import QuickEditProjectModal from '../../components/projects/QuickEditProjectModal';
+import TaskGroupManagerModal from '../../components/tasks/TaskGroupManagerModal';
 import { PROJECT_STATUSES, PRIORITY_OPTIONS } from '../../constants';
 import {
   projectStatusLabel,
@@ -113,6 +114,10 @@ export default function Projects() {
   // Quick Edit Modal State
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [selectedQuickProject, setSelectedQuickProject] = useState(null);
+
+  // Task Group Management Modal State
+  const [taskGroupModalOpen, setTaskGroupModalOpen] = useState(false);
+  const [groupProjectTarget, setGroupProjectTarget] = useState(null);
 
   // Departments State
   const [departments, setDepartments] = useState([]);
@@ -554,6 +559,17 @@ export default function Projects() {
       align: 'right',
       render: (_, record) => (
         <Space size="small">
+          <Tooltip title="Quản lý nhóm công việc">
+            <Button
+              type="text"
+              size="small"
+              icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
+              onClick={() => {
+                setGroupProjectTarget(record);
+                setTaskGroupModalOpen(true);
+              }}
+            />
+          </Tooltip>
           <Tooltip title="Chỉnh sửa nhanh (Base Wework)">
             <Button
               type="text"
@@ -1092,6 +1108,17 @@ export default function Projects() {
                           </Button>
 
                           <Space size="small">
+                            <Tooltip title="Quản lý nhóm công việc">
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
+                                onClick={() => {
+                                  setGroupProjectTarget(proj);
+                                  setTaskGroupModalOpen(true);
+                                }}
+                              />
+                            </Tooltip>
                             <Tooltip title="Chỉnh sửa nhanh (Base Wework)">
                               <Button
                                 type="text"
@@ -1415,6 +1442,47 @@ export default function Projects() {
             </Form.Item>
           )}
 
+          {/* 6b. Quản lý Nhóm công việc (khi chỉnh sửa dự án) */}
+          {editingProject && (
+            <div
+              style={{
+                background: isDark ? 'rgba(59, 130, 246, 0.08)' : '#eff6ff',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 8,
+                padding: '12px 14px',
+                marginBottom: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <AppstoreOutlined style={{ color: '#3b82f6', fontSize: 20 }} />
+                <div>
+                  <span style={{ fontWeight: 600, fontSize: 13, display: 'block', color: 'var(--text-primary)' }}>
+                    Nhóm công việc (Task Groups)
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    Tạo mới, sửa tên, đổi màu hoặc xóa các nhóm công việc của dự án này
+                  </span>
+                </div>
+              </div>
+              <Button
+                type="primary"
+                ghost
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => {
+                  setGroupProjectTarget(editingProject);
+                  setTaskGroupModalOpen(true);
+                }}
+              >
+                Quản lý nhóm
+              </Button>
+            </div>
+          )}
+
           {/* Thời gian thực hiện: server bắt buộc có startDate/endDate
               (server/src/routes/project.routes.js), nên ô này phải nằm ngoài
               panel "Cài đặt nâng cao". Để trong đó thì người dùng điền hết các
@@ -1578,6 +1646,17 @@ export default function Projects() {
           await loadProjects();
           await loadDepartments();
         }}
+      />
+
+      {/* Modal Quản lý Nhóm công việc */}
+      <TaskGroupManagerModal
+        open={taskGroupModalOpen}
+        onClose={() => {
+          setTaskGroupModalOpen(false);
+          setGroupProjectTarget(null);
+        }}
+        projectId={groupProjectTarget?._id || editingProject?._id}
+        projectName={groupProjectTarget?.name || editingProject?.name}
       />
     </div>
   );

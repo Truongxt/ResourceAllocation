@@ -29,6 +29,7 @@ export default function TaskFilterBar({
   canManageTasks = false,
   onOpenCreateModal,
   onReload,
+  onManageGroups,
   t,
 }) {
   return (
@@ -96,6 +97,15 @@ export default function TaskFilterBar({
       </Space>
 
       <Space>
+        {filters.project && (
+          <Button
+            icon={<AppstoreOutlined />}
+            onClick={() => onManageGroups && onManageGroups(filters.project)}
+            size="middle"
+          >
+            Nhóm công việc
+          </Button>
+        )}
         {/* Nút tạo công việc (Chỉ dành cho Admin / PM) */}
         {canManageTasks && (
           <Button

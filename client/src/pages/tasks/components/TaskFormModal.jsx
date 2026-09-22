@@ -181,11 +181,34 @@ export default function TaskFormModal({
           <Col span={12}>
             <Form.Item
               name="taskGroup"
-              label="Nhóm công việc (Task Group)"
-              extra={selectedProject ? undefined : 'Chọn dự án trước để chọn nhóm công việc'}
+              label={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <span>Nhóm công việc (Task Group)</span>
+                  {selectedProject && onManageTaskGroups && (
+                    <Button
+                      type="link"
+                      size="small"
+                      style={{ padding: 0, height: 'auto', fontSize: 12, fontWeight: 500 }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onManageTaskGroups(selectedProject);
+                      }}
+                    >
+                      + Quản lý nhóm
+                    </Button>
+                  )}
+                </div>
+              }
+              extra={
+                !selectedProject
+                  ? 'Chọn dự án trước để chọn nhóm công việc'
+                  : taskGroups.length === 0
+                  ? 'Dự án này chưa có nhóm nào. Bấm "+ Quản lý nhóm" ở trên để tạo.'
+                  : undefined
+              }
             >
               <Select
-                placeholder="Chọn nhóm công việc..."
+                placeholder={taskGroups.length === 0 ? 'Chưa có nhóm nào...' : 'Chọn nhóm công việc...'}
                 allowClear
                 disabled={!canManageTasks || !selectedProject}
                 options={(taskGroups || []).map((g) => ({
