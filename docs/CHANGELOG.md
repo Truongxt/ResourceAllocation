@@ -11,39 +11,70 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 ### Testing
 
 Thêm **lớp kiểm thử thứ ba**: giao diện end-to-end bằng Playwright, điều khiển Chromium thật
-trên hệ thống thật (client Vite → server Express → MongoDB, không mock gì cả). 10 bộ, 78 bài,
-~14 phút một lượt. Chi tiết: [`e2e/README.md`](../e2e/README.md), chiến lược chung:
+trên hệ thống thật (client Vite → server Express → MongoDB, không mock gì cả). 10 bộ, 82 bài,
+~10–15 phút một lượt. Chi tiết: [`e2e/README.md`](../e2e/README.md), chiến lược chung:
 [`TESTING.md`](./TESTING.md).
 
 Chạy trên **cổng và database riêng** (`5098` / `5174` / `resource_allocation_e2e`) nên không
 đụng tới môi trường phát triển lẫn `server/tests`.
 
 Lớp này có lý do tồn tại riêng chứ không phải chạy lại việc hai lớp kia đã làm: nó bắt loại
-lỗi mà **từng mảnh đều đúng, ghép lại thì sai**. Đợt dựng bộ test tìm ra bốn lỗi thuộc đúng
-loại đó, không lỗi nào làm đỏ `server/tests` hay `client/tests`:
+lỗi mà **từng mảnh đều đúng, ghép lại thì sai**. Đợt dựng bộ test tìm ra **bảy** lỗi thuộc
+đúng loại đó, không lỗi nào làm đỏ `server/tests` hay `client/tests`. Tất cả đã được sửa —
+xem mục **Fixed** bên dưới; [`TESTING.md`](./TESTING.md) ghi thêm *vì sao từng lỗi lọt qua
+hai lớp kia*, phần đáng đọc hơn bản thân cái lỗi.
 
-- **Không tạo được dự án nếu chỉ điền các trường nhìn thấy được.** `startDate`/`endDate` là
-  bắt buộc ở server, nhưng ô nhập chúng nằm trong panel "Cài đặt nâng cao" đang thu gọn và
-  không được đánh dấu bắt buộc ở form. Test API luôn gửi kèm ngày nên chưa bao giờ đi qua
-  nhánh này theo đúng cách người dùng đi.
-- **Phần trăm khớp kỹ năng hiện `10000%`.** Server trả thang 0–100
-  (`scoring.js:162`, `GeneticAlgorithm.js:289`) nhưng `OptimizationResultView.jsx` nhân thêm
-  100 lần nữa. `OptimizationCompareView.jsx` thì không nhân — hai component hiểu khác nhau
-  về cùng một con số.
-- **Giờ công lệch nhau giữa hai trang.** `/resources` đọc trường `currentWorkload` lưu sẵn,
-  `/reports` cộng live từ task. `currentWorkload` chỉ đổi khi gọi
-  `POST /api/resources/recalculate-workload`, mà không màn hình nào gọi — nên cùng một người
-  hiện 0h ở trang này và 32h ở trang kia.
-- **`VITE_SOCKET_URL` không có trong `.env.example`.** Thiếu nó thì client mở socket tới
-  `localhost:5000` mặc định; triển khai ở cổng khác là realtime âm thầm không kết nối, không
-  có lỗi nào hiện ra. Đã bổ sung kèm giải thích vào `.env.example`, và
-  `e2e/tests/10-realtime.spec.js` nay khóa lại bằng cách kiểm địa chỉ WebSocket thật.
-
-Ba lỗi đầu được giữ lại dưới dạng bài test đánh dấu `test.fail()`: chúng mô tả hành vi
-**đúng**, nên ngày ai đó sửa xong thì chính chúng chuyển sang đỏ và nhắc gỡ dấu.
+Không còn bài `test.fail()` nào trong bộ: các bài từng mô tả hành vi đúng của chỗ đang sai
+giờ đã thành bài chống tái phát bình thường.
 
 ### Fixed
 
+Bảy lỗi do lớp e2e tìm ra:
+
+- **Không tạo được dự án nếu chỉ điền các trường nhìn thấy được.** `startDate`/`endDate` bắt
+  buộc ở server nhưng ô nhập chúng nằm trong panel "Cài đặt nâng cao" đang thu gọn và không
+  đánh dấu bắt buộc, nên điền hết trường thấy được vẫn nhận 400 mà không biết thiếu gì.
+  Đã đưa ô ra ngoài panel — trường bắt buộc không được nằm trong phần gấp lại.
+- **Phần trăm khớp kỹ năng hiện `10000%`.** Server trả thang 0–100
+  (`scoring.js:162`, `GeneticAlgorithm.js:289`) nhưng `OptimizationResultView.jsx` nhân thêm
+  100 lần nữa; `OptimizationCompareView.jsx` thì không. Đã bỏ phép nhân thừa.
+- **Giờ công lệch nhau giữa hai trang** — cùng một người hiện 0h ở `/resources` và 32h ở
+  `/reports`. Chẩn đoán đầu tiên sai: tưởng `currentWorkload` không bao giờ được cập nhật vì
+  không màn hình nào gọi `recalculate-workload`. Thực tế **mọi đường ghi task qua API đều gọi
+  `syncResourceWorkload`**; thủ phạm hẹp hơn nhiều — seeder ghi task thẳng qua model nên
+  riêng dữ liệu mẫu không được đồng bộ. Đã thêm một lời gọi ở cuối seeder.
+- **Seeder bỏ sót 3 collection.** `TaskGroup`, `RecurringTask`, `CompanySetting` không bị xóa
+  nên tồn đọng qua mọi lần seed và trỏ vào `_id` đã biến mất — đúng vấn đề mà comment trong
+  chính hàm đó nói là đã chữa cho `notifications` trước đây. Nay xóa theo **một mảng model
+  duy nhất** và in ra `collections.length`, nên bỏ sót lần nữa là con số tự lệch và lộ ra.
+- **Màn hình chặn theo vai trò là ngõ cụt.** Gõ nhầm URL vào trang bị cấm thì kẹt — không
+  sidebar, không nút, chỉ còn nút Back của trình duyệt. Đã thêm nút quay về, và đổi nút của
+  màn hình chặn theo app từ `window.location.href` sang `navigate` (gán location trong SPA
+  bắt trình duyệt tải lại toàn bộ bundle).
+- **`VITE_SOCKET_URL` không có trong `.env.example`.** Thiếu nó thì client mở socket tới
+  `localhost:5000` mặc định; triển khai ở cổng khác là realtime âm thầm không kết nối mà
+  không lỗi nào hiện ra. Đã bổ sung kèm giải thích, và `10-realtime.spec.js` khóa lại bằng
+  cách kiểm địa chỉ WebSocket thật mà trình duyệt mở.
+- **Trang Đăng ký viết cứng toàn bộ tiếng Việt** — 10 nhãn, 12 thông báo validate, 9
+  placeholder, 4 danh sách Select. Bật tiếng Anh thì cả ứng dụng dịch, riêng trang này đứng
+  nguyên. `locales.test.mjs` không bắt được vì nó so hai file locale **với nhau**, không kiểm
+  xem component có dùng chúng hay không. Đã thêm nhóm `auth.register.*` và nối vào; `value`
+  của Select giữ nguyên tiếng Việt vì đó là dữ liệu gửi lên server.
+
+Kèm theo:
+
+- **Gỡ hết cảnh báo deprecated của Ant Design v6.** Đổi tên thuần: `destroyOnClose`→
+  `destroyOnHidden`, `trailColor`→`railColor`, `dropdownRender`→`popupRender`, Space
+  `direction`→`orientation`. Đổi cả hình dạng prop: Progress `strokeWidth={N}`→`size={[-1,N]}`,
+  Drawer `width`→`size`, `bodyStyle`→`styles.body`, `Avatar.Group maxCount`→`max={{count}}`.
+  `Modal width` và `Radio.Group direction` **không** deprecated nên giữ nguyên. Xác nhận bằng
+  cách mở 11 trang và đếm cảnh báo trong console: 0.
+- **Ô mở tìm kiếm toàn cục thành `<button>` thật** thay vì `div` bắt `onClick` — nay tab tới
+  được, Enter kích hoạt, trình đọc màn hình đọc ra. Bài test cũng đổi từ bám class sang
+  `getByRole`, và có thêm một bài mở bằng bàn phím.
+- **`locales.test.mjs` kiểm cả phần tử trong array.** `flatten` dừng ở array nên mảng bị kiểm
+  như một chuỗi, và **lệch độ dài giữa vi/en thì không ai bắt** — en có 3 mục, vi có 4 thì
+  mục thứ 4 âm thầm rơi về tiếng Việt.
 - **Lớp kiểm thử component hết chập chờn.** `client/vite.config.js` nay đặt
   `testTimeout: 15_000` và `maxWorkers: 2`.
   Triệu chứng rất dễ đổ oan cho code: `npm test` đỏ ngẫu nhiên, mỗi lần một file khác, mà
@@ -62,20 +93,22 @@ Ba lỗi đầu được giữ lại dưới dạng bài test đánh dấu `test
 
 ### Documentation
 
-Đối chiếu lại tài liệu với mã nguồn, phát hiện mấy chỗ đã chậm hơn code khá xa. Không viết
-lại toàn bộ — chỉ đo lại con số, ghi rõ khoảng lệch ngay đầu file để không ai bị dẫn sai, và
-kèm lệnh tự đếm lại:
+Đối chiếu lại tài liệu với mã nguồn thì thấy nó đã chậm hơn code khá xa. Đo lại, viết bù
+phần thiếu, và ghi rõ chỗ nào còn chưa phủ:
 
-- `API.md` mô tả **56** endpoint; `server/src/routes/` hiện có **118** trên 12 nhóm. Ba nhóm
-  `/api/task-groups`, `/api/recurring-tasks`, `/api/company-settings` chưa được mô tả dòng
-  nào; `/api/auth` đã phình lên 27 endpoint và `/api/tasks` lên 30.
-- `DATABASE.md` mô tả **9** collection; `server/src/models/` hiện có **12**
-  (thêm `TaskGroup`, `RecurringTask`, `CompanySetting`).
-- `seeder.js` xóa 9 collection nhưng in `Cleared all 8 collections.`, và **không** xóa ba
-  model mới — nên dữ liệu của chúng tồn đọng qua mọi lần seed, đúng cái vấn đề mà comment
-  trong chính hàm đó nói là đã sửa cho các collection khác.
-- `docs/README.md` cập nhật lại cây thư mục và các con số (12 controller, 12 model, 12 route
-  file), thêm mục ba lớp kiểm thử.
+- **`DATABASE.md` viết bù 3 collection** — `TaskGroups`, `RecurringTasks`, `CompanySettings`.
+  Trước đó mô tả 9/12. Cập nhật luôn sơ đồ tổng quan và sơ đồ quan hệ.
+- **`API.md` viết bù 3 nhóm route** — `/api/task-groups` (5), `/api/recurring-tasks` (6),
+  `/api/company-settings` (2). Từng endpoint kiểm chứng bằng request thật, đúng chuẩn mà
+  tài liệu tự đặt ra. Nhân đó phát hiện `PUT /task-groups/reorder` nhận `orderedIds` — mảng
+  id theo thứ tự mới, `order` gán bằng chỉ số trong mảng — chứ không phải mảng object như
+  tên gọi dễ khiến người ta đoán.
+- **Còn thiếu, đã ghi rõ ở đầu `API.md`:** `/api/auth` mô tả 9/27 endpoint, `/api/tasks`
+  khoảng 12/30. Header có bảng độ phủ và lệnh tự đếm lại, nên không ai bị dẫn sai trong lúc chờ.
+- **`docs/TESTING.md` (mới)** — chiến lược ba lớp, và với mỗi lỗi e2e tìm ra thì ghi *vì sao
+  nó lọt qua hai lớp kia* cùng bài test nào đang giữ cho nó không quay lại.
+- **`docs/README.md`** cập nhật cây thư mục và các con số (12 controller, 12 model, 12 route
+  file, 118 endpoint), thêm mục ba lớp kiểm thử.
 
 ---
 
