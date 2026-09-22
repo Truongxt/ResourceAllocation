@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import authApi from '../api/authApi';
 import {
@@ -8,6 +8,11 @@ import {
   clearTokens,
   setOnSessionExpired,
 } from '../api/client';
+import {
+  appPermissionRank as rankOf,
+  canViewModule as canView,
+  canManageModule as canManage,
+} from '../utils/appPermissions';
 
 const AuthContext = createContext(null);
 
@@ -108,6 +113,13 @@ export function AuthProvider({ children }) {
     return { success: false, message: res.data?.message || 'Đổi mật khẩu thất bại' };
   };
 
+  // Quy tắc nằm trong `utils/appPermissions` để kiểm thử được; ở đây chỉ gắn
+  // người dùng hiện tại vào. Đây là lớp giao diện — server vẫn tự chặn — nó tồn
+  // tại để người dùng không thấy nút rồi bấm vào mới biết mình không có quyền.
+  const appPermissionRank = useCallback((moduleKey) => rankOf(user, moduleKey), [user]);
+  const canViewModule = useCallback((moduleKey) => canView(user, moduleKey), [user]);
+  const canManageModule = useCallback((moduleKey) => canManage(user, moduleKey), [user]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -119,6 +131,9 @@ export function AuthProvider({ children }) {
         logout,
         updateProfile,
         changePassword,
+        appPermissionRank,
+        canViewModule,
+        canManageModule,
       }}
     >
       {children}
