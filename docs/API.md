@@ -248,12 +248,10 @@ Query filter: `role`, `department`, `isActive` (`'true'`/`'false'` dạng chuỗ
 (quét `name`, `email`, `phone`, `jobTitle`).
 
 **Phân lập theo công ty áp cho toàn nhóm quản trị**: mọi endpoint `/users/:id/*` trả **403**
-nếu tài khoản đích thuộc công ty khác. Tài khoản không có `companyName` được coi là thuộc
-`Công ty Công nghệ RAO`.
-
-Ngoại lệ đã biết: `GET /guests` **không** lọc theo công ty — nó trả mọi tài khoản có
-`isGuest: true` trên toàn hệ thống. `PUT /users/:id/special-grants` và
-`PUT /users/:id/app-admin` cũng không kiểm tra công ty, chỉ kiểm vai trò.
+nếu tài khoản đích thuộc công ty khác, gồm cả `PUT /users/:id/special-grants` và
+`PUT /users/:id/app-admin`. Tài khoản không có `companyName` được coi là thuộc
+`Công ty Công nghệ RAO`. `GET /guests` cũng chỉ trả tài khoản khách cùng công ty với người
+gọi.
 
 ### POST `/api/auth/users`
 ```json

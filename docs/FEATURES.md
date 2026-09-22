@@ -285,21 +285,20 @@ mới chặn. Script là loại một lần, xong hết mọi môi trường th�
 
 Mô tả đủ 118 endpoint làm lộ ra 11 chỗ dưới đây. Bốn lỗi nặng nhất **đã sửa**
 (xem [CHANGELOG](./CHANGELOG.md) và [TESTING.md](./TESTING.md) mục "Lỗi tìm ra khi viết tài
-liệu"); 11 chỗ này thì **cố ý để lại** — đều đã ghi vào `API.md` nên không ai bị dẫn sai, và
-sửa chúng không thuộc phạm vi đợt viết tài liệu.
+liệu"); ba lỗ hổng phân lập công ty **đã sửa thêm** (xem ngay dưới); 8 chỗ còn lại thì
+**cố ý để lại** — đều đã ghi vào `API.md` nên không ai bị dẫn sai, và sửa chúng không thuộc
+phạm vi đợt viết tài liệu.
 
-Sắp theo mức độ ảnh hưởng:
+**Phân lập theo công ty từng hở ba chỗ — đã sửa.** Mọi endpoint `/users/:id/*` đều trả 403
+nếu tài khoản đích thuộc công ty khác, nhưng ba chỗ này trước đó không kiểm:
 
-**Phân lập theo công ty còn hở ba chỗ.** Mọi endpoint `/users/:id/*` đều trả 403 nếu tài
-khoản đích thuộc công ty khác, nhưng ba chỗ này không kiểm:
+| Endpoint | Thiếu gì | Đã sửa |
+|----------|----------|--------|
+| `GET /auth/guests` | Trả **mọi** tài khoản `isGuest: true` trên toàn hệ thống | Lọc theo `companyName` của người gọi |
+| `PUT /users/:id/special-grants` | Chỉ kiểm vai trò, không kiểm công ty | Thêm kiểm `isSameCompany` |
+| `PUT /users/:id/app-admin` | Chỉ kiểm `isOwner`, không kiểm công ty | Thêm kiểm `isSameCompany` |
 
-| Endpoint | Thiếu gì |
-|----------|----------|
-| `GET /auth/guests` | Trả **mọi** tài khoản `isGuest: true` trên toàn hệ thống |
-| `PUT /users/:id/special-grants` | Chỉ kiểm vai trò, không kiểm công ty |
-| `PUT /users/:id/app-admin` | Chỉ kiểm `isOwner`, không kiểm công ty |
-
-Đây là loại lỗi rò dữ liệu giữa các công ty, nên nằm đầu danh sách dù sửa rất nhỏ.
+Sắp theo mức độ ảnh hưởng, các chỗ còn lại:
 
 **`sendNotification` nuốt lỗi thiếu tham số mà không log.** Guard
 `if (!recipient || !title || !message) return null;` là thứ khiến lỗi gọi sai chữ ký sống sót

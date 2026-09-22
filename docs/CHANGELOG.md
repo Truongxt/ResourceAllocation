@@ -6,6 +6,19 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-09-22
+
+### Security
+
+Ba lỗ hổng phân lập theo công ty ghi nhận trong `FEATURES.md` (mục "Việc chưa làm — phát
+hiện khi viết bù `API.md`") nay đã sửa:
+
+- **`GET /auth/guests`** trả mọi tài khoản `isGuest: true` trên toàn hệ thống — nay lọc theo
+  `companyName` của người gọi, giống `GET /auth/users`.
+- **`PUT /users/:id/special-grants`** và **`PUT /users/:id/app-admin`** chỉ kiểm vai trò
+  (Admin / Owner) mà không kiểm công ty của tài khoản đích — nay dùng chung hàm
+  `isSameCompany` với các endpoint `/users/:id/*` khác, trả 403 nếu khác công ty.
+
 ## [Chưa phát hành] - 2026-09-21
 
 ### Testing
