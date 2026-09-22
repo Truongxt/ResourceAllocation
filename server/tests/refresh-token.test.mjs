@@ -209,6 +209,108 @@ S('Đăng xuất');
 }
 
 // ══════════════════════════════════════════════
+// Client di động: refresh token đi trong body thay vì cookie.
+//
+// Phần quan trọng nhất của nhóm test này không phải "mobile chạy được" mà là
+// "web không bị kéo theo": đường body chỉ mở cho ai tự khai báo header.
+// ══════════════════════════════════════════════
+
+const callMobile = async (method, path, { body, token } = {}) => {
+  const res = await fetch(API + path, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Client-Type': 'mobile',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const json = await res.json().catch(() => ({}));
+  return { status: res.status, ...json };
+};
+
+const loginMobile = () =>
+  callMobile('POST', '/auth/login', {
+    body: { email: 'admin@rao.com', password: 'password123' },
+  });
+
+S('Client di động nhận refresh token trong body');
+{
+  const res = await loginMobile();
+  ok(res.status === 200, 'Đăng nhập → 200');
+  ok(!!res.data?.token, 'Có access token');
+  ok(!!res.data?.refreshToken, 'Có refresh token trong body — vì đã khai báo X-Client-Type');
+
+  // Đây là ca giữ cho bản vá không lan sang web.
+  const web = await login();
+  ok(!web.data?.refreshToken,
+    'Cùng endpoint, không khai báo header → KHÔNG có refresh token trong body');
+}
+
+// ══════════════════════════════════════════════
+S('Xoay vòng qua body');
+{
+  const session = await loginMobile();
+
+  const first = await callMobile('POST', '/auth/refresh', {
+    body: { refreshToken: session.data.refreshToken },
+  });
+  ok(first.status === 200, 'Làm mới bằng token trong body → 200');
+  ok(!!first.data?.token, 'Trả access token mới');
+  ok(
+    !!first.data?.refreshToken && first.data.refreshToken !== session.data.refreshToken,
+    'Refresh token ĐỔI — client phải lưu giá trị mới, không thì lần sau tự đá mình ra'
+  );
+
+  const second = await callMobile('POST', '/auth/refresh', {
+    body: { refreshToken: first.data.refreshToken },
+  });
+  ok(second.status === 200, 'Dùng tiếp token mới → 200');
+
+  // Không khai báo header thì body bị bỏ qua hoàn toàn: đường này là opt-in,
+  // không phải "cứ gửi body là được".
+  const notOptedIn = await fetch(API + '/auth/refresh', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: second.data.refreshToken }),
+  });
+  ok(notOptedIn.status === 401,
+    'Gửi refresh token trong body mà không khai báo header → 401');
+}
+
+// ══════════════════════════════════════════════
+S('Đăng xuất và phát hiện tái sử dụng vẫn đúng trên đường body');
+{
+  const session = await loginMobile();
+  const out = await callMobile('POST', '/auth/logout', {
+    body: { refreshToken: session.data.refreshToken },
+  });
+  ok(out.status === 200, 'Đăng xuất → 200');
+
+  // Trước bản vá, mobile gọi logout mà server không nhận được token nào nên
+  // không thu hồi gì — phiên sống tiếp 7 ngày dù người dùng đã bấm đăng xuất.
+  const after = await callMobile('POST', '/auth/refresh', {
+    body: { refreshToken: session.data.refreshToken },
+  });
+  ok(after.status === 401, 'Token sau khi đăng xuất không làm mới được nữa');
+  ok(after.reason === 'revoked', 'Phân loại là revoked', `(${after.reason})`);
+
+  const live = await loginMobile();
+  const rotated = await callMobile('POST', '/auth/refresh', {
+    body: { refreshToken: live.data.refreshToken },
+  });
+  ok(rotated.status === 200, 'Xoay vòng một lần');
+
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+
+  const replay = await callMobile('POST', '/auth/refresh', {
+    body: { refreshToken: live.data.refreshToken },
+  });
+  ok(replay.status === 401 && replay.reason === 'reused',
+    'Phát lại token cũ sau ân hạn → reused, y như đường cookie', `(${replay.reason})`);
+}
+
+// ══════════════════════════════════════════════
 S('Đổi mật khẩu đuổi mọi phiên cũ');
 {
   // Đây là lỗ thật trước khi có refresh token: đổi mật khẩu vì nghi bị lộ tài khoản,
