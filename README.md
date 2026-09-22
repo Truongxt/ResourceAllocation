@@ -17,6 +17,7 @@ Web App hỗ trợ quản lý phân công công việc cho các dự án chạy 
 | Realtime | Socket.IO 4 (server + client) |
 | Algorithm | Genetic Algorithm, CSP Solver |
 | Auth | JWT + bcryptjs |
+| Testing | node thuần + vitest (client) · runner riêng (server) · Playwright (giao diện) |
 
 ## Cài đặt
 
@@ -37,6 +38,12 @@ npm run seed --prefix server
 
 # Chạy development
 npm run dev
+```
+
+Muốn chạy kiểm thử giao diện thì cần tải trình duyệt cho Playwright một lần:
+
+```bash
+npm run test:e2e:install
 ```
 
 Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017`.
@@ -66,8 +73,12 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run cleanup` | `server/` | Liệt kê dữ liệu mồ côi trong DB đang chạy; thêm `-- --apply` để xóa thật |
 | `npm run migrate:skill-level` | `server/` | Hạ `requiredSkills.level` cũ từ 5 về 4; thêm `-- --apply` để sửa thật |
 | `npm run migrate:dependencies` | `server/` | Chuyển `dependencies` cũ sang dạng `{ task, type }`; thêm `-- --apply` để sửa thật |
-| `npm test` | `server/` | Chạy kiểm thử end-to-end trên DB + cổng riêng ([chi tiết](./server/tests/README.md)) |
+| `npm test` | `server/` | Kiểm thử API + Socket.IO trên DB + cổng riêng ([chi tiết](./server/tests/README.md)) |
 | `npm test` | `client/` | Logic thuần bằng node + kiểm thử render component bằng vitest ([chi tiết](./client/tests/README.md)) |
+| `npm run test:e2e` | gốc | Kiểm thử giao diện bằng Chromium thật, tự khởi động client + server ([chi tiết](./e2e/README.md)) |
+| `npm run test:e2e:install` | gốc | Tải trình duyệt cho Playwright — chạy một lần trước lần test đầu tiên |
+| `npm run test:e2e:ui` | gốc | Chế độ gỡ lỗi tương tác của Playwright |
+| `npm run test:e2e:report` | gốc | Mở báo cáo HTML của lần chạy e2e gần nhất |
 | `npm run preview` | `client/` | Xem thử bản build production |
 
 ## Tài liệu
@@ -75,9 +86,10 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 - [Tổng quan dự án](./docs/README.md)
 - [Danh sách tính năng](./docs/FEATURES.md)
 - [So sánh với Jira](./docs/COMPARISON_JIRA.md) — RAO mạnh/yếu ở đâu so với Jira Software Cloud
-- [API Documentation](./docs/API.md) — 56 endpoints
-- [Database Schema](./docs/DATABASE.md) — 9 collections
+- [API Documentation](./docs/API.md) — mô tả 56 endpoint; mã nguồn hiện có 118 (xem cảnh báo đầu file)
+- [Database Schema](./docs/DATABASE.md) — 12 collection
 - [Thuật toán](./docs/ALGORITHMS.md)
+- [Chiến lược kiểm thử](./docs/TESTING.md) — ba lớp test và danh sách lỗi đang được test theo dõi
 - [Thiết kế hệ thống](./docs/architecture/SYSTEM_DESIGN.md)
 - [Changelog](./docs/CHANGELOG.md)
 

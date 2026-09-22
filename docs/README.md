@@ -86,17 +86,31 @@ ResourceAllocation/
 │   ├── server.js              # HTTP server + Socket.IO + start
 │   ├── app.js                 # Express app + mount routes
 │   └── src/
-│       ├── algorithms/        # genetic/ + csp/
+│       ├── algorithms/        # genetic/ + csp/ + greedy/ + benchmark/ + scoring.js
 │       ├── config/            # db.js, jwt.js, mail.js
-│       ├── controllers/       # 9 controllers
+│       ├── controllers/       # 12 controllers
 │       ├── middleware/        # auth, error, validate, rateLimit, sanitize
-│       ├── models/            # 9 Mongoose models
-│       ├── routes/            # 9 route files (kèm validation inline)
+│       ├── models/            # 12 Mongoose models
+│       ├── routes/            # 12 route files, 118 endpoint (kèm validation inline)
 │       ├── services/          # socket, email, activityLog
-│       └── utils/             # seeder.js
-├── server/tests/              # Kiểm thử end-to-end qua API + Socket.IO (npm test)
+│       └── utils/             # seeder.js, cleanup.js, migrate-*.js
+├── server/tests/              # Kiểm thử API + Socket.IO (npm test trong server/)
+├── e2e/                       # Kiểm thử giao diện bằng Chromium thật (npm run test:e2e ở gốc)
+│   ├── tests/                 # 10 bộ, đánh số theo thứ tự chạy
+│   └── support/               # helpers.js (login, uniqueName…) + global-setup.js
+├── playwright.config.js       # Cổng 5098/5174 + database resource_allocation_e2e
 └── docs/                      # Documentation
 ```
+
+## Ba lớp kiểm thử
+
+| Lớp | Chạy ở đâu | Trả lời câu hỏi |
+|-----|------------|-----------------|
+| `server/tests/` | `cd server && npm test` | Server trả đúng dữ liệu và đúng mã lỗi không? Thuật toán tính đúng không? |
+| `client/tests/` | `cd client && npm test` | Component vẽ đúng, xử lý đúng sự kiện không? |
+| `e2e/` | `npm run test:e2e` (ở gốc) | Ghép tất cả lại thì người dùng **dùng được** không? |
+
+Chi tiết và danh sách lỗi đang được test theo dõi: [TESTING.md](./TESTING.md).
 
 ## Tài liệu liên quan
 
@@ -106,5 +120,6 @@ ResourceAllocation/
 - [DATABASE.md](./DATABASE.md) - Thiết kế Database Schema
 - [API.md](./API.md) - API Documentation
 - [ALGORITHMS.md](./ALGORITHMS.md) - Mô tả thuật toán tối ưu hóa (GA, CSP, Hybrid)
+- [TESTING.md](./TESTING.md) - Chiến lược kiểm thử ba lớp + lỗi đã biết đang được test theo dõi
 - [CHANGELOG.md](./CHANGELOG.md) - Nhật ký thay đổi
 - [architecture/SYSTEM_DESIGN.md](./architecture/SYSTEM_DESIGN.md) - Thiết kế kiến trúc chi tiết

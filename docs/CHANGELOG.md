@@ -6,6 +6,79 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-09-21
+
+### Testing
+
+Thêm **lớp kiểm thử thứ ba**: giao diện end-to-end bằng Playwright, điều khiển Chromium thật
+trên hệ thống thật (client Vite → server Express → MongoDB, không mock gì cả). 10 bộ, 78 bài,
+~14 phút một lượt. Chi tiết: [`e2e/README.md`](../e2e/README.md), chiến lược chung:
+[`TESTING.md`](./TESTING.md).
+
+Chạy trên **cổng và database riêng** (`5098` / `5174` / `resource_allocation_e2e`) nên không
+đụng tới môi trường phát triển lẫn `server/tests`.
+
+Lớp này có lý do tồn tại riêng chứ không phải chạy lại việc hai lớp kia đã làm: nó bắt loại
+lỗi mà **từng mảnh đều đúng, ghép lại thì sai**. Đợt dựng bộ test tìm ra bốn lỗi thuộc đúng
+loại đó, không lỗi nào làm đỏ `server/tests` hay `client/tests`:
+
+- **Không tạo được dự án nếu chỉ điền các trường nhìn thấy được.** `startDate`/`endDate` là
+  bắt buộc ở server, nhưng ô nhập chúng nằm trong panel "Cài đặt nâng cao" đang thu gọn và
+  không được đánh dấu bắt buộc ở form. Test API luôn gửi kèm ngày nên chưa bao giờ đi qua
+  nhánh này theo đúng cách người dùng đi.
+- **Phần trăm khớp kỹ năng hiện `10000%`.** Server trả thang 0–100
+  (`scoring.js:162`, `GeneticAlgorithm.js:289`) nhưng `OptimizationResultView.jsx` nhân thêm
+  100 lần nữa. `OptimizationCompareView.jsx` thì không nhân — hai component hiểu khác nhau
+  về cùng một con số.
+- **Giờ công lệch nhau giữa hai trang.** `/resources` đọc trường `currentWorkload` lưu sẵn,
+  `/reports` cộng live từ task. `currentWorkload` chỉ đổi khi gọi
+  `POST /api/resources/recalculate-workload`, mà không màn hình nào gọi — nên cùng một người
+  hiện 0h ở trang này và 32h ở trang kia.
+- **`VITE_SOCKET_URL` không có trong `.env.example`.** Thiếu nó thì client mở socket tới
+  `localhost:5000` mặc định; triển khai ở cổng khác là realtime âm thầm không kết nối, không
+  có lỗi nào hiện ra. Đã bổ sung kèm giải thích vào `.env.example`, và
+  `e2e/tests/10-realtime.spec.js` nay khóa lại bằng cách kiểm địa chỉ WebSocket thật.
+
+Ba lỗi đầu được giữ lại dưới dạng bài test đánh dấu `test.fail()`: chúng mô tả hành vi
+**đúng**, nên ngày ai đó sửa xong thì chính chúng chuyển sang đỏ và nhắc gỡ dấu.
+
+### Fixed
+
+- **Lớp kiểm thử component hết chập chờn.** `client/vite.config.js` nay đặt
+  `testTimeout: 15_000` và `maxWorkers: 2`.
+  Triệu chứng rất dễ đổ oan cho code: `npm test` đỏ ngẫu nhiên, mỗi lần một file khác, mà
+  chạy riêng file đó thì luôn đạt. Đo ra thì thấy biên thời gian gần như bằng không — bài
+  chậm nhất mất **4,5 giây** trong khi `testTimeout` mặc định của vitest đúng **5 giây**,
+  và render một modal/portal của Ant Design trong jsdom vốn tốn 2–3 giây ngay cả lúc máy
+  rảnh. `maxWorkers` mặc định mở theo số nhân CPU, mỗi worker dựng một jsdom rồi nạp cả antd,
+  chính là thứ đẩy 2,5 giây thành 5.
+  Ngưỡng mới gấp ba ca chậm nhất đo được, vẫn đủ ngắn để bắt vòng lặp vô hạn hay promise
+  không bao giờ resolve. Xác nhận bằng ba lượt `npm test` liên tiếp đều xanh.
+- **Trình chạy `server/tests` không còn báo lỗi oan.** Ngưỡng chờ server lên nâng từ 20 lên
+  60 giây: chạy ngay sau một lượt kiểm thử nặng khác (bộ e2e chẳng hạn), server cần lâu hơn
+  hẳn vì cache đĩa còn nguội. Chạm ngưỡng lúc đó in ra `❌ Server không khởi động được:` kèm
+  một dòng log **trống**, trông y hệt lỗi cấu hình. Thông báo nay nói rõ là hết thời gian
+  chờ, và khi log trống thì nói luôn điều đó có nghĩa gì.
+
+### Documentation
+
+Đối chiếu lại tài liệu với mã nguồn, phát hiện mấy chỗ đã chậm hơn code khá xa. Không viết
+lại toàn bộ — chỉ đo lại con số, ghi rõ khoảng lệch ngay đầu file để không ai bị dẫn sai, và
+kèm lệnh tự đếm lại:
+
+- `API.md` mô tả **56** endpoint; `server/src/routes/` hiện có **118** trên 12 nhóm. Ba nhóm
+  `/api/task-groups`, `/api/recurring-tasks`, `/api/company-settings` chưa được mô tả dòng
+  nào; `/api/auth` đã phình lên 27 endpoint và `/api/tasks` lên 30.
+- `DATABASE.md` mô tả **9** collection; `server/src/models/` hiện có **12**
+  (thêm `TaskGroup`, `RecurringTask`, `CompanySetting`).
+- `seeder.js` xóa 9 collection nhưng in `Cleared all 8 collections.`, và **không** xóa ba
+  model mới — nên dữ liệu của chúng tồn đọng qua mọi lần seed, đúng cái vấn đề mà comment
+  trong chính hàm đó nói là đã sửa cho các collection khác.
+- `docs/README.md` cập nhật lại cây thư mục và các con số (12 controller, 12 model, 12 route
+  file), thêm mục ba lớp kiểm thử.
+
+---
+
 ## [Chưa phát hành] - 2026-08-19
 
 ### Security
