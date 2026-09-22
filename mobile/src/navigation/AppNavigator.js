@@ -12,6 +12,7 @@ import ProjectDetailScreen from '../screens/projects/ProjectDetailScreen';
 import ActivityLogsScreen from '../screens/activity/ActivityLogsScreen';
 import ReportsScreen from '../screens/reports/ReportsScreen';
 import BenchmarkScreen from '../screens/benchmark/BenchmarkScreen';
+import TaskDetailScreen from '../screens/tasks/TaskDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -53,6 +54,10 @@ export default function AppNavigator() {
             <Stack.Screen
               name="ProjectDetail"
               component={ProjectDetailScreen}
+            />
+            <Stack.Screen
+              name="TaskDetail"
+              component={TaskDetailScreen}
             />
             <Stack.Screen
               name="ActivityLogsScreen"

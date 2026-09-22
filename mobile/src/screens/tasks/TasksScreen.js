@@ -40,7 +40,7 @@ const PRIORITIES = [
   { key: 'critical', label: 'Khẩn cấp', color: '#ef4444' },
 ];
 
-export default function TasksScreen() {
+export default function TasksScreen({ navigation }) {
   const { theme } = useTheme();
   const { canManageModule } = useAuth();
 
@@ -142,10 +142,13 @@ export default function TasksScreen() {
     const sMeta = STATUS_MAP[item.status] || STATUS_MAP.todo;
     const pMeta = PRIORITY_MAP[item.priority] || PRIORITY_MAP.medium;
 
+    // Chạm vào thẻ mở màn chi tiết (checklist, bình luận); còn đổi trạng thái
+    // vẫn giữ lối tắt riêng ở nhãn trạng thái, vì đó là thao tác hay dùng nhất
+    // và không đáng phải đi qua thêm một màn.
     return (
       <Card
         style={styles.taskCard}
-        onPress={() => setSelectedTask(item)}
+        onPress={() => navigation.navigate('TaskDetail', { taskId: item._id })}
       >
         <View style={styles.cardTop}>
           <View style={styles.titleWrap}>
@@ -161,11 +164,13 @@ export default function TasksScreen() {
               />
             )}
           </View>
-          <Badge
-            label={sMeta.label}
-            color={sMeta.color}
-            bg={sMeta.bg}
-          />
+          <TouchableOpacity onPress={() => setSelectedTask(item)}>
+            <Badge
+              label={sMeta.label}
+              color={sMeta.color}
+              bg={sMeta.bg}
+            />
+          </TouchableOpacity>
         </View>
 
         {item.description ? (
