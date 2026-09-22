@@ -86,7 +86,7 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 - [Tổng quan dự án](./docs/README.md)
 - [Danh sách tính năng](./docs/FEATURES.md)
 - [So sánh với Jira](./docs/COMPARISON_JIRA.md) — RAO mạnh/yếu ở đâu so với Jira Software Cloud
-- [API Documentation](./docs/API.md) — 12 nhóm route, 118 endpoint (nhóm `auth`/`tasks` chưa mô tả hết)
+- [API Documentation](./docs/API.md) — 12 nhóm route, mô tả đủ 118 endpoint
 - [Database Schema](./docs/DATABASE.md) — 12 collection
 - [Thuật toán](./docs/ALGORITHMS.md)
 - [Chiến lược kiểm thử](./docs/TESTING.md) — ba lớp test và danh sách lỗi đang được test theo dõi
