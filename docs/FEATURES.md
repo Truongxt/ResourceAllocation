@@ -323,9 +323,14 @@ dấu hiệu gì. Nay lỗi ở bước này khiến `User` vừa tạo bị xó
 đã cấp session ngay sau đó; hủy tài khoản người dùng thật chỉ vì tạo Resource lỗi tạm thời sẽ
 đổi UX theo hướng xấu hơn, cần cân nhắc riêng.
 
-**`POST /tasks/:id/move` không kiểm gì cả.** Không kiểm dự án đích có tồn tại, và không kiểm
-`dependencies` còn hợp lệ sau khi chuyển — chuyển một task sang dự án khác là đủ để nó giữ
-tiền nhiệm thuộc dự án cũ, đúng trường hợp mà `POST /tasks` chặn bằng 400.
+**`POST /tasks/:id/move` không kiểm gì cả — đã sửa.** Trước đây không kiểm dự án đích có tồn
+tại, và không kiểm `dependencies` còn hợp lệ sau khi chuyển — chuyển một task sang dự án khác
+là đủ để nó giữ tiền nhiệm thuộc dự án cũ, đúng trường hợp mà `POST /tasks` chặn bằng 400. Nay
+`targetProjectId` không tồn tại trả 404; và nếu tiền nhiệm hiện có của task sẽ trở thành khác
+dự án (hoặc tự tham chiếu/vòng lặp) sau khi chuyển thì trả 400, dùng chung `validateDependencies`
+với `POST /tasks`. Chưa xử lý chiều ngược lại: các task khác **phụ thuộc vào** task đang
+chuyển (successor) không bị kiểm — chúng có thể trở thành phụ thuộc khác dự án mà không có
+cảnh báo nào, nằm ngoài phạm vi mô tả gốc của mục này.
 
 **`POST /tasks/:id/report-result` để lộ nguyên văn lỗi Mongoose.** Gửi `deliverableLinks`
 dạng mảng chuỗi trả 400 kèm `Cast to embedded failed ... ObjectParameterError` — tiếng Anh,

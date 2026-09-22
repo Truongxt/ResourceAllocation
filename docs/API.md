@@ -641,9 +641,11 @@ mọi mục checklist `isCompleted: false`. Giữ nguyên `assignee`, `followers
 
 **Việc con được nhân bản theo** và trỏ vào bản sao mới, mỗi cái cũng thêm hậu tố `(Bản sao)`.
 
-`POST /:id/move` chỉ đổi `project` và/hoặc `taskGroup`, rồi **kéo việc con theo cùng**. Gửi
-`targetTaskGroupId: null` để bỏ task ra khỏi nhóm. Endpoint này **không** kiểm tra dự án đích
-có tồn tại hay `dependencies` có còn hợp lệ sau khi chuyển.
+`POST /:id/move` đổi `project` và/hoặc `taskGroup`, rồi **kéo việc con theo cùng**. Gửi
+`targetTaskGroupId: null` để bỏ task ra khỏi nhóm. `targetProjectId` không tồn tại trả 404;
+nếu tiền nhiệm hiện có của task sẽ thuộc dự án khác (hoặc tạo tự phụ thuộc/vòng lặp) sau khi
+chuyển thì trả 400 — gỡ tiền nhiệm trước khi chuyển dự án. Chưa kiểm chiều ngược lại: các task
+**phụ thuộc vào** task đang chuyển không được cập nhật hay chặn.
 
 ### GET `/api/tasks/reminders`
 Chỉ lấy việc **giao cho chính người gọi**, có `endDate`, và chưa `done`. Trả bốn tập
