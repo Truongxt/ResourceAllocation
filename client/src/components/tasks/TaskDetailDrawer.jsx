@@ -100,6 +100,23 @@ function TaskDetailTabBar({ activeKey, onChange, items }) {
     setTimeout(checkScroll, 320);
   }, [activeKey, checkScroll]);
 
+  /** Điều hướng bằng mũi tên / Home / End theo chuẩn tablist. */
+  const handleKeyDown = (event, index) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+    let next;
+    if (step) next = (index + step + items.length) % items.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = items.length - 1;
+    else return;
+
+    event.preventDefault();
+    const target = items[next];
+    onChange(target.key);
+    // Phải dời cả focus, không chỉ đổi tab: tabIndex của mục cũ vừa thành -1 nên
+    // focus còn nằm đó sẽ rơi ra khỏi dải và mũi tên tiếp theo không còn tác dụng.
+    scrollRef.current?.querySelector(`[data-tab-key="${target.key}"]`)?.focus();
+  };
+
   return (
     <div
       style={{
@@ -139,6 +156,9 @@ function TaskDetailTabBar({ activeKey, onChange, items }) {
         ref={scrollRef}
         onScroll={checkScroll}
         className="no-scrollbar"
+        role="tablist"
+        aria-label="Các mục của công việc"
+        aria-orientation="horizontal"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -149,14 +169,28 @@ function TaskDetailTabBar({ activeKey, onChange, items }) {
           padding: '2px 0',
         }}
       >
-        {items.map((item) => {
+        {items.map((item, index) => {
           const isActive = item.key === activeKey;
           return (
-            <div
+            <button
               key={item.key}
+              type="button"
+              role="tab"
+              id={`task-tab-${item.key}`}
+              aria-selected={isActive}
+              aria-controls={`task-tabpanel-${item.key}`}
+              // Chuẩn tablist: cả dải chỉ có một điểm dừng Tab, di chuyển giữa các
+              // mục bằng mũi tên. Để tabIndex=0 hết thì người dùng bàn phím phải
+              // bấm Tab qua từng mục mới tới được nội dung.
+              tabIndex={isActive ? 0 : -1}
               data-tab-key={item.key}
               onClick={() => onChange(item.key)}
+              onKeyDown={(e) => handleKeyDown(e, index)}
               style={{
+                // Gỡ mặc định của <button>; `background`, `color` và `borderBottom`
+                // được đặt lại phía dưới nên vẫn giữ nguyên hình thức cũ của tab.
+                border: 'none',
+                font: 'inherit',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
@@ -174,7 +208,7 @@ function TaskDetailTabBar({ activeKey, onChange, items }) {
               }}
             >
               {item.label}
-            </div>
+            </button>
           );
         })}
       </div>
@@ -1458,7 +1492,13 @@ export default function TaskDetailDrawer({
             onChange={setActiveTab}
             items={tabItems}
           />
-          <div style={{ marginTop: 4 }}>
+          <div
+            role="tabpanel"
+            id={`task-tabpanel-${activeTab}`}
+            aria-labelledby={`task-tab-${activeTab}`}
+            tabIndex={0}
+            style={{ marginTop: 4 }}
+          >
             {tabItems.find((t) => t.key === activeTab)?.children}
           </div>
         </>
