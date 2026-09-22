@@ -283,7 +283,7 @@ dành cho thứ chỉ nó mới thấy được — mối nối giữa các mả
 đầy đủ thì để ở lớp đó; và thứ gì lớp e2e *không chứng minh được* thì đừng viết bài e2e cho
 nó, vì một bài xanh-bất-kể-code-đúng-hay-sai còn nguy hiểm hơn khoảng trống đã biết.
 
-Bốn hàng cuối nằm ở bộ mới **`server/tests/hardening.test.mjs`** (27 assertion), và ngay lần
+Bốn hàng cuối nằm ở bộ mới **`server/tests/hardening.test.mjs`** (35 assertion), và ngay lần
 chạy đầu nó đã bắt được một lỗi thật — xem mục dưới.
 
 ### Lỗi `hardening` tìm ra: khách không thuộc công ty nào
@@ -304,6 +304,22 @@ phân lập), còn tên đối tác sang field mới `guestCompany` chỉ để 
 Lỗi này minh họa vì sao assertion "công ty A **nhìn thấy** khách của chính mình" phải đi kèm
 assertion "công ty B không nhìn thấy": chỉ kiểm vế cấm thì một bộ lọc chặn nhầm tất cả mọi
 người vẫn xanh.
+
+### Lỗi thứ hai: một chữ thiếu trong enum làm chết cả một nhánh tính năng
+
+`Project.members[].role` không có `'guest'` trong enum, trong khi `taskAccess.js` có hẳn một
+nhánh xử lý `role === 'guest'` và `Project.permissions.allowGuestCreateTask` hiện thành một
+switch thật trên màn hình Chi tiết dự án. Mongoose chặn mọi lần gán vai trò đó, nên nhánh kia
+là mã chết và cái switch không điều khiển được gì — **không có lỗi nào nổ ra ở bất cứ đâu**.
+
+Đây là loại lỗi không lớp test nào đang có nhìn thấy, vì cả ba lớp đều kiểm những đường người
+ta *có* đi; còn đây là một đường **không ai đi được**, và sự im lặng đó trông y hệt như
+"tính năng chạy tốt, chưa ai dùng tới".
+
+Sau khi sửa, bộ `hardening` kiểm cả hai vế: tắt công tắc thì khách bị chặn bằng đúng câu dành
+cho khách (không phải câu dành cho thành viên thường — phân biệt được hai câu này mới chứng
+minh đi đúng nhánh), bật lên thì tạo được. Gỡ lại `'guest'` khỏi enum thì **4 assertion đỏ**;
+đã chạy thử đúng một lần để chắc bộ test không xanh sẵn, theo đúng bài học ở mục trên.
 
 ## Vấn đề nhỏ khác
 

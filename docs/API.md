@@ -416,6 +416,12 @@ cả — kể cả công ty vừa tạo ra nó cũng không thấy nó trong `GE
 **Query filter cho `GET /`**: `status`, `priority`, `manager`, `search` (tìm trong name/code/description),
 `startDate`, `endDate` (lọc theo `startDate` của dự án), `page`, `limit`, `sort`.
 
+**Vai trò thành viên** (`role` của `POST`/`PUT /:id/members`): `lead`, `developer`,
+`designer`, `tester`, `devops`, `guest` — mặc định `developer`, giá trị khác trả **400**.
+Riêng `guest` dành cho tài khoản đối tác: quyền tạo công việc của họ đi theo
+`permissions.allowGuestCreateTask` (mặc định `false`) chứ không theo
+`permissions.allowMembersCreateTasks` như các vai trò còn lại.
+
 ### POST `/api/projects`
 ```json
 // Request Body — startDate & endDate BẮT BUỘC

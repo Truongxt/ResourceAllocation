@@ -42,7 +42,7 @@ của `server/tests/api.test.mjs`.
 | 2.4 | Cập nhật dự án | Chỉnh sửa thông tin dự án | ✅ | Modal form edit |
 | 2.5 | Xóa dự án | Xóa kèm cảnh báo nếu còn task | ✅ | Chặn nếu còn task, cần `?force=true` |
 | 2.6 | Dashboard dự án | Tổng quan tiến độ, thống kê | ✅ | `GET /projects/stats/summary` + trang Dashboard |
-| 2.7 | Gắn nhân sự | Thêm/xóa thành viên + allocation % | ✅ | Tab Thành viên: thêm/sửa/xóa, chọn vai trò và allocation. Nút quản lý chỉ hiện với Admin/PM |
+| 2.7 | Gắn nhân sự | Thêm/xóa thành viên + allocation % | ✅ | Tab Thành viên: thêm/sửa/xóa, chọn vai trò và allocation. Nút quản lý chỉ hiện với Admin/PM. Sáu vai trò: `lead`, `developer`, `designer`, `tester`, `devops`, `guest` — vai trò `guest` đi kèm công tắc `allowGuestCreateTask` riêng (xem ghi chú "Tài khoản khách" cuối tài liệu) |
 | 2.8 | Tiến độ dự án | Tự động tính % hoàn thành từ tasks | ✅ | `recalculateProjectProgress` chạy khi tạo/sửa/xóa task |
 | 2.9 | Filter & Sort | Lọc theo status, priority, date range, search | ✅ | Hỗ trợ cả `manager`, `startDate`, `endDate` |
 
@@ -384,6 +384,36 @@ UI thì cũng chẳng khác gì, vì đổi giá trị bằng tay qua API cũng 
   `tasks: none` bị chặn 403 cả khi xem; `e2e/tests/11-app-permissions.spec.js` (3 bài) chốt
   trọn vòng qua trình duyệt — admin hạ quyền trong Cài đặt → người bị hạ mất nút / bị chặn
   trang → trả quyền lại thì làm được như cũ.
+
+### Tài khoản khách — hai chữ "guest" và chỗ đứt giữa chúng
+
+Trong dự án có **hai khái niệm "khách" khác nhau**, và trước bản vá này chúng không nối với nhau:
+
+| | Là gì | Tạo ở đâu |
+|---|---|---|
+| `User.isGuest` | Tài khoản cho đối tác ngoài công ty | Cài đặt → Phân quyền Thao tác & Ứng dụng → tab "Tài khoản Khách" |
+| `Project.members[].role === 'guest'` | Vai trò **trong một dự án cụ thể**, quyết định quyền qua `middleware/taskAccess.js` | Trang Chi tiết dự án → tab Thành viên |
+
+Chỗ đứt nằm ở một chữ: enum của `Project.members[].role` **không có `'guest'`**, nên Mongoose
+chặn mọi lần gán. Hệ quả dây chuyền:
+
+- Không ai từng là thành viên vai trò `guest` được.
+- Nhánh `if (memberObj.role === 'guest')` trong `taskAccess.js` là mã chết.
+- Công tắc `permissions.allowGuestCreateTask` — có trong model **và** hiện thành một switch
+  thật trên màn hình Chi tiết dự án — bật hay tắt đều không đổi gì.
+
+Đã thêm `'guest'` vào enum (kèm hai validator ở `project.routes.js`, danh sách chọn vai trò
+và nhãn ở hai file locale). Nay khách được thêm vào dự án với vai trò riêng, mặc định
+**không** tạo được công việc, và công tắc kia mới thật sự điều khiển được điều đó.
+
+Kiểm chứng: `server/tests/hardening.test.mjs`, mục *Vai trò "khách" trong dự án nay dùng
+được* — có cả ca bật lẫn ca tắt. Gỡ `'guest'` khỏi enum thì **4 assertion đỏ**, đã thử để
+chắc bộ test không xanh sẵn.
+
+**Còn lại chưa làm**: `User.isGuest` vẫn chỉ là cái nhãn — tạo tài khoản khách không tự đưa
+họ vào dự án nào, và không tự hạ `appPermissions` của họ xuống mức xem. Người quản trị phải
+tự thêm khách vào dự án rồi chọn vai trò `guest`. Nối tự động hai bước đó là việc riêng, cần
+quyết định sản phẩm (khách mới tạo thì thuộc dự án nào?) chứ không phải sửa lỗi.
 
 ### Khoảng trống kiểm thử đã biết
 
