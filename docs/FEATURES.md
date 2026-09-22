@@ -300,10 +300,10 @@ nếu tài khoản đích thuộc công ty khác, nhưng ba chỗ này trước 
 
 Sắp theo mức độ ảnh hưởng, các chỗ còn lại:
 
-**`sendNotification` nuốt lỗi thiếu tham số mà không log.** Guard
+**`sendNotification` nuốt lỗi thiếu tham số mà không log — đã sửa.** Guard
 `if (!recipient || !title || !message) return null;` là thứ khiến lỗi gọi sai chữ ký sống sót
-im lặng. Đã sửa chỗ gọi sai, nhưng **chưa sửa cái guard** — lần sau gọi thiếu tham số vẫn sẽ
-im như vậy. Nên cho nó `console.error` hoặc ném lỗi ở `NODE_ENV !== 'production'`.
+im lặng trước đây. Đã sửa chỗ gọi sai (App Admin), và nay guard tự `console.error` kèm các
+tham số nhận được trước khi bỏ qua, nên lần sau gọi thiếu tham số sẽ không còn im lặng.
 
 **`POST /auth/users` trả mật khẩu dạng rõ khi `NODE_ENV=test`.** `emailStatus.preview` chứa
 `plainPassword` để kiểm thử đọc được. Chỉ xảy ra ở chế độ kiểm thử, nhưng không có gì chặn
