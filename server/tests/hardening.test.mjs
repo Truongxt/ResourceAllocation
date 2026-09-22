@@ -300,4 +300,81 @@ S('Vai trò "khách" trong dự án nay dùng được');
   await call('DELETE', `/projects/${projectId}?force=true`, { token: TOK.pm });
 }
 
+S('currentWorkload là tải TUẦN, không phải tổng giờ tích lũy');
+{
+  // `maxCapacity` là giờ mỗi tuần. Trước bản vá, hàm đồng bộ cộng estimatedHours của
+  // mọi task chưa xong rồi so thẳng với con số tuần đó — một việc 80h kéo dài 8 tuần
+  // vẫn bị tính đủ 80h vào "tuần này" và đẩy người ta thành quá tải.
+  const resList = await call('GET', '/resources?limit=100', { token: TOK.admin });
+  const resource = (resList.data?.resources || []).find((r) => r.user?._id || r.user);
+  ok(!!resource, 'Có nhân sự để thử');
+
+  const assigneeId = resource.user?._id || resource.user;
+  const projects = await call('GET', '/projects', { token: TOK.pm });
+  const projectId = (projects.data?.projects || [])[0]?._id;
+
+  const readWorkload = async () => {
+    const res = await call('GET', `/resources/${resource._id}`, { token: TOK.admin });
+    return {
+      week: res.data?.resource?.currentWorkload,
+      unscheduled: res.data?.resource?.unscheduledWorkload,
+    };
+  };
+
+  const before = await readWorkload();
+
+  // Một việc 80 giờ trải từ hôm nay tới 8 tuần sau.
+  const farStart = new Date();
+  const farEnd = new Date(farStart.getTime() + 56 * 24 * 60 * 60 * 1000);
+  const longTask = await call('POST', '/tasks', {
+    token: TOK.pm,
+    body: {
+      title: `Việc dài 8 tuần ${stamp}`,
+      project: projectId,
+      assignee: assigneeId,
+      startDate: farStart.toISOString(),
+      endDate: farEnd.toISOString(),
+      estimatedHours: 80,
+    },
+  });
+  ok(longTask.status === 201, 'Tạo được việc dài trải nhiều tuần', `status=${longTask.status}`);
+
+  const afterLong = await readWorkload();
+  const addedByLong = (afterLong.week || 0) - (before.week || 0);
+  // 80h / 8 tuần ≈ 10h mỗi tuần. Cho biên rộng vì số ngày làm việc trong tuần đầu
+  // phụ thuộc hôm nay là thứ mấy — điều cần khẳng định là nó KHÔNG cộng cả 80h.
+  ok(
+    addedByLong > 0 && addedByLong < 30,
+    'Chỉ phần giờ rơi vào tuần này được cộng, không phải cả 80h',
+    `tăng thêm ${Math.round(addedByLong * 10) / 10}h`
+  );
+
+  // Việc không có ngày: không trải lên trục thời gian được, phải vào mục riêng.
+  const noDateTask = await call('POST', '/tasks', {
+    token: TOK.pm,
+    body: {
+      title: `Việc chưa xếp lịch ${stamp}`,
+      project: projectId,
+      assignee: assigneeId,
+      estimatedHours: 12,
+    },
+  });
+  ok(noDateTask.status === 201, 'Tạo được việc chưa có ngày', `status=${noDateTask.status}`);
+
+  const afterNoDate = await readWorkload();
+  ok(
+    (afterNoDate.unscheduled || 0) - (afterLong.unscheduled || 0) === 12,
+    'Giờ của việc chưa xếp lịch vào unscheduledWorkload, không bốc hơi',
+    `unscheduled=${afterNoDate.unscheduled}`
+  );
+  ok(
+    afterNoDate.week === afterLong.week,
+    'Và nó KHÔNG bị nhét vào tải của tuần hiện tại',
+    `week=${afterNoDate.week}`
+  );
+
+  await call('DELETE', `/tasks/${longTask.data.task._id}`, { token: TOK.pm });
+  await call('DELETE', `/tasks/${noDateTask.data.task._id}`, { token: TOK.pm });
+}
+
 process.exit(summary() ? 1 : 0);
