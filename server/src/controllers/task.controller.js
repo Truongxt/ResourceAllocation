@@ -1468,6 +1468,36 @@ const moveTask = async (req, res, next) => {
         });
       }
 
+      // Chiều ngược lại cũng phải kiểm: công việc ở dự án CŨ đang phụ thuộc vào
+      // công việc này. Kiểm tra bên trên chỉ soi tiền nhiệm của chính nó, nên
+      // trước đây chuyển đi là bỏ lại một loạt hậu nhiệm trỏ sang dự án khác —
+      // đúng cái bất biến mà chính đoạn code này đang cố giữ, chỉ là nhìn sót
+      // một chiều.
+      //
+      // Công việc con theo cha sang dự án mới nên không tính là hậu nhiệm kẹt lại.
+      const subtaskIds = (await Task.find({ parentTask: task._id }).select('_id')).map((t) => t._id);
+      const movingIds = [task._id, ...subtaskIds].map(String);
+
+      const successors = await Task.find({
+        'dependencies.task': task._id,
+        _id: { $nin: movingIds },
+      }).select('title project');
+
+      const stranded = successors.filter(
+        (s) => String(s.project) !== String(targetProjectId)
+      );
+
+      if (stranded.length > 0) {
+        const names = stranded.slice(0, 3).map((s) => `"${s.title}"`).join(', ');
+        const more = stranded.length > 3 ? ` và ${stranded.length - 3} công việc khác` : '';
+        return res.status(400).json({
+          success: false,
+          message:
+            `Không thể chuyển dự án: ${names}${more} đang phụ thuộc vào công việc này ` +
+            `và sẽ ở lại dự án cũ. Hãy gỡ phụ thuộc hoặc chuyển chúng cùng lúc.`,
+        });
+      }
+
       task.project = targetProjectId;
     }
     if (targetTaskGroupId !== undefined) task.taskGroup = targetTaskGroupId || null;
