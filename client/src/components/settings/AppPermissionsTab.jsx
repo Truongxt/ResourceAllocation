@@ -918,6 +918,7 @@ export default function AppPermissionsTab() {
                         <Select
                           size="small"
                           style={{ width: 140 }}
+                          aria-label={`Quyền ${MODULE_PERMISSION_LABELS[moduleKey]} của ${record.name}`}
                           value={record.appPermissions?.[moduleKey] || 'manage'}
                           disabled={record.isOwner}
                           onChange={(level) => handleChangeAppPermission(record, moduleKey, level)}
