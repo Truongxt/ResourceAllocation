@@ -15,8 +15,14 @@ const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
   const { theme } = useTheme();
-  const { user, canViewModule } = useAuth();
-  const isMember = user?.role === 'member';
+  const { canViewModule, hasAppAccess, canAccessResources } = useAuth();
+
+  // Hai phân hệ này nằm sau LỚP QUYỀN KHÁC với `appPermissions`: server chặn
+  // chúng bằng `authorizeApp`, dựa trên `User.appAdmins`. Web ẩn chúng theo đúng
+  // quy tắc này (`Sidebar.jsx`), mobile thì trước đây không — nên cùng một tài
+  // khoản thấy hai thứ khác nhau trên hai thiết bị, và bấm vào thì nhận 403.
+  const canOptimize = hasAppAccess('optimize');
+  const canSeeResources = canAccessResources();
 
   // Tổng quan không bao giờ bị ẩn: phải còn một chỗ để đứng khi mọi phân hệ khác
   // đều bị cấm, nếu không người dùng mở app ra là thấy thanh tab trống.
@@ -77,7 +83,7 @@ export default function MainTabNavigator() {
         />
       )}
 
-      {!isMember && (
+      {canSeeResources && (
         <Tab.Screen
           name="ResourcesTab"
           component={ResourcesScreen}
@@ -90,7 +96,7 @@ export default function MainTabNavigator() {
         />
       )}
 
-      {canViewModule('optimization') && (
+      {canOptimize && canViewModule('optimization') && (
         <Tab.Screen
           name="OptimizationTab"
           component={OptimizationScreen}

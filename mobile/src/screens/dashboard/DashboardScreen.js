@@ -20,7 +20,10 @@ import { notificationApi } from '../../api/notificationApi';
 import { formatTimeAgo } from '../../utils/formatters';
 
 export default function DashboardScreen({ navigation }) {
-  const { user, canViewModule } = useAuth();
+  const { user, canViewModule, hasAppAccess, canAccessResources } = useAuth();
+  // Cùng quy tắc với thanh tab — thẻ nào trỏ tới tab đã bị ẩn thì phải ẩn theo,
+  // vì route đó không còn tồn tại.
+  const canOptimize = hasAppAccess('optimize');
   const { theme, isDark, toggleTheme } = useTheme();
 
   const [stats, setStats] = useState({
@@ -197,7 +200,7 @@ export default function DashboardScreen({ navigation }) {
           )}
 
           {/* Resources KPI */}
-          {user?.role !== 'member' && (
+          {canAccessResources() && (
           <Card
             style={styles.kpiCard}
             onPress={() => navigation.navigate('ResourcesTab')}
@@ -249,7 +252,7 @@ export default function DashboardScreen({ navigation }) {
         </Text>
 
         <View style={styles.quickActions}>
-          {canViewModule('optimization') && (
+          {canOptimize && canViewModule('optimization') && (
           <Card
             style={styles.actionTile}
             onPress={() => navigation.navigate('OptimizationTab')}
@@ -283,7 +286,7 @@ export default function DashboardScreen({ navigation }) {
           </Card>
           )}
 
-          {canViewModule('optimization') && (
+          {canOptimize && canViewModule('optimization') && (
           <Card
             style={styles.actionTile}
             onPress={() => navigation.navigate('BenchmarkScreen')}
