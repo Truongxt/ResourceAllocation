@@ -22,6 +22,9 @@ const logActivity = async ({
       user: activeUser?._id,
       userName: activeUser?.name || 'Hệ thống',
       userEmail: activeUser?.email,
+      // Lấy theo người thực hiện. Vết do hệ thống tự ghi (không có user) rơi về
+      // công ty mặc định, cùng quy ước với bản ghi cũ.
+      companyName: activeUser?.companyName || 'Công ty Công nghệ RAO',
       action,
       entityType,
       entityId,
