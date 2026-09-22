@@ -760,6 +760,20 @@ const updateAppPermissions = async (req, res, next) => {
       });
     }
 
+    const knownModules = ['projects', 'tasks', 'calendar', 'optimization', 'reports'];
+    const allowedLevels = ['none', 'view', 'manage'];
+    for (const [moduleKey, level] of Object.entries(appPermissions)) {
+      if (!knownModules.includes(moduleKey)) {
+        return res.status(400).json({ success: false, message: `Phân hệ không hợp lệ: ${moduleKey}` });
+      }
+      if (!allowedLevels.includes(level)) {
+        return res.status(400).json({
+          success: false,
+          message: `Mức quyền không hợp lệ cho "${moduleKey}": ${level} (chỉ nhận none/view/manage)`,
+        });
+      }
+    }
+
     const targetUser = await User.findById(req.params.id);
     if (!targetUser) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
