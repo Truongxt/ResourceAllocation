@@ -11,6 +11,23 @@ const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
 
+/** Công ty của người gọi — dùng chung cho cả phân lập lẫn phạm vi dữ liệu. */
+const companyOf = (user) => (user && user.companyName) || 'Công ty Công nghệ RAO';
+
+/**
+ * Kết quả tối ưu này có thuộc công ty của người gọi không.
+ *
+ * `companyName` mới được thêm vào `OptimizationResult`, nên bản ghi tạo **trước**
+ * thay đổi này không có trường đó. Coi bản ghi thiếu trường là của công ty mặc
+ * định: toàn bộ dữ liệu cũ vốn thuộc về nó, và đó cũng là quy ước mà các model
+ * khác đang dùng cho bản ghi cũ.
+ */
+const resultBelongsTo = (result, user) => {
+  if (user?.role === 'superadmin') return true;
+  const owner = result.companyName || 'Công ty Công nghệ RAO';
+  return owner === companyOf(user);
+};
+
 /**
  * Helper: Load tasks & resources for optimization
  */
@@ -157,6 +174,7 @@ const runGeneticAlgorithm = async (req, res, next) => {
       taskCount: tasks.length,
       resourceCount: resources.length,
       runBy: req.user._id,
+      companyName: companyOf(req.user),
     });
 
     // Run GA
@@ -213,6 +231,7 @@ const runCSPSolver = async (req, res, next) => {
       taskCount: tasks.length,
       resourceCount: resources.length,
       runBy: req.user._id,
+      companyName: companyOf(req.user),
       projectFilter: projectId || undefined,
     });
 
@@ -259,6 +278,7 @@ const runHybrid = async (req, res, next) => {
       taskCount: tasks.length,
       resourceCount: resources.length,
       runBy: req.user._id,
+      companyName: companyOf(req.user),
       projectFilter: projectId || undefined,
     });
 
@@ -309,7 +329,21 @@ const runHybrid = async (req, res, next) => {
  */
 const getHistory = async (req, res, next) => {
   try {
-    const filter = {};
+    // Phân lập công ty trước, rồi mới tới phạm vi cá nhân.
+    //
+    // Trước đây nhánh `admin` bỏ hẳn bộ lọc — mà admin công ty nào cũng là admin,
+    // nên admin công ty B nhìn thấy mọi lượt chạy của mọi công ty: chạy trên dự
+    // án nào, ai chạy, kết quả ra sao.
+    //
+    // `$in` với null/undefined để bản ghi tạo trước khi có trường `companyName`
+    // vẫn thuộc về công ty mặc định thay vì biến mất khỏi lịch sử của họ.
+    const userCompany = companyOf(req.user);
+    const filter = {
+      companyName:
+        userCompany === 'Công ty Công nghệ RAO'
+          ? { $in: [userCompany, null, undefined] }
+          : userCompany,
+    };
     if (req.user && req.user.role !== 'admin') {
       filter.runBy = req.user._id;
     }
@@ -506,6 +540,15 @@ const compareResults = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy một hoặc nhiều phương án cần so sánh' });
     }
 
+    // Endpoint này nhận id tùy ý nên cũng là một đường đọc dữ liệu công ty khác,
+    // không kém gì `GET /:id` — chỉ khác là đọc được tới bốn bản ghi một lượt.
+    if (found.some((r) => !resultBelongsTo(r, req.user))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền so sánh kết quả tối ưu của công ty khác',
+      });
+    }
+
     // Giữ đúng thứ tự người dùng chọn — Mongo trả về theo thứ tự lưu trữ, và các cột
     // trong bảng so sánh phải khớp với thứ tự đó thì người đọc mới lần được.
     const byId = new Map(found.map((r) => [String(r._id), r]));
@@ -589,6 +632,13 @@ const getResultById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy kết quả' });
     }
 
+    if (!resultBelongsTo(result, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền xem kết quả tối ưu của công ty khác',
+      });
+    }
+
     res.json({
       success: true,
       data: { result },
@@ -609,6 +659,16 @@ const applyResult = async (req, res, next) => {
 
     if (!result) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy kết quả' });
+    }
+
+    // Kiểm công ty TRƯỚC mọi kiểm tra trạng thái: áp một phương án là ghi đè
+    // phân công thật của cả một công ty. Đo thật cho thấy công ty B làm được
+    // điều đó với dữ liệu của công ty A.
+    if (!resultBelongsTo(result, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền áp dụng kết quả tối ưu của công ty khác',
+      });
     }
 
     if (result.status !== 'completed') {
@@ -729,6 +789,13 @@ const rollbackResult = async (req, res, next) => {
 
     if (!result) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy kết quả tối ưu hóa' });
+    }
+
+    if (!resultBelongsTo(result, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền hoàn tác kết quả tối ưu của công ty khác',
+      });
     }
 
     if (!result.isApplied) {
