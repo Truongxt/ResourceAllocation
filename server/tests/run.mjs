@@ -27,6 +27,7 @@ const SUITES = [
   { name: 'workload-trend', file: 'workload-trend.test.mjs', label: 'Chuỗi thời gian khối lượng' },
   { name: 'email', file: 'email.test.mjs', label: 'Email — bật/tắt và nội dung thư' },
   { name: 'sanitize', file: 'sanitize.test.mjs', label: 'Cắt toán tử Mongo khỏi request' },
+  { name: 'error-handler', file: 'error-handler.test.mjs', label: 'Bộ bắt lỗi toàn cục' },
   { name: 'refresh-token', file: 'refresh-token.test.mjs', label: 'Refresh token — xoay vòng, thu hồi, tái sử dụng' },
   { name: 'security', file: 'security.test.mjs', label: 'Header, CORS, giới hạn tần suất' },
   { name: 'api', file: 'api.test.mjs', label: 'REST API' },
@@ -41,7 +42,7 @@ const SUITES = [
   { name: 'socket', file: 'socket.test.mjs', label: 'Socket.IO realtime' },
   { name: 'notify-session', file: 'notify-session.test.mjs', label: 'Thông báo và phiên đăng nhập' },
   { name: 'hardening', file: 'hardening.test.mjs', label: 'Phân lập công ty, rò mật khẩu, validate payload' },
-  { name: 'task-isolation', file: 'task-isolation.test.mjs', label: 'Phân lập công ty trên toàn nhóm công việc' },
+  { name: 'company-isolation', file: 'company-isolation.test.mjs', label: 'Phân lập công ty trên task, dự án, nhân sự, phòng ban' },
 ];
 
 const filter = process.argv[2];
