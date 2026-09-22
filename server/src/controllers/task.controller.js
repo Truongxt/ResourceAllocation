@@ -1232,6 +1232,26 @@ const reportTaskResult = async (req, res, next) => {
 
     const { summary, deliverableLinks, attachments, actualHours, markAsDone } = req.body;
 
+    // deliverableLinks/attachments là mảng subdocument { title/name, url }. Gửi
+    // mảng chuỗi thay vì mảng object khiến Mongoose ném CastError nguyên văn
+    // tiếng Anh ("Cast to embedded failed... ObjectParameterError") lộ path
+    // schema — chặn sớm ở đây bằng thông báo tiếng Việt như các validate khác.
+    const isPlainObjectArray = (value) =>
+      value === undefined || (Array.isArray(value) && value.every((item) => item !== null && typeof item === 'object' && !Array.isArray(item)));
+
+    if (!isPlainObjectArray(deliverableLinks)) {
+      return res.status(400).json({
+        success: false,
+        message: 'deliverableLinks phải là mảng đối tượng dạng { title, url }',
+      });
+    }
+    if (!isPlainObjectArray(attachments)) {
+      return res.status(400).json({
+        success: false,
+        message: 'attachments phải là mảng đối tượng dạng { name, url, size }',
+      });
+    }
+
     task.resultReport = {
       summary: summary || '',
       deliverableLinks: Array.isArray(deliverableLinks) ? deliverableLinks : [],
