@@ -391,6 +391,47 @@ S('currentWorkload là tải tuần CAO ĐIỂM, không phải tổng giờ tíc
 }
 
 
+S('Bình luận: hợp đồng dữ liệu mà màn chi tiết dựa vào');
+{
+  // App di động vừa có màn chi tiết công việc đọc `comments[].user.name`. Nếu
+  // server thôi populate `comments.user` thì màn đó hiện "Người dùng" cho mọi
+  // bình luận mà không lỗi gì — kiểu hỏng âm thầm, nên khóa lại ở đây.
+  const projects = await call('GET', '/projects', { token: TOK.pm });
+  const projA = (projects.data?.projects || [])[0];
+  const task = await call('POST', '/tasks', {
+    token: TOK.pm,
+    body: { title: `Bình luận ${stamp}`, project: projA._id, startDate: '2026-10-01', endDate: '2026-10-10', estimatedHours: 4 },
+  });
+  const taskId = task.data.task._id;
+
+  const added = await call('POST', `/tasks/${taskId}/comments`, {
+    token: TOK.pm,
+    body: { content: 'Ghi chú từ điện thoại' },
+  });
+  ok(added.status === 200 || added.status === 201, 'Thêm bình luận → 2xx', `status=${added.status}`);
+
+  const detail = await call('GET', `/tasks/${taskId}`, { token: TOK.pm });
+  const comments = detail.data?.task?.comments || [];
+  ok(comments.length === 1, 'Bình luận nằm trong chi tiết công việc', `${comments.length} bình luận`);
+  ok(!!comments[0]?.user?.name, 'Tác giả được populate kèm tên', `user=${JSON.stringify(comments[0]?.user)}`);
+  ok(!!comments[0]?.createdAt, 'Có mốc thời gian để hiện "bao lâu trước"');
+
+  // Server chỉ cho xóa bình luận của chính mình (admin là ngoại lệ). Màn mobile
+  // giấu nút xóa theo đúng quy tắc này, nên quy tắc đổi là giao diện sai theo.
+  const denied = await call('DELETE', `/tasks/${taskId}/comments/${comments[0]._id}`, {
+    token: TOK.ownerB,
+  });
+  ok(denied.status === 403 || denied.status === 404,
+    'Người khác không xóa được bình luận không phải của mình', `status=${denied.status}`);
+
+  const removed = await call('DELETE', `/tasks/${taskId}/comments/${comments[0]._id}`, {
+    token: TOK.pm,
+  });
+  ok(removed.status === 200, 'Tác giả tự xóa được', `status=${removed.status}`);
+
+  await call('DELETE', `/tasks/${taskId}`, { token: TOK.pm });
+}
+
 S('Trang Nhân sự và trang Báo cáo phải nói cùng một con số');
 {
   // Hai trang lấy tải từ hai đường khác nhau: /resources đọc `currentWorkload` lưu
