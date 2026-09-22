@@ -119,7 +119,7 @@ const memberValidation = [
   body('user').notEmpty().withMessage('Thành viên là bắt buộc').isMongoId().withMessage('ID thành viên không hợp lệ'),
   body('role')
     .optional()
-    .isIn(['lead', 'developer', 'designer', 'tester', 'devops'])
+    .isIn(['lead', 'developer', 'designer', 'tester', 'devops', 'guest'])
     .withMessage('Vai trò thành viên không hợp lệ'),
   body('allocation')
     .optional()
@@ -130,7 +130,7 @@ const memberValidation = [
 const updateMemberValidation = [
   body('role')
     .optional()
-    .isIn(['lead', 'developer', 'designer', 'tester', 'devops'])
+    .isIn(['lead', 'developer', 'designer', 'tester', 'devops', 'guest'])
     .withMessage('Vai trò thành viên không hợp lệ'),
   body('allocation')
     .optional()

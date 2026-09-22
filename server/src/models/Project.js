@@ -62,7 +62,12 @@ const projectSchema = new mongoose.Schema(
         },
         role: {
           type: String,
-          enum: ['lead', 'developer', 'designer', 'tester', 'devops'],
+          // `guest` dành cho tài khoản đối tác bên ngoài (`User.isGuest`). Thiếu
+          // giá trị này trong enum thì Mongoose chặn, nên nhánh `role === 'guest'`
+          // ở `middleware/taskAccess.js` không bao giờ chạy được và công tắc
+          // `permissions.allowGuestCreateTask` — có sẵn cả trong model lẫn trên
+          // giao diện ProjectDetail — không điều khiển được gì.
+          enum: ['lead', 'developer', 'designer', 'tester', 'devops', 'guest'],
           default: 'developer',
         },
         allocation: {
