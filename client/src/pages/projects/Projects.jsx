@@ -375,6 +375,9 @@ export default function Projects() {
       title: t('common.project') || 'Dự án',
       dataIndex: 'name',
       key: 'name',
+      // Không đặt width thì cột này co giãn theo chỗ còn thừa, và `ellipsis` của
+      // phần mô tả bên dưới không có mốc để cắt.
+      width: 280,
       render: (text, record) => (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -1132,6 +1135,16 @@ export default function Projects() {
                 dataSource={projects}
                 rowKey="_id"
                 loading={loading}
+                // Mười cột cộng lại đã 1560px. Thiếu `scroll.x`, antd bóp chúng
+                // xuống vừa khung hình: tên người thành ba dòng, số tiền vỡ làm ba
+                // khúc, hàng cao gấp đôi. Cho cuộn ngang thì mỗi cột giữ đúng bề
+                // rộng đã khai.
+                scroll={{ x: 1560 }}
+                // Thiếu dòng này thì bảng chạy `table-layout: auto`, và `width` khai ở
+                // mỗi cột chỉ còn là gợi ý — trình duyệt chia lại theo nội dung. Đo được:
+                // cột Dự án (mô tả dài) nuốt 651px trong khi cột PM bị ép còn 102px,
+                // khiến "Lê Minh Tiến" xuống ba dòng và ô ngân sách vỡ làm ba khúc.
+                tableLayout="fixed"
                 pagination={{
                   pageSize: 10,
                   showSizeChanger: true,
