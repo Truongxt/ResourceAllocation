@@ -46,7 +46,7 @@ export default function RegisterScreen({ navigation }) {
         Alert.alert('Đăng ký thất bại', res.message);
       }
     } catch (err) {
-      Alert.alert('Lỗi', err.response?.data?.message || 'Có lỗi xảy ra');
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể kết nối tới server. Vui lòng kiểm tra địa chỉ máy chủ và kết nối mạng.');
     } finally {
       setLoading(false);
     }

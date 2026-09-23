@@ -57,7 +57,8 @@ export default function ProjectsScreen({ navigation }) {
       if (statusFilter !== 'all') params.status = statusFilter;
 
       const res = await projectApi.getAll(params);
-      setProjects(res.data?.data || []);
+      const rawProjects = res.data?.data?.projects || res.data?.projects || (Array.isArray(res.data?.data) ? res.data.data : []);
+      setProjects(Array.isArray(rawProjects) ? rawProjects : []);
     } catch (err) {
       console.log('Error loading projects:', err);
     } finally {
@@ -314,7 +315,7 @@ export default function ProjectsScreen({ navigation }) {
 
       {/* Project List */}
       <FlatList
-        data={projects}
+        data={Array.isArray(projects) ? projects : []}
         keyExtractor={(item) => item._id}
         renderItem={renderProjectItem}
         contentContainerStyle={styles.listContent}

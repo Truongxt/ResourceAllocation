@@ -45,13 +45,16 @@ import {
   SafetyCertificateOutlined,
   CalendarOutlined,
   EyeOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import projectService from '../../services/projectService';
 import resourceService from '../../services/resourceService';
 import taskService from '../../services/taskService';
+import taskGroupService from '../../services/taskGroupService';
 import TaskDetailDrawer from '../../components/tasks/TaskDetailDrawer';
 import TaskFormModal from '../tasks/components/TaskFormModal';
+import TaskGroupManagerModal from '../../components/tasks/TaskGroupManagerModal';
 import { getTaskPermissions } from '../../utils/taskPermissions';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -114,6 +117,10 @@ export default function ProjectDetail() {
   const [quickDeadlineReason, setQuickDeadlineReason] = useState('');
   const [quickDeadlineSubmitting, setQuickDeadlineSubmitting] = useState(false);
 
+  // Task Group management state
+  const [taskGroups, setTaskGroups] = useState([]);
+  const [taskGroupModalOpen, setTaskGroupModalOpen] = useState(false);
+
   const canManage = user?.role === ROLES.ADMIN || user?.role === ROLES.PM;
 
   // Base Wework: Cập nhật cài đặt phân quyền thao tác trong dự án
@@ -170,10 +177,21 @@ export default function ProjectDetail() {
     }
   }, []);
 
+  const loadTaskGroups = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await taskGroupService.getByProject(id);
+      setTaskGroups(res.data?.data?.groups || []);
+    } catch {
+      setTaskGroups([]);
+    }
+  }, [id]);
+
   useEffect(() => {
     load();
     loadStaff();
-  }, [load, loadStaff]);
+    loadTaskGroups();
+  }, [load, loadStaff, loadTaskGroups]);
 
   const members = project?.members || [];
   const tasks = project?.tasks || [];
@@ -323,8 +341,8 @@ export default function ProjectDetail() {
         record.startDate && record.endDate
           ? [dayjs(record.startDate), dayjs(record.endDate)]
           : record.endDate
-          ? [dayjs(record.startDate || record.createdAt || new Date()), dayjs(record.endDate)]
-          : undefined,
+            ? [dayjs(record.startDate || record.createdAt || new Date()), dayjs(record.endDate)]
+            : undefined,
     });
     setTaskModalOpen(true);
   };
@@ -355,6 +373,7 @@ export default function ProjectDetail() {
           if (perms.canEditDetails) {
             if (payload.title !== undefined) filteredPayload.title = payload.title;
             if (payload.description !== undefined) filteredPayload.description = payload.description;
+            if (payload.taskGroup !== undefined) filteredPayload.taskGroup = payload.taskGroup;
           }
           if (perms.canChangeAssignee && payload.assignee !== undefined) {
             filteredPayload.assignee = payload.assignee;
@@ -463,24 +482,24 @@ export default function ProjectDetail() {
     },
     ...(canManage
       ? [{
-          title: t('common.actions') || 'Thao tác',
-          key: 'actions',
-          width: 100,
-          render: (_, record) => (
-            <Space size="small">
-              <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditMember(record)} />
-              <Popconfirm
-                title={t('projectDetail.removeMemberConfirm') || 'Xác nhận xóa thành viên khỏi dự án?'}
-                onConfirm={() => handleRemoveMember(record)}
-                okText={t('common.delete') || 'Xóa'}
-                cancelText={t('common.cancel') || 'Hủy'}
-                okButtonProps={{ danger: true }}
-              >
-                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-              </Popconfirm>
-            </Space>
-          ),
-        }]
+        title: t('common.actions') || 'Thao tác',
+        key: 'actions',
+        width: 100,
+        render: (_, record) => (
+          <Space size="small">
+            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditMember(record)} />
+            <Popconfirm
+              title={t('projectDetail.removeMemberConfirm') || 'Xác nhận xóa thành viên khỏi dự án?'}
+              onConfirm={() => handleRemoveMember(record)}
+              okText={t('common.delete') || 'Xóa'}
+              cancelText={t('common.cancel') || 'Hủy'}
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Space>
+        ),
+      }]
       : []),
   ];
 
@@ -690,7 +709,17 @@ export default function ProjectDetail() {
               </Paragraph>
             )}
           </div>
-          <Button icon={<ReloadOutlined />} onClick={load}>{t('common.reload') || 'Tải lại'}</Button>
+          <Space>
+            <Button
+              icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
+              onClick={() => setTaskGroupModalOpen(true)}
+            >
+              Nhóm công việc ({taskGroups.length})
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={() => { load(); loadTaskGroups(); }}>
+              {t('common.reload') || 'Tải lại'}
+            </Button>
+          </Space>
         </div>
       </div>
 
@@ -848,19 +877,27 @@ export default function ProjectDetail() {
                       Nhấp vào công việc để xem chi tiết, điều chỉnh tiến độ hoặc gia hạn hạn chót hoàn thành
                     </Text>
                   </div>
-                  {(canManage || project.permissions?.allowMembersCreateTasks !== false) && (
+                  <Space>
                     <Button
-                      type="primary"
-                      icon={<PlusOutlined />}
-                      onClick={handleOpenCreateTask}
-                      style={{
-                        background: 'var(--brand-primary)',
-                        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
-                      }}
+                      icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
+                      onClick={() => setTaskGroupModalOpen(true)}
                     >
-                      {t('tasks.create') || 'Tạo công việc'}
+                      Nhóm công việc ({taskGroups.length})
                     </Button>
-                  )}
+                    {(canManage || project.permissions?.allowMembersCreateTasks !== false) && (
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={handleOpenCreateTask}
+                        style={{
+                          background: 'var(--brand-primary)',
+                          boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
+                        }}
+                      >
+                        {t('tasks.create') || 'Tạo công việc'}
+                      </Button>
+                    )}
+                  </Space>
                 </div>
                 {tasks.length === 0 ? (
                   <Empty description={t('projectDetail.noTasks') || 'Chưa có công việc'} style={{ padding: 48 }} />
@@ -1293,10 +1330,23 @@ export default function ProjectDetail() {
         knownSkillOptions={[]}
         dependencyOptions={(tasks || []).filter((t) => !editingTask || t._id !== editingTask._id)}
         selectedProject={id}
-        taskGroups={[]}
+        taskGroups={taskGroups}
+        onManageTaskGroups={() => setTaskGroupModalOpen(true)}
         onSubmit={handleTaskFormSubmit}
         submitting={taskSubmitting}
         t={t}
+      />
+
+      {/* Modal Quản lý Nhóm công việc */}
+      <TaskGroupManagerModal
+        open={taskGroupModalOpen}
+        onClose={() => setTaskGroupModalOpen(false)}
+        projectId={id}
+        projectName={project?.name}
+        onGroupsUpdated={(newGroups) => {
+          setTaskGroups(newGroups);
+          load();
+        }}
       />
 
       {/* Modal Gia hạn Deadline nhanh (1-Click) */}

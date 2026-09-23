@@ -37,11 +37,9 @@ export default function ReportsScreen({ navigation }) {
         analyticsApi.getDashboard(),
         analyticsApi.getUtilization(),
       ]);
+      const rawUtil = utilRes.data?.data?.resources || (Array.isArray(utilRes.data?.data) ? utilRes.data.data : []);
       setOverview(dashRes.data?.data || {});
-      // Endpoint trả `{ resources, departments, summary }`. Trước đây gán cả
-      // object vào state mảng, nên `.filter` ngay dưới ném lỗi và màn này chết
-      // ngay khi mở.
-      setUtilizationList(utilRes.data?.data?.resources || []);
+      setUtilizationList(Array.isArray(rawUtil) ? rawUtil : []);
     } catch (e) {
       console.log('Error loading analytics reports:', e);
     } finally {
@@ -59,26 +57,24 @@ export default function ReportsScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  // Tên trường do server đặt là `utilization`, không phải `utilizationRate`:
-  // đọc nhầm tên thì mọi phép tính dưới đây ra 0 mà không báo lỗi gì.
-  const highBurnoutCount = utilizationList.filter(
-    (r) => r.burnoutRisk === 'high' || (r.utilization || 0) > 100
+  const validList = Array.isArray(utilizationList) ? utilizationList : [];
+
+  const highBurnoutCount = validList.filter(
+    (r) => r.burnoutRisk === 'high' || (r.utilizationRate || 0) > 100
   ).length;
 
   const avgUtilization =
-    utilizationList.length > 0
+    validList.length > 0
       ? Math.round(
-          utilizationList.reduce((sum, r) => sum + (r.utilization || 0), 0) /
-            utilizationList.length
+          validList.reduce((sum, r) => sum + (r.utilizationRate || 0), 0) /
+            validList.length
         )
       : 0;
 
   // Group by department
   const deptMap = {};
-  utilizationList.forEach((r) => {
-    // `department` là chuỗi chứ không phải object — `?.name` luôn cho undefined
-    // nên trước đây mọi người đều rơi vào nhóm "Chung".
-    const deptName = r.department || 'Chung';
+  validList.forEach((r) => {
+    const deptName = r.department?.name || 'Chung';
     if (!deptMap[deptName]) {
       deptMap[deptName] = { name: deptName, count: 0, totalLoad: 0, totalCap: 0 };
     }
@@ -206,8 +202,8 @@ export default function ReportsScreen({ navigation }) {
               description="Chưa có nhân sự hoặc công việc được ghi nhận."
             />
           ) : (
-            utilizationList.map((item) => {
-              const util = item.utilization || 0;
+            validList.map((item) => {
+              const util = item.utilizationRate || 0;
               const riskKey =
                 item.burnoutRisk || (util > 100 ? 'high' : util > 80 ? 'medium' : 'low');
               const bMeta = BURNOUT_MAP[riskKey] || BURNOUT_MAP.low;
@@ -217,7 +213,7 @@ export default function ReportsScreen({ navigation }) {
                   <View style={styles.personHeader}>
                     <View style={styles.personInfo}>
                       <Text style={[styles.personName, { color: theme.colors.text }]}>
-                        {item.name}
+                        {item.user?.name || item.name || 'Chưa đặt tên'}
                       </Text>
                       <Text
                         style={[
@@ -225,7 +221,7 @@ export default function ReportsScreen({ navigation }) {
                           { color: theme.colors.textSecondary },
                         ]}
                       >
-                        {item.position || 'Nhân sự'} · {item.department || 'Phòng ban'}
+                        {item.position || 'Nhân sự'} · {(typeof item.department === 'object' ? item.department?.name : item.department) || 'Phòng ban'}
                       </Text>
                     </View>
                     <Badge

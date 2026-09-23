@@ -38,6 +38,7 @@ export const STATUS_MAP = {
   review: { label: 'Đánh giá', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
   done: { label: 'Hoàn thành', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
   blocked: { label: 'Bị chặn', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)' },
+  failed: { label: 'Thất bại', color: '#9333ea', bg: 'rgba(147, 51, 234, 0.12)' },
 };
 
 export const PRIORITY_MAP = {

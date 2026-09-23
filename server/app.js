@@ -40,6 +40,12 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      // Ở môi trường development, cho phép các thiết bị di động kết nối qua mạng LAN
+      if (process.env.NODE_ENV !== 'production') {
+        if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+|10\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+          return callback(null, true);
+        }
+      }
       callback(new Error(`Origin không được phép: ${origin}`));
     },
     credentials: true,

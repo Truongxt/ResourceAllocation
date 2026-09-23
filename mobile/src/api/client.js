@@ -1,15 +1,45 @@
 import axios from 'axios';
-import { Platform } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-// In Expo/React Native:
-// - Android Emulator: 10.0.2.2
-// - iOS Simulator / Web: localhost
-// - Custom LAN IP can be stored in AsyncStorage if needed
-const DEFAULT_API_URL = Platform.select({
-  android: 'http://10.0.2.2:5000/api',
-  default: 'http://localhost:5000/api',
-});
+// Tự động phát hiện địa chỉ IP của máy tính chạy server thông qua Expo / Metro
+export const getDetectedHostIp = () => {
+  try {
+    // 1. Expo Constants hostUri (ví dụ: "172.27.37.181:8081")
+    const hostUri = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoClient?.hostUri;
+    if (hostUri) {
+      const ip = hostUri.split(':')[0];
+      if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+        return ip;
+      }
+    }
+
+    // 2. React Native scriptURL
+    const scriptURL = NativeModules.SourceCode?.scriptURL;
+    if (scriptURL) {
+      const match = scriptURL.match(/https?:\/\/([^:/]+)/);
+      if (match && match[1] && match[1] !== 'localhost' && match[1] !== '127.0.0.1') {
+        return match[1];
+      }
+    }
+  } catch (e) {
+    console.warn('Không thể tự động phát hiện IP dev server:', e);
+  }
+  return null;
+};
+
+const detectedIp = getDetectedHostIp();
+
+// Trên điện thoại thật, dùng IP máy chủ Wi-Fi (172.27.37.181). Trên giả lập Android Studio mới dùng 10.0.2.2
+export const DEFAULT_API_URL = detectedIp
+  ? `http://${detectedIp}:5000/api`
+  : Platform.select({
+      android: 'http://172.27.37.181:5000/api',
+      default: 'http://localhost:5000/api',
+    });
+
+let customBaseUrl = null;
 
 export const ACCESS_TOKEN_KEY = 'rao_access_token';
 export const REFRESH_TOKEN_KEY = 'rao_refresh_token';
@@ -25,11 +55,39 @@ export const apiClient = axios.create({
   },
 });
 
-let customBaseUrl = null;
+// Nạp lại URL máy chủ tùy chỉnh đã lưu nếu có
+AsyncStorage.getItem('rao_custom_api_url')
+  .then((saved) => {
+    if (saved && saved.trim()) {
+      customBaseUrl = saved.trim();
+      apiClient.defaults.baseURL = customBaseUrl;
+    }
+  })
+  .catch(() => {});
 
-export const setApiBaseUrl = (url) => {
-  customBaseUrl = url;
-  apiClient.defaults.baseURL = url;
+export const getApiBaseUrl = () => customBaseUrl || apiClient.defaults.baseURL || DEFAULT_API_URL;
+
+export const setApiBaseUrl = async (url) => {
+  const cleanUrl = url ? url.trim().replace(/\/+$/, '') : null;
+  customBaseUrl = cleanUrl;
+  apiClient.defaults.baseURL = cleanUrl || DEFAULT_API_URL;
+  if (cleanUrl) {
+    await AsyncStorage.setItem('rao_custom_api_url', cleanUrl);
+  } else {
+    await AsyncStorage.removeItem('rao_custom_api_url');
+  }
+};
+
+// Kiểm tra kết nối nhanh tới server (health check)
+export const checkServerHealth = async (targetUrl) => {
+  const baseUrl = targetUrl ? targetUrl.trim().replace(/\/+$/, '') : getApiBaseUrl();
+  const healthUrl = baseUrl.endsWith('/api') ? `${baseUrl}/health` : `${baseUrl}/api/health`;
+  try {
+    const res = await axios.get(healthUrl, { timeout: 5000 });
+    return { ok: res.status === 200, status: res.status, data: res.data };
+  } catch (err) {
+    return { ok: false, error: err.message || 'Không thể kết nối' };
+  }
 };
 
 const currentBaseUrl = () => customBaseUrl || apiClient.defaults.baseURL;
@@ -106,8 +164,9 @@ apiClient.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-      if (customBaseUrl) {
-        config.baseURL = customBaseUrl;
+      const activeBaseUrl = getApiBaseUrl();
+      if (activeBaseUrl) {
+        config.baseURL = activeBaseUrl;
       }
     } catch (e) {
       console.warn('Error reading auth token:', e);

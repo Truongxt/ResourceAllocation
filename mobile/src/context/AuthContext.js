@@ -41,15 +41,16 @@ export function AuthProvider({ children }) {
         // phiên chỉ thật sự chết khi refresh token cũng hỏng.
         const res = await authApi.getMe();
         if (res.data?.success) {
-          setUser(res.data.data);
+          const userData = res.data.data?.user || res.data.data;
+          setUser(userData);
         } else {
           await clearTokens();
           setUser(null);
         }
       }
     } catch (e) {
-      console.log('Session check failed or expired');
-      await clearTokens();
+      console.log('Session check failed or expired:', e?.message);
+      await AsyncStorage.removeItem('rao_access_token');
       setUser(null);
     } finally {
       setLoading(false);
@@ -63,21 +64,39 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password) => {
-    const res = await authApi.login(email, password);
-    if (res.data?.success && res.data.data?.token) {
-      await startSession(res.data.data);
-      return { success: true };
+    try {
+      const res = await authApi.login(email, password);
+      const token = res.data?.data?.token || res.data?.token || res.data?.data?.accessToken;
+      const userData = res.data?.data?.user || res.data?.user;
+
+      if (res.data?.success && token) {
+        await AsyncStorage.setItem('rao_access_token', token);
+        setUser(userData);
+        return { success: true };
+      }
+      return { success: false, message: res.data?.message || 'Email hoặc mật khẩu không đúng' };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Không thể kết nối tới server';
+      return { success: false, message: msg };
     }
-    return { success: false, message: res.data?.message || 'Đăng nhập thất bại' };
   };
 
   const register = async (userData) => {
-    const res = await authApi.register(userData);
-    if (res.data?.success && res.data.data?.token) {
-      await startSession(res.data.data);
-      return { success: true };
+    try {
+      const res = await authApi.register(userData);
+      const token = res.data?.data?.token || res.data?.token || res.data?.data?.accessToken;
+      const newUser = res.data?.data?.user || res.data?.user;
+
+      if (res.data?.success && token) {
+        await AsyncStorage.setItem('rao_access_token', token);
+        setUser(newUser);
+        return { success: true };
+      }
+      return { success: false, message: res.data?.message || 'Đăng ký thất bại' };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Không thể kết nối tới server';
+      return { success: false, message: msg };
     }
-    return { success: false, message: res.data?.message || 'Đăng ký thất bại' };
   };
 
   const logout = async () => {
@@ -95,24 +114,29 @@ export function AuthProvider({ children }) {
   };
 
   const updateProfile = async (data) => {
-    const res = await authApi.updateProfile(data);
-    if (res.data?.success) {
-      setUser(res.data.data);
-      return { success: true, message: 'Cập nhật thành công' };
+    try {
+      const res = await authApi.updateProfile(data);
+      if (res.data?.success) {
+        const updatedUser = res.data.data?.user || res.data.data;
+        setUser(updatedUser);
+        return { success: true, message: res.data?.message || 'Cập nhật thành công' };
+      }
+      return { success: false, message: res.data?.message || 'Cập nhật thất bại' };
+    } catch (err) {
+      return { success: false, message: err.response?.data?.message || 'Cập nhật thất bại' };
     }
-    return { success: false, message: res.data?.message || 'Cập nhật thất bại' };
   };
 
   const changePassword = async (data) => {
-    const res = await authApi.changePassword(data);
-    if (res.data?.success) {
-      // Đổi mật khẩu thu hồi mọi phiên cũ, kể cả phiên này; server cấp lại cặp
-      // token mới cho đúng thiết bị vừa thao tác. Không lưu lại là tự đăng xuất
-      // chính mình sau 15 phút.
-      await saveTokens(res.data.data || {});
-      return { success: true, message: 'Đổi mật khẩu thành công' };
+    try {
+      const res = await authApi.changePassword(data);
+      if (res.data?.success) {
+        return { success: true, message: res.data?.message || 'Đổi mật khẩu thành công' };
+      }
+      return { success: false, message: res.data?.message || 'Đổi mật khẩu thất bại' };
+    } catch (err) {
+      return { success: false, message: err.response?.data?.message || 'Đổi mật khẩu thất bại' };
     }
-    return { success: false, message: res.data?.message || 'Đổi mật khẩu thất bại' };
   };
 
   // Quy tắc nằm trong `utils/appPermissions` để kiểm thử được; ở đây chỉ gắn

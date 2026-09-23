@@ -455,7 +455,6 @@ export default function Header({ collapsed }) {
           {/* Notification Bell */}
           <Dropdown
             popupRender={() => notifContent}
-            popupRender={() => notifContent}
             trigger={['click']}
             placement="bottomRight"
           >

@@ -25,7 +25,8 @@ export default function NotificationsModal({ visible, onClose, onUnreadCountChan
   const loadNotifications = useCallback(async () => {
     try {
       const res = await notificationApi.getAll({ limit: 30 });
-      const items = res.data?.data?.notifications || res.data?.data || [];
+      const rawItems = res.data?.data?.notifications || (Array.isArray(res.data?.data) ? res.data.data : []);
+      const items = Array.isArray(rawItems) ? rawItems : [];
       setNotifications(items);
       const unreadCount = items.filter((n) => !n.read).length;
       if (onUnreadCountChange) onUnreadCountChange(unreadCount);

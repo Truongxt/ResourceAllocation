@@ -9,8 +9,12 @@ const { generateEmployeeId } = require('../utils/employeeId.util');
 
 const validateDepartment = async (departmentName, companyName = 'Công ty Công nghệ RAO') => {
   if (!departmentName) return null;
+  const isObjectId = mongoose.Types.ObjectId.isValid(departmentName);
   return Department.findOne({
-    name: departmentName,
+    $or: [
+      { name: departmentName },
+      ...(isObjectId ? [{ _id: departmentName }] : []),
+    ],
     isActive: true,
     companyName: { $in: [companyName, 'Công ty Công nghệ RAO'] },
   }).select('_id name');
@@ -31,7 +35,7 @@ const getResources = async (req, res, next) => {
       filter.companyName = userCompany;
     }
 
-    if (req.user && req.user.role !== 'admin') {
+    if (req.user && req.user.role !== 'admin' && !req.user.isOwner) {
       const userProjects = await Project.find({
         $or: [
           { manager: req.user._id },
@@ -71,10 +75,17 @@ const getResources = async (req, res, next) => {
 
     if (req.query.search) {
       const regex = new RegExp(req.query.search, 'i');
+      const matchedUsers = await User.find({
+        companyName: userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
+        $or: [{ name: regex }, { email: regex }],
+      }).select('_id');
+      const matchedUserIds = matchedUsers.map((u) => u._id);
+
       const searchOr = [
         { position: regex },
         { department: regex },
         { employeeId: regex },
+        { user: { $in: matchedUserIds } },
       ];
       if (filter.$or) {
         filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
@@ -176,25 +187,28 @@ const createResource = async (req, res, next) => {
         message: 'Phòng ban không hợp lệ hoặc chưa được tạo',
       });
     }
+    resourceData.department = department.name;
 
-    if (!linkedUserId && newUser) {
-      const existingUser = await User.findOne({ email: newUser.email });
+    if (!linkedUserId && (newUser || resourceData.name)) {
+      const uName = (newUser && newUser.name) || resourceData.name;
+      const uEmail = (newUser && newUser.email) || resourceData.email || `nv_${Date.now()}@rao.com`;
+      const uPassword = (newUser && newUser.password) || 'password123';
+      const uRole = (newUser && newUser.role) || 'member';
+
+      let existingUser = await User.findOne({ email: uEmail });
       if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email đã được sử dụng',
+        linkedUserId = existingUser._id;
+      } else {
+        createdUser = await User.create({
+          name: uName,
+          email: uEmail,
+          password: uPassword,
+          role: uRole,
+          department: department.name,
+          companyName: userCompany,
         });
+        linkedUserId = createdUser._id;
       }
-
-      createdUser = await User.create({
-        name: newUser.name,
-        email: newUser.email,
-        password: newUser.password,
-        role: newUser.role || 'member',
-        department: resourceData.department,
-        companyName: userCompany,
-      });
-      linkedUserId = createdUser._id;
     }
 
     const linkedUser = await User.findById(linkedUserId);
@@ -270,6 +284,10 @@ const updateResource = async (req, res, next) => {
     }
 
     const updateData = { ...req.body };
+    const newName = updateData.name;
+    const newEmail = updateData.email;
+    delete updateData.name;
+    delete updateData.email;
     delete updateData.user; // Cannot change user link
     delete updateData.employeeId; // Employee code is system-generated
 
@@ -281,6 +299,14 @@ const updateResource = async (req, res, next) => {
           message: 'Phòng ban không hợp lệ hoặc chưa được tạo',
         });
       }
+      updateData.department = department.name;
+    }
+
+    if (resource.user && (newName || newEmail)) {
+      const userUpdate = {};
+      if (newName) userUpdate.name = newName;
+      if (newEmail) userUpdate.email = newEmail;
+      await User.findByIdAndUpdate(resource.user, userUpdate);
     }
 
     const updated = await Resource.findByIdAndUpdate(req.params.id, updateData, {

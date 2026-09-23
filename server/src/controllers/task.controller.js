@@ -73,7 +73,7 @@ const getTasks = async (req, res, next) => {
     }).select('_id');
     const companyProjectIds = companyProjects.map((p) => p._id);
 
-    if (req.user && req.user.role === 'admin') {
+    if (req.user && (req.user.role === 'admin' || req.user.isOwner)) {
       filter.project = { $in: companyProjectIds };
     } else {
       const accessibleProjects = await Project.find({
@@ -82,6 +82,7 @@ const getTasks = async (req, res, next) => {
           { manager: req.user._id },
           { 'members.user': req.user._id },
           { createdBy: req.user._id },
+          { projectType: 'internal' },
         ],
       }).select('_id');
       const projectIds = accessibleProjects.map((p) => p._id);
