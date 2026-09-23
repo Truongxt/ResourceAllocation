@@ -107,6 +107,34 @@ const loadOptimizationData = async (projectId, user) => {
       .select('user position department skills maxCapacity fte hourlyRate availability unavailablePeriods currentWorkload'),
   ]);
 
+  // Giờ công mà mỗi nhân sự ĐÃ cam kết ở những việc **không thuộc lần chạy này**
+  // — điển hình là việc của dự án khác mà họ cũng đang tham gia.
+  //
+  // Thiếu con số này thì mỗi lần tối ưu đều xuất phát từ giả định cả đội đang rảnh,
+  // nên hai dự án chạy song song có thể cùng giao việc cho một người và cả hai lần
+  // đều báo hợp lệ. Việc nằm trong chính lần chạy này bị loại ra (`$nin`) vì thuật
+  // toán sắp phân công lại chúng — tính vào sẽ thành đếm hai lần.
+  const optimizedIds = tasks.map((t) => t._id);
+  const memberUserIds = resources.map((r) => r.user?._id).filter(Boolean);
+  const committedByUser = new Map();
+  if (memberUserIds.length > 0) {
+    const committedTasks = await Task.find({
+      assignee: { $in: memberUserIds },
+      status: { $in: ['todo', 'in_progress', 'review'] },
+      _id: { $nin: optimizedIds },
+    }).select('assignee estimatedHours startDate endDate');
+
+    committedTasks.forEach((t) => {
+      const key = String(t.assignee);
+      if (!committedByUser.has(key)) committedByUser.set(key, []);
+      committedByUser.get(key).push({
+        startDate: t.startDate,
+        endDate: t.endDate,
+        estimatedHours: t.estimatedHours || 0,
+      });
+    });
+  }
+
   // Flatten resource data for algorithm
   const flatResources = resources.map((r) => ({
     _id: r._id,
@@ -121,6 +149,7 @@ const loadOptimizationData = async (projectId, user) => {
     availability: r.availability || 'available',
     unavailablePeriods: r.unavailablePeriods || [],
     currentWorkload: r.currentWorkload || 0,
+    committedTasks: committedByUser.get(String(r.user?._id)) || [],
   }));
 
   return { tasks, resources: flatResources };
@@ -247,6 +276,7 @@ const runCSPSolver = async (req, res, next) => {
     resultRecord.executionTime = result.solveTime || 0;
     resultRecord.iterations = result.iterations || 0;
     resultRecord.errorMessage = result.message || undefined;
+    resultRecord.diagnostics = result.diagnostics || [];
     await resultRecord.save();
 
     res.json({
@@ -308,6 +338,9 @@ const runHybrid = async (req, res, next) => {
     resultRecord.constraintReport = cspResult.constraintReport || undefined;
     resultRecord.domainReduction = gaResult.domainReduction || undefined;
     resultRecord.errorMessage = gaResult.message || undefined;
+    // Pha CSP mới biết rõ vì sao bí; GA chạy sau chỉ trả về điểm số. Giữ lại phần
+    // giải thích của CSP để người dùng còn biết đường xử lý.
+    resultRecord.diagnostics = cspResult.diagnostics || [];
     await resultRecord.save();
 
     res.json({

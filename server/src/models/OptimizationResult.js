@@ -117,6 +117,9 @@ const optimizationResultSchema = new mongoose.Schema(
     rolledBackBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     // Meta
     errorMessage: String,
+    // Vì sao không xếp được, viết bằng lời cho người dùng đọc. `errorMessage` chỉ nói
+    // "không tìm thấy giải pháp"; mảng này chỉ ra ai đã kín chỗ và việc nào kẹt vì đâu.
+    diagnostics: [String],
     runBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
