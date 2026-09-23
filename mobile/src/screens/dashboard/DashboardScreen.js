@@ -386,7 +386,9 @@ export default function DashboardScreen({ navigation }) {
               color={theme.colors.textMuted}
             />
           </Card>
+          )}
 
+          {canViewModule('calendar') && (
           <Card
             style={styles.actionTile}
             onPress={() => navigation.navigate('CalendarScreen')}
@@ -418,6 +420,7 @@ export default function DashboardScreen({ navigation }) {
               color={theme.colors.textMuted}
             />
           </Card>
+          )}
         </View>
 
         {/* Recent Activity Stream */}
