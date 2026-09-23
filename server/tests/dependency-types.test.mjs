@@ -226,4 +226,62 @@ S('Phụ thuộc: tối ưu hóa vẫn đọc được quan hệ');
   );
 }
 
+S('Phụ thuộc: chuyển dự án phải nhìn CẢ HAI chiều');
+{
+  // Khi chuyển một công việc sang dự án khác, code đã kiểm tiền nhiệm của chính
+  // nó từ lâu. Nhưng chiều ngược lại — những công việc đang phụ thuộc VÀO nó —
+  // thì không ai kiểm, nên chuyển đi là bỏ lại một loạt quan hệ trỏ xuyên dự án.
+  //
+  // Đúng cái bất biến mà bước kiểm tiền nhiệm đang giữ, chỉ là nhìn sót một chiều.
+  const projects = await call('GET', '/projects', { token: TOK.pm });
+  const list = projects.data?.projects || [];
+  const other = list.find((p) => String(p._id) !== String(projectId));
+
+  const base = await newTask('Chuyển — công việc gốc');
+  const baseId = base.data?.task?._id;
+  const follower = await newTask('Chuyển — hậu nhiệm ở lại', {
+    dependencies: [{ task: baseId, type: 'finish_to_start' }],
+  });
+
+  ok(!!baseId && !!follower.data?.task?._id, 'Dựng được cặp gốc → hậu nhiệm');
+  ok(!!other, 'Có dự án thứ hai để chuyển sang', other ? other.name : '(không có)');
+
+  if (baseId && other) {
+    const moved = await call('POST', `/tasks/${baseId}/move`, {
+      token: TOK.pm,
+      body: { targetProjectId: other._id },
+    });
+    ok(moved.status === 400, 'Chuyển đi khi còn hậu nhiệm ở lại → 400', `status=${moved.status}`);
+    ok(
+      String(moved.message || '').includes('phụ thuộc'),
+      'Thông điệp nói rõ vì sao',
+      moved.message
+    );
+
+    // Và phải thật sự KHÔNG chuyển, chứ không phải báo lỗi rồi vẫn chuyển.
+    const after = await call('GET', `/tasks/${baseId}`, { token: TOK.pm });
+    ok(
+      String(after.data?.task?.project?._id || after.data?.task?.project) === String(projectId),
+      'Công việc vẫn ở dự án cũ'
+    );
+
+    // Gỡ phụ thuộc thì chuyển được — chứng minh bản vá chặn đúng nguyên nhân,
+    // không phải chặn bừa mọi lần chuyển.
+    await call('PUT', `/tasks/${follower.data.task._id}`, {
+      token: TOK.pm,
+      body: { dependencies: [] },
+    });
+    const retry = await call('POST', `/tasks/${baseId}/move`, {
+      token: TOK.pm,
+      body: { targetProjectId: other._id },
+    });
+    ok(retry.status === 200, 'Gỡ phụ thuộc xong thì chuyển được', `status=${retry.status}`);
+  }
+
+  if (baseId) await call('DELETE', `/tasks/${baseId}`, { token: TOK.pm });
+  if (follower.data?.task?._id) {
+    await call('DELETE', `/tasks/${follower.data.task._id}`, { token: TOK.pm });
+  }
+}
+
 process.exit(summary());

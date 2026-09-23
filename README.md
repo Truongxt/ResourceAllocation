@@ -11,6 +11,7 @@ Web App hỗ trợ quản lý phân công công việc cho các dự án chạy 
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18 + Vite 5 |
+| Mobile | Expo 54 + React Native 0.81 (client thứ hai, cùng API) |
 | UI Library | Ant Design 6 + @ant-design/icons |
 | Backend | Node.js + Express 4 |
 | Database | MongoDB 7 + Mongoose 8 |
@@ -75,6 +76,8 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run migrate:dependencies` | `server/` | Chuyển `dependencies` cũ sang dạng `{ task, type }`; thêm `-- --apply` để sửa thật |
 | `npm test` | `server/` | Kiểm thử API + Socket.IO trên DB + cổng riêng ([chi tiết](./server/tests/README.md)) |
 | `npm test` | `client/` | Logic thuần bằng node + kiểm thử render component bằng vitest ([chi tiết](./client/tests/README.md)) |
+| `npm test` | `mobile/` | Quy tắc quyền của app di động — node thuần, không cần cài dependencies |
+| `npm start` | `mobile/` | Chạy app Expo (cần `npm install` trong `mobile/` trước) |
 | `npm run test:e2e` | gốc | Kiểm thử giao diện bằng Chromium thật, tự khởi động client + server ([chi tiết](./e2e/README.md)) |
 | `npm run test:e2e:install` | gốc | Tải trình duyệt cho Playwright — chạy một lần trước lần test đầu tiên |
 | `npm run test:e2e:ui` | gốc | Chế độ gỡ lỗi tương tác của Playwright |
@@ -90,7 +93,7 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 - [API Documentation](./docs/API.md) — 12 nhóm route, mô tả đủ 118 endpoint
 - [Database Schema](./docs/DATABASE.md) — 12 collection
 - [Thuật toán](./docs/ALGORITHMS.md)
-- [Chiến lược kiểm thử](./docs/TESTING.md) — ba lớp test và danh sách lỗi đang được test theo dõi
+- [Chiến lược kiểm thử](./docs/TESTING.md) — bốn lớp test và danh sách lỗi đang được test theo dõi
 - [Thiết kế hệ thống](./docs/architecture/SYSTEM_DESIGN.md)
 - [Changelog](./docs/CHANGELOG.md)
 

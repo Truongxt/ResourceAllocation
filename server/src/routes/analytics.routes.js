@@ -1,7 +1,7 @@
 const express = require('express');
 const { param } = require('express-validator');
 const { validate } = require('../middleware/validate');
-const { protect } = require('../middleware/auth');
+const { protect, requireAppPermission } = require('../middleware/auth');
 const {
   getDashboardOverview,
   getUtilizationBreakdown,
@@ -13,6 +13,7 @@ const {
 const router = express.Router();
 
 router.use(protect);
+router.use(requireAppPermission('reports'));
 
 router.get('/dashboard', getDashboardOverview);
 router.get('/utilization', getUtilizationBreakdown);

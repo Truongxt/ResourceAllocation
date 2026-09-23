@@ -57,6 +57,10 @@ export default function AppNavigator() {
               component={ProjectDetailScreen}
             />
             <Stack.Screen
+              name="TaskDetail"
+              component={TaskDetailScreen}
+            />
+            <Stack.Screen
               name="ActivityLogsScreen"
               component={ActivityLogsScreen}
             />

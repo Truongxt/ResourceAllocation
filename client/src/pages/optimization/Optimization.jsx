@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Row, Col, Tabs, Typography, message, Button } from 'antd';
+import { Row, Col, Tabs, Typography, message, Button, Alert } from 'antd';
 import {
   ThunderboltOutlined,
   HistoryOutlined,
@@ -161,7 +161,17 @@ export default function Optimization() {
       const resultData = res.data?.data?.result || res.data?.data?.optimization || res.data?.data;
       setCurrentResult(resultData);
       setActiveTab('result');
-      message.success(t('optimization.runSuccess') || 'Chạy thuật toán tối ưu hóa thành công!');
+
+      // Thuật toán chạy xong mà KHÔNG xếp được vẫn trả HTTP 200. Báo "thành công"
+      // lúc này là nói sai: người dùng thấy toast xanh rồi mở sang tab kết quả trống
+      // và không hiểu chuyện gì. Trạng thái 'failed' phải được nói rõ ngay.
+      if (resultData?.status === 'failed') {
+        message.warning(
+          resultData.errorMessage || 'Không tìm được phương án thỏa mãn tất cả ràng buộc'
+        );
+      } else {
+        message.success(t('optimization.runSuccess') || 'Chạy thuật toán tối ưu hóa thành công!');
+      }
       loadHistory();
       loadReadiness();
     } catch (err) {
@@ -257,6 +267,34 @@ export default function Optimization() {
           {t('optimization.subtitle') || 'Tự động phân công công việc thông minh dựa trên GA, CSP và Hybrid'}
         </Text>
       </div>
+
+      {/* Hiện cả khi Hybrid vẫn ra được phương án: pha CSP có thể đã phát hiện
+          không ai đủ giờ, GA sau đó chỉ chọn phương án ít tệ nhất và vẫn giao việc
+          cho người quá tải. Giấu cảnh báo đi thì người duyệt không biết mình đang
+          bấm Áp dụng lên một kế hoạch vượt năng lực. */}
+      {(currentResult?.status === 'failed' || currentResult?.diagnostics?.length > 0) && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={
+            currentResult.status === 'failed'
+              ? currentResult.errorMessage || 'Không tìm được phương án phân bổ'
+              : 'Phương án này vượt năng lực của một số nhân sự'
+          }
+          description={
+            currentResult.diagnostics?.length ? (
+              <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+                {currentResult.diagnostics.map((line, i) => (
+                  <li key={i} style={{ marginBottom: 4 }}>{line}</li>
+                ))}
+              </ul>
+            ) : (
+              'Hãy thử nới hạn công việc, bổ sung nhân sự có kỹ năng phù hợp, hoặc giảm mức kỹ năng yêu cầu.'
+            )
+          }
+        />
+      )}
 
       <div className="optimization-guide" aria-label={t('workspace.allocationFlow')}>
         <span><b>1</b>{t('workspace.chooseScope')}</span><span><b>2</b>{t('workspace.reviewProposal')}</span><span><b>3</b>{t('workspace.applyAllocation')}</span>

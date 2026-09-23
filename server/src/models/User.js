@@ -96,6 +96,16 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Tên tổ chức đối tác của tài khoản khách — **chỉ để hiển thị**.
+    // Tách khỏi `companyName` vì field đó là khóa phân lập tenant (`isSameCompany`,
+    // bộ lọc của `GET /auth/users` và `/auth/guests` đều dựa vào nó). Nhét tên đối
+    // tác vào `companyName` thì tài khoản khách không thuộc công ty nào cả: chính
+    // công ty tạo ra nó cũng không nhìn thấy nó nữa.
+    guestCompany: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     appAdmins: {
       type: [String],
       default: [],

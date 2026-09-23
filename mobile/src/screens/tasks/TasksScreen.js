@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
@@ -204,6 +205,9 @@ export default function TasksScreen({ navigation }) {
     const sMeta = STATUS_MAP[item.status] || STATUS_MAP.todo;
     const pMeta = PRIORITY_MAP[item.priority] || PRIORITY_MAP.medium;
 
+    // Chạm vào thẻ mở màn chi tiết (checklist, bình luận); còn đổi trạng thái
+    // vẫn giữ lối tắt riêng ở nhãn trạng thái, vì đó là thao tác hay dùng nhất
+    // và không đáng phải đi qua thêm một màn.
     return (
       <Card
         style={styles.taskCard}
@@ -235,11 +239,13 @@ export default function TasksScreen({ navigation }) {
               )}
             </View>
           </View>
-          <Badge
-            label={sMeta.label}
-            color={sMeta.color}
-            bg={sMeta.bg}
-          />
+          <TouchableOpacity onPress={() => setSelectedTask(item)}>
+            <Badge
+              label={sMeta.label}
+              color={sMeta.color}
+              bg={sMeta.bg}
+            />
+          </TouchableOpacity>
         </View>
 
         {item.description ? (

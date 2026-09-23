@@ -46,6 +46,7 @@ import {
   InfoCircleOutlined,
   ApartmentOutlined,
   GlobalOutlined,
+  ControlOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
@@ -55,6 +56,18 @@ import companySettingService from '../../services/companySettingService';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
+
+// Ba phân hệ requireAppPermission thực thi thật ở server (xem
+// middleware/auth.js). `calendar` và `optimization` cũng có trong
+// User.appPermissions nhưng không đưa vào đây: calendar dùng chung dữ liệu
+// task chứ không có route riêng, còn optimization đã bị authorizeApp('optimize')
+// (dựa trên appAdmins) khóa toàn bộ cho non-admin rồi — thêm một lớp appPermissions
+// nữa ở đây sẽ chồng chéo ngữ nghĩa với cơ chế đang chạy tốt đó.
+const MODULE_PERMISSION_LABELS = {
+  projects: 'Dự án',
+  tasks: 'Công việc',
+  reports: 'Báo cáo',
+};
 
 export default function AppPermissionsTab() {
   const { t } = useTranslation();
@@ -363,6 +376,21 @@ export default function AppPermissionsTab() {
       message.error(err.response?.data?.message || 'Có lỗi khi phân quyền App Admin');
     } finally {
       setSavingAppAdmin(false);
+    }
+  };
+
+  // Đổi mức quyền một phân hệ nghiệp vụ (User.appPermissions). Server thực thi
+  // thật ở middleware requireAppPermission trên các route /projects, /tasks,
+  // /analytics — không phải chỉ để hiển thị.
+  const handleChangeAppPermission = async (user, moduleKey, level) => {
+    const nextPermissions = { ...(user.appPermissions || {}), [moduleKey]: level };
+    try {
+      await authService.updateAppPermissions(user._id, nextPermissions);
+      message.success(`Đã đổi quyền "${MODULE_PERMISSION_LABELS[moduleKey]}" của ${user.name}`);
+      if (user._id === currentUser?._id && refreshUser) refreshUser();
+      loadUsersAndGuests();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Không thể cập nhật quyền phân hệ');
     }
   };
 
@@ -842,6 +870,71 @@ export default function AppPermissionsTab() {
             ),
           },
           {
+            key: 'modules',
+            label: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+                <ControlOutlined />
+                <span>Quyền theo Phân hệ (Dự án / Công việc / Báo cáo)</span>
+              </span>
+            ),
+            children: (
+              <div>
+                <div style={{ marginBottom: 16 }}>
+                  <Title level={5} style={{ margin: '0 0 4px 0', fontWeight: 700 }}>
+                    Quyền Xem / Quản lý theo từng phân hệ
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    Hạ một người xuống "Chỉ xem" hoặc "Không truy cập" chặn thật ở server
+                    (không chỉ ẩn nút trên giao diện). Không đổi thì mặc định là "Quản lý" —
+                    không ai bị hạn chế cho tới khi bạn chủ động chỉnh ở đây. Owner luôn có
+                    đầy đủ quyền, không chỉnh được.
+                  </Text>
+                </div>
+
+                <Table
+                  size="small"
+                  rowKey="_id"
+                  dataSource={users}
+                  pagination={{ pageSize: 8 }}
+                  columns={[
+                    {
+                      title: 'Tài khoản nhân sự',
+                      dataIndex: 'name',
+                      key: 'name',
+                      render: (name, record) => (
+                        <div>
+                          <Text strong style={{ fontSize: 13 }}>{name}</Text>
+                          <Text type="secondary" style={{ fontSize: 11.5, display: 'block' }}>
+                            {record.email}
+                          </Text>
+                        </div>
+                      ),
+                    },
+                    ...Object.keys(MODULE_PERMISSION_LABELS).map((moduleKey) => ({
+                      title: MODULE_PERMISSION_LABELS[moduleKey],
+                      key: moduleKey,
+                      width: 160,
+                      render: (_, record) => (
+                        <Select
+                          size="small"
+                          style={{ width: 140 }}
+                          aria-label={`Quyền ${MODULE_PERMISSION_LABELS[moduleKey]} của ${record.name}`}
+                          value={record.appPermissions?.[moduleKey] || 'manage'}
+                          disabled={record.isOwner}
+                          onChange={(level) => handleChangeAppPermission(record, moduleKey, level)}
+                        >
+                          <Option value="manage">Quản lý</Option>
+                          <Option value="view">Chỉ xem</Option>
+                          <Option value="none">Không truy cập</Option>
+                        </Select>
+                      ),
+                    })),
+                  ]}
+                />
+              </div>
+            ),
+          },
+          {
             key: 'guests',
             label: (
               <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
@@ -892,8 +985,10 @@ export default function AppPermissionsTab() {
                     },
                     {
                       title: 'Công ty / Tổ chức',
-                      dataIndex: 'companyName',
-                      key: 'companyName',
+                      // `guestCompany` chứ không phải `companyName`: field kia là
+                      // công ty chủ quản (khóa phân lập), giống nhau ở mọi dòng.
+                      dataIndex: 'guestCompany',
+                      key: 'guestCompany',
                       render: (val) => val || 'Khách hàng đối tác',
                     },
                     {
@@ -1165,7 +1260,7 @@ export default function AppPermissionsTab() {
           </Form.Item>
 
           <Form.Item
-            name="companyName"
+            name="guestCompany"
             label="Công ty / Tổ chức đối tác"
             rules={[{ required: true, message: 'Vui lòng nhập tên công ty' }]}
           >

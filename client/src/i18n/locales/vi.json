@@ -231,6 +231,8 @@
   "protectedRoute": {
     "forbiddenTitle": "Không có quyền truy cập",
     "forbiddenText": "Bạn không có quyền truy cập trang này. Vui lòng liên hệ Admin.",
+    "moduleForbiddenTitle": "Phân hệ này đã bị hạn chế",
+    "moduleForbiddenText": "Quản trị viên đã đặt quyền của bạn ở phân hệ này thành Không truy cập. Liên hệ Quản trị viên nếu bạn cần mở lại.",
     "backToDashboard": "Quay lại Tổng quan Dashboard"
   },
   "settings": {
@@ -511,7 +513,7 @@
     "noReason": "Không ghi lý do",
     "onLeaveUntil": "Đang nghỉ tới {{date}}",
     "leaveFrom": "Nghỉ từ {{date}}",
-    "workloadColumn": "Công suất (Workload)",
+    "workloadColumn": "Công suất tuần cao điểm",
     "rateColumn": "FTE / Lương (h)",
     "perHour": "{{amount}} đ/h",
     "matrixButton": "Matrix ({{count}})",
@@ -733,7 +735,8 @@
       "developer": "Lập trình viên",
       "designer": "Thiết kế",
       "tester": "Kiểm thử",
-      "devops": "DevOps"
+      "devops": "DevOps",
+      "guest": "Khách mời"
     }
   },
   "reports": {
@@ -930,6 +933,7 @@
     "resourceScope": "Số liệu theo danh sách đang tải và các bộ lọc bên dưới. Sắp xếp theo tải giảm dần.",
     "freeHours": "Còn {{count}} giờ so với khả năng làm việc",
     "excessHours": "Vượt {{count}} giờ so với khả năng làm việc",
+    "unscheduledHours": "+{{count}}h đã giao nhưng chưa xếp lịch",
     "skills": "Kỹ năng",
     "highLoad": "Nhân sự có tải trên 120%",
     "clearFilter": "Bỏ lọc",

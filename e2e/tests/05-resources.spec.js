@@ -25,10 +25,18 @@ test.describe('Quản lý nhân sự', () => {
     // Cột công suất phải ra dạng "Xh / Yh", không phải NaN hay rỗng
     await expect(nam).toContainText(/\d+h \/ \d+h/);
 
-    // Và phải là giờ **thật** cộng từ task, không phải số 0 mặc định: seeder gán
-    // cho Nam 32h việc đang mở. Trước đây seeder không gọi syncResourceWorkload
-    // nên cột này đứng ở 0h trong khi trang Báo cáo nói 32h.
-    await expect(nam).toContainText('32h / 40h');
+    // Và phải là giờ **thật** suy từ task, không phải số 0 mặc định: seeder gán cho
+    // Nam một việc 32h đang mở. Trước đây seeder không gọi syncResourceWorkload nên
+    // cột này đứng ở 0h trong khi trang Báo cáo nói 32h.
+    //
+    // Không chốt cứng con số: cột này là tải của **tuần cao điểm**, tức 32h được
+    // trải lên các ngày làm việc trong khoảng của task rồi mới gom theo tuần. Kết
+    // quả phụ thuộc hôm nay là thứ mấy, nên một hằng số sẽ đỏ vào những ngày nhất
+    // định trong tuần — đỏ vì lịch chứ không vì code. Thứ cần khẳng định là nó
+    // khác 0 và không vượt năng lực.
+    const hours = Number((await nam.textContent()).match(/(\d+(?:\.\d+)?)h \/ (\d+)h/)[1]);
+    expect(hours, 'tải tuần cao điểm của Nam phải > 0').toBeGreaterThan(0);
+    expect(hours, 'và không vượt 40h/tuần với đúng một việc 32h trải nhiều ngày').toBeLessThanOrEqual(40);
   });
 
   test('bộ lọc theo tải chỉ giữ lại đúng nhóm được chọn', async ({ page }) => {

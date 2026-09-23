@@ -33,7 +33,12 @@ const sendNotification = async ({
   link = '/',
 }) => {
   try {
-    if (!recipient || !title || !message) return null;
+    if (!recipient || !title || !message) {
+      console.error('sendNotification: thiếu recipient/title/message, bỏ qua', {
+        recipient, title, message, type, entityType, entityId,
+      });
+      return null;
+    }
 
     const notification = await Notification.create({
       recipient,

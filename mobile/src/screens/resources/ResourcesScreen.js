@@ -146,7 +146,9 @@ export default function ResourcesScreen() {
 
   const renderResourceItem = ({ item }) => {
     const workload = item.currentWorkload || 0;
-    const capacity = item.maxCapacity || 40;
+    // Năng lực phải nhân FTE: người làm bán thời gian có maxCapacity 40 nhưng
+    // fte 0.5 thì năng lực thật là 20h/tuần. Web tính đúng, mobile thì chưa.
+    const capacity = (item.maxCapacity ?? 40) * (item.fte ?? 1);
     const util = capacity > 0 ? Math.round((workload / capacity) * 100) : 0;
     const displayName = item.user?.name || item.name || 'Chưa đặt tên';
     const displayEmail = item.user?.email || item.email || '';
@@ -157,6 +159,8 @@ export default function ResourcesScreen() {
       <Card style={styles.resourceCard}>
         {/* Header Profile */}
         <View style={styles.profileRow}>
+          {/* API trả hồ sơ Resource có `user` được populate: tên và email nằm
+              trong `user`, còn `department` là chuỗi chứ không phải object. */}
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
               {displayInitial}
@@ -212,9 +216,13 @@ export default function ResourcesScreen() {
           <Text
             style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}
           >
-            Công suất làm việc (Workload)
+            Công suất tuần cao điểm
           </Text>
-          <WorkloadMeter workload={workload} capacity={capacity} />
+          <WorkloadMeter
+            workload={workload}
+            capacity={capacity}
+            unscheduled={item.unscheduledWorkload || 0}
+          />
         </View>
 
         {/* Skill Matrix Pills */}

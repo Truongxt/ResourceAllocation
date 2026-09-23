@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
@@ -33,6 +34,7 @@ const STATUS_FILTERS = [
 
 export default function ProjectsScreen({ navigation }) {
   const { theme } = useTheme();
+  const { canManageModule } = useAuth();
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -264,12 +266,15 @@ export default function ProjectsScreen({ navigation }) {
             ) : null}
           </View>
 
-          <TouchableOpacity
-            onPress={() => setShowCreateModal(true)}
-            style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
-          >
-            <Ionicons name="add" size={22} color="#ffffff" />
-          </TouchableOpacity>
+          {/* Chỉ hiện khi có quyền sửa, vì server sẽ trả 403 */}
+          {canManageModule('projects') && (
+            <TouchableOpacity
+              onPress={() => setShowCreateModal(true)}
+              style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
+            >
+              <Ionicons name="add" size={22} color="#ffffff" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Status Pills */}

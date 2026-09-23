@@ -149,4 +149,4 @@ S('Email chào mừng và mật khẩu khởi tạo cho người dùng mới');
   ok(welcomeMail.html.includes('Kỹ sư phần mềm'), 'Bản HTML chứa chức danh của nhân sự');
 }
 
-summary();
+process.exit(summary() ? 1 : 0);

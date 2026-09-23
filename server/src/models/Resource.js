@@ -64,6 +64,15 @@ const resourceSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Giờ công của task đã giao nhưng **chưa xếp lịch** (thiếu ngày bắt đầu/kết thúc).
+    // Không đặt được lên trục thời gian nên không vào `currentWorkload`, nhưng cũng
+    // không được phép biến mất: đây là khối việc đã cam kết mà chưa biết rơi vào tuần
+    // nào. Xem `services/workload.service.js`.
+    unscheduledWorkload: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     // Cost
     hourlyRate: {
       type: Number,

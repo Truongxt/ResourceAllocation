@@ -8,6 +8,30 @@ const {
 const { logActivity } = require('../services/activityLog.service');
 
 /**
+ * Nạp một cấu hình lặp lại **trong phạm vi công ty người gọi**.
+ *
+ * `getRecurringTasks` lọc theo công ty từ lâu, nhưng ba đường thao tác theo id
+ * (`update`, `delete`, `run-now`) chỉ gọi `findById` trần. Nặng nhất là
+ * `run-now`: nó **tạo công việc mới** trong dự án của cấu hình đó, nên người
+ * ngoài kích hoạt được việc ghi dữ liệu vào dự án công ty khác.
+ *
+ * Bản ghi cũ thiếu `companyName` được quy về công ty mặc định, cùng quy ước với
+ * bộ lọc trong `getRecurringTasks`.
+ */
+const findInCompany = async (id, user) => {
+  const item = await RecurringTask.findById(id);
+  if (!item) return { item: null };
+
+  if (user?.role === 'superadmin') return { item };
+
+  const userCompany = user?.companyName || 'Công ty Công nghệ RAO';
+  const owner = item.companyName || 'Công ty Công nghệ RAO';
+  if (owner !== userCompany) return { item: null, forbidden: true };
+
+  return { item };
+};
+
+/**
  * @desc    Lấy danh sách công việc lặp lại
  * @route   GET /api/recurring-tasks
  * @access  Private
@@ -134,7 +158,10 @@ const createRecurringTask = async (req, res, next) => {
  */
 const updateRecurringTask = async (req, res, next) => {
   try {
-    const item = await RecurringTask.findById(req.params.id);
+    const { item, forbidden } = await findInCompany(req.params.id, req.user);
+    if (forbidden) {
+      return res.status(403).json({ success: false, message: 'Không có quyền thao tác trên cấu hình của công ty khác' });
+    }
     if (!item) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy cấu hình công việc lặp lại' });
     }
@@ -169,7 +196,10 @@ const updateRecurringTask = async (req, res, next) => {
  */
 const deleteRecurringTask = async (req, res, next) => {
   try {
-    const item = await RecurringTask.findById(req.params.id);
+    const { item, forbidden } = await findInCompany(req.params.id, req.user);
+    if (forbidden) {
+      return res.status(403).json({ success: false, message: 'Không có quyền thao tác trên cấu hình của công ty khác' });
+    }
     if (!item) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy cấu hình công việc lặp lại' });
     }
@@ -209,7 +239,10 @@ const previewSchedule = async (req, res, next) => {
  */
 const triggerRunNow = async (req, res, next) => {
   try {
-    const item = await RecurringTask.findById(req.params.id);
+    const { item, forbidden } = await findInCompany(req.params.id, req.user);
+    if (forbidden) {
+      return res.status(403).json({ success: false, message: 'Không có quyền thao tác trên cấu hình của công ty khác' });
+    }
     if (!item) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy cấu hình công việc lặp lại' });
     }

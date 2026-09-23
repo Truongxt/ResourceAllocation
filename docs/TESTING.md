@@ -1,13 +1,18 @@
 # 🧪 Chiến lược kiểm thử
 
-Dự án có **ba lớp kiểm thử**, mỗi lớp trả lời một câu hỏi khác nhau. Không lớp nào thay thế
+Dự án có **bốn lớp kiểm thử**, mỗi lớp trả lời một câu hỏi khác nhau. Không lớp nào thay thế
 được lớp nào.
 
 | Lớp | Thư mục | Chạy bằng | Quy mô | Trả lời câu hỏi |
 |-----|---------|-----------|--------|-----------------|
-| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 19 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
+| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 20 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
 | Component | `client/tests/` | `npm test` trong `client/` | 3 file logic + 8 file component | Component vẽ đúng, xử lý đúng sự kiện không? |
-| Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 82 bài / 10 file | Ghép tất cả lại thì người dùng **dùng được** không? |
+| Logic di động | `mobile/tests/` | `npm test` trong `mobile/` | 1 bộ logic thuần | Quy tắc quyền trên app có khớp với server không? |
+| Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 85 bài / 11 file | Ghép tất cả lại thì người dùng **dùng được** không? |
+
+Lớp di động mỏng nhất và cố tình như vậy: app Expo không chạy được trong môi trường kiểm
+thử hiện tại, nên chỉ những quy tắc **thuần** — tách sẵn ra `mobile/src/utils/` — mới kiểm
+được. Phần giao diện của app vẫn chưa có lưới nào che; xem [mục cuối](#phần-mobile-còn-hở).
 
 Hai lớp đầu chạy trong vòng vài phút. Lớp e2e mất khoảng **10–15 phút** (đo trên máy phát
 triển, 1 worker) vì nó khởi động thật, đăng nhập thật và chờ API thật ở từng bài.
@@ -27,13 +32,16 @@ cd server && npm test
 # Lớp 2 — không cần gì
 cd client && npm test
 
-# Lớp 3 — cần MongoDB; tự khởi động client + server
+# Lớp 3 — không cần gì, cũng không cần cài node_modules của mobile
+cd mobile && npm test
+
+# Lớp 4 — cần MongoDB; tự khởi động client + server
 npm run test:e2e                    # ở thư mục gốc
 npm run test:e2e:install            # lần đầu: tải trình duyệt cho Playwright
 ```
 
-Ba lớp dùng **ba database và ba cặp cổng khác nhau**, nên chạy lớp nào cũng không đụng tới
-môi trường phát triển:
+Các lớp chạm database dùng **database và cổng riêng**, nên chạy lớp nào cũng không đụng tới
+môi trường phát triển (lớp `client` và `mobile` không cần database):
 
 | | Môi trường phát triển | `server/tests` | `e2e` |
 |-|-----------------------|----------------|-------|
@@ -241,6 +249,86 @@ khoảng cách giữa chúng chính là chỗ bốn lỗi trên sống sót qua 
 Cùng một bài học với chỗ chẩn đoán sai `currentWorkload` ở mục 3: đừng suy ra hành vi runtime
 từ việc đọc xem hàm nào gọi hàm nào — chạy thử rồi đo.
 
+## Ba bộ test hỏng mà vẫn báo xanh
+
+Phát hiện khi viết `hardening.test.mjs`, và nó **vô hiệu hóa một phần lưới an toàn** chứ
+không phải lỗi cosmetic.
+
+Mỗi file test kết thúc bằng `process.exit(summary() ? 1 : 0)` để `run.mjs` biết bộ đó đỏ hay
+xanh — nhưng `email`, `notify-session` và `sanitize` chỉ gọi `summary()` rồi kết thúc, nên
+tiến trình luôn thoát mã 0. Hệ quả: assertion trong ba bộ đó **có đỏ cũng không ai biết**.
+
+Kiểm chứng bằng cách chèn tạm một `ok(false, …)` vào `sanitize` rồi chạy `npm test sanitize`:
+
+```
+  PASS: 18    FAIL: 1    TỔNG: 19      ← bản thân bộ test biết là có lỗi
+  Tất cả 1 bộ đều đạt                  ← nhưng runner kết luận ngược lại, và thoát mã 0
+```
+
+Đáng chú ý là `notify-session` chính là bộ giữ bốn lỗi "request vẫn trả 200" và các bài
+`appPermissions` mới thêm — tức phần test được viết riêng để bắt loại lỗi âm thầm lại đang
+âm thầm y như vậy. Đã bổ sung `process.exit` cho cả ba.
+
+Bài học hợp với tinh thần chung của tài liệu này: **một bộ test chưa bao giờ thấy đỏ thì
+chưa chứng minh được điều gì**. Thêm bài test mới xong nên thử làm nó hỏng một lần để biết
+đường báo lỗi còn thông.
+
+## Chọn lớp cho từng bản vá
+
+Đợt sửa 11 hạng mục trong `FEATURES.md` cho một ví dụ rõ về việc **không phải bản vá nào
+cũng thuộc về lớp e2e**. Chỉ một hạng mục được đưa lên e2e:
+
+| Bản vá | Lớp | Vì sao |
+|--------|-----|--------|
+| `appPermissions` được thực thi thật | `server/tests` **và** `e2e` | Hai đầu dây (UI lưu, middleware chặn) đều đúng riêng lẻ vẫn có thể không khớp nhau. Đây đúng là loại "từng mảnh đúng, ghép lại sai" — xem `e2e/tests/11-app-permissions.spec.js` |
+| Phân lập công ty ở `/auth/guests`, `special-grants`, `app-admin` | `server/tests` | Cần **hai công ty**, mà tạo công ty thứ hai phải đăng ký tài khoản mới — và hệ thống **không có endpoint xóa User**, nên bộ e2e sẽ để lại rác vĩnh viễn trong database dùng chung, trái quy ước "mỗi bài tự dọn". `server/tests` seed lại trước từng bộ nên không vướng |
+| `deliverableLinks` sai dạng, `move` sang dự án không tồn tại | `server/tests` | Giao diện không bao giờ gửi được payload sai dạng như vậy. Test qua trình duyệt sẽ phải bịa ra thứ người dùng không làm được |
+| Đánh lại `order` của checklist sau khi xóa | `server/tests` | Drawer render checklist **theo thứ tự mảng**, không theo `order`. Một bài e2e nhìn vào màn hình sẽ xanh cả trước lẫn sau khi sửa — xanh giả, tệ hơn là không có test |
+| Không trả mật khẩu rõ trong response tạo User | `server/tests` | Kiểm được qua e2e (rình response trong trình duyệt) nhưng vướng đúng vấn đề rác dữ liệu như hàng thứ hai |
+
+Nguyên tắc rút ra: **lớp e2e đắt (10–15 phút/lượt) và ghi vào database dùng chung**, nên chỉ
+dành cho thứ chỉ nó mới thấy được — mối nối giữa các mảnh. Thứ gì một lớp rẻ hơn kiểm được
+đầy đủ thì để ở lớp đó; và thứ gì lớp e2e *không chứng minh được* thì đừng viết bài e2e cho
+nó, vì một bài xanh-bất-kể-code-đúng-hay-sai còn nguy hiểm hơn khoảng trống đã biết.
+
+Bốn hàng cuối nằm ở bộ mới **`server/tests/hardening.test.mjs`** (35 assertion), và ngay lần
+chạy đầu nó đã bắt được một lỗi thật — xem mục dưới.
+
+### Lỗi `hardening` tìm ra: khách không thuộc công ty nào
+
+Bản vá lọc `GET /auth/guests` theo công ty của người gọi *đúng về ý định* nhưng **sai trên
+thực tế**, và chỉ lộ ra khi có bài test đi trọn đường "tạo khách rồi xem lại danh sách":
+
+`createGuest` ghi `companyName` bằng **tên tổ chức đối tác** lấy từ form (nhãn "Công ty / Tổ
+chức đối tác"), trong khi mọi chỗ khác trong hệ thống dùng `companyName` làm **khóa phân lập
+tenant** (`isSameCompany`, bộ lọc của `GET /auth/users`). Hai nghĩa đụng nhau trên cùng một
+field. Hệ quả sau khi thêm bộ lọc: khách tạo ra mang công ty "Công ty TNHH Đối Tác Alpha",
+không khớp công ty của ai cả — nên **chính công ty vừa tạo ra nó cũng không nhìn thấy nó
+nữa**.
+
+Đã tách hai nghĩa: `companyName` của khách nay là công ty của người tạo (đúng vai trò khóa
+phân lập), còn tên đối tác sang field mới `guestCompany` chỉ để hiển thị.
+
+Lỗi này minh họa vì sao assertion "công ty A **nhìn thấy** khách của chính mình" phải đi kèm
+assertion "công ty B không nhìn thấy": chỉ kiểm vế cấm thì một bộ lọc chặn nhầm tất cả mọi
+người vẫn xanh.
+
+### Lỗi thứ hai: một chữ thiếu trong enum làm chết cả một nhánh tính năng
+
+`Project.members[].role` không có `'guest'` trong enum, trong khi `taskAccess.js` có hẳn một
+nhánh xử lý `role === 'guest'` và `Project.permissions.allowGuestCreateTask` hiện thành một
+switch thật trên màn hình Chi tiết dự án. Mongoose chặn mọi lần gán vai trò đó, nên nhánh kia
+là mã chết và cái switch không điều khiển được gì — **không có lỗi nào nổ ra ở bất cứ đâu**.
+
+Đây là loại lỗi không lớp test nào đang có nhìn thấy, vì cả ba lớp đều kiểm những đường người
+ta *có* đi; còn đây là một đường **không ai đi được**, và sự im lặng đó trông y hệt như
+"tính năng chạy tốt, chưa ai dùng tới".
+
+Sau khi sửa, bộ `hardening` kiểm cả hai vế: tắt công tắc thì khách bị chặn bằng đúng câu dành
+cho khách (không phải câu dành cho thành viên thường — phân biệt được hai câu này mới chứng
+minh đi đúng nhánh), bật lên thì tạo được. Gỡ lại `'guest'` khỏi enum thì **4 assertion đỏ**;
+đã chạy thử đúng một lần để chắc bộ test không xanh sẵn, theo đúng bài học ở mục trên.
+
 ## Vấn đề nhỏ khác
 
 - **Ô mở tìm kiếm toàn cục từng là `div` bắt `onClick`** — không tab tới được, Enter không
@@ -250,6 +338,12 @@ từ việc đọc xem hàm nào gọi hàm nào — chạy thử rồi đo.
   Dải tab nay là `role="tablist"`, từng mục là `<button role="tab">` có `aria-selected` và
   `aria-controls` trỏ tới `role="tabpanel"`, điều hướng bằng mũi tên / Home / End với một
   điểm dừng Tab duy nhất. Bài test trong `e2e/tests/04-tasks.spec.js` nay bám theo vai trò.
+- **Thanh tab trang Cài đặt tràn ngang ở 1440px** — phát hiện khi dựng
+  `11-app-permissions.spec.js`. Trang có 6 tab nhãn dài; ở viewport mặc định của bộ e2e
+  (1440, trừ 240px sidebar) hai tab cuối bị đẩy vào nút `...`. Người dùng vẫn mở được qua
+  `...` nên **không phải lỗi chặn đường**, nhưng bấm thẳng vào nhãn thì không ăn — bài test
+  ban đầu đỏ vì đúng chuyện này chứ không phải vì phân quyền. Bộ `11` tự cấp viewport 1920
+  cho màn hình admin và ghi rõ lý do; nếu sau này rút bớt hoặc rút gọn nhãn tab thì gỡ được.
 - **Cảnh báo deprecated của Ant Design v6** đã gỡ hết (`destroyOnClose`, `trailColor`,
   `dropdownRender`, `bodyStyle`, `strokeWidth`, Drawer `width`, `Avatar.Group maxCount`,
   Space `direction`). Kiểm lại bằng cách mở 11 trang và đếm cảnh báo trong console: 0.
@@ -307,3 +401,47 @@ npx playwright show-report e2e/.report
 Báo cáo HTML kèm ảnh chụp màn hình và trace của mọi bài hỏng. Xem trace bằng
 `npx playwright show-trace <đường-dẫn>.zip` — nó tua lại từng bước, kèm DOM và network tại
 mỗi thời điểm.
+
+## Phần mobile còn hở
+
+App Expo (`mobile/`) là **client thứ hai** của cùng một API, nhưng ba lớp test cũ không chạm
+tới nó một dòng nào — `e2e` chạy Chromium trên web client, còn `client/tests` chỉ nạp mã
+trong `client/src`. Hệ quả: mobile im lặng lệch khỏi server suốt một thời gian dài.
+
+Khi rà lại, bốn lỗi dưới đây đều thuộc loại **không có lớp test nào có thể bắt được**, vì
+không lớp nào đọc mã mobile:
+
+| Lỗi | Hậu quả |
+|-----|---------|
+| `AuthContext` đọc `data.accessToken`, server trả `data.token` | Đăng nhập luôn báo thất bại |
+| Gọi `PUT /auth/change-password`, route thật là `/auth/password` | Nút đổi mật khẩu trả 404 |
+| Nhánh 401 bỏ trống, không làm mới token | Phiên chết sau 15 phút, app không báo gì |
+| Màn Báo cáo gán cả object `{resources, departments, summary}` vào state mảng | `.filter` ném lỗi, màn chết ngay khi mở |
+
+Ba lỗi đầu nằm ở chỗ **tên trường và đường dẫn** — thứ mà TypeScript hoặc một bài test
+chạm vào API thật sẽ bắt ngay, còn đọc mã bằng mắt thì rất dễ trượt.
+
+Điều đáng nói hơn: lỗi thứ tư đứng **ngay cạnh** một lỗi bảo mật thật. Lúc nối chức năng
+bình luận cho mobile, bài test dựng thêm một công ty thứ hai để kiểm hợp đồng dữ liệu, và
+nó cho thấy `deleteComment` miễn trừ cho mọi `role === 'admin'` mà **không xét cùng công ty**
+— admin công ty B xóa được bình luận trên công việc của công ty A. `addComment` còn không
+kiểm gì cả. Cả hai nay đi qua `belongsToCompany`.
+
+Bài học lặp lại đúng cái đã ghi ở trên: lớp test không chạm tới đâu thì chỗ đó tự do trôi.
+
+### Những gì đã che được
+
+- `mobile/tests/app-permissions.test.mjs` — 21 ca cho quy tắc quyền theo phân hệ. Quy tắc
+  được tách khỏi `AuthContext` ra `mobile/src/utils/appPermissions.js` chính là để kiểm được
+  bằng Node thuần, không cần Expo.
+- Phía server, `hardening.test.mjs` thêm nhóm "Bình luận: hợp đồng dữ liệu mà màn chi tiết
+  dựa vào" — khóa việc `comments.user` phải được populate, vì thiếu nó thì mobile hiện
+  "Người dùng" cho mọi bình luận **mà không lỗi gì**.
+- `refresh-token.test.mjs` thêm nhóm cho đường refresh qua body, gồm một ca khẳng định web
+  **không** đi đường đó.
+
+### Những gì vẫn chưa che
+
+Giao diện mobile chưa có lớp nào: không dựng được component, không chạy được điều hướng.
+Cách chắc chắn nhất để không lặp lại nhóm lỗi "sai tên trường" là cho mobile một bài test
+gọi API thật rồi đối chiếu tên trường nó đọc — rẻ hơn nhiều so với dựng cả Detox.

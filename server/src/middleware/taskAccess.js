@@ -98,6 +98,46 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
 };
 
 /**
+ * Chốt phân lập công ty cho **mọi** route có `:id` của nhóm công việc.
+ *
+ * Vì sao phải đứng riêng ở đây chứ không nằm trong từng guard: 11 guard bên dưới
+ * đều mở đầu bằng `if (PRIVILEGED_ROLES.includes(req.user.role)) return next();`
+ * — nghĩa là admin/PM đi thẳng qua, không xét công ty. Bốn endpoint chính
+ * (`GET`/`PUT`/`DELETE`/`PATCH status`) vẫn an toàn vì **controller** của chúng
+ * tự kiểm, nhưng mười endpoint còn lại thì không, và đo thật cho thấy admin công
+ * ty B thêm được checklist, tự thêm mình làm người theo dõi, nhân bản, di chuyển,
+ * đổi hạn, nộp kết quả, đánh dấu hoàn thành và tạo việc con trên công việc của
+ * công ty A — chỉ cần biết id.
+ *
+ * Đặt ở `router.param('id')` nên nó chạy cho mọi route có `:id`, kể cả route
+ * thêm sau này. Rải `belongsToCompany` vào từng controller thì đúng bằng số lần
+ * có thể quên.
+ *
+ * Không tự trả 404 khi không tìm thấy công việc: để handler phía sau trả lời như
+ * cũ, tránh đổi thông điệp lỗi của những đường vốn đang đúng.
+ */
+const guardTaskCompany = async (req, res, next, id) => {
+  try {
+    const task = await Task.findById(id).select('project').populate('project', 'companyName');
+    if (!task) return next();
+
+    const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
+    const taskCompany = task.project?.companyName;
+
+    if (taskCompany && taskCompany !== userCompany) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên công việc của công ty khác',
+      });
+    }
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
  * Phân quyền Tạo mới công việc
  * - Admin & Project Manager: Có quyền tạo
  * - Thành viên dự án: Được tạo nếu dự án bật quyền allowMembersCreateTasks === true
@@ -626,6 +666,7 @@ const canCreateSubtask = () => async (req, res, next) => {
 
 module.exports = {
   getTaskUserContext,
+  guardTaskCompany,
   canCreateTask,
   canModifyTask,
   canUpdateTaskStatus,

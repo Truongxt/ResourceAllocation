@@ -391,18 +391,30 @@ const updateSkills = async (req, res, next) => {
       });
     }
 
-    const resource = await Resource.findByIdAndUpdate(
-      req.params.id,
-      { skills },
-      { new: true, runValidators: true }
-    ).populate('user', 'name email avatar role');
-
-    if (!resource) {
+    // Đọc trước rồi mới ghi. `findByIdAndUpdate` gộp hai bước làm một nên không
+    // còn chỗ chen kiểm tra công ty vào — và đó đúng là cách endpoint này từng
+    // cho admin công ty khác xóa sạch kỹ năng nhân sự của mình.
+    const existing = await Resource.findById(req.params.id).select('companyName');
+    if (!existing) {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy nhân sự',
       });
     }
+
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (existing.companyName && existing.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên nhân sự của công ty khác',
+      });
+    }
+
+    const resource = await Resource.findByIdAndUpdate(
+      req.params.id,
+      { skills },
+      { new: true, runValidators: true }
+    ).populate('user', 'name email avatar role');
 
     res.json({
       success: true,

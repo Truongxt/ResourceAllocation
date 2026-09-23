@@ -78,6 +78,9 @@ const MEMBER_ROLES = [
   { value: 'designer', color: 'purple' },
   { value: 'tester', color: 'cyan' },
   { value: 'devops', color: 'geekblue' },
+  // Đối tác bên ngoài. Chọn vai trò này thì quyền tạo việc của họ đi theo công
+  // tắc `allowGuestCreateTask` của dự án, tách khỏi `allowMembersCreateTasks`.
+  { value: 'guest', color: 'default' },
 ];
 
 const formatDate = (value) => (value ? dayjs(value).format('DD/MM/YYYY') : '—');

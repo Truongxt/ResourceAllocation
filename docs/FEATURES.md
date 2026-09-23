@@ -42,7 +42,7 @@ của `server/tests/api.test.mjs`.
 | 2.4 | Cập nhật dự án | Chỉnh sửa thông tin dự án | ✅ | Modal form edit |
 | 2.5 | Xóa dự án | Xóa kèm cảnh báo nếu còn task | ✅ | Chặn nếu còn task, cần `?force=true` |
 | 2.6 | Dashboard dự án | Tổng quan tiến độ, thống kê | ✅ | `GET /projects/stats/summary` + trang Dashboard |
-| 2.7 | Gắn nhân sự | Thêm/xóa thành viên + allocation % | ✅ | Tab Thành viên: thêm/sửa/xóa, chọn vai trò và allocation. Nút quản lý chỉ hiện với Admin/PM |
+| 2.7 | Gắn nhân sự | Thêm/xóa thành viên + allocation % | ✅ | Tab Thành viên: thêm/sửa/xóa, chọn vai trò và allocation. Nút quản lý chỉ hiện với Admin/PM. Sáu vai trò: `lead`, `developer`, `designer`, `tester`, `devops`, `guest` — vai trò `guest` đi kèm công tắc `allowGuestCreateTask` riêng (xem ghi chú "Tài khoản khách" cuối tài liệu) |
 | 2.8 | Tiến độ dự án | Tự động tính % hoàn thành từ tasks | ✅ | `recalculateProjectProgress` chạy khi tạo/sửa/xóa task |
 | 2.9 | Filter & Sort | Lọc theo status, priority, date range, search | ✅ | Hỗ trợ cả `manager`, `startDate`, `endDate` |
 
@@ -77,7 +77,7 @@ của `server/tests/api.test.mjs`.
 | 4.5 | Skill Matrix | CRUD kỹ năng + level cho từng nhân sự | ✅ | Skill modal editor, level 1-4 |
 | 4.6 | Availability Calendar | Lịch trình, ngày nghỉ, periods unavailable | ✅ | Modal "Lịch nghỉ" (nút lịch ở cột Hành động): thêm/xóa nhiều kỳ nghỉ kèm lý do. Bảng nhân sự hiện tag "Đang nghỉ tới…" / "Nghỉ từ…". Server chặn ngày đảo ngược, kỳ nghỉ chồng nhau, ngày sai định dạng. Chỉ Admin/PM |
 | 4.7 | Capacity (FTE) | Thiết lập FTE, max hours/week | ✅ | `fte` + `maxCapacity` |
-| 4.8 | Workload View | Hiển thị workload hiện tại, utilization rate | ✅ | Virtual `utilizationRate` + thanh utilization |
+| 4.8 | Workload View | Hiển thị workload hiện tại, utilization rate | ✅ | Virtual `utilizationRate` + thanh utilization. `currentWorkload` là tải **tuần hiện tại** (trải giờ task lên ngày làm việc, dùng lại `analytics/workloadTrend.js`) — cùng đơn vị với `maxCapacity`. Giờ của việc chưa xếp lịch nằm riêng ở `unscheduledWorkload` |
 | 4.9 | Department Filter | Lọc nhân sự theo bộ phận | ✅ | Filter by department |
 | 4.10 | Skill Search | Tìm nhân sự theo skill + level | ✅ | `?skill=&skillLevel=` (lọc `>=`) |
 
@@ -90,7 +90,7 @@ của `server/tests/api.test.mjs`.
 | 5.1 | Genetic Algorithm | Multi-objective GA cho phân bổ nhân sự | ✅ | Tournament (k=5), Uniform Crossover, Random Mutation, Elitism 5% |
 | 5.2 | CSP Solver | Backtracking + AC-3 + MRV + LCV | ✅ | Node consistency (capacity) và AC-3 (trên đồ thị H4) là hai bước tách bạch. AC-3 trên ràng buộc `≠` chỉ lan truyền từ biến đã bị ép về một giá trị — giới hạn cố hữu, muốn mạnh hơn cần all-different (Régin) |
 | 5.3 | Fitness Function | Workload balance + skill match + cost + overallocation | ✅ | 4 mục tiêu, trọng số cấu hình được |
-| 5.4 | Constraint Validation | Kiểm tra capacity, skill, availability, dependency | ✅ | Đủ H1–H4. **H2 dùng ngưỡng tổng hợp ≥ 0.5** chứ không bắt buộc từng kỹ năng. H4 cấm giao hai việc phụ thuộc nhau, chồng lịch cho cùng một người; sai thứ tự ngày thì báo trong `constraintReport` (thuật toán không đổi được ngày) — xem [ALGORITHMS.md](./ALGORITHMS.md) mục 2.2 |
+| 5.4 | Constraint Validation | Kiểm tra capacity, skill, availability, dependency | ✅ | Đủ H1–H4. **H1 tính theo TUẦN**: giờ của task được trải lên ngày làm việc rồi gom theo tuần, lấy tuần nặng nhất so với `maxCapacity × fte` (giờ/tuần) — cùng đơn vị. Trước đây cộng tổng giờ cả kỳ rồi so với năng lực tuần, khiến một người không nhận nổi quá ~40h cho cả dự án và `f_overalloc` luôn bằng 0 (xem [SYSTEM_WALKTHROUGH.md](./SYSTEM_WALKTHROUGH.md) mục 5.5). **H2 dùng ngưỡng tổng hợp ≥ 0.5** chứ không bắt buộc từng kỹ năng. H4 cấm giao hai việc phụ thuộc nhau, chồng lịch cho cùng một người; sai thứ tự ngày thì báo trong `constraintReport` (thuật toán không đổi được ngày) — xem [ALGORITHMS.md](./ALGORITHMS.md) mục 2.2 |
 | 5.5 | Run Optimization UI | Giao diện chạy tối ưu hóa với parameters | ✅ | Chọn thuật toán, slider tham số, tinh chỉnh trọng số |
 | 5.6 | Results Comparison | So sánh multiple solutions | ✅ | Tick chọn 2–4 lần chạy trong lịch sử → `GET /optimization/compare`. Bảng 9 chỉ số kèm đánh dấu bên thắng, bảng phân công ghép theo từng công việc, và cảnh báo khi các phương án chạy khác phạm vi |
 | 5.7 | Apply Solution | Áp dụng kết quả vào hệ thống | ✅ | Ghi `assignee` cho từng task + notification + ActivityLog |
@@ -125,7 +125,7 @@ Ngoài ra `GanttChart.jsx` còn có: tooltip chi tiết khi hover, lọc theo d�
 tô màu theo status, chấm màu theo mức ưu tiên, chú giải, đánh dấu cuối tuần và ngày hôm nay.
 
 Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [client/src/utils/gantt.js](../client/src/utils/gantt.js)
-để chạy được bằng node, và có bộ kiểm thử riêng: `cd client && npm test` (24 assertion).
+để chạy được bằng node, và có bộ kiểm thử riêng: `node tests/gantt.test.mjs` (44 assertion).
 
 > **Giới hạn đã biết:** CPM và mũi tên chỉ tính trên tập task đang tải (tối đa 100, có thể
 > đang bị lọc theo dự án). Dependency trỏ ra ngoài tập đó bị bỏ qua chứ không báo lỗi.
@@ -208,6 +208,38 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 | 10. Bổ sung | 6 | 6 | 0 | 0 |
 | **Tổng** | **79** | **79 (100%)** | **0** | **0** |
 
+Bảng trên nói về **web client**. App di động là một client riêng và phủ ít hơn hẳn — xem
+mục kế tiếp.
+
+### App di động — phủ được tới đâu
+
+`mobile/` là ứng dụng Expo/React Native dùng chung API với web. Nó **không** phải bản web
+thu nhỏ: nhiều nhánh nghiệp vụ chưa có, và cho tới gần đây còn lệch khỏi server ở vài chỗ
+làm hỏng hẳn tính năng.
+
+| Phân hệ | Mobile | Thiếu so với web |
+|---------|--------|------------------|
+| Đăng nhập / Đăng ký | ✅ | quên mật khẩu |
+| Tổng quan | ✅ | — |
+| Dự án | ✅ + chi tiết | sửa thành viên, phân quyền dự án, cấu hình luồng |
+| Công việc | 🔨 | Kanban, việc lặp lại, nhóm việc, phụ thuộc, người theo dõi, báo cáo kết quả, duyệt việc, nhân bản, di chuyển, bàn giao hàng loạt, nhập/xuất Excel |
+| ↳ checklist, bình luận | ✅ | — |
+| Nhân sự | 🔨 | nghỉ phép, tính lại tải |
+| Tối ưu hóa | 🔨 | chạy riêng GA/CSP/Hybrid, so sánh, rollback |
+| Benchmark | ✅ | — |
+| Báo cáo | 🔨 | xuất CSV, so sánh trước/sau tối ưu |
+| Nhật ký, Thông báo | ✅ | — |
+| Cài đặt | 🔨 | danh bạ người dùng, nhóm, phân quyền phân hệ, phiên đăng nhập, nghỉ phép |
+| **Lịch** | ⬜ | cả màn |
+| **Gantt** | ⬜ | cả màn |
+
+Quyền theo phân hệ (`appPermissions`) nay đã được áp trên mobile giống web: tab và nút bị ẩn
+khi không đủ quyền. Các lớp quyền còn lại (`appAdmins`, quyền theo từng dự án) thì chưa —
+server vẫn chặn đúng, nhưng giao diện có thể bày ra thao tác rồi nhận 403.
+
+Hai màn **Lịch** và **Gantt** là khoảng trống lớn nhất, và cũng là hai thứ khó bê nguyên
+xuống màn hình điện thoại nhất — nên để trống là một lựa chọn, không phải sơ suất.
+
 ### Đa ngôn ngữ — phạm vi và giới hạn
 
 **Đã dịch**: toàn bộ giao diện client — 12 trang, sidebar, header, form, thông báo lỗi
@@ -271,9 +303,9 @@ mới chặn. Script là loại một lần, xong hết mọi môi trường th�
   **813 kB** (gzip 266 kB) thay vì 1.544 kB. Chunk entry vẫn 559 kB — lõi antd + cssinjs
   mà khung layout cần ngay — nên cảnh báo >500 kB của Vite còn nguyên; muốn nhỏ hơn nữa
   thì phải đổi thư viện UI chứ không phải chia chunk khác đi.
-- Kiểm thử nay có **ba lớp**, xem [docs/TESTING.md](./TESTING.md): `server/tests` 19 bộ qua
+- Kiểm thử nay có **ba lớp**, xem [docs/TESTING.md](./TESTING.md): `server/tests` 20 bộ qua
   API và Socket.IO, `client/tests` 8 file component (37 bài, vitest + jsdom) kèm logic thuần,
-  và `e2e` 82 bài điều khiển Chromium thật trên hệ thống thật. Các trang nghiệp vụ (Tasks,
+  và `e2e` 85 bài điều khiển Chromium thật trên hệ thống thật. Các trang nghiệp vụ (Tasks,
   Resources, Optimization…) nay do lớp e2e phủ, không còn là khoảng trống như trước.
 - Cảnh báo deprecated của Ant Design 6 **đã gỡ hết** (29 file). Xác nhận bằng cách mở 11
   trang và đếm cảnh báo trong console: 0. Lưu ý `Modal width` và `Radio.Group direction`
@@ -285,58 +317,135 @@ mới chặn. Script là loại một lần, xong hết mọi môi trường th�
 
 Mô tả đủ 118 endpoint làm lộ ra 11 chỗ dưới đây. Bốn lỗi nặng nhất **đã sửa**
 (xem [CHANGELOG](./CHANGELOG.md) và [TESTING.md](./TESTING.md) mục "Lỗi tìm ra khi viết tài
-liệu"); 11 chỗ này thì **cố ý để lại** — đều đã ghi vào `API.md` nên không ai bị dẫn sai, và
-sửa chúng không thuộc phạm vi đợt viết tài liệu.
+liệu"); ba lỗ hổng phân lập công ty **đã sửa thêm** (xem ngay dưới); 8 chỗ còn lại thì
+**cố ý để lại** — đều đã ghi vào `API.md` nên không ai bị dẫn sai, và sửa chúng không thuộc
+phạm vi đợt viết tài liệu.
 
-Sắp theo mức độ ảnh hưởng:
+**Phân lập theo công ty từng hở ba chỗ — đã sửa.** Mọi endpoint `/users/:id/*` đều trả 403
+nếu tài khoản đích thuộc công ty khác, nhưng ba chỗ này trước đó không kiểm:
 
-**Phân lập theo công ty còn hở ba chỗ.** Mọi endpoint `/users/:id/*` đều trả 403 nếu tài
-khoản đích thuộc công ty khác, nhưng ba chỗ này không kiểm:
+| Endpoint | Thiếu gì | Đã sửa |
+|----------|----------|--------|
+| `GET /auth/guests` | Trả **mọi** tài khoản `isGuest: true` trên toàn hệ thống | Lọc theo `companyName` của người gọi |
+| `PUT /users/:id/special-grants` | Chỉ kiểm vai trò, không kiểm công ty | Thêm kiểm `isSameCompany` |
+| `PUT /users/:id/app-admin` | Chỉ kiểm `isOwner`, không kiểm công ty | Thêm kiểm `isSameCompany` |
 
-| Endpoint | Thiếu gì |
-|----------|----------|
-| `GET /auth/guests` | Trả **mọi** tài khoản `isGuest: true` trên toàn hệ thống |
-| `PUT /users/:id/special-grants` | Chỉ kiểm vai trò, không kiểm công ty |
-| `PUT /users/:id/app-admin` | Chỉ kiểm `isOwner`, không kiểm công ty |
+Sắp theo mức độ ảnh hưởng, các chỗ còn lại:
 
-Đây là loại lỗi rò dữ liệu giữa các công ty, nên nằm đầu danh sách dù sửa rất nhỏ.
-
-**`sendNotification` nuốt lỗi thiếu tham số mà không log.** Guard
+**`sendNotification` nuốt lỗi thiếu tham số mà không log — đã sửa.** Guard
 `if (!recipient || !title || !message) return null;` là thứ khiến lỗi gọi sai chữ ký sống sót
-im lặng. Đã sửa chỗ gọi sai, nhưng **chưa sửa cái guard** — lần sau gọi thiếu tham số vẫn sẽ
-im như vậy. Nên cho nó `console.error` hoặc ném lỗi ở `NODE_ENV !== 'production'`.
+im lặng trước đây. Đã sửa chỗ gọi sai (App Admin), và nay guard tự `console.error` kèm các
+tham số nhận được trước khi bỏ qua, nên lần sau gọi thiếu tham số sẽ không còn im lặng.
 
-**`POST /auth/users` trả mật khẩu dạng rõ khi `NODE_ENV=test`.** `emailStatus.preview` chứa
-`plainPassword` để kiểm thử đọc được. Chỉ xảy ra ở chế độ kiểm thử, nhưng không có gì chặn
-ai đó chạy chế độ đó trên môi trường có người thật.
+**`POST /auth/users` từng trả mật khẩu dạng rõ — đã sửa, và phạm vi rộng hơn mô tả ban đầu.**
+`sendUserWelcomeEmail` trả `preview.plainPassword` bất cứ khi nào email đang tắt
+(`config.enabled === false`), không chỉ ở `NODE_ENV=test` như ghi nhận trước đây — mà email
+**mặc định tắt** (xem 10.6) cho tới khi khai báo đủ `SMTP_HOST` + `MAIL_FROM`. Nghĩa là mọi
+cài đặt mới chưa cấu hình SMTP đều lộ mật khẩu rõ trong response `POST /auth/users`, không
+riêng môi trường kiểm thử. Đã sửa bằng cách lọc `plainPassword` khỏi `emailStatus` trước khi
+trả về client, chỉ giữ lại `email` trong `preview`; console log nội bộ (phục vụ đọc thủ công
+khi email mô phỏng) không đổi.
 
-**`POST /auth/users` có thể tạo User mà không có Resource.** Bước tạo `Resource` kèm theo nằm
-trong `try/catch` chỉ ghi console, nên request vẫn trả 201. Người đó sẽ không xuất hiện ở
-`/resources` lẫn trong bài toán phân bổ, mà không có dấu hiệu gì.
+**`POST /auth/users` có thể tạo User mà không có Resource — đã sửa.** Bước tạo `Resource` kèm
+theo trước đây nằm trong `try/catch` chỉ ghi console, nên request vẫn trả 201 dù thiếu
+Resource — người đó sẽ không xuất hiện ở `/resources` lẫn trong bài toán phân bổ mà không có
+dấu hiệu gì. Nay lỗi ở bước này khiến `User` vừa tạo bị xóa lại và request trả **500** thay vì
+201, để không bao giờ để lại User mồ côi Resource. Cùng mẫu try/catch-chỉ-log này còn ở
+`register()` (đăng ký demo doanh nghiệp) — **chưa sửa**, vì đó là luồng tự đăng ký công khai
+đã cấp session ngay sau đó; hủy tài khoản người dùng thật chỉ vì tạo Resource lỗi tạm thời sẽ
+đổi UX theo hướng xấu hơn, cần cân nhắc riêng.
 
-**`POST /tasks/:id/move` không kiểm gì cả.** Không kiểm dự án đích có tồn tại, và không kiểm
-`dependencies` còn hợp lệ sau khi chuyển — chuyển một task sang dự án khác là đủ để nó giữ
-tiền nhiệm thuộc dự án cũ, đúng trường hợp mà `POST /tasks` chặn bằng 400.
+**`POST /tasks/:id/move` không kiểm gì cả — đã sửa.** Trước đây không kiểm dự án đích có tồn
+tại, và không kiểm `dependencies` còn hợp lệ sau khi chuyển — chuyển một task sang dự án khác
+là đủ để nó giữ tiền nhiệm thuộc dự án cũ, đúng trường hợp mà `POST /tasks` chặn bằng 400. Nay
+`targetProjectId` không tồn tại trả 404; và nếu tiền nhiệm hiện có của task sẽ trở thành khác
+dự án (hoặc tự tham chiếu/vòng lặp) sau khi chuyển thì trả 400, dùng chung `validateDependencies`
+với `POST /tasks`. Chưa xử lý chiều ngược lại: các task khác **phụ thuộc vào** task đang
+chuyển (successor) không bị kiểm — chúng có thể trở thành phụ thuộc khác dự án mà không có
+cảnh báo nào, nằm ngoài phạm vi mô tả gốc của mục này.
 
-**`POST /tasks/:id/report-result` để lộ nguyên văn lỗi Mongoose.** Gửi `deliverableLinks`
-dạng mảng chuỗi trả 400 kèm `Cast to embedded failed ... ObjectParameterError` — tiếng Anh,
-lộ tên đường dẫn trong schema. Các ca validate khác trong nhóm này đều có thông báo tiếng
-Việt viết tay.
+**`POST /tasks/:id/report-result` để lộ nguyên văn lỗi Mongoose — đã sửa.** Gửi
+`deliverableLinks` dạng mảng chuỗi trước đây trả 400 kèm
+`Cast to embedded failed ... ObjectParameterError` — tiếng Anh, lộ tên đường dẫn trong schema.
+Nay controller tự kiểm `deliverableLinks`/`attachments` phải là mảng đối tượng (hoặc bỏ trống)
+trước khi gán, trả 400 tiếng Việt nếu không đúng dạng — cùng kiểu chặn sớm như các validate
+khác trong nhóm.
 
-**Xóa mục checklist không đánh lại `order`.** Mục mới lấy `order = checklist.length`, nên sau
-vài lần xóa rồi thêm sẽ có `order` trùng nhau, và thứ tự hiển thị phụ thuộc vào thứ tự mảng
-chứ không vào `order`.
+**Xóa mục checklist không đánh lại `order` — đã sửa.** Mục mới lấy `order = checklist.length`,
+nên trước đây sau vài lần xóa rồi thêm sẽ có `order` trùng nhau, và thứ tự hiển thị phụ thuộc
+vào thứ tự mảng chứ không vào `order`. Nay `DELETE /:id/checklist/:itemId` đánh lại `order`
+của mọi mục còn lại theo đúng vị trí trong mảng ngay sau khi xóa.
 
-**`GET /tasks/summary/stats` là route trùng** với `/tasks/stats/summary`, giữ vì giao diện
-bản cũ còn gọi. Xóa được sau khi rà hết chỗ gọi ở client.
+**`GET /tasks/summary/stats` là route trùng — đã xóa.** Trùng với `/tasks/stats/summary`. Rà
+toàn bộ `client/src` và `e2e` xác nhận không còn chỗ nào gọi route cũ (`taskService.js` chỉ
+gọi `/tasks/stats/summary`), nên đã gỡ khỏi `task.routes.js`.
 
-**Chú thích JSDoc của ba endpoint Excel ghi sai đường dẫn** — `/template-excel`,
+**Chú thích JSDoc của ba endpoint Excel ghi sai đường dẫn — đã sửa** — `/template-excel`,
 `/preview-excel`, `/import-excel` trong khi route thật là `/excel/*`. Không ảnh hưởng chạy,
-nhưng đọc controller sẽ ra đường dẫn không tồn tại.
+nhưng đọc controller sẽ ra đường dẫn không tồn tại; nay `@route` khớp `task.routes.js`.
 
-**`authService.updateAppPermissions` chưa có màn hình nào gọi.** Wrapper đã có ở
-`client/src/services/authService.js`, endpoint đã có guard, nhưng chưa có UI phân quyền theo
-phân hệ.
+**`authService.updateAppPermissions` chưa có màn hình nào gọi — đã sửa, và phát hiện thêm:
+`appPermissions` trước đó không được thực thi ở đâu cả.** Wrapper đã có ở
+`client/src/services/authService.js`, endpoint đã có guard hợp lệ hóa (object, không phải
+mảng), nhưng rà lại toàn bộ server (middleware, mọi controller) và client thì trường
+`User.appPermissions` (`projects`/`tasks`/`calendar`/`optimization`/`reports`, giá trị
+`view`/`manage`) **chỉ được lưu vào DB chứ không route hay middleware nào đọc nó** — không có
+UI thì cũng chẳng khác gì, vì đổi giá trị bằng tay qua API cũng không có tác dụng thật.
+
+Đã hoàn thiện cả hai phần:
+- **Thực thi thật**: middleware `requireAppPermission(moduleKey)` mới trong
+  `middleware/auth.js`, gắn vào `router.use()` của `project.routes.js` (`'projects'`),
+  `task.routes.js` (`'tasks'`), `analytics.routes.js` (`'reports'`) — ngay sau `protect`.
+  GET cần tối thiểu `'view'`, các thao tác ghi cần `'manage'`; thiếu giá trị coi như
+  `'manage'` để không đổi hành vi tài khoản có sẵn trước khi tính năng này tồn tại. `isOwner`
+  luôn đi qua. **Không** gắn cho `'calendar'` (không có route riêng, dùng chung dữ liệu task)
+  lẫn `'optimization'` (đã bị `authorizeApp('optimize')` dựa trên `appAdmins` khóa toàn bộ
+  cho non-admin từ trước — chồng thêm lớp `appPermissions` ở đây sẽ chồng chéo ngữ nghĩa với
+  cơ chế đang chạy tốt đó).
+- **UI**: tab mới "Quyền theo Phân hệ" trong `AppPermissionsTab.jsx` (Cài đặt → Phân quyền
+  Thao tác & Ứng dụng), bảng chọn `Quản lý`/`Chỉ xem`/`Không truy cập` cho ba phân hệ trên
+  theo từng người dùng.
+- **Giao diện tôn trọng quyền**: `AuthContext` có `canViewModule`/`canManageModule` dùng
+  **cùng thang bậc và cùng quy ước mặc định** với `requireAppPermission` ở server. Mức
+  `Chỉ xem` ẩn nút tạo/sửa/xóa ở Dự án và Công việc; mức `Không truy cập` chặn hẳn trang qua
+  `ProtectedRoute module="…"` kèm màn hình giải thích và nút quay về Dashboard. `/dashboard`
+  **không** gắn `module` vì mọi màn hình từ chối đều thoát về đó — chặn nốt là hết đường ra.
+  Lịch và Gantt đi theo phân hệ `tasks` vì cả hai vẽ từ `/api/tasks`.
+- **Kiểm chứng bằng request thật**: `notify-session.test.mjs` thêm ca `projects: view` bị
+  chặn 403 khi tạo dự án (trước đây tài khoản nào cũng tạo được bất kể field này nói gì) và
+  `tasks: none` bị chặn 403 cả khi xem; `e2e/tests/11-app-permissions.spec.js` (3 bài) chốt
+  trọn vòng qua trình duyệt — admin hạ quyền trong Cài đặt → người bị hạ mất nút / bị chặn
+  trang → trả quyền lại thì làm được như cũ.
+
+### Tài khoản khách — hai chữ "guest" và chỗ đứt giữa chúng
+
+Trong dự án có **hai khái niệm "khách" khác nhau**, và trước bản vá này chúng không nối với nhau:
+
+| | Là gì | Tạo ở đâu |
+|---|---|---|
+| `User.isGuest` | Tài khoản cho đối tác ngoài công ty | Cài đặt → Phân quyền Thao tác & Ứng dụng → tab "Tài khoản Khách" |
+| `Project.members[].role === 'guest'` | Vai trò **trong một dự án cụ thể**, quyết định quyền qua `middleware/taskAccess.js` | Trang Chi tiết dự án → tab Thành viên |
+
+Chỗ đứt nằm ở một chữ: enum của `Project.members[].role` **không có `'guest'`**, nên Mongoose
+chặn mọi lần gán. Hệ quả dây chuyền:
+
+- Không ai từng là thành viên vai trò `guest` được.
+- Nhánh `if (memberObj.role === 'guest')` trong `taskAccess.js` là mã chết.
+- Công tắc `permissions.allowGuestCreateTask` — có trong model **và** hiện thành một switch
+  thật trên màn hình Chi tiết dự án — bật hay tắt đều không đổi gì.
+
+Đã thêm `'guest'` vào enum (kèm hai validator ở `project.routes.js`, danh sách chọn vai trò
+và nhãn ở hai file locale). Nay khách được thêm vào dự án với vai trò riêng, mặc định
+**không** tạo được công việc, và công tắc kia mới thật sự điều khiển được điều đó.
+
+Kiểm chứng: `server/tests/hardening.test.mjs`, mục *Vai trò "khách" trong dự án nay dùng
+được* — có cả ca bật lẫn ca tắt. Gỡ `'guest'` khỏi enum thì **4 assertion đỏ**, đã thử để
+chắc bộ test không xanh sẵn.
+
+**Còn lại chưa làm**: `User.isGuest` vẫn chỉ là cái nhãn — tạo tài khoản khách không tự đưa
+họ vào dự án nào, và không tự hạ `appPermissions` của họ xuống mức xem. Người quản trị phải
+tự thêm khách vào dự án rồi chọn vai trò `guest`. Nối tự động hai bước đó là việc riêng, cần
+quyết định sản phẩm (khách mới tạo thì thuộc dự án nào?) chứ không phải sửa lỗi.
 
 ### Khoảng trống kiểm thử đã biết
 
@@ -362,8 +471,24 @@ gọi. Bốn lỗi vừa tìm ra đều sống sót qua 82 bài e2e vì đúng k
 | **Nhật ký kiểm toán cho hành động Admin**: xóa nhân sự, xóa phòng ban, tính lại workload, xóa nhật ký. Riêng thao tác xóa nhật ký được ghi **sau** lệnh xóa nên vết của nó sống sót | |
 | Stack trace chỉ lộ khi `NODE_ENV=development` | |
 | `JWT_SECRET` bắt buộc khi `NODE_ENV=production`, thiếu là không khởi động | |
+| **Phân lập công ty đã rà bằng phép đo trên 24 endpoint** — task, dự án, nhân sự, phòng ban, tối ưu hóa, nhật ký, nhóm việc, việc lặp lại. Chốt cho nhóm task đặt ở `router.param('id')` nên route mới tự được che | `companySetting` không có route theo `:id` (luôn truy vấn bằng `companyName` của người gọi) nên không đo được theo cách này — an toàn do thiết kế chứ không do kiểm chứng |
+| `OptimizationResult` và `ActivityLog` nay có `companyName`, đủ 10/10 model có khóa phân lập | Bản ghi tạo **trước** thay đổi này không có trường đó; chúng được quy về công ty mặc định |
 
 Ngưỡng giới hạn tần suất đặt qua `AUTH_RATE_LIMIT_MAX` / `API_RATE_LIMIT_MAX`.
+
+#### Refresh token cho client không phải trình duyệt
+
+App di động không có kho cookie đáng tin, nên `POST /auth/login|register|refresh` trả refresh
+token **trong body** cho client tự khai báo `X-Client-Type: mobile`.
+
+Đây là nới lỏng có chủ đích và **có giới hạn rõ**: web không khai báo header đó nên không bao
+giờ nhận refresh token trong body — toàn bộ thế phòng thủ trước XSS của web giữ nguyên.
+`refresh-token.test.mjs` có một ca khẳng định đúng điều này, để lần sau ai đó "dọn dẹp" cho
+gọn thì test đỏ ngay.
+
+Đổi lại, trên thiết bị di động refresh token nằm trong `AsyncStorage` — máy bị chiếm quyền
+root thì đọc được. Đây là ranh giới tin cậy khác với trình duyệt, và là cái giá phải trả để
+phiên không chết sau 15 phút.
 
 ## Lỗi đã sửa
 
@@ -381,3 +506,34 @@ Toàn bộ 8 lỗi phát hiện trong đợt rà soát đã được xử lý v�
 | `constants/index.js` | Dead code, enum lạc hậu (`in_review`, thiếu `blocked`) | Sửa khớp server và đưa vào dùng ở Tasks / Projects / GanttChart |
 
 Ghi chú: các bản ghi `OptimizationResult` của CSP tạo **trước** thay đổi này vẫn còn `fitness: 0` trong DB.
+
+## Lỗi của app di động đã sửa
+
+Nhóm lỗi này khác hẳn nhóm ở trên: không lớp test nào **có thể** bắt được, vì cho tới gần đây
+không lớp nào đọc tới `mobile/`. Ba lỗi đầu làm hỏng hẳn tính năng chứ không phải hiển thị sai.
+
+| Vị trí | Lỗi | Hậu quả |
+|--------|-----|---------|
+| `context/AuthContext.js` | Đọc `data.accessToken`; server trả `data.token` | **Đăng nhập luôn thất bại** |
+| `api/authApi.js` | Gọi `PUT /auth/change-password`; route thật là `PUT /auth/password` | Đổi mật khẩu trả 404 |
+| `api/client.js` | Nhánh 401 để trống (`// Optional: Trigger logout or refresh`) | Phiên chết sau 15 phút; app không làm mới, không đá ra, chỉ ngừng tải dữ liệu |
+| `AuthContext.logout` | Không gửi refresh token lên | Server không thu hồi gì; phiên sống tiếp 7 ngày sau khi bấm đăng xuất |
+| `screens/reports/ReportsScreen.js` | Gán cả `{resources, departments, summary}` vào state mảng | `.filter` ném lỗi → **màn Báo cáo chết ngay khi mở** |
+| `ReportsScreen` | Đọc `utilizationRate`, `currentWorkload`, `maxCapacity` | Tên thật là `utilization`, `workload`, `capacity` → mọi con số bằng 0 |
+| `ReportsScreen`, `ResourcesScreen` | `r.department?.name` | `department` là chuỗi → mọi người rơi vào nhóm "Chung" |
+| `ResourcesScreen` | Đọc `item.name`, `item.email` | Tên nằm trong `item.user` → danh sách nhân sự không có tên |
+| `ResourcesScreen` | `capacity = maxCapacity` | Bỏ quên `fte`; người bán thời gian bị tính năng lực gấp đôi |
+| `screens/settings/SettingsScreen.js` | Chỉ phân biệt `admin` với phần còn lại | Quản lý dự án bị hiện là "Thành viên" |
+
+Điểm chung của phần lớn: **sai tên trường hoặc sai đường dẫn**. Không lỗi cú pháp, không cảnh
+báo, không dấu hiệu gì khi đọc mã — chỉ hỏng lúc chạy thật.
+
+### Một lỗi bảo mật lộ ra nhờ việc này
+
+Khi viết bài test cho hợp đồng dữ liệu của màn bình luận trên mobile, bài test dựng thêm một
+công ty thứ hai và phát hiện: `deleteComment` miễn trừ cho **mọi** `role === 'admin'` mà không
+xét cùng công ty, còn `addComment` không kiểm gì cả. Admin công ty B xóa được bình luận trên
+công việc của công ty A, chỉ cần biết id.
+
+Cả hai nay đi qua `belongsToCompany`. Bài học: thêm một client thứ hai buộc phải viết lại hợp
+đồng dữ liệu cho tường minh, và chính lúc viết ra mới thấy chỗ hở đã nằm đó từ lâu.

@@ -279,8 +279,55 @@ function buildWorkloadTrend(tasks = [], resources = [], options = {}) {
   };
 }
 
+/**
+ * Tải theo tuần của MỘT người, suy từ danh sách task đã giao cho họ.
+ *
+ * Đây là phép tính dùng chung cho mọi chỗ cần so tải với `maxCapacity` — vốn là số giờ
+ * mỗi TUẦN. Trước đây mỗi nơi tự cộng lấy: `workload.service.js` cộng trong vòng lặp,
+ * `analytics.controller.js` cộng bằng aggregate của Mongo. Hai bản cài đặt độc lập của
+ * cùng một khái niệm, và chúng khớp nhau chỉ vì **cùng sai một kiểu** (cộng tổng tích lũy
+ * rồi so với năng lực tuần). Sửa một bên là hai trang lệch nhau ngay.
+ *
+ * Trả về `peakWeekHours` (tuần nặng nhất) chứ không phải tuần hiện tại: tuần hiện tại
+ * giấu mất việc đã giao nhưng chưa tới ngày bắt đầu — người sắp gánh 32h vào tuần sau
+ * sẽ hiện "0h, sẵn sàng", đúng lúc không nên giao thêm việc cho họ nhất.
+ *
+ * @param {Object[]} tasks task đã giao (cần estimatedHours/startDate/endDate)
+ * @returns {{ peakWeekHours: number, unscheduledHours: number, weeks: Map<number, number> }}
+ */
+function weeklyLoadOf(tasks = []) {
+  const weeks = new Map();
+  let unscheduledHours = 0;
+
+  for (const task of tasks) {
+    const hours = Number(task.estimatedHours) || 0;
+    const start = task.startDate ? startOfDay(task.startDate) : null;
+    const end = task.endDate ? startOfDay(task.endDate) : null;
+
+    // Cùng quy ước với `buildWorkloadTrend`: không đặt được lên trục thời gian thì
+    // đếm riêng chứ không bỏ đi, và cũng không nhét bừa vào một tuần nào đó.
+    if (!isValidDate(start) || !isValidDate(end) || end < start) {
+      unscheduledHours += hours;
+      continue;
+    }
+
+    // Dựng object tường minh chứ KHÔNG `{...task}`: task ở đây thường là Mongoose
+    // document, mà spread một document chỉ sao ra các thuộc tính nội bộ ($__, _doc…)
+    // chứ không sao ra field — `estimatedHours` sẽ thành undefined và mọi lát cắt
+    // bằng 0 một cách lặng lẽ.
+    for (const slice of spreadTaskHours({ startDate: start, endDate: end, estimatedHours: hours })) {
+      const key = startOfWeek(slice.day).getTime();
+      weeks.set(key, (weeks.get(key) || 0) + slice.hours);
+    }
+  }
+
+  const peakWeekHours = weeks.size ? Math.max(...weeks.values()) : 0;
+  return { peakWeekHours, unscheduledHours, weeks };
+}
+
 module.exports = {
   buildWorkloadTrend,
+  weeklyLoadOf,
   // Xuất riêng để kiểm thử đơn vị từng mảnh, và để chỗ khác dùng lại nếu cần.
   spreadTaskHours,
   dailyCapacity,

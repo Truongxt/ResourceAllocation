@@ -27,6 +27,7 @@ const {
   computeFitness,
   computeMetrics,
   emptyMetrics,
+  weeklyDemandOf,
 } = require('../scoring');
 const {
   dependencyTaskId,
@@ -63,6 +64,7 @@ class CSPSolver {
       return {
         ...this._emptyResult('Một số công việc không có nhân sự phù hợp'),
         infeasibleTasks: prepared.emptyAfterFiltering.map((t) => tasks[t].title || `Task ${t}`),
+        diagnostics: this._explainFailure(tasks, resources),
         solveTime: Date.now() - startTime,
       };
     }
@@ -72,6 +74,7 @@ class CSPSolver {
       return {
         ...this._emptyResult('Ràng buộc quá chặt, không tìm thấy giải pháp'),
         infeasibleTasks: prepared.emptyAfterPropagation.map((t) => tasks[t].title || `Task ${t}`),
+        diagnostics: this._explainFailure(tasks, resources),
         solveTime: Date.now() - startTime,
       };
     }
@@ -82,16 +85,29 @@ class CSPSolver {
     this._iterations = 0;
     this._startTime = startTime;
     const assignment = {};
-    const workloads = {};
-    resources.forEach((r, i) => { workloads[i] = 0; });
+    // Sổ tải theo TUẦN thay vì một con số tổng: xem `_checkCapacityConstraint`.
+    const loads = {};
+    // Khởi tạo bằng tải người đó ĐÃ cam kết ở dự án khác, không phải bằng 0.
+    // Bắt đầu từ 0 khiến mỗi lần chạy tưởng cả đội đang rảnh, và H1 Capacity được
+    // báo "thỏa mãn" trên một bức tranh chỉ đúng một nửa.
+    resources.forEach((r, i) => {
+      const committed = (this._committedLoads && this._committedLoads[i]) || null;
+      loads[i] = {
+        weeks: new Map(committed ? committed.weeks : []),
+        unscheduled: committed ? committed.unscheduled : 0,
+      };
+    });
+    // Nhu cầu theo tuần của từng task tính một lần rồi dùng lại suốt quá trình tìm kiếm.
+    this._demands = tasks.map((task) => weeklyDemandOf(task));
 
-    const result = this._backtrack(assignment, tasks, reducedDomains, resources, workloads);
+    const result = this._backtrack(assignment, tasks, reducedDomains, resources, loads);
 
     const solveTime = Date.now() - startTime;
 
     if (!result) {
       return {
         ...this._emptyResult('Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc'),
+        diagnostics: this._explainFailure(tasks, resources),
         iterations: this._iterations,
         solveTime,
       };
@@ -152,6 +168,10 @@ class CSPSolver {
    * Trả về cả miền ban đầu và số giá trị bị AC-3 cắt, để báo cáo lại được.
    */
   _prepareDomains(tasks, resources) {
+    // Sổ tải mà mỗi nhân sự ĐÃ cam kết ở nơi khác. Tính một lần ở đây để bước lọc
+    // miền, quá trình tìm kiếm và phần chẩn đoán lỗi đều nhìn cùng một con số.
+    this._committedLoads = resources.map((r) => this._committedLoadOf(r));
+
     const conflicts = this._buildDependencyConflicts(tasks);
 
     const initialDomains = this._buildDomains(tasks, resources);
@@ -224,10 +244,44 @@ class CSPSolver {
     return true;
   }
 
-  _checkCapacityConstraint(resourceIdx, resources, workloads, taskHours) {
+  /**
+   * H1: thêm task này vào thì có tuần nào của người đó vượt năng lực TUẦN không.
+   *
+   * Trước đây so `tổng giờ tích lũy + giờ task` với năng lực tuần — một lượng đem
+   * so với một tốc độ, khiến một người không bao giờ nhận quá ~40 giờ cho cả dự án
+   * dù dự án kéo dài bao lâu. Nay chỉ những TUẦN mà task thật sự chạm tới mới bị
+   * kiểm, nên việc trải dài không còn chiếm chỗ của việc khác.
+   */
+  _checkCapacityConstraint(resourceIdx, resources, loads, demand) {
     const resource = resources[resourceIdx];
     const capacity = (resource.maxCapacity || 40) * (resource.fte || 1);
-    return (workloads[resourceIdx] + taskHours) <= capacity;
+    const load = loads[resourceIdx];
+
+    for (const [week, hours] of demand.weeks) {
+      if ((load.weeks.get(week) || 0) + hours > capacity) return false;
+    }
+    // Việc chưa xếp lịch: coi như dồn chung một tuần, để nó không "miễn phí".
+    if (load.unscheduled + demand.unscheduledHours > capacity) return false;
+    return true;
+  }
+
+  /** Cộng/trừ nhu cầu theo tuần vào sổ tải của một resource. */
+  _applyDemand(load, demand, sign) {
+    for (const [week, hours] of demand.weeks) {
+      const next = (load.weeks.get(week) || 0) + sign * hours;
+      if (next <= 0) load.weeks.delete(week);
+      else load.weeks.set(week, next);
+    }
+    load.unscheduled += sign * demand.unscheduledHours;
+  }
+
+  /** Tuần nặng nhất hiện tại của một resource. */
+  _peakOf(load) {
+    let peak = load.unscheduled;
+    for (const hours of load.weeks.values()) {
+      if (hours > peak) peak = hours;
+    }
+    return peak;
   }
 
   // ──────────────────────────────────────────────
@@ -278,10 +332,26 @@ class CSPSolver {
    */
   _nodeConsistency(tasks, domains, resources) {
     return domains.map((domain, t) => {
-      const taskHours = tasks[t].estimatedHours || 1;
+      // So **nhu cầu tuần cao nhất của riêng task này** với năng lực tuần, chứ không
+      // so tổng giờ của nó. Một việc 60h kéo dài 3 tháng chỉ cần ~5h/tuần: so tổng
+      // thì nó bị loại khỏi miền của mọi nhân sự 40h/tuần và miền rỗng ngay từ đầu —
+      // đó chính là nguồn gốc của những lần "miền rỗng phải mở lại" trước đây.
+      const demand = weeklyDemandOf(tasks[t]);
+      const needed = Math.max(demand.peakWeekHours, demand.unscheduledHours);
       return domain.filter((rIdx) => {
         const capacity = (resources[rIdx].maxCapacity || 40) * (resources[rIdx].fte || 1);
-        return taskHours <= capacity;
+        if (needed > capacity) return false;
+
+        // Người đã kín lịch vì việc ở dự án khác phải bị loại ngay từ bước lọc miền.
+        // Để họ lại thì miền vẫn "có ứng viên", backtracking chạy hết rồi mới thất
+        // bại, và kết quả trả về chỉ là câu chung chung "không tìm thấy giải pháp"
+        // thay vì chỉ đúng ra công việc nào kẹt và kẹt vì ai.
+        const committed = this._committedLoads && this._committedLoads[rIdx];
+        if (!committed) return true;
+        for (const [week, hours] of demand.weeks) {
+          if ((committed.weeks.get(week) || 0) + hours > capacity) return false;
+        }
+        return committed.unscheduled + demand.unscheduledHours <= capacity;
       });
     });
   }
@@ -346,7 +416,7 @@ class CSPSolver {
   // ──────────────────────────────────────────────
   // Backtracking with MRV + LCV
   // ──────────────────────────────────────────────
-  _backtrack(assignment, tasks, domains, resources, workloads) {
+  _backtrack(assignment, tasks, domains, resources, loads) {
     this._iterations++;
 
     // Check timeout
@@ -369,13 +439,13 @@ class CSPSolver {
     const varIdx = unassigned[0].t;
 
     // LCV: Order domain values by least constraining
-    const orderedValues = this._orderByLCV(varIdx, domains, resources, workloads, tasks);
+    const orderedValues = this._orderByLCV(varIdx, domains, resources, loads, tasks);
 
     for (const rIdx of orderedValues) {
-      const taskHours = tasks[varIdx].estimatedHours || 1;
+      const demand = this._demands[varIdx];
 
       // Check capacity constraint
-      if (!this._checkCapacityConstraint(rIdx, resources, workloads, taskHours)) {
+      if (!this._checkCapacityConstraint(rIdx, resources, loads, demand)) {
         continue;
       }
 
@@ -386,30 +456,30 @@ class CSPSolver {
 
       // Assign
       assignment[varIdx] = rIdx;
-      workloads[rIdx] += taskHours;
+      this._applyDemand(loads[rIdx], demand, +1);
 
       // Recurse
-      const result = this._backtrack(assignment, tasks, domains, resources, workloads);
+      const result = this._backtrack(assignment, tasks, domains, resources, loads);
       if (result) return result;
 
       // Undo
       delete assignment[varIdx];
-      workloads[rIdx] -= taskHours;
+      this._applyDemand(loads[rIdx], demand, -1);
     }
 
     return null;
   }
 
   // LCV: Order values by how many options they leave for other variables
-  _orderByLCV(varIdx, domains, resources, workloads, tasks) {
-    const taskHours = tasks[varIdx].estimatedHours || 1;
+  _orderByLCV(varIdx, domains, resources, loads, tasks) {
+    // Chỗ trống còn lại tính theo TUẦN NẶNG NHẤT hiện có của mỗi người, cùng đơn vị
+    // với capacity. Xếp người còn nhiều chỗ lên trước để ít ràng buộc các biến sau.
+    const remainingOf = (rIdx) => {
+      const capacity = (resources[rIdx].maxCapacity || 40) * (resources[rIdx].fte || 1);
+      return capacity - this._peakOf(loads[rIdx]);
+    };
 
-    return [...domains[varIdx]].sort((a, b) => {
-      // Prefer resources with more remaining capacity (less constraining)
-      const capA = (resources[a].maxCapacity || 40) * (resources[a].fte || 1) - workloads[a] - taskHours;
-      const capB = (resources[b].maxCapacity || 40) * (resources[b].fte || 1) - workloads[b] - taskHours;
-      return capB - capA; // Higher remaining capacity first
-    });
+    return [...domains[varIdx]].sort((a, b) => remainingOf(b) - remainingOf(a));
   }
 
   // ──────────────────────────────────────────────
@@ -435,24 +505,39 @@ class CSPSolver {
   // Validate all constraints on final solution
   // ──────────────────────────────────────────────
   _validateConstraints(assignment, tasks, resources) {
-    const workloads = {};
-    resources.forEach((_, i) => { workloads[i] = 0; });
+    // Báo cáo theo TUẦN NẶNG NHẤT, cùng đơn vị với capacity — trước đây cộng tổng
+    // giờ rồi so với năng lực tuần nên gần như ai cũng bị báo "vượt".
+    const loads = {};
+    // Cùng điểm xuất phát với search: lệch nhau thì báo cáo ràng buộc sẽ nói
+    // "thỏa mãn" trong khi search lại tính trên một mức tải khác.
+    resources.forEach((r, i) => {
+      const committed = (this._committedLoads && this._committedLoads[i]) || null;
+      loads[i] = {
+        weeks: new Map(committed ? committed.weeks : []),
+        unscheduled: committed ? committed.unscheduled : 0,
+      };
+    });
 
     const satisfied = [];
     const violated = [];
 
     Object.entries(assignment).forEach(([tIdx, rIdx]) => {
-      const task = tasks[parseInt(tIdx)];
-      workloads[rIdx] += task.estimatedHours || 1;
+      this._applyDemand(loads[rIdx], weeklyDemandOf(tasks[parseInt(tIdx)]), +1);
     });
 
     // Check capacity for each resource
     resources.forEach((r, i) => {
       const capacity = (r.maxCapacity || 40) * (r.fte || 1);
-      if (workloads[i] <= capacity) {
-        satisfied.push({ type: 'capacity', subject: r.userName || r.position, detail: `${workloads[i]}/${capacity}h` });
+      const peak = Math.round(this._peakOf(loads[i]) * 10) / 10;
+      const detail = `${peak}/${capacity}h mỗi tuần`;
+      if (peak <= capacity) {
+        satisfied.push({ type: 'capacity', subject: r.userName || r.position, detail });
       } else {
-        violated.push({ type: 'capacity', subject: r.userName || r.position, detail: `${workloads[i]}/${capacity}h (vượt ${Math.round(workloads[i] - capacity)}h)` });
+        violated.push({
+          type: 'capacity',
+          subject: r.userName || r.position,
+          detail: `${detail} (vượt ${Math.round(peak - capacity)}h)`,
+        });
       }
     });
 
@@ -488,6 +573,78 @@ class CSPSolver {
     });
 
     return { satisfied: satisfied.length, violated: violated.length, details: { satisfied, violated } };
+  }
+
+  /**
+   * Sổ tải theo tuần của phần việc nhân sự đã nhận ở nơi khác (ngoài lần chạy này).
+   * Cùng cấu trúc với `loads` trong `solve()` để hai bên cộng trừ như nhau.
+   */
+  _committedLoadOf(resource) {
+    const load = { weeks: new Map(), unscheduled: 0 };
+    for (const task of (resource && resource.committedTasks) || []) {
+      this._applyDemand(load, weeklyDemandOf(task), +1);
+    }
+    return load;
+  }
+
+  /**
+   * Vì sao không xếp được — viết ra bằng lời cho người dùng đọc.
+   *
+   * "Không tìm thấy giải pháp" là một câu đúng nhưng vô dụng: người dùng không biết
+   * nên tuyển thêm người, dời hạn, hay hạ yêu cầu kỹ năng. Hàm này chỉ ra ai đã kín
+   * chỗ và mỗi công việc kẹt vì thiếu bao nhiêu giờ hoặc thiếu kỹ năng gì.
+   */
+  _explainFailure(tasks, resources) {
+    const lines = [];
+    const nameOf = (r, i) => r.userName || r.position || `Nhân sự ${i + 1}`;
+    const round1 = (n) => Math.round(n * 10) / 10;
+    const capOf = (r) => (r.maxCapacity || 40) * (r.fte || 1);
+
+    // Ai đang bận sẵn vì việc ở nơi khác
+    resources.forEach((r, i) => {
+      const committed = this._committedLoads && this._committedLoads[i];
+      if (!committed) return;
+      const peak = this._peakOf(committed);
+      if (peak <= 0) return;
+      const capacity = capOf(r);
+      const left = round1(capacity - peak);
+      lines.push(
+        `${nameOf(r, i)} đã nhận ${round1(peak)}h/${capacity}h mỗi tuần từ công việc ở dự án khác` +
+        (left > 0 ? `, chỉ còn trống ${left}h.` : ', không còn giờ trống.')
+      );
+    });
+
+    // Từng công việc vướng ở đâu
+    tasks.forEach((task, t) => {
+      const demand = weeklyDemandOf(task);
+      const needed = round1(Math.max(demand.peakWeekHours, demand.unscheduledHours));
+      const blockers = [];
+
+      resources.forEach((r, i) => {
+        const capacity = capOf(r);
+        if (computeSkillMatch(task, r) < this.minSkillMatchThreshold) {
+          blockers.push(`${nameOf(r, i)} không đạt yêu cầu kỹ năng`);
+          return;
+        }
+        const committed = this._committedLoads && this._committedLoads[i];
+        let shortfall = 0;
+        for (const [week, hours] of demand.weeks) {
+          const total = ((committed && committed.weeks.get(week)) || 0) + hours;
+          if (total - capacity > shortfall) shortfall = total - capacity;
+        }
+        if (shortfall > 0) blockers.push(`${nameOf(r, i)} thiếu ${round1(shortfall)}h năng lực tuần`);
+      });
+
+      // Chỉ báo những việc mà KHÔNG ai nhận nổi — việc còn ứng viên thì không phải nút thắt.
+      if (resources.length > 0 && blockers.length === resources.length) {
+        lines.push(
+          `Công việc "${task.title || `Task ${t + 1}`}" cần ${needed}h trong tuần cao điểm — ` +
+          `không ai nhận được: ${blockers.join('; ')}.`
+        );
+      }
+    });
+
+    return lines;
   }
 
   _emptyResult(message) {

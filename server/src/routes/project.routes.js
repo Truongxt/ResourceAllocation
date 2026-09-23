@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, requireAppPermission } = require('../middleware/auth');
 const {
   getProjects,
   getProjectById,
@@ -119,7 +119,7 @@ const memberValidation = [
   body('user').notEmpty().withMessage('Thành viên là bắt buộc').isMongoId().withMessage('ID thành viên không hợp lệ'),
   body('role')
     .optional()
-    .isIn(['lead', 'developer', 'designer', 'tester', 'devops'])
+    .isIn(['lead', 'developer', 'designer', 'tester', 'devops', 'guest'])
     .withMessage('Vai trò thành viên không hợp lệ'),
   body('allocation')
     .optional()
@@ -130,7 +130,7 @@ const memberValidation = [
 const updateMemberValidation = [
   body('role')
     .optional()
-    .isIn(['lead', 'developer', 'designer', 'tester', 'devops'])
+    .isIn(['lead', 'developer', 'designer', 'tester', 'devops', 'guest'])
     .withMessage('Vai trò thành viên không hợp lệ'),
   body('allocation')
     .optional()
@@ -139,6 +139,7 @@ const updateMemberValidation = [
 ];
 
 router.use(protect);
+router.use(requireAppPermission('projects'));
 
 router.get('/stats/summary', getProjectSummary);
 router.get('/', listValidation, validate, getProjects);

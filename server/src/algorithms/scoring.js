@@ -14,6 +14,8 @@
  *     sẽ thổi phồng utilization và khiến thuật toán né những người thực ra đang rảnh.
  */
 
+const { weeklyLoadOf } = require('../analytics/workloadTrend');
+
 const DEFAULT_WEIGHTS = {
   workloadBalance: 0.30,
   skillMatch: 0.35,
@@ -80,6 +82,61 @@ function computeWorkloads(solution, tasks, numResources) {
 }
 
 /**
+ * Nhu cầu theo tuần của MỘT task: `{ weeks: Map(mốc tuần → giờ), unscheduledHours }`.
+ *
+ * Dùng `effortOf` chứ không đọc thẳng `estimatedHours` để giữ đúng quy ước của
+ * module này: task không khai giờ được tính là 1 giờ, nếu không nó sẽ tàng hình
+ * trước mọi ràng buộc capacity.
+ */
+function weeklyDemandOf(task) {
+  return weeklyLoadOf([
+    { startDate: task.startDate, endDate: task.endDate, estimatedHours: effortOf(task) },
+  ]);
+}
+
+/**
+ * Tải tuần cao điểm của từng resource trong một lời giải.
+ *
+ * **Vì sao không dùng tổng giờ:** `capacityOf` là năng lực mỗi TUẦN. Đem tổng giờ
+ * tích lũy so với nó là so một lượng với một tốc độ — hệ quả là một người không bao
+ * giờ được giao quá ~40 giờ cho cả dự án, dù dự án dài 6 tháng. Với backlog thật thì
+ * mọi nhân sự đều vượt ngưỡng nên mục tiêu "phạt quá tải" bão hòa và thôi phân biệt
+ * được phương án tốt với phương án xấu.
+ *
+ * Việc chưa xếp lịch không trải lên trục thời gian được; coi như nó dồn vào một tuần
+ * là mức sàn bảo thủ, để việc thiếu ngày không trở thành "miễn phí" với thuật toán.
+ */
+function computePeakLoads(solution, tasks, numResources, resources = []) {
+  const byResource = Array.from({ length: numResources }, () => []);
+
+  // Việc người đó ĐÃ nhận ở **dự án khác** phải được tính vào tải ngay từ đầu.
+  //
+  // Trước đây mỗi lần chạy đều coi cả đội đang rảnh hoàn toàn, nên tối ưu cho dự án
+  // A giao 30h rồi tối ưu cho dự án B lại giao thêm cho đúng người đó — cả hai lần
+  // đều báo "không quá tải". Đo trên dữ liệu thật: một nhân sự đang gánh 32.1h/40h
+  // vẫn bị thuật toán nhìn thành 28.5h/40h rồi giao thêm việc, thành 60.6h/40h,
+  // tức 152% năng lực, và chỉ lộ ra sau khi đã bấm Áp dụng.
+  for (let i = 0; i < numResources; i++) {
+    const committed = resources[i] && resources[i].committedTasks;
+    if (committed && committed.length) byResource[i].push(...committed);
+  }
+
+  for (let t = 0; t < solution.length; t++) {
+    const r = solution[t];
+    if (r === undefined || r === null) continue;
+    byResource[r].push({
+      startDate: tasks[t].startDate,
+      endDate: tasks[t].endDate,
+      estimatedHours: effortOf(tasks[t]),
+    });
+  }
+  return byResource.map((list) => {
+    const { peakWeekHours, unscheduledHours } = weeklyLoadOf(list);
+    return Math.max(peakWeekHours, unscheduledHours);
+  });
+}
+
+/**
  * Fitness tổng hợp 4 mục tiêu, thang 0..1:
  *   F = w₁·f_workload + w₂·f_skill + w₃·f_cost + w₄·f_overalloc
  */
@@ -108,10 +165,11 @@ function computeFitness(solution, tasks, resources, skillMatrix, maxCost, weight
   }
   const fCost = maxCost > 0 ? Math.max(0, 1 - totalCost / maxCost) : 1;
 
-  // 4. Phạt quá tải
+  // 4. Phạt quá tải — so tải tuần cao điểm với năng lực TUẦN, cùng đơn vị
+  const peakLoads = computePeakLoads(solution, tasks, numResources, resources);
   let overallocated = 0;
   for (let r = 0; r < numResources; r++) {
-    if (workloads[r] > capacityOf(resources[r])) overallocated++;
+    if (peakLoads[r] > capacityOf(resources[r])) overallocated++;
   }
   const fOveralloc = 1 - overallocated / numResources;
 
@@ -142,18 +200,24 @@ function computeMetrics(solution, tasks, resources, skillMatrix) {
     totalCost += (resources[solution[t]].hourlyRate || 0) * effortOf(tasks[t]);
   }
 
+  // `workload` ở đây là tải tuần cao điểm để `workload / capacity = utilization`
+  // luôn đúng — cả ba cùng đơn vị giờ/tuần. Tổng giờ cả kỳ vẫn giữ ở `totalHours`
+  // vì nó là con số hữu ích khác, chỉ là không đem so với năng lực tuần được.
+  const peakLoads = computePeakLoads(solution, tasks, numResources, resources);
   let overallocated = 0;
   const resourceUtilization = resources.map((r, i) => {
     const capacity = capacityOf(r);
-    const util = capacity > 0 ? Math.round((workloads[i] / capacity) * 100) : 0;
-    if (workloads[i] > capacity) overallocated++;
+    const peak = peakLoads[i];
+    const util = capacity > 0 ? Math.round((peak / capacity) * 100) : 0;
+    if (peak > capacity) overallocated++;
     return {
       resource: r._id,
       name: r.userName || r.position,
-      workload: Math.round(workloads[i] * 10) / 10,
+      workload: Math.round(peak * 10) / 10,
+      totalHours: Math.round(workloads[i] * 10) / 10,
       capacity,
       utilization: util,
-      isOverloaded: workloads[i] > capacity,
+      isOverloaded: peak > capacity,
     };
   });
 
@@ -189,6 +253,8 @@ module.exports = {
   buildSkillMatrix,
   computeMaxCost,
   computeWorkloads,
+  computePeakLoads,
+  weeklyDemandOf,
   computeFitness,
   computeMetrics,
   emptyMetrics,

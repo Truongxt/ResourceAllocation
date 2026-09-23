@@ -128,10 +128,22 @@ Constraints: C = {c₁, c₂, ..., cₖ}   (ràng buộc)
 
 | # | Constraint | Mô tả | Cách kiểm tra trong code |
 |---|-----------|-------|--------------------------|
-| H1 | Capacity | Tổng workload ≤ max capacity | `workload[r] + effort(t) ≤ C[r] × FTE` — kiểm tra khi gán trong backtracking |
+| H1 | Capacity | Tải **mỗi tuần** ≤ năng lực tuần | `∀ tuần w: load[r][w] + effort(t, w) ≤ C[r] × FTE` — giờ của task được trải lên ngày làm việc rồi gom theo tuần; chỉ những tuần task thật sự chạm tới mới bị kiểm. Xem ghi chú bên dưới |
 | H2 | Skill | Điểm khớp kỹ năng đạt ngưỡng | `skill_match(t, r) ≥ minSkillMatchThreshold` (mặc định **0.5**) |
 | H3 | Availability | Resource khả dụng trong kỳ | `availability ≠ 'unavailable'` và khoảng thời gian task **không giao** với `unavailablePeriods`. Biên **đóng**: kỳ nghỉ kết thúc đúng ngày task bắt đầu vẫn tính là bận. Nhập lịch nghỉ ở trang Nhân sự → nút lịch → "Lịch nghỉ" |
 | H4 | Dependency | Hai task phụ thuộc nhau mà lịch chồng nhau thì không cùng người | `assignment[tₐ] ≠ assignment[tᵦ]` khi `(tₐ, tᵦ)` có quan hệ phụ thuộc và `start(tₐ) < end(tᵦ) ∧ start(tᵦ) < end(tₐ)` |
+
+> ⚠️ **H1 đo theo tuần, không theo tổng giờ cả kỳ.** `C[r]` là số giờ **mỗi tuần**
+> (`maxCapacity × fte`), nên thứ đem so với nó cũng phải là giờ mỗi tuần. Trước đây H1 cộng
+> dồn `estimatedHours` của mọi task đã gán rồi so với `C[r]` — một lượng tích lũy đem so với
+> một tốc độ. Hệ quả: một người không bao giờ nhận nổi quá ~40 giờ cho **cả dự án** dù dự án
+> dài 6 tháng, và mục tiêu "phạt quá tải" luôn bằng 0 nên 20% trọng số fitness thành trọng số
+> chết. Đo lại trên cùng một lời giải của bộ benchmark 30 việc / 6 người: cách cũ báo **6/6**
+> người quá tải (đỉnh tuần thật chỉ 25–40h so với năng lực 40h), cách mới báo **0/6**.
+>
+> Việc **chưa xếp lịch** (thiếu ngày) không trải lên trục thời gian được nên được coi như dồn
+> vào một tuần — mức sàn bảo thủ, để việc thiếu ngày không thành "miễn phí" với thuật toán.
+> Nhờ vậy dữ liệu không có ngày vẫn hành xử đúng như trước.
 
 > ⚠️ **H2 là ràng buộc ngưỡng tổng hợp, không phải ràng buộc từng kỹ năng.**
 > Code dùng cùng công thức có trọng số ở mục 1.3 rồi so với `minSkillMatchThreshold`.
@@ -197,7 +209,7 @@ Luồng thực tế trong `CSPSolver.solve()`:
      if |assignment| = |tasks|: return assignment
      var ← MRV(unassigned)
      for r in LCV(Dvar):
-         if workload[r] + effort(var) ≤ capacity[r]        // H1
+         if ∀w ∈ tuần(var): load[r][w] + effort(var, w) ≤ capacity[r]   // H1
             ∧ ∀j ∈ conflicts[var]: assignment[j] ≠ r:      // H4
              assign; recurse; nếu thất bại thì undo
      return failure

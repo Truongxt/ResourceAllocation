@@ -99,6 +99,7 @@ Dùng chế độ này khi chạy trên CI, hoặc khi thấy lỗi treo/crash k
 | Phân quyền | `08-permissions.spec.js` | Sidebar giấu đúng mục theo vai trò, **và** gõ thẳng URL vào trang cấm thì bị chặn tại chỗ chứ không bị đá về `/login` |
 | Tùy chọn hiển thị | `09-preferences.spec.js` | Đổi ngôn ngữ và giao diện sáng/tối có **sống sót qua F5** không; tìm kiếm toàn cục |
 | Realtime | `10-realtime.spec.js` | Hai trình duyệt cùng lúc: admin giao việc → member thấy chuông nhảy số mà không tải lại trang |
+| Quyền theo phân hệ | `11-app-permissions.spec.js` | Hai trình duyệt cùng lúc: admin hạ quyền "Dự án" của PM xuống **Chỉ xem** trong Cài đặt → PM xem được nhưng tạo dự án thì bị chặn → trả quyền lại thì tạo được ngay |
 
 Đánh số ở tên file là **thứ tự chạy**, không phải thứ tự phụ thuộc. Bộ `01` đứng đầu vì mọi
 bộ khác đều bắt đầu bằng `login()`: đường vào hỏng thì phải thấy nó hỏng ở đúng một chỗ, chứ

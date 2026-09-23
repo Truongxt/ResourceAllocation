@@ -150,8 +150,27 @@ cookie `rao_refresh`.
 
 Client phải gửi kèm cookie (`withCredentials: true`) khi gọi nhóm `/api/auth`.
 
+#### Client không phải trình duyệt
+
+App di động không có kho cookie đáng tin (axios trong React Native giữ `Set-Cookie` khác nhau
+giữa iOS và Android), nên nó khai báo header:
+
+```
+X-Client-Type: mobile
+```
+
+Khi có header này, `login`, `register`, `refresh` và `PUT /auth/password` trả thêm
+`data.refreshToken` trong body, và `refresh`/`logout` chấp nhận `{ "refreshToken": "..." }`
+trong body thay cho cookie.
+
+Đây là đường **opt-in**: không khai báo header thì body bị bỏ qua hoàn toàn và không nhận
+được refresh token — nên web giữ nguyên thế phòng thủ cũ. Client dùng đường này **bắt buộc
+phải lưu lại giá trị mới sau mỗi lần làm mới**, vì token cũ chết ngay lúc đó; trình lại nó là
+bị xử như tái sử dụng và mất cả chuỗi.
+
 ### POST `/api/auth/refresh`
-Không có request body — token nằm trong cookie.
+Không có request body với web — token nằm trong cookie. Client di động gửi
+`{ "refreshToken": "..." }` kèm header `X-Client-Type: mobile`.
 
 ```json
 // Response 200 — cookie rao_refresh được thay bằng giá trị MỚI (xoay vòng)
@@ -248,12 +267,10 @@ Query filter: `role`, `department`, `isActive` (`'true'`/`'false'` dạng chuỗ
 (quét `name`, `email`, `phone`, `jobTitle`).
 
 **Phân lập theo công ty áp cho toàn nhóm quản trị**: mọi endpoint `/users/:id/*` trả **403**
-nếu tài khoản đích thuộc công ty khác. Tài khoản không có `companyName` được coi là thuộc
-`Công ty Công nghệ RAO`.
-
-Ngoại lệ đã biết: `GET /guests` **không** lọc theo công ty — nó trả mọi tài khoản có
-`isGuest: true` trên toàn hệ thống. `PUT /users/:id/special-grants` và
-`PUT /users/:id/app-admin` cũng không kiểm tra công ty, chỉ kiểm vai trò.
+nếu tài khoản đích thuộc công ty khác, gồm cả `PUT /users/:id/special-grants` và
+`PUT /users/:id/app-admin`. Tài khoản không có `companyName` được coi là thuộc
+`Công ty Công nghệ RAO`. `GET /guests` cũng chỉ trả tài khoản khách cùng công ty với người
+gọi.
 
 ### POST `/api/auth/users`
 ```json
@@ -267,13 +284,14 @@ Ba tác dụng phụ đáng biết trước khi gọi:
 
 1. **Mật khẩu mặc định là `123456`** nếu không gửi `password`.
 2. **Tự tạo kèm một `Resource`** (`employeeId` sinh tự động, `maxCapacity: 40`, `fte: 1.0`).
-   Lỗi ở bước này chỉ ghi console, không làm request thất bại — nên có thể có User mà không
-   có Resource.
+   Lỗi ở bước này khiến toàn bộ request thất bại: `User` vừa tạo bị xóa lại và trả **500**,
+   thay vì âm thầm để lại User không có Resource.
 3. **Gửi email chứa mật khẩu** cho người mới. Kết quả nằm ở `data.emailStatus`.
 
-Ở `NODE_ENV=test` email bị tắt và `emailStatus` trả `{ sent: false, simulated: true, preview: { email, plainPassword } }`
-— **response chứa mật khẩu dạng rõ**. Chỉ xảy ra ở chế độ kiểm thử, nhưng đừng bật chế độ đó
-trên môi trường có người thật.
+Khi email đang tắt (mặc định, hoặc `NODE_ENV=test`), `emailStatus` trả
+`{ sent: false, simulated: true, preview: { email } }` — **đã lọc `plainPassword` khỏi
+response**. Mật khẩu khởi tạo chỉ còn hiện ở console log phía server (phục vụ đọc thủ công
+khi email đang mô phỏng), không còn trả về client.
 
 ### Thang phân quyền: Admin không phải cấp cao nhất
 
@@ -318,13 +336,33 @@ hợp A→B→C→A. Không có nó thì cây tổ chức trên giao diện sẽ
 
 ### PUT `/api/auth/users/:id/app-permissions`
 ```json
-{ "appPermissions": { "projects": "manage", "tasks": "manage", "calendar": "view" } }
+{ "appPermissions": { "projects": "manage", "tasks": "view", "reports": "none" } }
 ```
 
 Phải là **object** dạng `{ phân_hệ: quyền }`. Mảng, `null` hay chuỗi đều trả **400**. Field
 này khai báo `type: Object` nên Mongoose sẵn sàng nhận một mảng — lưu được thì giao diện đọc
 `appPermissions.projects` ra `undefined` và người dùng mất quyền mà không có lỗi nào chỉ ra
-vì sao. Ràng buộc nằm ở controller chứ không ở schema.
+vì sao. Ràng buộc nằm ở controller chứ không ở schema. Khóa phân hệ chỉ nhận
+`projects`/`tasks`/`calendar`/`optimization`/`reports`; giá trị chỉ nhận
+`none`/`view`/`manage` — sai một trong hai trả **400**.
+
+**Có thực thi thật, không chỉ lưu trữ.** Middleware `requireAppPermission(moduleKey)`
+(`middleware/auth.js`) gắn vào `router.use()` ngay sau `protect` của ba route:
+
+| Route | `moduleKey` |
+|-------|-------------|
+| `project.routes.js` (mọi endpoint `/api/projects/*`) | `projects` |
+| `task.routes.js` (mọi endpoint `/api/tasks/*`) | `tasks` |
+| `analytics.routes.js` (mọi endpoint `/api/analytics/*`, trang Báo cáo) | `reports` |
+
+GET cần tối thiểu `view`; POST/PUT/PATCH/DELETE cần `manage` — thiếu cả hai trả **403**.
+Không set giá trị cho `moduleKey` (tài khoản tạo trước khi middleware này tồn tại) được coi
+như `manage`, và `isOwner` luôn đi qua bất kể `appPermissions` của chính họ ghi gì.
+
+`calendar` và `optimization` **không** bị gắn middleware này: `calendar` không có route
+riêng (dùng chung dữ liệu `/api/tasks`); `optimization` đã bị `authorizeApp('optimize')`
+(dựa trên `User.appAdmins`, khác field) khóa toàn bộ cho non-admin từ trước — set
+`appPermissions.optimization` không có tác dụng gì thêm.
 
 ### PUT `/api/auth/users/:id/status`
 ```json
@@ -362,12 +400,21 @@ Bảng này **mô tả** quyền, không **thi hành** quyền. Nơi thi hành l
 
 ### POST `/api/auth/guests`
 ```json
-{ "name": "Khách A", "email": "khach.a@doitac.com", "password": "...", "companyName": "..." }
+{ "name": "Khách A", "email": "khach.a@doitac.com", "password": "...", "guestCompany": "..." }
 ```
 Thiếu bất kỳ trong ba field đầu → **400**. Email đã dùng → **400**. Tài khoản khách được đặt
 cứng `role: 'member'`, `isGuest: true`, `department: 'Đối tác / Khách mời'`,
-`jobTitle: 'Khách mời dự án (Guest)'`, `companyName` mặc định `Khách hàng đối tác`.
-Response trả `data.guest` (không phải `data.user`).
+`jobTitle: 'Khách mời dự án (Guest)'`. Response trả `data.guest` (không phải `data.user`).
+
+**Hai field công ty, hai vai trò khác nhau** — đừng nhầm:
+
+| Field | Nghĩa | Ai đặt |
+|-------|-------|--------|
+| `companyName` | Công ty **chủ quản** — khóa phân lập tenant, quyết định ai còn nhìn thấy tài khoản này | Server đặt bằng công ty của người gọi, **không** nhận từ body |
+| `guestCompany` | Tên tổ chức đối tác, **chỉ để hiển thị** | Lấy từ body, mặc định `Khách hàng đối tác` |
+
+Trước đây tên đối tác bị ghi thẳng vào `companyName`, nên khách không khớp công ty của ai
+cả — kể cả công ty vừa tạo ra nó cũng không thấy nó trong `GET /guests`.
 
 ---
 
@@ -387,6 +434,12 @@ Response trả `data.guest` (không phải `data.user`).
 
 **Query filter cho `GET /`**: `status`, `priority`, `manager`, `search` (tìm trong name/code/description),
 `startDate`, `endDate` (lọc theo `startDate` của dự án), `page`, `limit`, `sort`.
+
+**Vai trò thành viên** (`role` của `POST`/`PUT /:id/members`): `lead`, `developer`,
+`designer`, `tester`, `devops`, `guest` — mặc định `developer`, giá trị khác trả **400**.
+Riêng `guest` dành cho tài khoản đối tác: quyền tạo công việc của họ đi theo
+`permissions.allowGuestCreateTask` (mặc định `false`) chứ không theo
+`permissions.allowMembersCreateTasks` như các vai trò còn lại.
 
 ### POST `/api/projects`
 ```json
@@ -430,10 +483,6 @@ Nhóm lớn nhất — **30 endpoint**. Mọi endpoint đều 🔒; cột Auth d
 | PATCH | `/:id/status` | Đổi nhanh status (Kanban drag & drop) | 📋 PM+ hoặc người được giao |
 | DELETE | `/:id` | Xóa task | 📋 PM+ |
 | GET | `/stats/summary` | Thống kê task | — |
-| GET | `/summary/stats` | Bí danh của endpoint trên² | — |
-
-² Hai đường dẫn khác nhau trỏ cùng một handler. Giữ cả hai vì phiên bản giao diện cũ gọi
-đường còn lại; dùng `/stats/summary` cho code mới.
 
 ### 3.2. Vòng đời công việc (Base Wework)
 
@@ -472,9 +521,7 @@ Nhóm lớn nhất — **30 endpoint**. Mọi endpoint đều 🔒; cột Auth d
 | GET | `/reassign-preview` | Xem trước tập việc sẽ bàn giao | 📋 PM+ |
 | POST | `/bulk-reassign` | Bàn giao hàng loạt | 📋 PM+ |
 
-Ba endpoint Excel nhận `multipart/form-data`, field file tên **`file`**. Chú thích JSDoc
-trong controller ghi `/template-excel`, `/preview-excel`, `/import-excel` — **sai**; đường
-dẫn thật là `/excel/*` như bảng trên.
+Ba endpoint Excel nhận `multipart/form-data`, field file tên **`file`**.
 
 ¹ **Người được giao việc** (`assignee`) sửa được task của chính mình, nhưng chỉ ba trường
 `status`, `progress`, `actualHours`. Gửi kèm bất kỳ trường nào khác → **403** kèm danh sách
@@ -609,9 +656,9 @@ field tính thêm:
 ```
 
 `deliverableLinks` và `attachments` là mảng **object**, không phải mảng chuỗi. Gửi
-`["https://..."]` trả **400** kèm nguyên văn lỗi Mongoose
-(`Cast to embedded failed ... ObjectParameterError`) — thông báo không dịch, vì đây là lỗi
-cast của schema chứ không phải một ca validate được viết tay.
+`["https://..."]` trả **400** với thông báo tiếng Việt viết tay
+(`"deliverableLinks phải là mảng đối tượng dạng { title, url }"`), chặn trước khi chạm tới
+Mongoose — trước đây lọt xuống tận lớp cast và lộ nguyên văn lỗi tiếng Anh của schema.
 
 `markAsDone: true` đi qua đúng luồng đánh giá của dự án như `PATCH /:id/complete`: dự án bật
 đánh giá thì việc chỉ tới `review`, không tự nhảy sang `done`. Để nguyên đường vòng cũ thì ai
@@ -642,9 +689,11 @@ mọi mục checklist `isCompleted: false`. Giữ nguyên `assignee`, `followers
 
 **Việc con được nhân bản theo** và trỏ vào bản sao mới, mỗi cái cũng thêm hậu tố `(Bản sao)`.
 
-`POST /:id/move` chỉ đổi `project` và/hoặc `taskGroup`, rồi **kéo việc con theo cùng**. Gửi
-`targetTaskGroupId: null` để bỏ task ra khỏi nhóm. Endpoint này **không** kiểm tra dự án đích
-có tồn tại hay `dependencies` có còn hợp lệ sau khi chuyển.
+`POST /:id/move` đổi `project` và/hoặc `taskGroup`, rồi **kéo việc con theo cùng**. Gửi
+`targetTaskGroupId: null` để bỏ task ra khỏi nhóm. `targetProjectId` không tồn tại trả 404;
+nếu tiền nhiệm hiện có của task sẽ thuộc dự án khác (hoặc tạo tự phụ thuộc/vòng lặp) sau khi
+chuyển thì trả 400 — gỡ tiền nhiệm trước khi chuyển dự án. Chưa kiểm chiều ngược lại: các task
+**phụ thuộc vào** task đang chuyển không được cập nhật hay chặn.
 
 ### GET `/api/tasks/reminders`
 Chỉ lấy việc **giao cho chính người gọi**, có `endDate`, và chưa `done`. Trả bốn tập
@@ -679,6 +728,10 @@ Bình luận **gửi thông báo** cho `assignee` và toàn bộ `followers`, tr
 
 `DELETE /:id/comments/:commentId` chỉ cho tác giả hoặc `admin` — người khác nhận **403**
 `Bạn chỉ được xóa bình luận của mình`. PM **không** xóa được bình luận của người khác.
+
+Cả hai endpoint đều kiểm **cùng công ty** trước: công việc thuộc công ty khác → **403**, kể cả
+với `admin`. Trước bản vá, điều kiện miễn trừ chỉ xét `role === 'admin'` nên admin công ty B
+xóa được bình luận trên công việc của công ty A, còn `addComment` thì không kiểm gì cả.
 
 ```json
 // POST /:id/checklist
@@ -1109,6 +1162,7 @@ Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
     "resources": [
       { "_id": "...", "name": "...", "department": "...", "position": "...",
         "capacity": 40, "workload": 32, "utilization": 80, "taskCount": 3,
+        "unscheduledWorkload": 6,    // giờ đã giao nhưng chưa có ngày — KHÔNG nằm trong workload
         "availability": "available", "isOverloaded": false,
         "burnoutRisk": "low",        // >120% = 'high', >90% = 'medium', còn lại 'low'
         "skillCount": 5 }
@@ -1119,6 +1173,12 @@ Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
 }
 ```
 > Field là `summary.highBurnout` (không phải `highBurnoutRisk`).
+>
+> `workload` là giờ của **tuần cao điểm**, cùng đơn vị với `capacity` (giờ/tuần) — không phải
+> tổng giờ cả kỳ. `department` là **chuỗi**, không phải object.
+>
+> `unscheduledWorkload` tách riêng vì việc chưa có ngày không rơi vào tuần nào. Bỏ qua nó thì
+> phần việc đó biến mất khỏi báo cáo và tải trông nhẹ hơn thực tế.
 
 ### GET `/api/analytics/workload-trend`
 

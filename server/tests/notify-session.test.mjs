@@ -150,6 +150,40 @@ S('appPermissions chỉ nhận object');
     asObject.data?.user?.appPermissions?.projects === 'view',
     'Quyền lưu đúng dạng đọc được theo phân hệ'
   );
+
+  const badLevel = await call('PUT', `/auth/users/${followerId}/app-permissions`, {
+    token: TOK.admin,
+    body: { appPermissions: { projects: 'edit' } },
+  });
+  ok(badLevel.status === 400, 'Mức quyền không nằm trong none/view/manage bị từ chối 400');
 }
 
-summary();
+S('appPermissions thực thi thật trên route (requireAppPermission)');
+{
+  // follower đang có projects: 'view' từ ca trên. 'view' đọc được nhưng không
+  // được tạo/sửa — trước khi có requireAppPermission, mọi tài khoản đăng nhập
+  // đều tạo được dự án bất kể field này nói gì, vì không có middleware nào đọc nó.
+  const blockedCreate = await call('POST', '/projects', {
+    token: TOK.follower,
+    body: {
+      name: `Dự án bị chặn bởi appPermissions ${Date.now()}`,
+      description: 'Kiểm thử requireAppPermission',
+      startDate: '2026-10-01',
+      endDate: '2026-12-31',
+    },
+  });
+  ok(blockedCreate.status === 403, 'projects: view chặn tạo dự án mới (403)');
+
+  const allowedList = await call('GET', '/projects', { token: TOK.follower });
+  ok(allowedList.status === 200, 'projects: view vẫn xem được danh sách (200)');
+
+  // Hạ tasks xuống 'none': ngay cả xem cũng bị chặn.
+  await call('PUT', `/auth/users/${followerId}/app-permissions`, {
+    token: TOK.admin,
+    body: { appPermissions: { projects: 'view', tasks: 'none' } },
+  });
+  const blockedList = await call('GET', '/tasks', { token: TOK.follower });
+  ok(blockedList.status === 403, "tasks: none chặn cả xem danh sách (403)");
+}
+
+process.exit(summary() ? 1 : 0);

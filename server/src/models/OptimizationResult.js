@@ -117,9 +117,26 @@ const optimizationResultSchema = new mongoose.Schema(
     rolledBackBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     // Meta
     errorMessage: String,
+    // Vì sao không xếp được, viết bằng lời cho người dùng đọc. `errorMessage` chỉ nói
+    // "không tìm thấy giải pháp"; mảng này chỉ ra ai đã kín chỗ và việc nào kẹt vì đâu.
+    diagnostics: [String],
     runBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+    },
+    // Khóa phân lập công ty, cùng quy ước với 8 model còn lại.
+    //
+    // Thiếu trường này là cả phân hệ tối ưu hóa không có ranh giới: `getHistory`
+    // bỏ hẳn bộ lọc khi người gọi là `admin` — mà admin công ty nào cũng là
+    // admin — còn `getResultById`/`apply`/`rollback` thì không kiểm gì. Đo thật
+    // cho thấy công ty B **áp được phương án của công ty A**, tức là phân công
+    // lại toàn bộ công việc của A.
+    //
+    // Bản ghi tạo trước thay đổi này không có trường: xem ghi chú ở `getHistory`.
+    companyName: {
+      type: String,
+      trim: true,
+      index: true,
     },
   },
   {
@@ -129,5 +146,6 @@ const optimizationResultSchema = new mongoose.Schema(
 
 optimizationResultSchema.index({ algorithm: 1, createdAt: -1 });
 optimizationResultSchema.index({ status: 1 });
+optimizationResultSchema.index({ companyName: 1, createdAt: -1 });
 
 module.exports = mongoose.model('OptimizationResult', optimizationResultSchema);

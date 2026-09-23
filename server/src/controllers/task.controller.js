@@ -41,6 +41,24 @@ const recalculateProjectProgress = async (projectId) => {
 };
 
 /**
+ * Công việc này có thuộc công ty của người gọi không.
+ *
+ * Nhận task đã populate `project` (cần `companyName`). Trả `true` khi được phép.
+ *
+ * Có helper riêng vì nhánh bình luận từng bỏ qua hẳn bước này: `addComment` và
+ * `deleteComment` chỉ `findById` rồi làm luôn, nên biết id là chen được vào
+ * công việc của công ty khác — và admin của công ty khác còn xóa được bình luận
+ * của người ta, do điều kiện miễn trừ chỉ xét `role === 'admin'` chứ không xét
+ * cùng công ty.
+ */
+const belongsToCompany = (task, user) => {
+  const userCompany = user?.companyName || 'Công ty Công nghệ RAO';
+  if (user?.role === 'superadmin') return true;
+  if (!task.project?.companyName) return true;
+  return task.project.companyName === userCompany;
+};
+
+/**
  * @desc    Lấy danh sách tasks (filter theo project, status, assignee, search)
  * @route   GET /api/tasks
  * @access  Private
@@ -863,8 +881,15 @@ const addComment = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Nội dung bình luận không được trống' });
     }
 
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findById(req.params.id).populate('project', 'companyName');
     if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    if (!belongsToCompany(task, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền bình luận vào công việc của công ty khác',
+      });
+    }
 
     const comment = { user: req.user._id, content: content.trim(), createdAt: new Date() };
     task.comments.push(comment);
@@ -906,13 +931,21 @@ const addComment = async (req, res, next) => {
  */
 const deleteComment = async (req, res, next) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findById(req.params.id).populate('project', 'companyName');
     if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    if (!belongsToCompany(task, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên công việc của công ty khác',
+      });
+    }
 
     const comment = task.comments.id(req.params.commentId);
     if (!comment) return res.status(404).json({ success: false, message: 'Không tìm thấy bình luận' });
 
-    // Chỉ cho phép xóa bình luận của chính mình hoặc admin
+    // Chỉ cho phép xóa bình luận của chính mình hoặc admin — và admin ở đây đã
+    // chắc chắn cùng công ty nhờ kiểm tra bên trên.
     if (comment.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Bạn chỉ được xóa bình luận của mình' });
     }
@@ -995,6 +1028,12 @@ const removeChecklistItem = async (req, res, next) => {
     if (!item) return res.status(404).json({ success: false, message: 'Không tìm thấy mục checklist' });
 
     item.deleteOne();
+    // Đánh lại order theo vị trí còn lại — không thì mục thêm sau (order =
+    // checklist.length) sẽ trùng order với mục đã xóa trước đó, và thứ tự
+    // hiển thị lệ thuộc vào thứ tự mảng thay vì vào order.
+    task.checklist.forEach((c, idx) => {
+      c.order = idx;
+    });
     await task.save();
 
     res.json({ success: true, message: 'Đã xóa mục checklist' });
@@ -1233,6 +1272,26 @@ const reportTaskResult = async (req, res, next) => {
 
     const { summary, deliverableLinks, attachments, actualHours, markAsDone } = req.body;
 
+    // deliverableLinks/attachments là mảng subdocument { title/name, url }. Gửi
+    // mảng chuỗi thay vì mảng object khiến Mongoose ném CastError nguyên văn
+    // tiếng Anh ("Cast to embedded failed... ObjectParameterError") lộ path
+    // schema — chặn sớm ở đây bằng thông báo tiếng Việt như các validate khác.
+    const isPlainObjectArray = (value) =>
+      value === undefined || (Array.isArray(value) && value.every((item) => item !== null && typeof item === 'object' && !Array.isArray(item)));
+
+    if (!isPlainObjectArray(deliverableLinks)) {
+      return res.status(400).json({
+        success: false,
+        message: 'deliverableLinks phải là mảng đối tượng dạng { title, url }',
+      });
+    }
+    if (!isPlainObjectArray(attachments)) {
+      return res.status(400).json({
+        success: false,
+        message: 'attachments phải là mảng đối tượng dạng { name, url, size }',
+      });
+    }
+
     task.resultReport = {
       summary: summary || '',
       deliverableLinks: Array.isArray(deliverableLinks) ? deliverableLinks : [],
@@ -1389,7 +1448,59 @@ const moveTask = async (req, res, next) => {
     }
 
     const { targetProjectId, targetTaskGroupId } = req.body;
-    if (targetProjectId) task.project = targetProjectId;
+
+    if (targetProjectId && String(targetProjectId) !== String(task.project)) {
+      const targetProject = await Project.findById(targetProjectId);
+      if (!targetProject) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy dự án đích' });
+      }
+
+      // Tiền nhiệm của task giữ nguyên tham chiếu tới dự án cũ khi chuyển dự án
+      // — cùng lỗi mà POST /tasks đã chặn bằng 400, nên chuyển dự án cũng phải
+      // chặn tương tự thay vì để lại dependency trỏ khác dự án.
+      const depError = await validateDependencies(task.dependencies, {
+        taskId: task._id,
+        projectId: targetProjectId,
+      });
+      if (depError) {
+        return res.status(400).json({
+          success: false,
+          message: `Không thể chuyển dự án: ${depError}. Hãy gỡ tiền nhiệm trước khi chuyển.`,
+        });
+      }
+
+      // Chiều ngược lại cũng phải kiểm: công việc ở dự án CŨ đang phụ thuộc vào
+      // công việc này. Kiểm tra bên trên chỉ soi tiền nhiệm của chính nó, nên
+      // trước đây chuyển đi là bỏ lại một loạt hậu nhiệm trỏ sang dự án khác —
+      // đúng cái bất biến mà chính đoạn code này đang cố giữ, chỉ là nhìn sót
+      // một chiều.
+      //
+      // Công việc con theo cha sang dự án mới nên không tính là hậu nhiệm kẹt lại.
+      const subtaskIds = (await Task.find({ parentTask: task._id }).select('_id')).map((t) => t._id);
+      const movingIds = [task._id, ...subtaskIds].map(String);
+
+      const successors = await Task.find({
+        'dependencies.task': task._id,
+        _id: { $nin: movingIds },
+      }).select('title project');
+
+      const stranded = successors.filter(
+        (s) => String(s.project) !== String(targetProjectId)
+      );
+
+      if (stranded.length > 0) {
+        const names = stranded.slice(0, 3).map((s) => `"${s.title}"`).join(', ');
+        const more = stranded.length > 3 ? ` và ${stranded.length - 3} công việc khác` : '';
+        return res.status(400).json({
+          success: false,
+          message:
+            `Không thể chuyển dự án: ${names}${more} đang phụ thuộc vào công việc này ` +
+            `và sẽ ở lại dự án cũ. Hãy gỡ phụ thuộc hoặc chuyển chúng cùng lúc.`,
+        });
+      }
+
+      task.project = targetProjectId;
+    }
     if (targetTaskGroupId !== undefined) task.taskGroup = targetTaskGroupId || null;
 
     await task.save();
@@ -1462,7 +1573,7 @@ const updateDeadline = async (req, res, next) => {
 
 /**
  * @desc    Tải file mẫu Excel (.xlsx) chuẩn Base Wework (Base Wework 3.3)
- * @route   GET /api/tasks/template-excel
+ * @route   GET /api/tasks/excel/template
  * @access  Private
  */
 const downloadExcelTemplate = async (req, res, next) => {
@@ -1478,7 +1589,7 @@ const downloadExcelTemplate = async (req, res, next) => {
 
 /**
  * @desc    Xem nhanh dữ liệu từ file Excel tải lên (Preview) (Base Wework 3.3)
- * @route   POST /api/tasks/preview-excel
+ * @route   POST /api/tasks/excel/preview
  * @access  Private
  */
 const previewExcelTasks = async (req, res, next) => {
@@ -1499,7 +1610,7 @@ const previewExcelTasks = async (req, res, next) => {
 
 /**
  * @desc    Nhập hàng loạt công việc từ file Excel (Base Wework 3.3)
- * @route   POST /api/tasks/import-excel
+ * @route   POST /api/tasks/excel/import
  * @access  Private
  */
 const importExcelTasks = async (req, res, next) => {

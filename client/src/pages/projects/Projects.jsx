@@ -93,7 +93,7 @@ const BASE_PROJECT_COLORS = [
 export default function Projects() {
   const { t } = useTranslation();
   const { isDark } = useTheme();
-  const { user } = useAuth();
+  const { user, canManageModule } = useAuth();
   const navigate = useNavigate();
 
   // Tab State: 'projects' | 'departments'
@@ -154,11 +154,16 @@ export default function Projects() {
     isWeworkAdmin ||
     companySettings?.createDepartmentPermission === 'all_members';
 
+  // `canManageModule` là **lớp chặn thêm**, không phải lớp cấp quyền: hạ quyền
+  // phân hệ xuống "Chỉ xem" thì dù vai trò có cao tới đâu cũng không ghi được,
+  // vì server đã chặn bằng `requireAppPermission`. Không nhân điều kiện này vào
+  // đây thì nút vẫn hiện và bấm vào chỉ để nhận 403.
   const canCreateProject =
-    isSystemAdmin ||
-    isWeworkAdmin ||
-    isPM ||
-    companySettings?.createProjectPermission === 'all_members';
+    canManageModule('projects') &&
+    (isSystemAdmin ||
+      isWeworkAdmin ||
+      isPM ||
+      companySettings?.createProjectPermission === 'all_members');
 
   const canManageDepartment = canCreateDepartment;
 
@@ -375,6 +380,9 @@ export default function Projects() {
       title: t('common.project') || 'Dự án',
       dataIndex: 'name',
       key: 'name',
+      // Không đặt width thì cột này co giãn theo chỗ còn thừa, và `ellipsis` của
+      // phần mô tả bên dưới không có mốc để cắt.
+      width: 280,
       render: (text, record) => (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -537,15 +545,22 @@ export default function Projects() {
       title: t('projects.budget') || 'Ngân sách',
       dataIndex: 'budget',
       key: 'budget',
-      width: 130,
-      render: (budget) => <Text strong className="tabular-nums">{formatCurrency(budget)}</Text>,
+      // Đo thực tế: "200.000.000 ₫" cần 100px chữ + 32px padding ô = 132px. Để 130px
+      // thì thiếu đúng 2px và ký hiệu ₫ rớt xuống dòng. 160px đủ chỗ cho cả số hàng tỷ.
+      width: 160,
+      render: (budget) => (
+        <Text strong className="tabular-nums" style={{ whiteSpace: 'nowrap' }}>
+          {formatCurrency(budget)}
+        </Text>
+      ),
     },
     {
       title: t('gantt.period') || 'Thời gian',
       key: 'dates',
-      width: 170,
+      // Khoảng ngày đầy đủ "23/09/2026 → 23/10/2026" cần 155px chữ + 32px padding.
+      width: 190,
       render: (_, record) => (
-        <Text type="secondary" style={{ fontSize: 12 }} className="tabular-nums">
+        <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }} className="tabular-nums">
           {record.startDate ? dayjs(record.startDate).format('DD/MM/YYYY') : '—'}
           {' → '}
           {record.endDate ? dayjs(record.endDate).format('DD/MM/YYYY') : '—'}
@@ -557,7 +572,9 @@ export default function Projects() {
       key: 'actions',
       width: 120,
       align: 'right',
-      render: (_, record) => (
+      // Quyền phân hệ "Chỉ xem" thì không còn thao tác nào ghi được: server chặn
+      // hết, nên hiện nút ra chỉ để người dùng bấm vào rồi nhận 403.
+      render: (_, record) => !canManageModule('projects') ? null : (
         <Space size="small">
           <Tooltip title="Quản lý nhóm công việc">
             <Button
@@ -1152,6 +1169,16 @@ export default function Projects() {
                 dataSource={projects}
                 rowKey="_id"
                 loading={loading}
+                // Mười cột cộng lại đã 1610px. Thiếu `scroll.x`, antd bóp chúng
+                // xuống vừa khung hình: tên người thành ba dòng, số tiền vỡ làm ba
+                // khúc, hàng cao gấp đôi. Cho cuộn ngang thì mỗi cột giữ đúng bề
+                // rộng đã khai.
+                scroll={{ x: 1610 }}
+                // Thiếu dòng này thì bảng chạy `table-layout: auto`, và `width` khai ở
+                // mỗi cột chỉ còn là gợi ý — trình duyệt chia lại theo nội dung. Đo được:
+                // cột Dự án (mô tả dài) nuốt 651px trong khi cột PM bị ép còn 102px,
+                // khiến "Lê Minh Tiến" xuống ba dòng và ô ngân sách vỡ làm ba khúc.
+                tableLayout="fixed"
                 pagination={{
                   pageSize: 10,
                   showSizeChanger: true,

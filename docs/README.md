@@ -114,7 +114,8 @@ Chi tiết và danh sách lỗi đang được test theo dõi: [TESTING.md](./TE
 
 ## Tài liệu liên quan
 
-- [FEATURE_FLOWS.md](./FEATURE_FLOWS.md) - 🌊 **Tài liệu Luồng Hoạt động Chi tiết Từng Tính năng (Dành cho Đồ án)**
+- [SYSTEM_WALKTHROUGH.md](./SYSTEM_WALKTHROUGH.md) - 🔍 **Sổ tay đọc lại hệ thống: bấm một nút thì chuyện gì xảy ra, theo thứ tự nào** (bám mã nguồn hiện tại)
+- [FEATURE_FLOWS.md](./FEATURE_FLOWS.md) - 🌊 **Tài liệu Luồng Hoạt động Chi tiết Từng Tính năng (Dành cho Đồ án)** — sửa lần cuối 03/09/2026, chưa có các cơ chế phân quyền thêm sau đó
 - [FEATURES.md](./FEATURES.md) - Danh sách tính năng & trạng thái
 - [COMPARISON_JIRA.md](./COMPARISON_JIRA.md) - So sánh năng lực với Jira Software Cloud
 - [DATABASE.md](./DATABASE.md) - Thiết kế Database Schema

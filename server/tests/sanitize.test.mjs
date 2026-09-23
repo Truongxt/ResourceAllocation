@@ -91,4 +91,4 @@ S('Giới hạn độ sâu');
     'Trả về danh sách khóa đã cắt để còn ghi log');
 }
 
-summary();
+process.exit(summary() ? 1 : 0);

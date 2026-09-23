@@ -79,8 +79,8 @@ export default function ReportsScreen({ navigation }) {
       deptMap[deptName] = { name: deptName, count: 0, totalLoad: 0, totalCap: 0 };
     }
     deptMap[deptName].count += 1;
-    deptMap[deptName].totalLoad += r.currentWorkload || 0;
-    deptMap[deptName].totalCap += r.maxCapacity || 40;
+    deptMap[deptName].totalLoad += r.workload || 0;
+    deptMap[deptName].totalCap += r.capacity || 40;
   });
   const deptList = Object.values(deptMap);
 
@@ -232,9 +232,10 @@ export default function ReportsScreen({ navigation }) {
                   </View>
 
                   <WorkloadMeter
-                    workload={item.currentWorkload || 0}
-                    capacity={item.maxCapacity || 40}
+                    workload={item.workload || 0}
+                    capacity={item.capacity || 40}
                     utilization={util}
+                    unscheduled={item.unscheduledWorkload || 0}
                     style={{ marginTop: 8 }}
                   />
                 </Card>

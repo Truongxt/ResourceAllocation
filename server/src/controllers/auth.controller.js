@@ -55,6 +55,23 @@ const clearRefreshCookie = (res) => {
   });
 };
 
+/**
+ * Client không phải trình duyệt tự khai báo bằng header này.
+ *
+ * Lý do phải có: app di động không có kho cookie đáng tin — axios trong React
+ * Native giữ `Set-Cookie` khác nhau giữa iOS và Android, nên refresh token đi
+ * bằng cookie sẽ rơi mất và phiên chết sau 15 phút mà không cách nào cứu.
+ *
+ * Với riêng những client khai báo, refresh token đi trong body. Đây là đánh đổi
+ * có ý thức, không phải nới lỏng toàn cục: web KHÔNG khai báo nên KHÔNG bao giờ
+ * nhận refresh token trong body, thế phòng thủ trước XSS của web giữ nguyên.
+ */
+const usesBodyRefresh = (req) => req.get('X-Client-Type') === 'mobile';
+
+/** Refresh token mà người gọi trình ra: cookie với web, body với client di động. */
+const presentedRefresh = (req) =>
+  req.cookies?.[REFRESH_COOKIE] || (usesBodyRefresh(req) ? req.body?.refreshToken : null);
+
 /** Cấp cặp token cho một lần đăng nhập/đăng ký thành công. */
 const issueSession = async (res, req, user) => {
   const { value, expiresAt } = await issueRefreshToken(user._id, {
@@ -62,7 +79,10 @@ const issueSession = async (res, req, user) => {
     ipAddress: req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip,
   });
   setRefreshCookie(res, value, expiresAt);
-  return generateToken(user._id);
+  return {
+    token: generateToken(user._id),
+    ...(usesBodyRefresh(req) ? { refreshToken: value } : {}),
+  };
 };
 
 /**
@@ -134,8 +154,14 @@ const register = async (req, res, next) => {
 
     // Tự động tạo hồ sơ nhân sự mặc định cho tài khoản mới trong công ty đó
     try {
-      const defaultDept = await Department.findOne({ isActive: true, companyName: finalCompanyName }).select('name')
-        || await Department.findOne({ isActive: true }).select('name');
+      // Chỉ lấy phòng ban CỦA CHÍNH công ty này. Trước đây có nhánh dự phòng
+      // `Department.findOne({ isActive: true })` không kèm công ty — nó bốc tên
+      // phòng ban của một công ty bất kỳ và gán cho người mới, chỉ vì công ty vừa
+      // tạo thì chưa có phòng ban nào.
+      const defaultDept = await Department.findOne({
+        isActive: true,
+        companyName: finalCompanyName,
+      }).select('name');
       const departmentName = defaultDept?.name || 'Ban Giám Đốc';
       const employeeId = await generateEmployeeId();
 
@@ -159,16 +185,35 @@ const register = async (req, res, next) => {
       });
     } catch (resourceErr) {
       console.error('Lỗi khi tự động tạo hồ sơ Resource cho user mới:', resourceErr.message);
+
+      // Đăng ký phải trọn vẹn hoặc không có gì.
+      //
+      // Trước đây nhánh này chỉ ghi log rồi đi tiếp, nên hệ thống có thể sinh ra
+      // một User **không có Resource**: đăng nhập được nhưng không xuất hiện ở
+      // trang Nhân sự, không nhận được phân công, không có năng lực để thuật toán
+      // tối ưu nhìn thấy. Tài khoản tồn tại mà vô hình — và người dùng không có
+      // cách nào tự sửa, kể cả đăng ký lại, vì email đã bị chiếm.
+      //
+      // Xóa User vừa tạo là thao tác bù có phạm vi rất hẹp: nó được tạo vài mili
+      // giây trước, trong cùng request này, chưa có gì trỏ tới nó.
+      await User.deleteOne({ _id: user._id }).catch((cleanupErr) => {
+        console.error('Không dọn được User mồ côi sau khi tạo Resource hỏng:', cleanupErr.message);
+      });
+
+      return res.status(500).json({
+        success: false,
+        message: 'Không tạo được hồ sơ nhân sự cho tài khoản. Vui lòng thử lại.',
+      });
     }
 
     // Generate token
-    const token = await issueSession(res, req, user);
+    const session = await issueSession(res, req, user);
 
     res.status(201).json({
       success: true,
       data: {
         user: user.toJSON(),
-        token,
+        ...session,
       },
     });
   } catch (error) {
@@ -222,13 +267,13 @@ const login = async (req, res, next) => {
     }
 
     // Generate token
-    const token = await issueSession(res, req, user);
+    const session = await issueSession(res, req, user);
 
     res.json({
       success: true,
       data: {
         user: user.toJSON(),
-        token,
+        ...session,
       },
     });
   } catch (error) {
@@ -339,11 +384,11 @@ const changePassword = async (req, res, next) => {
     // vẫn sống thì thao tác đó gần như vô nghĩa — kẻ đang ở trong nhà không bị đuổi.
     // Thu hồi mọi refresh token rồi cấp phiên mới cho chính thiết bị đang thao tác.
     await revokeAllForUser(user._id, 'password_changed');
-    const token = await issueSession(res, req, user);
+    const session = await issueSession(res, req, user);
 
     res.json({
       success: true,
-      data: { token },
+      data: { ...session },
       message: 'Đổi mật khẩu thành công. Các phiên đăng nhập khác đã bị đăng xuất.',
     });
   } catch (error) {
@@ -444,7 +489,15 @@ const createUser = async (req, res, next) => {
         createdBy: req.user._id,
       });
     } catch (err) {
+      // Không để lại User mồ côi Resource: người đó sẽ không xuất hiện ở
+      // /resources lẫn trong bài toán phân bổ mà không có dấu hiệu gì. Hủy
+      // User vừa tạo và báo lỗi rõ ràng thay vì âm thầm trả 201.
       console.error('Lỗi khi tự động tạo Resource cho user:', err.message);
+      await User.findByIdAndDelete(user._id);
+      return res.status(500).json({
+        success: false,
+        message: 'Không thể tạo hồ sơ nhân sự (Resource) cho tài khoản mới nên đã hủy tài khoản. Vui lòng thử lại.',
+      });
     }
 
     // Gửi email chứa thông tin tài khoản và mật khẩu đăng nhập cho người dùng
@@ -466,9 +519,16 @@ const createUser = async (req, res, next) => {
       emailStatus = { sent: false, reason: mailErr.message };
     }
 
+    // emailStatus.preview.plainPassword chỉ phục vụ log console nội bộ (xem
+    // sendUserWelcomeEmail) — không được lộ ra response, kể cả khi email đang
+    // tắt (mặc định) hay đang chạy kiểm thử.
+    const safeEmailStatus = emailStatus.preview
+      ? { ...emailStatus, preview: { email: emailStatus.preview.email } }
+      : emailStatus;
+
     res.status(201).json({
       success: true,
-      data: { user, emailStatus },
+      data: { user, emailStatus: safeEmailStatus },
       message: emailStatus.sent
         ? `Tạo tài khoản thành công! Thông tin đăng nhập và mật khẩu đã được gửi đến email ${user.email}.`
         : 'Tạo tài khoản thành công',
@@ -745,6 +805,20 @@ const updateAppPermissions = async (req, res, next) => {
       });
     }
 
+    const knownModules = ['projects', 'tasks', 'calendar', 'optimization', 'reports'];
+    const allowedLevels = ['none', 'view', 'manage'];
+    for (const [moduleKey, level] of Object.entries(appPermissions)) {
+      if (!knownModules.includes(moduleKey)) {
+        return res.status(400).json({ success: false, message: `Phân hệ không hợp lệ: ${moduleKey}` });
+      }
+      if (!allowedLevels.includes(level)) {
+        return res.status(400).json({
+          success: false,
+          message: `Mức quyền không hợp lệ cho "${moduleKey}": ${level} (chỉ nhận none/view/manage)`,
+        });
+      }
+    }
+
     const targetUser = await User.findById(req.params.id);
     if (!targetUser) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
@@ -1010,7 +1084,7 @@ const revokeSession = async (req, res, next) => {
  */
 const refresh = async (req, res, next) => {
   try {
-    const presented = req.cookies?.[REFRESH_COOKIE];
+    const presented = presentedRefresh(req);
 
     const result = await rotateRefreshToken(presented, {
       userAgent: req.headers['user-agent'],
@@ -1039,7 +1113,14 @@ const refresh = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: { user: user.toJSON(), token: generateToken(user._id) },
+      data: {
+        user: user.toJSON(),
+        token: generateToken(user._id),
+        // Xoay vòng nghĩa là giá trị cũ vừa chết. Client dùng body phải nhận được
+        // giá trị mới ngay tại đây, nếu không lần làm mới sau sẽ trình ra token đã
+        // bị thu hồi và bị xử như tái sử dụng — tự đá chính mình ra.
+        ...(usesBodyRefresh(req) ? { refreshToken: result.value } : {}),
+      },
     });
   } catch (error) {
     next(error);
@@ -1053,7 +1134,7 @@ const refresh = async (req, res, next) => {
  */
 const logout = async (req, res, next) => {
   try {
-    await revokeToken(req.cookies?.[REFRESH_COOKIE], 'logout');
+    await revokeToken(presentedRefresh(req), 'logout');
     clearRefreshCookie(res);
     res.json({ success: true, message: 'Đã đăng xuất' });
   } catch (error) {
@@ -1115,15 +1196,21 @@ const updateUserAppAdmin = async (req, res, next) => {
       });
     }
 
-    const { appAdmins } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { appAdmins: Array.isArray(appAdmins) ? appAdmins : [] },
-      { new: true }
-    );
-    if (!user) {
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
     }
+
+    if (!isSameCompany(req.user, targetUser)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền phân quyền App Admin cho tài khoản của công ty khác',
+      });
+    }
+
+    const { appAdmins } = req.body;
+    targetUser.appAdmins = Array.isArray(appAdmins) ? appAdmins : [];
+    const user = await targetUser.save();
 
     try {
       const { sendNotification } = require('../services/socket.service');
@@ -1172,15 +1259,21 @@ const updateUserAppAdmin = async (req, res, next) => {
  */
 const updateUserSpecialGrants = async (req, res, next) => {
   try {
-    const { specialGrants } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { specialGrants: Array.isArray(specialGrants) ? specialGrants : [] },
-      { new: true }
-    );
-    if (!user) {
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
     }
+
+    if (!isSameCompany(req.user, targetUser)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền phân quyền đặc biệt cho tài khoản của công ty khác',
+      });
+    }
+
+    const { specialGrants } = req.body;
+    targetUser.specialGrants = Array.isArray(specialGrants) ? specialGrants : [];
+    const user = await targetUser.save();
     res.json({
       success: true,
       data: { user },
@@ -1198,7 +1291,7 @@ const updateUserSpecialGrants = async (req, res, next) => {
  */
 const createGuest = async (req, res, next) => {
   try {
-    const { name, email, password, companyName } = req.body;
+    const { name, email, password, guestCompany } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Vui lòng điền đủ họ tên, email và mật khẩu' });
     }
@@ -1215,7 +1308,11 @@ const createGuest = async (req, res, next) => {
       role: 'member',
       isGuest: true,
       department: 'Đối tác / Khách mời',
-      companyName: companyName || 'Khách hàng đối tác',
+      // Khách thuộc về công ty của người tạo ra nó — đó là điều kiện để công ty
+      // đó còn nhìn thấy và quản lý được khách của mình. Tên tổ chức đối tác đi
+      // vào `guestCompany`, là field chỉ để hiển thị.
+      companyName: req.user.companyName || 'Công ty Công nghệ RAO',
+      guestCompany: guestCompany || 'Khách hàng đối tác',
       jobTitle: 'Khách mời dự án (Guest)',
       isActive: true,
     });
@@ -1237,7 +1334,10 @@ const createGuest = async (req, res, next) => {
  */
 const getGuests = async (req, res, next) => {
   try {
-    const guests = await User.find({ isGuest: true }).select('-password').sort({ createdAt: -1 });
+    const userCompany = req.user.companyName || 'Công ty Công nghệ RAO';
+    const guests = await User.find({ isGuest: true, companyName: userCompany })
+      .select('-password')
+      .sort({ createdAt: -1 });
     res.json({
       success: true,
       data: { guests, count: guests.length },

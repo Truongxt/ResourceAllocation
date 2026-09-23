@@ -3,7 +3,7 @@ const Task = require('../models/Task');
 const Resource = require('../models/Resource');
 const OptimizationResult = require('../models/OptimizationResult');
 const mongoose = require('mongoose');
-const { buildWorkloadTrend } = require('../analytics/workloadTrend');
+const { buildWorkloadTrend, weeklyLoadOf } = require('../analytics/workloadTrend');
 const { getUserAnalyticsScope } = require('../services/analyticsScope.service');
 
 /**
@@ -208,7 +208,7 @@ const getUtilizationBreakdown = async (req, res, next) => {
 
     const resources = await Resource.find(resourceMatch)
       .populate('user', 'name email avatar')
-      .select('user position department skills maxCapacity fte currentWorkload availability');
+      .select('user position department skills maxCapacity fte currentWorkload unscheduledWorkload availability');
 
     // Get task assignments per resource within user scope
     const matchFilters = [{ status: { $in: ['todo', 'in_progress', 'review'] } }];
@@ -216,16 +216,30 @@ const getUtilizationBreakdown = async (req, res, next) => {
       matchFilters.push(taskMatch);
     }
 
-    const assignments = await Task.aggregate([
-      { $match: { $and: matchFilters } },
-      {
-        $group: {
-          _id: '$assignee',
-          taskCount: { $sum: 1 },
-          totalHours: { $sum: '$estimatedHours' },
-        },
-      },
-    ]);
+    // Lấy task thô thay vì $group cộng sẵn: tải phải quy về TUẦN mới so được với
+    // `maxCapacity` (giờ/tuần), mà việc quy đổi đó cần ngày bắt đầu/kết thúc của
+    // từng task. Dùng chung `weeklyLoadOf` với `workload.service.js` để hai trang
+    // không còn là hai bản cài đặt độc lập của cùng một khái niệm.
+    const scopedTasks = await Task.find({ $and: matchFilters })
+      .select('assignee estimatedHours startDate endDate');
+
+    const tasksByUser = new Map();
+    scopedTasks.forEach((task) => {
+      if (!task.assignee) return;
+      const key = task.assignee.toString();
+      if (!tasksByUser.has(key)) tasksByUser.set(key, []);
+      tasksByUser.get(key).push(task);
+    });
+
+    const assignments = Array.from(tasksByUser.entries()).map(([userId, tasks]) => {
+      const { peakWeekHours, unscheduledHours } = weeklyLoadOf(tasks);
+      return {
+        _id: userId,
+        taskCount: tasks.length,
+        totalHours: peakWeekHours,
+        unscheduledHours,
+      };
+    });
 
     // Tỷ lệ thất bại tính trên TOÀN BỘ việc từng giao, không chỉ việc đang mở: chỉ
     // đếm trong tập đang mở thì người vừa có việc thất bại sẽ có tỷ lệ 0% ngay hôm sau.
@@ -265,6 +279,12 @@ const getUtilizationBreakdown = async (req, res, next) => {
         position: r.position,
         capacity,
         workload: Math.round(workload * 10) / 10,
+        // Giờ của việc đã giao nhưng chưa có ngày: không rơi vào tuần nào nên
+        // không nằm trong `workload`. Vẫn phải trả ra, nếu không thì phần việc
+        // này biến mất khỏi báo cáo và tải trông nhẹ hơn thực tế.
+        unscheduledWorkload: assign
+          ? Math.round((assign.unscheduledHours || 0) * 10) / 10
+          : (r.unscheduledWorkload || 0),
         utilization,
         taskCount: assign ? assign.taskCount : 0,
         availability: r.availability,

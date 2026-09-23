@@ -231,6 +231,8 @@
   "protectedRoute": {
     "forbiddenTitle": "Access denied",
     "forbiddenText": "You do not have permission to view this page. Please contact an administrator.",
+    "moduleForbiddenTitle": "This module is restricted",
+    "moduleForbiddenText": "An administrator set your access to this module to No access. Contact an administrator if you need it reopened.",
     "backToDashboard": "Back to Dashboard"
   },
   "settings": {
@@ -511,7 +513,7 @@
     "noReason": "No reason given",
     "onLeaveUntil": "On leave until {{date}}",
     "leaveFrom": "On leave from {{date}}",
-    "workloadColumn": "Workload",
+    "workloadColumn": "Peak week workload",
     "rateColumn": "FTE / rate (h)",
     "perHour": "{{amount}} ₫/h",
     "matrixButton": "Matrix ({{count}})",
@@ -733,7 +735,8 @@
       "developer": "Developer",
       "designer": "Designer",
       "tester": "QA",
-      "devops": "DevOps"
+      "devops": "DevOps",
+      "guest": "Guest"
     }
   },
   "reports": {
@@ -930,6 +933,7 @@
     "resourceScope": "Based on the loaded list and filters below. Highest workload first.",
     "freeHours": "{{count}} hours below capacity",
     "excessHours": "{{count}} hours over capacity",
+    "unscheduledHours": "+{{count}}h assigned but not scheduled",
     "skills": "Skills",
     "highLoad": "People above 120% capacity",
     "clearFilter": "Clear filter",

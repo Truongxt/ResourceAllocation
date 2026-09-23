@@ -123,18 +123,26 @@ export default function App() {
           }
         />
         <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-        <Route path="/projects" element={<ProtectedRoute><AppLayout><Projects /></AppLayout></ProtectedRoute>} />
-        <Route path="/projects/:id" element={<ProtectedRoute><AppLayout><ProjectDetail /></AppLayout></ProtectedRoute>} />
-        <Route path="/tasks" element={<ProtectedRoute><AppLayout><Tasks /></AppLayout></ProtectedRoute>} />
+        {/* `module` khớp với `requireAppPermission` ở server: trang nào lấy dữ
+            liệu từ route đã bị chặn thì chặn luôn tại đây, nếu không trang vẫn
+            dựng ra rồi mọi request bên trong nhận 403.
+            Riêng `/dashboard` **không** gắn: nút thoát của mọi màn hình từ chối
+            đều trỏ về đó, chặn nốt là người dùng hết đường ra. */}
+        <Route path="/projects" element={<ProtectedRoute module="projects"><AppLayout><Projects /></AppLayout></ProtectedRoute>} />
+        <Route path="/projects/:id" element={<ProtectedRoute module="projects"><AppLayout><ProjectDetail /></AppLayout></ProtectedRoute>} />
+        <Route path="/tasks" element={<ProtectedRoute module="tasks"><AppLayout><Tasks /></AppLayout></ProtectedRoute>} />
         <Route path="/resources" element={<ProtectedRoute roles={['admin', 'project_manager']}><AppLayout><Resources /></AppLayout></ProtectedRoute>} />
         <Route path="/optimization" element={<ProtectedRoute app="optimize"><AppLayout><Optimization /></AppLayout></ProtectedRoute>} />
+        {/* Lịch và Gantt đều vẽ từ `/api/tasks` nên đi theo phân hệ `tasks`,
+            không theo khóa `calendar` — khóa đó không có route riêng ở server
+            (xem docs/API.md, mục app-permissions). */}
         <Route
           path="/calendar"
-          element={<ProtectedRoute><AppLayout><CalendarPage /></AppLayout></ProtectedRoute>}
+          element={<ProtectedRoute module="tasks"><AppLayout><CalendarPage /></AppLayout></ProtectedRoute>}
         />
 
-        <Route path="/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
-        <Route path="/reports" element={<ProtectedRoute><AppLayout><Reports /></AppLayout></ProtectedRoute>} />
+        <Route path="/gantt" element={<ProtectedRoute module="tasks"><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute module="reports"><AppLayout><Reports /></AppLayout></ProtectedRoute>} />
         <Route path="/benchmark" element={<ProtectedRoute app="optimize"><AppLayout><BenchmarkStudio /></AppLayout></ProtectedRoute>} />
         <Route path="/activity-logs" element={<ProtectedRoute><AppLayout><ActivityLogs /></AppLayout></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><AppLayout><Settings /></AppLayout></ProtectedRoute>} />

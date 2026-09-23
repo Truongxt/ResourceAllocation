@@ -20,7 +20,10 @@ import { notificationApi } from '../../api/notificationApi';
 import { formatTimeAgo } from '../../utils/formatters';
 
 export default function DashboardScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, canViewModule, hasAppAccess, canAccessResources } = useAuth();
+  // Cùng quy tắc với thanh tab — thẻ nào trỏ tới tab đã bị ẩn thì phải ẩn theo,
+  // vì route đó không còn tồn tại.
+  const canOptimize = hasAppAccess('optimize');
   const { theme, isDark, toggleTheme } = useTheme();
 
   const [stats, setStats] = useState({
@@ -145,8 +148,13 @@ export default function DashboardScreen({ navigation }) {
         }
       >
         {/* KPI Grid */}
+        {/*
+          Các thẻ này nhảy sang tab khác. Tab nào bị ẩn vì thiếu quyền thì route
+          đó không còn tồn tại, bấm vào là lỗi điều hướng — nên phải ẩn thẻ theo.
+        */}
         <View style={styles.kpiGrid}>
           {/* Projects KPI */}
+          {canViewModule('projects') && (
           <Card
             style={styles.kpiCard}
             onPress={() => navigation.navigate('ProjectsTab')}
@@ -166,8 +174,10 @@ export default function DashboardScreen({ navigation }) {
               {stats.projectsCount}
             </Text>
           </Card>
+          )}
 
           {/* Tasks KPI */}
+          {canViewModule('tasks') && (
           <Card
             style={styles.kpiCard}
             onPress={() => navigation.navigate('TasksTab')}
@@ -187,11 +197,13 @@ export default function DashboardScreen({ navigation }) {
               {stats.tasksCount}
             </Text>
           </Card>
+          )}
 
           {/* Resources KPI */}
+          {canAccessResources() && (
           <Card
             style={styles.kpiCard}
-            onPress={() => user?.role !== 'member' && navigation.navigate('ResourcesTab')}
+            onPress={() => navigation.navigate('ResourcesTab')}
           >
             <View
               style={[
@@ -208,8 +220,10 @@ export default function DashboardScreen({ navigation }) {
               {stats.resourcesCount}
             </Text>
           </Card>
+          )}
 
           {/* Reports KPI */}
+          {canViewModule('reports') && (
           <Card
             style={styles.kpiCard}
             onPress={() => navigation.navigate('ReportsScreen')}
@@ -229,6 +243,7 @@ export default function DashboardScreen({ navigation }) {
               {stats.avgUtilization}%
             </Text>
           </Card>
+          )}
         </View>
 
         {/* Quick Action Tiles */}
@@ -237,6 +252,7 @@ export default function DashboardScreen({ navigation }) {
         </Text>
 
         <View style={styles.quickActions}>
+          {canOptimize && canViewModule('optimization') && (
           <Card
             style={styles.actionTile}
             onPress={() => navigation.navigate('OptimizationTab')}
@@ -268,7 +284,9 @@ export default function DashboardScreen({ navigation }) {
               color={theme.colors.textMuted}
             />
           </Card>
+          )}
 
+          {canOptimize && canViewModule('optimization') && (
           <Card
             style={styles.actionTile}
             onPress={() => navigation.navigate('BenchmarkScreen')}
@@ -300,7 +318,9 @@ export default function DashboardScreen({ navigation }) {
               color={theme.colors.textMuted}
             />
           </Card>
+          )}
 
+          {canViewModule('reports') && (
           <Card
             style={styles.actionTile}
             onPress={() => navigation.navigate('ReportsScreen')}
@@ -332,7 +352,9 @@ export default function DashboardScreen({ navigation }) {
               color={theme.colors.textMuted}
             />
           </Card>
+          )}
 
+          {canViewModule('tasks') && (
           <Card
             style={styles.actionTile}
             onPress={() => navigation.navigate('TasksTab')}

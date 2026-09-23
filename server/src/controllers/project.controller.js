@@ -717,6 +717,17 @@ const updateProjectPermissions = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
     }
 
+    // Kiểm công ty TRƯỚC khi xét vai trò: `isOwner` chỉ đọc `role === 'admin'`,
+    // mà admin của công ty nào cũng là admin — thiếu bước này thì admin công ty
+    // khác đổi được phân quyền dự án của mình.
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thao tác trên dự án của công ty khác',
+      });
+    }
+
     const isOwner = req.user.role === 'admin' || Boolean(req.user.isOwner);
     const isManager = project.manager && project.manager.toString() === req.user._id.toString();
 

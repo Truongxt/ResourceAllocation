@@ -3,7 +3,7 @@ const multer = require('multer');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const { TASK_STATUSES } = require('../services/taskStatus.service');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, requireAppPermission } = require('../middleware/auth');
 const {
   canCreateTask,
   canModifyTask,
@@ -17,6 +17,7 @@ const {
   canManageChecklist,
   canReportResult,
   canCreateSubtask,
+  guardTaskCompany,
 } = require('../middleware/taskAccess');
 const {
   getTasks,
@@ -161,9 +162,14 @@ const statusValidation = [
 ];
 
 router.use(protect);
+router.use(requireAppPermission('tasks'));
+
+// Phân lập công ty cho mọi route có `:id`. Đặt ở `router.param` thay vì rải vào
+// từng guard, vì các guard đều cho admin/PM đi thẳng qua mà không xét công ty —
+// xem giải thích đầy đủ tại `guardTaskCompany`. Route thêm sau này tự được che.
+router.param('id', guardTaskCompany);
 
 router.get('/stats/summary', getTaskSummary);
-router.get('/summary/stats', getTaskSummary);
 
 // Base Wework: Excel import & template (Đặt trước /:id)
 router.get('/excel/template', downloadExcelTemplate);
