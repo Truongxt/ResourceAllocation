@@ -12,6 +12,8 @@ import ProjectDetailScreen from '../screens/projects/ProjectDetailScreen';
 import ActivityLogsScreen from '../screens/activity/ActivityLogsScreen';
 import ReportsScreen from '../screens/reports/ReportsScreen';
 import BenchmarkScreen from '../screens/benchmark/BenchmarkScreen';
+import TaskDetailScreen from '../screens/tasks/TaskDetailScreen';
+import CalendarScreen from '../screens/calendar/CalendarScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -65,6 +67,14 @@ export default function AppNavigator() {
             <Stack.Screen
               name="BenchmarkScreen"
               component={BenchmarkScreen}
+            />
+            <Stack.Screen
+              name="TaskDetail"
+              component={TaskDetailScreen}
+            />
+            <Stack.Screen
+              name="CalendarScreen"
+              component={CalendarScreen}
             />
           </>
         )}

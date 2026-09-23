@@ -72,7 +72,7 @@ export default function Tasks() {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [view, setView] = useState('list');
+  const [view, setView] = useState('kanban');
   const [filters, setFilters] = useState({ search: '', project: '', priority: '' });
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -619,16 +619,16 @@ export default function Tasks() {
             },
             ...(user?.role !== 'member'
               ? [
-                  {
-                    key: 'subordinates',
-                    label: (
-                      <span style={{ fontWeight: 600 }}>
-                        <TeamOutlined style={{ marginRight: 6, color: '#10b981' }} />
-                        Nhân viên trực tiếp
-                      </span>
-                    ),
-                  },
-                ]
+                {
+                  key: 'subordinates',
+                  label: (
+                    <span style={{ fontWeight: 600 }}>
+                      <TeamOutlined style={{ marginRight: 6, color: '#10b981' }} />
+                      Nhân viên trực tiếp
+                    </span>
+                  ),
+                },
+              ]
               : []),
           ]}
         />

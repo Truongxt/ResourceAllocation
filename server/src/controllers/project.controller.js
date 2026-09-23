@@ -14,7 +14,7 @@ const buildProjectQuery = async (query, user) => {
     filter.companyName = userCompany;
   }
 
-  if (user && user.role !== 'admin') {
+  if (user && user.role !== 'admin' && !user.isOwner) {
     // Find all projects where user has tasks assigned or created
     const userTasks = await Task.find({
       $or: [{ assignee: user._id }, { createdBy: user._id }],
@@ -26,6 +26,7 @@ const buildProjectQuery = async (query, user) => {
       { 'members.user': user._id },
       { createdBy: user._id },
       { _id: { $in: projectIdsFromTasks } },
+      { projectType: 'internal' },
     ];
   }
 

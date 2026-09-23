@@ -44,9 +44,9 @@ export default function DashboardScreen({ navigation }) {
         notificationApi.getAll({ limit: 20 }),
       ]);
 
-      const projectsTotal = projRes.data?.total || projRes.data?.data?.length || 0;
-      const tasksTotal = taskRes.data?.total || taskRes.data?.data?.length || 0;
-      const resourcesTotal = resRes.data?.total || resRes.data?.data?.length || 0;
+      const projectsTotal = projRes.data?.total ?? (projRes.data?.data?.projects?.length ?? (Array.isArray(projRes.data?.data) ? projRes.data.data.length : 0));
+      const tasksTotal = taskRes.data?.total ?? (taskRes.data?.data?.tasks?.length ?? (Array.isArray(taskRes.data?.data) ? taskRes.data.data.length : 0));
+      const resourcesTotal = resRes.data?.total ?? (resRes.data?.data?.resources?.length ?? (Array.isArray(resRes.data?.data) ? resRes.data.data.length : 0));
 
       setStats({
         projectsCount: projectsTotal,
@@ -356,6 +356,38 @@ export default function DashboardScreen({ navigation }) {
                 ]}
               >
                 Cập nhật trạng thái và tiến độ task
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
+          </Card>
+
+          <Card
+            style={styles.actionTile}
+            onPress={() => navigation.navigate('CalendarScreen')}
+          >
+            <View
+              style={[
+                styles.actionIcon,
+                { backgroundColor: '#8b5cf6' },
+              ]}
+            >
+              <Ionicons name="calendar" size={24} color="#ffffff" />
+            </View>
+            <View style={styles.actionInfo}>
+              <Text style={[styles.actionTitle, { color: theme.colors.text }]}>
+                Lịch biểu công việc 📅
+              </Text>
+              <Text
+                style={[
+                  styles.actionSub,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                Xem timeline, deadline theo tháng và tuần
               </Text>
             </View>
             <Ionicons

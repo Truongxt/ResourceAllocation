@@ -17,7 +17,7 @@ const message = (text) => ({ success: false, message: text });
 
 const authLimiter = rateLimit({
   windowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || minutes(15),
-  max: Number(process.env.AUTH_RATE_LIMIT_MAX) || 10,
+  max: process.env.NODE_ENV === 'production' ? (Number(process.env.AUTH_RATE_LIMIT_MAX) || 10) : 200,
   standardHeaders: true,
   legacyHeaders: false,
   // Chỉ đếm lần thất bại: đăng nhập đúng liên tục không bị khoá.

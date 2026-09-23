@@ -338,8 +338,8 @@ export default function ProjectDetail() {
         record.startDate && record.endDate
           ? [dayjs(record.startDate), dayjs(record.endDate)]
           : record.endDate
-          ? [dayjs(record.startDate || record.createdAt || new Date()), dayjs(record.endDate)]
-          : undefined,
+            ? [dayjs(record.startDate || record.createdAt || new Date()), dayjs(record.endDate)]
+            : undefined,
     });
     setTaskModalOpen(true);
   };
@@ -479,24 +479,24 @@ export default function ProjectDetail() {
     },
     ...(canManage
       ? [{
-          title: t('common.actions') || 'Thao tác',
-          key: 'actions',
-          width: 100,
-          render: (_, record) => (
-            <Space size="small">
-              <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditMember(record)} />
-              <Popconfirm
-                title={t('projectDetail.removeMemberConfirm') || 'Xác nhận xóa thành viên khỏi dự án?'}
-                onConfirm={() => handleRemoveMember(record)}
-                okText={t('common.delete') || 'Xóa'}
-                cancelText={t('common.cancel') || 'Hủy'}
-                okButtonProps={{ danger: true }}
-              >
-                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-              </Popconfirm>
-            </Space>
-          ),
-        }]
+        title: t('common.actions') || 'Thao tác',
+        key: 'actions',
+        width: 100,
+        render: (_, record) => (
+          <Space size="small">
+            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditMember(record)} />
+            <Popconfirm
+              title={t('projectDetail.removeMemberConfirm') || 'Xác nhận xóa thành viên khỏi dự án?'}
+              onConfirm={() => handleRemoveMember(record)}
+              okText={t('common.delete') || 'Xóa'}
+              cancelText={t('common.cancel') || 'Hủy'}
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Space>
+        ),
+      }]
       : []),
   ];
 

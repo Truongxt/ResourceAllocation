@@ -37,8 +37,9 @@ export default function ReportsScreen({ navigation }) {
         analyticsApi.getDashboard(),
         analyticsApi.getUtilization(),
       ]);
+      const rawUtil = utilRes.data?.data?.resources || (Array.isArray(utilRes.data?.data) ? utilRes.data.data : []);
       setOverview(dashRes.data?.data || {});
-      setUtilizationList(utilRes.data?.data || []);
+      setUtilizationList(Array.isArray(rawUtil) ? rawUtil : []);
     } catch (e) {
       console.log('Error loading analytics reports:', e);
     } finally {
@@ -56,21 +57,23 @@ export default function ReportsScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  const highBurnoutCount = utilizationList.filter(
+  const validList = Array.isArray(utilizationList) ? utilizationList : [];
+
+  const highBurnoutCount = validList.filter(
     (r) => r.burnoutRisk === 'high' || (r.utilizationRate || 0) > 100
   ).length;
 
   const avgUtilization =
-    utilizationList.length > 0
+    validList.length > 0
       ? Math.round(
-          utilizationList.reduce((sum, r) => sum + (r.utilizationRate || 0), 0) /
-            utilizationList.length
+          validList.reduce((sum, r) => sum + (r.utilizationRate || 0), 0) /
+            validList.length
         )
       : 0;
 
   // Group by department
   const deptMap = {};
-  utilizationList.forEach((r) => {
+  validList.forEach((r) => {
     const deptName = r.department?.name || 'Chung';
     if (!deptMap[deptName]) {
       deptMap[deptName] = { name: deptName, count: 0, totalLoad: 0, totalCap: 0 };
@@ -199,7 +202,7 @@ export default function ReportsScreen({ navigation }) {
               description="Chưa có nhân sự hoặc công việc được ghi nhận."
             />
           ) : (
-            utilizationList.map((item) => {
+            validList.map((item) => {
               const util = item.utilizationRate || 0;
               const riskKey =
                 item.burnoutRisk || (util > 100 ? 'high' : util > 80 ? 'medium' : 'low');
@@ -210,7 +213,7 @@ export default function ReportsScreen({ navigation }) {
                   <View style={styles.personHeader}>
                     <View style={styles.personInfo}>
                       <Text style={[styles.personName, { color: theme.colors.text }]}>
-                        {item.name}
+                        {item.user?.name || item.name || 'Chưa đặt tên'}
                       </Text>
                       <Text
                         style={[
@@ -218,7 +221,7 @@ export default function ReportsScreen({ navigation }) {
                           { color: theme.colors.textSecondary },
                         ]}
                       >
-                        {item.position || 'Nhân sự'} · {item.department?.name || 'Phòng ban'}
+                        {item.position || 'Nhân sự'} · {(typeof item.department === 'object' ? item.department?.name : item.department) || 'Phòng ban'}
                       </Text>
                     </View>
                     <Badge

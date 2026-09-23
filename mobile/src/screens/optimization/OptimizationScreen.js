@@ -62,8 +62,9 @@ export default function OptimizationScreen() {
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
     try {
-      const res = await optimizationApi.getHistory({ limit: 20 });
-      setHistory(res.data?.data?.results || res.data?.data || []);
+      const res = await optimizationApi.getHistory({ limit: 30 });
+      const rawHistory = res.data?.data?.results || (Array.isArray(res.data?.data) ? res.data.data : []);
+      setHistory(Array.isArray(rawHistory) ? rawHistory : []);
     } catch (err) {
       console.log('Error loading optimization history:', err);
     } finally {

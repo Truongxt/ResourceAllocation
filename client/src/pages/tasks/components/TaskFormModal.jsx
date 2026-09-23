@@ -63,6 +63,7 @@ export default function TaskFormModal({
   dependencyOptions = [],
   selectedProject,
   taskGroups = [],
+  onManageTaskGroups,
   onSubmit,
   submitting = false,
   t,

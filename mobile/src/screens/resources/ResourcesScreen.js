@@ -39,6 +39,16 @@ export default function ResourcesScreen() {
   const [maxCapacity, setMaxCapacity] = useState('40');
   const [creating, setCreating] = useState(false);
 
+  // Edit Resource Modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedResource, setSelectedResource] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPosition, setEditPosition] = useState('');
+  const [editDepartment, setEditDepartment] = useState('');
+  const [editMaxCapacity, setEditMaxCapacity] = useState('40');
+  const [updating, setUpdating] = useState(false);
+
   const loadResources = useCallback(async () => {
     try {
       const params = {};
@@ -48,8 +58,10 @@ export default function ResourcesScreen() {
         resourceApi.getAll(params),
         departmentApi.getAll(),
       ]);
-      setResources(rRes.data?.data || []);
-      setDepartments(dRes.data?.data || []);
+      const rawResources = rRes.data?.data?.resources || rRes.data?.resources || (Array.isArray(rRes.data?.data) ? rRes.data.data : []);
+      const rawDepartments = dRes.data?.data?.departments || dRes.data?.departments || (Array.isArray(dRes.data?.data) ? dRes.data.data : []);
+      setResources(Array.isArray(rawResources) ? rawResources : []);
+      setDepartments(Array.isArray(rawDepartments) ? rawDepartments : []);
     } catch (err) {
       console.log('Error loading resources:', err);
     } finally {
@@ -80,6 +92,12 @@ export default function ResourcesScreen() {
     setCreating(true);
     try {
       await resourceApi.create({
+        newUser: {
+          name: name.trim(),
+          email: email.trim() || `nv_${Date.now()}@rao.com`,
+          password: 'password123',
+          role: 'member',
+        },
         name: name.trim(),
         email: email.trim() || undefined,
         position: position.trim() || 'Software Engineer',
@@ -100,10 +118,40 @@ export default function ResourcesScreen() {
     }
   };
 
+  const handleUpdateResource = async () => {
+    if (!selectedResource) return;
+    if (!editName.trim()) {
+      Alert.alert('Thông báo', 'Họ tên nhân sự không được để trống');
+      return;
+    }
+    setUpdating(true);
+    try {
+      await resourceApi.update(selectedResource._id, {
+        name: editName.trim(),
+        email: editEmail.trim() || undefined,
+        position: editPosition.trim() || 'Software Engineer',
+        department: editDepartment || undefined,
+        maxCapacity: Number(editMaxCapacity) || 40,
+      });
+      setShowEditModal(false);
+      setSelectedResource(null);
+      await loadResources();
+      Alert.alert('Thành công', 'Đã cập nhật thông tin nhân sự');
+    } catch (err) {
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể cập nhật nhân sự');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const renderResourceItem = ({ item }) => {
     const workload = item.currentWorkload || 0;
     const capacity = item.maxCapacity || 40;
     const util = capacity > 0 ? Math.round((workload / capacity) * 100) : 0;
+    const displayName = item.user?.name || item.name || 'Chưa đặt tên';
+    const displayEmail = item.user?.email || item.email || '';
+    const displayDept = (typeof item.department === 'object' ? item.department?.name : item.department) || 'Phòng ban';
+    const displayInitial = (displayName || item.position || 'N').charAt(0).toUpperCase();
 
     return (
       <Card style={styles.resourceCard}>
@@ -111,33 +159,49 @@ export default function ResourcesScreen() {
         <View style={styles.profileRow}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {(item.name || 'U').charAt(0).toUpperCase()}
+              {displayInitial}
             </Text>
           </View>
           <View style={styles.profileInfo}>
             <View style={styles.nameRow}>
               <Text style={[styles.name, { color: theme.colors.text }]}>
-                {item.name}
+                {displayName}
               </Text>
-              {util > 100 && (
-                <Badge
-                  label="Quá tải"
-                  color={theme.colors.danger}
-                  bg="rgba(239, 68, 68, 0.15)"
-                  size="sm"
-                />
-              )}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {util > 100 && (
+                  <Badge
+                    label="Quá tải"
+                    color={theme.colors.danger}
+                    bg="rgba(239, 68, 68, 0.15)"
+                    size="sm"
+                  />
+                )}
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedResource(item);
+                    setEditName(displayName);
+                    setEditEmail(displayEmail);
+                    setEditPosition(item.position || '');
+                    setEditDepartment(typeof item.department === 'object' ? (item.department?._id || item.department?.name) : (item.department || ''));
+                    setEditMaxCapacity(String(item.maxCapacity || 40));
+                    setShowEditModal(true);
+                  }}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="create-outline" size={17} color={theme.colors.primary} />
+                </TouchableOpacity>
+              </View>
             </View>
             <Text
               style={[styles.position, { color: theme.colors.textSecondary }]}
             >
-              {item.position || 'Nhân sự'} · {item.department?.name || 'Phòng ban'}
+              {item.position || 'Nhân sự'} · {displayDept}
             </Text>
-            {item.email && (
+            {!!displayEmail && (
               <Text
                 style={[styles.email, { color: theme.colors.textMuted }]}
               >
-                {item.email}
+                {displayEmail}
               </Text>
             )}
           </View>
@@ -245,7 +309,7 @@ export default function ResourcesScreen() {
 
       {/* Resource List */}
       <FlatList
-        data={resources}
+        data={Array.isArray(resources) ? resources : []}
         keyExtractor={(item) => item._id}
         renderItem={renderResourceItem}
         contentContainerStyle={styles.listContent}
@@ -355,12 +419,12 @@ export default function ResourcesScreen() {
                 showsHorizontalScrollIndicator={false}
                 style={styles.pickerScroll}
               >
-                {departments.map((d) => {
-                  const isSel = department === d._id;
+                {(Array.isArray(departments) ? departments : []).map((d) => {
+                  const isSel = department === d._id || department === d.name;
                   return (
                     <TouchableOpacity
                       key={d._id}
-                      onPress={() => setDepartment(d._id)}
+                      onPress={() => setDepartment(d.name)}
                       style={[
                         styles.deptPill,
                         {
@@ -412,6 +476,151 @@ export default function ResourcesScreen() {
                 title="Lưu nhân sự"
                 onPress={handleCreateResource}
                 loading={creating}
+                size="lg"
+                style={{ marginTop: 14, marginBottom: 12 }}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Resource Modal */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: theme.colors.surface },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                Chỉnh sửa nhân sự
+              </Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                <Ionicons name="close" size={22} color={theme.colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Họ và tên *
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.inputBg,
+                    borderColor: theme.colors.inputBorder,
+                    color: theme.colors.text,
+                  },
+                ]}
+                value={editName}
+                onChangeText={setEditName}
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Email
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.inputBg,
+                    borderColor: theme.colors.inputBorder,
+                    color: theme.colors.text,
+                  },
+                ]}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={editEmail}
+                onChangeText={setEditEmail}
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Chức danh / Vị trí
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.inputBg,
+                    borderColor: theme.colors.inputBorder,
+                    color: theme.colors.text,
+                  },
+                ]}
+                value={editPosition}
+                onChangeText={setEditPosition}
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Phòng ban
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.pickerScroll}
+              >
+                {(Array.isArray(departments) ? departments : []).map((d) => {
+                  const isSel = editDepartment === d._id || editDepartment === d.name;
+                  return (
+                    <TouchableOpacity
+                      key={d._id}
+                      onPress={() => setEditDepartment(d.name)}
+                      style={[
+                        styles.deptPill,
+                        {
+                          backgroundColor: isSel
+                            ? theme.colors.primary
+                            : theme.isDark
+                            ? 'rgba(255,255,255,0.06)'
+                            : '#f1f5f9',
+                          borderColor: isSel ? theme.colors.primary : 'transparent',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.deptPillText,
+                          {
+                            color: isSel ? '#ffffff' : theme.colors.text,
+                            fontWeight: isSel ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {d.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                Capacity tối đa (giờ/tuần)
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: theme.colors.inputBg,
+                    borderColor: theme.colors.inputBorder,
+                    color: theme.colors.text,
+                  },
+                ]}
+                keyboardType="numeric"
+                value={editMaxCapacity}
+                onChangeText={setEditMaxCapacity}
+              />
+
+              <Button
+                title="Lưu thay đổi"
+                onPress={handleUpdateResource}
+                loading={updating}
                 size="lg"
                 style={{ marginTop: 14, marginBottom: 12 }}
               />
