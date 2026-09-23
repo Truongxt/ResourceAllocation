@@ -540,15 +540,22 @@ export default function Projects() {
       title: t('projects.budget') || 'Ngân sách',
       dataIndex: 'budget',
       key: 'budget',
-      width: 130,
-      render: (budget) => <Text strong className="tabular-nums">{formatCurrency(budget)}</Text>,
+      // Đo thực tế: "200.000.000 ₫" cần 100px chữ + 32px padding ô = 132px. Để 130px
+      // thì thiếu đúng 2px và ký hiệu ₫ rớt xuống dòng. 160px đủ chỗ cho cả số hàng tỷ.
+      width: 160,
+      render: (budget) => (
+        <Text strong className="tabular-nums" style={{ whiteSpace: 'nowrap' }}>
+          {formatCurrency(budget)}
+        </Text>
+      ),
     },
     {
       title: t('gantt.period') || 'Thời gian',
       key: 'dates',
-      width: 170,
+      // Khoảng ngày đầy đủ "23/09/2026 → 23/10/2026" cần 155px chữ + 32px padding.
+      width: 190,
       render: (_, record) => (
-        <Text type="secondary" style={{ fontSize: 12 }} className="tabular-nums">
+        <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }} className="tabular-nums">
           {record.startDate ? dayjs(record.startDate).format('DD/MM/YYYY') : '—'}
           {' → '}
           {record.endDate ? dayjs(record.endDate).format('DD/MM/YYYY') : '—'}
@@ -1135,11 +1142,11 @@ export default function Projects() {
                 dataSource={projects}
                 rowKey="_id"
                 loading={loading}
-                // Mười cột cộng lại đã 1560px. Thiếu `scroll.x`, antd bóp chúng
+                // Mười cột cộng lại đã 1610px. Thiếu `scroll.x`, antd bóp chúng
                 // xuống vừa khung hình: tên người thành ba dòng, số tiền vỡ làm ba
                 // khúc, hàng cao gấp đôi. Cho cuộn ngang thì mỗi cột giữ đúng bề
                 // rộng đã khai.
-                scroll={{ x: 1560 }}
+                scroll={{ x: 1610 }}
                 // Thiếu dòng này thì bảng chạy `table-layout: auto`, và `width` khai ở
                 // mỗi cột chỉ còn là gợi ý — trình duyệt chia lại theo nội dung. Đo được:
                 // cột Dự án (mô tả dài) nuốt 651px trong khi cột PM bị ép còn 102px,
