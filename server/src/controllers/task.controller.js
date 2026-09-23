@@ -393,6 +393,14 @@ const createTask = async (req, res, next) => {
 
     const taskData = {
       ...req.body,
+      // Gắn công ty theo DỰ ÁN chứa nó, như `createSubtask` gắn theo task cha.
+      //
+      // Thiếu dòng này, mọi công việc đều rơi vào `default` của schema là
+      // "Công ty Công nghệ RAO", bất kể nó thuộc công ty nào. Trang Công việc không
+      // lộ ra vì nó lọc theo công ty của *dự án*, nhưng `optimization.controller`
+      // lọc thẳng theo `Task.companyName`: chạy tối ưu phạm vi toàn công ty báo 0
+      // công việc trong khi chạy theo từng dự án vẫn thấy đủ.
+      companyName: project.companyName || userCompany,
       createdBy: req.user._id,
     };
 
