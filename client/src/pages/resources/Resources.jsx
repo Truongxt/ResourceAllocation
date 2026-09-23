@@ -44,6 +44,8 @@ import {
   MinusCircleOutlined,
   CalendarOutlined,
   SwapOutlined,
+  BarChartOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import resourceService from '../../services/resourceService';
@@ -56,11 +58,14 @@ import {
 } from '../../i18n/enums';
 import { formatNumber } from '../../i18n/format';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import ResourceFormModal from '../../components/resources/ResourceFormModal';
 import SkillsMatrixModal from '../../components/resources/SkillsMatrixModal';
 import ResourceLeaveModal from '../../components/resources/ResourceLeaveModal';
 import CsvImportModal from '../../components/resources/CsvImportModal';
 import BulkReassignModal from '../../components/resources/BulkReassignModal';
+import WorkloadProductivityChart from '../../components/resources/WorkloadProductivityChart';
+import SelfSkillEvaluationModal from '../../components/resources/SelfSkillEvaluationModal';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -104,6 +109,10 @@ export default function Resources() {
   const [reassignFrom, setReassignFrom] = useState(null);
   const [editingResource, setEditingResource] = useState(null);
   const [editingDepartment, setEditingDepartment] = useState(null);
+  const { user } = useAuth();
+  const [productivityData, setProductivityData] = useState(null);
+  const [productivityLoading, setProductivityLoading] = useState(false);
+  const [selfEvalModalOpen, setSelfEvalModalOpen] = useState(false);
   const [csvContent, setCsvContent] = useState('');
 
   const [resourceForm] = Form.useForm();
@@ -156,6 +165,48 @@ export default function Resources() {
     const timer = setTimeout(loadResources, filters.search ? 300 : 0);
     return () => clearTimeout(timer);
   }, [loadResources, filters.department, filters.availability]);
+
+  const loadProductivity = useCallback(async () => {
+    setProductivityLoading(true);
+    try {
+      const res = await resourceService.getProductivitySummary();
+      setProductivityData(res.data?.data || null);
+    } catch {
+      /* ignore */
+    } finally {
+      setProductivityLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProductivity();
+  }, [loadProductivity]);
+
+  // Hồ sơ nhân sự của tài khoản đang đăng nhập để tự đánh giá năng lực
+  const myResource = useMemo(() => {
+    if (!user) return null;
+    return (
+      resources.find((r) => {
+        const uId = r.user?._id || r.user;
+        return uId && uId.toString() === user._id?.toString();
+      }) || null
+    );
+  }, [resources, user]);
+
+  const handleSelfEvalSubmit = async (skills) => {
+    setSubmitting(true);
+    try {
+      await resourceService.selfEvaluate(skills);
+      message.success('Gửi bản tự đánh giá năng lực thành công');
+      setSelfEvalModalOpen(false);
+      await loadResources();
+      await loadProductivity();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Không thể gửi bản tự đánh giá');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const activeDepartments = useMemo(() => departments.filter((d) => d.isActive), [departments]);
 
@@ -290,10 +341,16 @@ export default function Resources() {
     if (!editingResource) return;
     setSubmitting(true);
     try {
-      await resourceService.updateSkills(editingResource._id, values.skills || []);
-      message.success(t('resources.skillsSaved'));
+      const skills = values.skills || (Array.isArray(values) ? values : []);
+      await resourceService.managerEvaluate(editingResource._id, {
+        skills,
+        performanceRating: values.performanceRating,
+        performanceNotes: values.performanceNotes,
+      });
+      message.success('Đã đánh giá và phê duyệt năng lực nhân sự');
       setSkillsModalOpen(false);
       await loadResources();
+      await loadProductivity();
     } catch (err) {
       message.error(err.response?.data?.message || t('resources.skillsSaveFailed'));
     } finally {
@@ -646,16 +703,27 @@ export default function Resources() {
           <Title level={3} style={{ marginBottom: 4 }}>{t('resources.title')}</Title>
           <Text type="secondary">{t('resources.subtitle')}</Text>
         </div>
-        {activeTab === 'resources' && (
-          <Space wrap>
-            <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>
-              {t('projects.importCsv')}
+        <Space wrap>
+          {myResource && (
+            <Button
+              icon={<StarOutlined style={{ color: '#f59e0b' }} />}
+              onClick={() => setSelfEvalModalOpen(true)}
+              style={{ borderColor: '#f59e0b', color: '#b45309', fontWeight: 500 }}
+            >
+              Tự đánh giá năng lực (Self-Assessment)
             </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateResource} id="btn-create-resource">
-              {t('resources.add')}
-            </Button>
-          </Space>
-        )}
+          )}
+          {activeTab === 'resources' && (
+            <>
+              <Button icon={<UploadOutlined />} onClick={() => setCsvModalOpen(true)}>
+                {t('projects.importCsv')}
+              </Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={openCreateResource} id="btn-create-resource">
+                {t('resources.add')}
+              </Button>
+            </>
+          )}
+        </Space>
       </div>
 
       {loadError && <Alert type="error" showIcon title={t('workspace.loadError')} action={<Button onClick={loadResources}>{t('common.reload')}</Button>} style={{ marginBottom: 16 }} />}
@@ -820,6 +888,29 @@ export default function Resources() {
               </Row>
             ),
           },
+          {
+            key: 'productivity',
+            label: (
+              <span>
+                <BarChartOutlined /> Năng suất & Cân bằng tải {productivityData?.summary?.redCount > 0 ? (
+                  <Tag color="error" style={{ marginLeft: 6, borderRadius: 10, padding: '0 6px' }}>
+                    ⚠️ {productivityData.summary.redCount} quá tải
+                  </Tag>
+                ) : null}
+              </span>
+            ),
+            children: (
+              <WorkloadProductivityChart
+                productivityData={productivityData}
+                loading={productivityLoading}
+                onReassign={(person) => {
+                  const target = resources.find((r) => r._id === person._id) || person;
+                  setReassignFrom(target);
+                }}
+                onRefresh={loadProductivity}
+              />
+            ),
+          },
         ]}
       />
 
@@ -852,7 +943,10 @@ export default function Resources() {
         fromResource={reassignFrom}
         resources={resources}
         onClose={() => setReassignFrom(null)}
-        onDone={loadResources}
+        onDone={() => {
+          loadResources();
+          loadProductivity();
+        }}
       />
 
       <ResourceLeaveModal
@@ -873,6 +967,15 @@ export default function Resources() {
         onImport={handleImportCSV}
         submitting={submitting}
         t={t}
+      />
+
+      {/* 5. Modal Nhân viên tự đánh giá năng lực bản thân (Self-Assessment) */}
+      <SelfSkillEvaluationModal
+        open={selfEvalModalOpen}
+        onClose={() => setSelfEvalModalOpen(false)}
+        currentResource={myResource}
+        onSubmit={handleSelfEvalSubmit}
+        submitting={submitting}
       />
     </div>
   );

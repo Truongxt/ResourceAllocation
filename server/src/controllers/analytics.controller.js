@@ -296,6 +296,9 @@ const getUtilizationBreakdown = async (req, res, next) => {
           outcome && outcome.totalAssigned > 0
             ? Math.round((outcome.failedCount / outcome.totalAssigned) * 100)
             : 0,
+        statusCode: utilization > 100 ? 'red' : (utilization < 50 || utilization > 85) ? 'yellow' : 'green',
+        statusColor: utilization > 100 ? '#ef4444' : (utilization < 50 || utilization > 85) ? '#f59e0b' : '#10b981',
+        needsRebalance: utilization > 100,
       };
     });
 
@@ -311,10 +314,16 @@ const getUtilizationBreakdown = async (req, res, next) => {
       byDepartment[dept].count++;
     }
 
-    const departments = Object.values(byDepartment).map((d) => ({
-      ...d,
-      utilization: d.totalCapacity > 0 ? Math.round((d.totalWorkload / d.totalCapacity) * 100) : 0,
-    }));
+    const departments = Object.values(byDepartment).map((d) => {
+      const util = d.totalCapacity > 0 ? Math.round((d.totalWorkload / d.totalCapacity) * 100) : 0;
+      return {
+        ...d,
+        utilization: util,
+        statusCode: util > 100 ? 'red' : (util < 50 || util > 85) ? 'yellow' : 'green',
+        statusColor: util > 100 ? '#ef4444' : (util < 50 || util > 85) ? '#f59e0b' : '#10b981',
+        needsRebalance: util > 100,
+      };
+    });
 
     res.json({
       success: true,

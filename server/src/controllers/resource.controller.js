@@ -629,6 +629,369 @@ const deleteMyLeave = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Nhân viên tự đánh giá kỹ năng của bản thân (Self-Assessment)
+ * @route   PUT /api/resources/my-evaluation
+ * @access  Private
+ */
+const selfEvaluate = async (req, res, next) => {
+  try {
+    const { skills } = req.body;
+    if (!Array.isArray(skills)) {
+      return res.status(400).json({ success: false, message: 'Skills phải là một mảng' });
+    }
+
+    const resource = await Resource.findOne({ user: req.user._id });
+    if (!resource) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ nhân sự của bạn' });
+    }
+
+    const updatedSkills = [...(resource.skills || [])];
+    skills.forEach((inputSkill) => {
+      if (!inputSkill.name || !inputSkill.name.trim()) return;
+      const idx = updatedSkills.findIndex(
+        (s) => s.name.trim().toLowerCase() === inputSkill.name.trim().toLowerCase()
+      );
+      const sLevel = Number(inputSkill.selfLevel || inputSkill.level) || 1;
+      const yExp = Number(inputSkill.yearsOfExperience) || 0;
+
+      if (idx >= 0) {
+        updatedSkills[idx].selfLevel = sLevel;
+        updatedSkills[idx].yearsOfExperience = yExp || updatedSkills[idx].yearsOfExperience;
+        updatedSkills[idx].evaluationStatus = 'self_assessed';
+        if (!updatedSkills[idx].managerLevel) {
+          updatedSkills[idx].level = sLevel;
+        }
+      } else {
+        updatedSkills.push({
+          name: inputSkill.name.trim(),
+          level: sLevel,
+          selfLevel: sLevel,
+          yearsOfExperience: yExp,
+          evaluationStatus: 'self_assessed',
+        });
+      }
+    });
+
+    resource.skills = updatedSkills;
+    await resource.save();
+
+    await logActivity({
+      req,
+      action: 'UPDATE_SKILLS',
+      entityType: 'resource',
+      entityId: resource._id,
+      description: `${req.user.name || 'Nhân sự'} gửi bản tự đánh giá năng lực (${skills.length} kỹ năng)`,
+      details: { skillsCount: skills.length },
+    });
+
+    res.json({
+      success: true,
+      message: 'Gửi bản tự đánh giá năng lực thành công',
+      data: { resource },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Quản lý đánh giá lại, điều chỉnh và duyệt ma trận kỹ năng của nhân sự
+ * @route   PUT /api/resources/:id/manager-evaluation
+ * @access  Private (Admin, PM)
+ */
+const managerEvaluate = async (req, res, next) => {
+  try {
+    const { skills, performanceRating, performanceNotes } = req.body;
+    const resource = await Resource.findById(req.params.id);
+    if (!resource) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nhân sự' });
+    }
+
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (resource.companyName && resource.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Không có quyền thao tác trên nhân sự công ty khác' });
+    }
+
+    if (Array.isArray(skills)) {
+      const currentSkills = [...(resource.skills || [])];
+      skills.forEach((inputSkill) => {
+        if (!inputSkill.name || !inputSkill.name.trim()) return;
+        const idx = currentSkills.findIndex(
+          (s) => s.name.trim().toLowerCase() === inputSkill.name.trim().toLowerCase()
+        );
+        const mLevel = Number(inputSkill.managerLevel || inputSkill.level) || 1;
+        const feedback = inputSkill.managerFeedback || '';
+
+        if (idx >= 0) {
+          currentSkills[idx].managerLevel = mLevel;
+          currentSkills[idx].level = mLevel;
+          currentSkills[idx].managerFeedback = feedback;
+          currentSkills[idx].evaluationStatus = 'approved';
+          currentSkills[idx].evaluatedAt = new Date();
+          currentSkills[idx].evaluatedBy = req.user._id;
+        } else {
+          currentSkills.push({
+            name: inputSkill.name.trim(),
+            level: mLevel,
+            selfLevel: inputSkill.selfLevel || mLevel,
+            managerLevel: mLevel,
+            yearsOfExperience: Number(inputSkill.yearsOfExperience) || 0,
+            managerFeedback: feedback,
+            evaluationStatus: 'approved',
+            evaluatedAt: new Date(),
+            evaluatedBy: req.user._id,
+          });
+        }
+      });
+      resource.skills = currentSkills;
+    }
+
+    if (performanceRating !== undefined && performanceRating !== null) {
+      resource.performanceRating = Math.min(5, Math.max(1, Number(performanceRating) || 4.5));
+    }
+    if (performanceNotes !== undefined) {
+      resource.performanceNotes = performanceNotes;
+    }
+
+    await resource.save();
+
+    await logActivity({
+      req,
+      action: 'UPDATE_SKILLS',
+      entityType: 'resource',
+      entityId: resource._id,
+      description: `Quản lý ${req.user.name} đã đánh giá và duyệt năng lực cho nhân sự ${resource.employeeId || resource.position}`,
+      details: { performanceRating: resource.performanceRating },
+    });
+
+    const populated = await Resource.findById(resource._id).populate('user', 'name email avatar role');
+    res.json({
+      success: true,
+      message: 'Đánh giá và phê duyệt năng lực nhân sự thành công',
+      data: { resource: populated },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Lấy dữ liệu tổng hợp Năng suất & Tải trọng (Sơ đồ cột Xanh / Vàng / Đỏ theo Nhân sự & Phòng ban)
+ * @route   GET /api/resources/productivity/summary
+ * @access  Private
+ */
+const getProductivitySummary = async (req, res, next) => {
+  try {
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    const filter = { isActive: true };
+    if (userCompany === 'Công ty Công nghệ RAO') {
+      filter.companyName = { $in: [userCompany, null, undefined] };
+    } else {
+      filter.companyName = userCompany;
+    }
+
+    const resources = await Resource.find(filter)
+      .populate('user', 'name email avatar role')
+      .lean();
+
+    const resourceUserIds = resources.map((r) => r.user?._id).filter(Boolean);
+
+    // Lấy thống kê task theo nhân sự
+    const taskAgg = await Task.aggregate([
+      { $match: { assignee: { $in: resourceUserIds } } },
+      {
+        $group: {
+          _id: '$assignee',
+          totalTasks: { $sum: 1 },
+          doneTasks: { $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] } },
+          failedTasks: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
+          activeTasks: { $sum: { $cond: [{ $in: ['$status', ['todo', 'in_progress', 'review']] }, 1, 0] } },
+          totalEstimatedHours: { $sum: '$estimatedHours' },
+          totalActualHours: { $sum: '$actualHours' },
+          onTimeTasks: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$status', 'done'] },
+                    { $ne: [{ $ifNull: ['$completedAt', null] }, null] },
+                    { $ne: [{ $ifNull: ['$endDate', null] }, null] },
+                    { $lte: ['$completedAt', '$endDate'] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const taskMap = new Map();
+    taskAgg.forEach((t) => taskMap.set(t._id.toString(), t));
+
+    // Xử lý từng nhân sự
+    const personnelList = resources.map((r) => {
+      const uId = r.user?._id?.toString();
+      const tStats = uId ? taskMap.get(uId) : null;
+      const capacity = (r.maxCapacity || 40) * (r.fte || 1);
+      const workload = r.currentWorkload || 0;
+      const utilizationRate = capacity > 0 ? Math.round((workload / capacity) * 100) : 0;
+
+      const totalTasks = tStats?.totalTasks || 0;
+      const doneTasks = tStats?.doneTasks || 0;
+      const activeTasks = tStats?.activeTasks || 0;
+      const failedTasks = tStats?.failedTasks || 0;
+      const onTimeTasks = tStats?.onTimeTasks || 0;
+      const onTimeRate = doneTasks > 0 ? Math.round((onTimeTasks / doneTasks) * 100) : 100;
+      const failedRate = totalTasks > 0 ? Math.round((failedTasks / totalTasks) * 100) : 0;
+
+      // Tính điểm năng suất: kết hợp % hoàn thành đúng hạn và rating
+      const productivityScore = Math.min(
+        100,
+        Math.round((onTimeRate * 0.6) + ((r.performanceRating || 4.5) / 5 * 40))
+      );
+
+      // Mã màu trực quan:
+      // 🟢 Xanh: Tải tối ưu 60% - 85% và năng suất tốt
+      // 🟡 Vàng: Tải thấp < 50% (Underload) HOẶC 86% - 100% (Tiệm cận ngưỡng)
+      // 🔴 Đỏ: Quá tải > 100% HOẶC tỷ lệ thất bại cao > 30%
+      let statusCode = 'green';
+      let statusLabel = 'Tối ưu (Năng suất tốt)';
+      let color = '#10b981'; // Green
+
+      if (utilizationRate > 100 || failedRate > 30) {
+        statusCode = 'red';
+        statusLabel = 'Quá tải (Cần san tải việc)';
+        color = '#ef4444'; // Red
+      } else if (utilizationRate < 50) {
+        statusCode = 'yellow';
+        statusLabel = 'Nhàn rỗi (Dưới công suất)';
+        color = '#f59e0b'; // Amber / Yellow
+      } else if (utilizationRate > 85) {
+        statusCode = 'yellow';
+        statusLabel = 'Tiệm cận tối đa (Theo dõi sát)';
+        color = '#f59e0b';
+      }
+
+      return {
+        _id: r._id,
+        userId: uId,
+        employeeId: r.employeeId || 'NV',
+        name: r.user?.name || r.position,
+        email: r.user?.email || '',
+        avatar: r.user?.avatar || '',
+        position: r.position,
+        department: r.department || 'Chung',
+        capacity,
+        workload,
+        unscheduledWorkload: r.unscheduledWorkload || 0,
+        utilizationRate,
+        statusCode,
+        statusLabel,
+        color,
+        performanceRating: r.performanceRating || 4.5,
+        productivityScore,
+        totalTasks,
+        activeTasks,
+        doneTasks,
+        failedTasks,
+        onTimeRate,
+        skills: r.skills || [],
+        needsRebalance: statusCode === 'red',
+      };
+    });
+
+    // Gom nhóm theo Phòng ban
+    const deptMap = new Map();
+    personnelList.forEach((p) => {
+      const deptName = p.department || 'Chung';
+      if (!deptMap.has(deptName)) {
+        deptMap.set(deptName, {
+          name: deptName,
+          totalCapacity: 0,
+          totalWorkload: 0,
+          personnelCount: 0,
+          overloadedCount: 0,
+          underloadedCount: 0,
+          optimalCount: 0,
+          totalActiveTasks: 0,
+          avgProductivity: 0,
+          sumProductivity: 0,
+          members: [],
+        });
+      }
+      const d = deptMap.get(deptName);
+      d.totalCapacity += p.capacity;
+      d.totalWorkload += p.workload;
+      d.personnelCount += 1;
+      d.totalActiveTasks += p.activeTasks;
+      d.sumProductivity += p.productivityScore;
+      d.members.push(p);
+
+      if (p.statusCode === 'red') d.overloadedCount += 1;
+      else if (p.statusCode === 'yellow' && p.utilizationRate < 50) d.underloadedCount += 1;
+      else d.optimalCount += 1;
+    });
+
+    const departmentList = Array.from(deptMap.values()).map((d) => {
+      const utilizationRate = d.totalCapacity > 0 ? Math.round((d.totalWorkload / d.totalCapacity) * 100) : 0;
+      const avgProductivity = d.personnelCount > 0 ? Math.round(d.sumProductivity / d.personnelCount) : 0;
+
+      let statusCode = 'green';
+      let statusLabel = 'Hoạt động tối ưu';
+      let color = '#10b981';
+
+      if (utilizationRate > 100 || (d.overloadedCount > 0 && d.overloadedCount >= d.personnelCount / 2)) {
+        statusCode = 'red';
+        statusLabel = 'Phòng ban Quá tải (Cần điều phối)';
+        color = '#ef4444';
+      } else if (utilizationRate < 50) {
+        statusCode = 'yellow';
+        statusLabel = 'Dưới công suất (Có thể nhận thêm việc)';
+        color = '#f59e0b';
+      } else if (utilizationRate > 85) {
+        statusCode = 'yellow';
+        statusLabel = 'Tiệm cận công suất tối đa';
+        color = '#f59e0b';
+      }
+
+      return {
+        ...d,
+        utilizationRate,
+        avgProductivity,
+        statusCode,
+        statusLabel,
+        color,
+        needsRebalance: statusCode === 'red',
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        personnel: personnelList,
+        departments: departmentList,
+        summary: {
+          totalPersonnel: personnelList.length,
+          totalDepartments: departmentList.length,
+          greenCount: personnelList.filter((p) => p.statusCode === 'green').length,
+          yellowCount: personnelList.filter((p) => p.statusCode === 'yellow').length,
+          redCount: personnelList.filter((p) => p.statusCode === 'red').length,
+          avgUtilization:
+            personnelList.length > 0
+              ? Math.round(personnelList.reduce((s, p) => s + p.utilizationRate, 0) / personnelList.length)
+              : 0,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getResources,
   getResourceById,
@@ -636,6 +999,9 @@ module.exports = {
   updateResource,
   deleteResource,
   updateSkills,
+  selfEvaluate,
+  managerEvaluate,
+  getProductivitySummary,
   recalculateWorkload,
   getResourceSummary,
   getMyLeaves,

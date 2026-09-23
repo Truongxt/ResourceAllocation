@@ -68,6 +68,17 @@ const taskSchema = new mongoose.Schema(
       enum: ['low', 'medium', 'high', 'critical'],
       default: 'medium',
     },
+    // Độ khó công việc để ghép cặp năng lực nhân sự
+    difficulty: {
+      type: String,
+      enum: ['easy', 'medium', 'hard', 'expert'],
+      default: 'medium',
+    },
+    difficultyLevel: {
+      type: Number,
+      enum: [1, 2, 3, 4], // 1=Dễ, 2=Vừa, 3=Khó, 4=Rất khó
+      default: 2,
+    },
     startDate: {
       type: Date,
     },

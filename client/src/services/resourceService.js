@@ -41,6 +41,18 @@ const resourceService = {
     return api.post('/resources/me/leaves', data);
   },
 
+  selfEvaluate(skills) {
+    return api.put('/resources/my-evaluation', { skills });
+  },
+
+  managerEvaluate(id, data) {
+    return api.put(`/resources/${id}/manager-evaluation`, data);
+  },
+
+  getProductivitySummary() {
+    return api.get('/resources/productivity/summary');
+  },
+
   deleteMyLeave(leaveId) {
     return api.delete(`/resources/me/leaves/${leaveId}`);
   },
