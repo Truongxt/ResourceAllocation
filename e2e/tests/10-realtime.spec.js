@@ -16,7 +16,7 @@
  */
 
 const { test, expect } = require('@playwright/test');
-const { login, uniqueName } = require('../support/helpers');
+const { login, uniqueName, showTaskList } = require('../support/helpers');
 const { SERVER_PORT } = require('../support/env');
 
 test.describe('Thông báo realtime', () => {
@@ -75,6 +75,7 @@ test.describe('Thông báo realtime', () => {
       await expect(memberPage.getByText(title).first()).toBeVisible({ timeout: 15_000 });
 
       // Dọn: xóa công việc vừa tạo
+      await showTaskList(adminPage);
       await adminPage.getByPlaceholder('Tìm theo tiêu đề công việc...').fill(title);
       const row = adminPage.locator('.ant-table-row').filter({ hasText: title });
       await expect(row).toHaveCount(1, { timeout: 20_000 });

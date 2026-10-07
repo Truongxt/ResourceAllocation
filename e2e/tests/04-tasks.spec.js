@@ -6,7 +6,7 @@
  */
 
 const { test, expect } = require('@playwright/test');
-const { login, uniqueName, watchForProblems } = require('../support/helpers');
+const { login, uniqueName, watchForProblems, showTaskList } = require('../support/helpers');
 
 const SEED_TASK = 'Xây dựng REST APIs Quản lý Đơn hàng';
 
@@ -15,6 +15,7 @@ test.describe('Quản lý công việc', () => {
     await login(page, 'admin');
     await page.goto('/tasks');
     await expect(page.getByRole('heading', { name: 'Quản lý Công việc' }).first()).toBeVisible();
+    await showTaskList(page);
   });
 
   test('danh sách hiện công việc của dữ liệu mẫu kèm dự án và người thực hiện', async ({ page }) => {
@@ -149,6 +150,7 @@ test.describe('Quản lý công việc', () => {
     // Dashboard dẫn sang đây bằng đúng link này, nên tham số phải có tác dụng
     await page.goto('/tasks?status=blocked');
     await expect(page.getByRole('heading', { name: 'Quản lý Công việc' }).first()).toBeVisible();
+    await showTaskList(page);
 
     const rows = page.locator('.ant-table-row');
     const count = await rows.count();
