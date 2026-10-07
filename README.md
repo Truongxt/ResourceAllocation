@@ -11,7 +11,7 @@ Web App hỗ trợ quản lý phân công công việc cho các dự án chạy 
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18 + Vite 5 |
-| Mobile | Expo 54 + React Native 0.81 (client thứ hai, cùng API) |
+| Mobile | Expo 57 + React Native 0.86 + React 19 (client thứ hai, cùng API) |
 | UI Library | Ant Design 6 + @ant-design/icons |
 | Backend | Node.js + Express 4 |
 | Database | MongoDB 7 + Mongoose 8 |
