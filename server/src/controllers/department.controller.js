@@ -1,4 +1,5 @@
 const Department = require('../models/Department');
+const { toSearchRegex } = require('../utils/escapeRegex');
 const Resource = require('../models/Resource');
 const Project = require('../models/Project');
 const CompanySetting = require('../models/CompanySetting');
@@ -14,7 +15,7 @@ const getDepartments = async (req, res, next) => {
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
     const filter = {};
     if (req.query.isActive !== undefined) filter.isActive = req.query.isActive === 'true';
-    if (req.query.search) filter.name = new RegExp(req.query.search, 'i');
+    if (req.query.search) filter.name = toSearchRegex(req.query.search);
 
     // Multi-tenant: mỗi công ty chỉ truy xuất và quản lý phòng ban của chính công ty mình.
     //

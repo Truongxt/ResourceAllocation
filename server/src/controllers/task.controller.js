@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { toSearchRegex } = require('../utils/escapeRegex');
 const Task = require('../models/Task');
 const Project = require('../models/Project');
 const User = require('../models/User');
@@ -193,7 +194,7 @@ const getTasks = async (req, res, next) => {
     }
 
     if (req.query.search) {
-      const regex = new RegExp(req.query.search, 'i');
+      const regex = toSearchRegex(req.query.search);
       const searchOr = [{ title: regex }, { description: regex }];
       if (filter.$and) {
         filter.$and.push({ $or: searchOr });

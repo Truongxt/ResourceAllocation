@@ -28,6 +28,7 @@ const SUITES = [
   { name: 'email', file: 'email.test.mjs', label: 'Email — bật/tắt và nội dung thư' },
   { name: 'sanitize', file: 'sanitize.test.mjs', label: 'Cắt toán tử Mongo khỏi request' },
   { name: 'cors', file: 'cors.test.mjs', label: 'Origin dùng chung cho REST và Socket.IO' },
+  { name: 'regex-search', file: 'regex-search.test.mjs', label: 'Tìm kiếm không hiểu chuỗi nhập là regex' },
   { name: 'error-handler', file: 'error-handler.test.mjs', label: 'Bộ bắt lỗi toàn cục' },
   { name: 'refresh-token', file: 'refresh-token.test.mjs', label: 'Refresh token — xoay vòng, thu hồi, tái sử dụng' },
   { name: 'security', file: 'security.test.mjs', label: 'Header, CORS, giới hạn tần suất' },

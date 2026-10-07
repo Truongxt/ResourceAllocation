@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { toSearchRegex } = require('../utils/escapeRegex');
 const User = require('../models/User');
 const Resource = require('../models/Resource');
 const Department = require('../models/Department');
@@ -416,7 +417,7 @@ const getUsers = async (req, res, next) => {
     if (req.query.department) filter.department = req.query.department;
     if (req.query.isActive !== undefined) filter.isActive = req.query.isActive === 'true';
     if (req.query.search) {
-      const regex = new RegExp(req.query.search, 'i');
+      const regex = toSearchRegex(req.query.search);
       filter.$and = [
         { companyName: userCompany },
         { $or: [{ name: regex }, { email: regex }, { phone: regex }, { jobTitle: regex }] },

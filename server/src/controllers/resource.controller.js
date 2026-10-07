@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { toSearchRegex } = require('../utils/escapeRegex');
 const Resource = require('../models/Resource');
 const Task = require('../models/Task');
 const User = require('../models/User');
@@ -67,7 +68,7 @@ const getResources = async (req, res, next) => {
 
     // Skill search: ?skill=React&skillLevel=3
     if (req.query.skill) {
-      const skillFilter = { 'skills.name': new RegExp(req.query.skill, 'i') };
+      const skillFilter = { 'skills.name': toSearchRegex(req.query.skill) };
       if (req.query.skillLevel) {
         skillFilter['skills.level'] = { $gte: parseInt(req.query.skillLevel, 10) };
       }
@@ -75,7 +76,7 @@ const getResources = async (req, res, next) => {
     }
 
     if (req.query.search) {
-      const regex = new RegExp(req.query.search, 'i');
+      const regex = toSearchRegex(req.query.search);
       const matchedUsers = await User.find({
         companyName: userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
         $or: [{ name: regex }, { email: regex }],

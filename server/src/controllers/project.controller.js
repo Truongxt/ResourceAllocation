@@ -1,4 +1,5 @@
 const Project = require('../models/Project');
+const { toSearchRegex } = require('../utils/escapeRegex');
 const Task = require('../models/Task');
 const TaskGroup = require('../models/TaskGroup');
 const User = require('../models/User');
@@ -42,7 +43,7 @@ const buildProjectQuery = async (query, user) => {
   }
 
   if (query.search) {
-    const searchRegex = new RegExp(query.search, 'i');
+    const searchRegex = toSearchRegex(query.search);
     const searchFilter = [{ name: searchRegex }, { code: searchRegex }, { description: searchRegex }];
     if (filter.$or) {
       filter.$and = [
