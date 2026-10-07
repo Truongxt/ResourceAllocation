@@ -14,6 +14,7 @@ const {
 const { generateEmployeeId } = require('../utils/employeeId.util');
 const { sendUserWelcomeEmail } = require('../services/email.service');
 const { logActivity } = require('../services/activityLog.service');
+const { disconnectUser } = require('../services/socket.service');
 
 const REFRESH_COOKIE = 'rao_refresh';
 
@@ -613,9 +614,10 @@ const updateUserStatus = async (req, res, next) => {
     targetUser.isActive = Boolean(isActive);
     await targetUser.save();
 
-    // Nếu vô hiệu hóa, thu hồi toàn bộ token phiên đăng nhập
+    // Nếu vô hiệu hóa, thu hồi toàn bộ token phiên đăng nhập và cắt kênh realtime
     if (!isActive) {
       await revokeAllForUser(targetUser._id);
+      disconnectUser(targetUser._id);
     }
 
     res.json({

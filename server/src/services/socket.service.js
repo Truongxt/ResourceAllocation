@@ -69,10 +69,20 @@ const sendNotification = async ({
   }
 };
 
+/**
+ * Ngắt mọi socket đang mở của một người dùng (khi tài khoản bị khóa).
+ * Handshake chặn kết nối mới, nhưng socket đã mở từ trước thì phải chủ động cắt.
+ */
+const disconnectUser = (userId) => {
+  if (!ioInstance || !userId) return;
+  ioInstance.in(`user:${userId.toString()}`).disconnectSockets(true);
+};
+
 module.exports = {
   setIO,
   getIO,
   emitToUser,
   emitToAll,
   sendNotification,
+  disconnectUser,
 };
