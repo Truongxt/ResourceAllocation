@@ -47,7 +47,7 @@ Muốn chạy kiểm thử giao diện thì cần tải trình duyệt cho Playw
 npm run test:e2e:install
 ```
 
-Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017`.
+Yêu cầu: **Node.js ≥ 20** và **MongoDB** đang chạy ở `localhost:27017`.
 
 > `JWT_SECRET` bỏ trống ở môi trường dev thì hệ thống vẫn chạy (ghi cảnh báo và dùng khóa tạm),
 > nhưng với `NODE_ENV=production` server sẽ **từ chối khởi động**. Hãy đặt giá trị thật trước khi triển khai.
