@@ -516,7 +516,14 @@ const getOptimizationComparison = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Kết quả không tìm thấy' });
     }
 
-    const resources = await Resource.find({ isActive: true })
+    // Cùng quy ước với `resultBelongsTo` bên optimization.controller: bản ghi cũ
+    // thiếu `companyName` thuộc công ty mặc định.
+    const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
+    if ((result.companyName || 'Công ty Công nghệ RAO') !== userCompany && req.user?.role !== 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Không có quyền xem kết quả tối ưu của công ty khác' });
+    }
+
+    const resources = await Resource.find({ isActive: true, companyName: userCompany })
       .populate('user', 'name')
       .select('user position maxCapacity fte currentWorkload');
 
@@ -524,7 +531,7 @@ const getOptimizationComparison = async (req, res, next) => {
     // currentWorkload — field đó chỉ được làm mới khi admin gọi recalculate-workload
     // nên thường đã cũ, khiến cột "Trước" không so sánh được với cột "Sau".
     const openTasks = await Task.aggregate([
-      { $match: { status: { $in: ['todo', 'in_progress', 'review'] } } },
+      { $match: { status: { $in: ['todo', 'in_progress', 'review'] }, companyName: userCompany } },
       { $group: { _id: '$assignee', totalHours: { $sum: '$estimatedHours' } } },
     ]);
     const hoursByUser = {};

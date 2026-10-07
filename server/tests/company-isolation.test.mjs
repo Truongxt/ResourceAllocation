@@ -286,6 +286,16 @@ S('Tối ưu hóa — cả phân hệ từng không có ranh giới');
     ok((own.data?.results || []).length > 0,
       'Nhưng A vẫn thấy lượt chạy của chính mình',
       `${(own.data?.results || []).length} bản ghi`);
+
+    // Đường so sánh thứ hai, bên analytics: đọc kết quả theo id và dựng bảng
+    // trước/sau từ danh sách nhân sự — trước đây không lọc cả hai theo công ty.
+    const anaB = await call('GET', `/analytics/optimization-comparison/${resultId}`, { token: TB });
+    ok(anaB.status === 403, 'B không xem bảng trước/sau tối ưu của A', `status=${anaB.status}`);
+
+    const anaA = await call('GET', `/analytics/optimization-comparison/${resultId}`, { token: TAdmin });
+    const names = (anaA.data?.resources || []).map((r) => r.resourceName);
+    ok(anaA.status === 200 && names.length > 0, 'A xem được bảng của mình', `status=${anaA.status}`);
+    ok(!names.includes('Chủ B'), 'Bảng của A không lòi nhân sự công ty B', names.join(', '));
   }
 }
 
