@@ -11,7 +11,8 @@
     "migrate:skill-level": "node src/utils/migrate-skill-level.js",
     "test": "node tests/run.mjs",
     "migrate:dependencies": "node src/utils/migrate-dependencies.js",
-    "migrate:stale-indexes": "node src/utils/migrate-stale-indexes.js"
+    "migrate:stale-indexes": "node src/utils/migrate-stale-indexes.js",
+    "migrate:guest-company": "node src/utils/migrate-guest-company.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
