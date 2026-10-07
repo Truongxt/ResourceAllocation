@@ -12,13 +12,14 @@ const connectDB = require('./src/config/db');
 const { setIO } = require('./src/services/socket.service');
 const { getJwtSecret, assertJwtConfig } = require('./src/config/jwt');
 const { logMailStatus } = require('./src/services/email.service');
+const { corsOrigin } = require('./src/config/cors');
 
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: corsOrigin,
     credentials: true,
   },
 });
