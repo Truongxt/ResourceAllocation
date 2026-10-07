@@ -5,6 +5,15 @@ const TaskGroup = require('../models/TaskGroup');
 const User = require('../models/User');
 const CompanySetting = require('../models/CompanySetting');
 const { logActivity } = require('../services/activityLog.service');
+const { stripProtected, usersError, departmentError } = require('../services/companyRefs.service');
+
+/** Quản lý, thành viên và phòng ban gửi lên phải cùng công ty với dự án. */
+const projectRefsError = async ({ manager, members, department }, company) => {
+  const users = [];
+  if (manager) users.push(manager);
+  if (Array.isArray(members)) users.push(...members.map((m) => m.user));
+  return (await usersError(users, company)) || (await departmentError(department, company));
+};
 
 const buildProjectQuery = async (query, user) => {
   const filter = {};
@@ -241,6 +250,14 @@ const createProject = async (req, res, next) => {
       }
     }
 
+    const refError = await projectRefsError(
+      { manager: req.body.manager, members: formattedMembers, department: req.body.department },
+      userCompany
+    );
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
+    }
+
     const projectData = {
       ...req.body,
       department: req.body.department || null,
@@ -338,8 +355,8 @@ const updateProject = async (req, res, next) => {
       });
     }
 
-    const updateData = { ...req.body };
-    delete updateData.createdBy;
+    // `companyName` gửi lên trước đây chuyển được cả dự án sang công ty khác
+    const updateData = stripProtected({ ...req.body });
 
     if (Array.isArray(req.body.members)) {
       const formattedMembers = req.body.members
@@ -374,6 +391,14 @@ const updateProject = async (req, res, next) => {
     }
     if (req.body.template !== undefined) {
       updateData.template = req.body.template;
+    }
+
+    const refError = await projectRefsError(
+      { manager: updateData.manager, members: updateData.members, department: updateData.department },
+      userCompany
+    );
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
     }
 
     const updatedProject = await Project.findByIdAndUpdate(req.params.id, updateData, {
@@ -428,6 +453,13 @@ const quickEditProject = async (req, res, next) => {
     }
 
     const { name, department, status, priority, manager } = req.body;
+    const refError = await projectRefsError(
+      { manager, department: department === 'unassigned' ? null : department },
+      userCompany
+    );
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
+    }
     if (name !== undefined) project.name = name;
     if (department !== undefined) {
       project.department = (department === '' || department === 'unassigned' || department === null) ? null : department;
@@ -755,6 +787,10 @@ const updateProjectPermissions = async (req, res, next) => {
     }
 
     if (req.body.reviewConfig) {
+      const reviewerError = await usersError(req.body.reviewConfig.reviewers || [], userCompany);
+      if (reviewerError) {
+        return res.status(400).json({ success: false, message: reviewerError });
+      }
       project.reviewConfig = {
         ...(project.reviewConfig?.toObject ? project.reviewConfig.toObject() : project.reviewConfig),
         ...req.body.reviewConfig,

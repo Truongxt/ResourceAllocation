@@ -4,6 +4,7 @@ const Resource = require('../models/Resource');
 const Project = require('../models/Project');
 const CompanySetting = require('../models/CompanySetting');
 const { logActivity } = require('../services/activityLog.service');
+const { stripProtected, usersError } = require('../services/companyRefs.service');
 
 const DEFAULT_COMPANY = 'Công ty Công nghệ RAO';
 
@@ -166,6 +167,11 @@ const createDepartment = async (req, res, next) => {
       });
     }
 
+    const managerError = await usersError(req.body.managers || [], userCompany);
+    if (managerError) {
+      return res.status(400).json({ success: false, message: managerError });
+    }
+
     const department = await Department.create({
       ...req.body,
       companyName: userCompany,
@@ -202,6 +208,14 @@ const updateDepartment = async (req, res, next) => {
     }
 
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+
+    // Cả hai nhánh dưới đều ghi body vào bản ghi: không cho đổi công ty, và trưởng
+    // phòng phải là người của chính công ty này.
+    stripProtected(req.body);
+    const managerError = await usersError(req.body.managers || [], userCompany);
+    if (managerError) {
+      return res.status(400).json({ success: false, message: managerError });
+    }
 
     // Trường hợp 1: Phòng ban thuộc đúng công ty của user hoặc superadmin
     if (department.companyName === userCompany || req.user.role === 'superadmin') {

@@ -46,6 +46,7 @@ const SUITES = [
   { name: 'notify-session', file: 'notify-session.test.mjs', label: 'Thông báo và phiên đăng nhập' },
   { name: 'hardening', file: 'hardening.test.mjs', label: 'Phân lập công ty, rò mật khẩu, validate payload' },
   { name: 'company-isolation', file: 'company-isolation.test.mjs', label: 'Phân lập công ty trên task, dự án, nhân sự, phòng ban' },
+  { name: 'cross-company-refs', file: 'cross-company-refs.test.mjs', label: 'Id công ty khác trong body và query' },
 ];
 
 const filter = process.argv[2];

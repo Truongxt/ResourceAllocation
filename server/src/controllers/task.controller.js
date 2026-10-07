@@ -9,6 +9,14 @@ const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
 const { createDeniedReason } = require('../middleware/taskAccess');
 const {
+  companyOf,
+  stripProtected,
+  usersError,
+  projectRef,
+  taskGroupError,
+  taskRefsError,
+} = require('../services/companyRefs.service');
+const {
   validateStatusTransition,
   resolveReviewers,
   isReviewOverdue,
@@ -378,6 +386,12 @@ const createTask = async (req, res, next) => {
       });
     }
 
+    // assignee/followers/reviewers phải cùng công ty, taskGroup/parentTask phải cùng dự án
+    const refError = await taskRefsError(req.body, { projectId: project._id, company: companyOf(project) });
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
+    }
+
     const depError = await validateDependencies(req.body.dependencies, {
       taskId: null,
       projectId: project._id,
@@ -491,6 +505,13 @@ const updateTask = async (req, res, next) => {
         success: false,
         message: 'Không có quyền thao tác trên công việc của công ty khác',
       });
+    }
+
+    // Không cho đổi công ty qua body, và mọi tham chiếu mới phải cùng công ty/dự án
+    stripProtected(req.body);
+    const refError = await taskRefsError(req.body, { projectId: task.project, company: companyOf(project) });
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
     }
 
     if (req.body.dependencies !== undefined) {
@@ -984,6 +1005,9 @@ const addChecklistItem = async (req, res, next) => {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
 
+    const refError = await usersError(assignee, companyOf(req.user));
+    if (refError) return res.status(400).json({ success: false, message: refError });
+
     const order = task.checklist.length;
     task.checklist.push({ title: title.trim(), assignee: assignee || null, order });
     await task.save();
@@ -1104,6 +1128,11 @@ const addFollower = async (req, res, next) => {
         message: 'Danh sách có người dùng không tồn tại',
       });
     }
+    // Người theo dõi nhận thông báo về công việc — người công ty khác thì không được
+    const companyError = await usersError(toAdd, companyOf(req.user));
+    if (companyError) {
+      return res.status(400).json({ success: false, message: companyError });
+    }
 
     if (current.size + toAdd.length > Task.MAX_FOLLOWERS) {
       return res.status(400).json({
@@ -1217,6 +1246,11 @@ const createSubtask = async (req, res, next) => {
 
     if (!title || !title.trim()) {
       return res.status(400).json({ success: false, message: 'Tiêu đề việc con là bắt buộc' });
+    }
+
+    const refError = await usersError([assignee, ...(Array.isArray(followers) ? followers : [])], companyOf(req.user));
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
     }
 
     const subtask = await Task.create({
@@ -1379,7 +1413,24 @@ const duplicateTask = async (req, res, next) => {
 
     const { targetProjectId, targetTaskGroupId, newTitle } = req.body;
     const targetProject = targetProjectId || original.project;
-    const targetGroup = targetTaskGroupId !== undefined ? targetTaskGroupId : original.taskGroup;
+    // Nhóm của bản gốc chỉ còn hợp lệ khi bản sao vẫn ở dự án cũ
+    const changesProject = Boolean(targetProjectId) && String(targetProjectId) !== String(original.project);
+    const targetGroup = targetTaskGroupId !== undefined ? targetTaskGroupId : changesProject ? null : original.taskGroup;
+
+    // Cùng luật với `moveTask`: dự án đích đi trong body nên phải tự kiểm — nhân bản
+    // sang dự án công ty khác là chép nguyên nội dung công việc cho công ty đó đọc.
+    let targetCompany = original.companyName;
+    if (changesProject) {
+      const { error, status, project } = await projectRef(targetProjectId, companyOf(req.user));
+      if (error) return res.status(status || 400).json({ success: false, message: error });
+      const denied = createDeniedReason(req.user, project);
+      if (denied) {
+        return res.status(403).json({ success: false, message: `Không thể nhân bản sang dự án này: ${denied}` });
+      }
+      targetCompany = companyOf(project);
+    }
+    const groupError = await taskGroupError(targetGroup, targetProject);
+    if (groupError) return res.status(400).json({ success: false, message: groupError });
 
     const duplicated = await Task.create({
       title: newTitle || `${original.title} (Bản sao)`,
@@ -1401,7 +1452,7 @@ const duplicateTask = async (req, res, next) => {
         isCompleted: false,
         order: c.order,
       })),
-      companyName: original.companyName,
+      companyName: targetCompany,
       createdBy: req.user._id,
     });
 
@@ -1424,7 +1475,7 @@ const duplicateTask = async (req, res, next) => {
             title: c.title,
             isCompleted: false,
           })),
-          companyName: sub.companyName,
+          companyName: targetCompany,
           createdBy: req.user._id,
         });
       }
@@ -2148,6 +2199,11 @@ const bulkReassign = async (req, res, next) => {
         success: false,
         message: 'Không bàn giao được cho tài khoản đã bị vô hiệu hóa',
       });
+    }
+    // Tập việc đã giới hạn trong công ty, nhưng người NHẬN thì chưa
+    const recipientError = await usersError(toUserId, companyOf(req.user));
+    if (recipientError) {
+      return res.status(400).json({ success: false, message: recipientError });
     }
 
     const scopeIds = await companyProjectIds(req.user);

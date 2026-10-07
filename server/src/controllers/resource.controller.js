@@ -8,6 +8,7 @@ const Department = require('../models/Department');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
 const { generateEmployeeId } = require('../utils/employeeId.util');
+const { stripProtected } = require('../services/companyRefs.service');
 
 const validateDepartment = async (departmentName, companyName = 'Công ty Công nghệ RAO') => {
   if (!departmentName) return null;
@@ -285,7 +286,9 @@ const updateResource = async (req, res, next) => {
       });
     }
 
-    const updateData = { ...req.body };
+    // `companyName` gửi lên trước đây chuyển được nhân sự sang công ty khác — và kéo họ
+    // vào bài toán tối ưu của công ty đó
+    const updateData = stripProtected({ ...req.body });
     const newName = updateData.name;
     const newEmail = updateData.email;
     delete updateData.name;

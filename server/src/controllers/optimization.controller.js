@@ -42,6 +42,9 @@ const loadOptimizationData = async (projectId, user) => {
 
   if (projectId) {
     taskFilter.project = projectId;
+    // `projectId` đến từ body/query: thiếu dòng này thì chạy tối ưu (và Áp dụng) được
+    // trên công việc của công ty khác, chỉ cần biết id dự án.
+    taskFilter.companyName = companyScope;
     const project = await Project.findById(projectId).select('members manager companyName');
     if (project) {
       const memberUserIds = new Set();

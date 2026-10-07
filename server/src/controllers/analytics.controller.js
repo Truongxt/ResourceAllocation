@@ -459,11 +459,11 @@ const getWorkloadTrend = async (req, res, next) => {
 
     const { taskMatch, resourceMatch } = await getUserAnalyticsScope(req.user);
 
-    const taskFilter = {};
+    // Phạm vi của người gọi luôn áp dụng; `projectId` chỉ thu hẹp thêm. Trước đây có
+    // `projectId` là bỏ hẳn phạm vi, nên đọc được giờ công của dự án công ty khác.
+    const taskFilter = { ...taskMatch };
     if (projectId) {
       taskFilter.project = projectId;
-    } else if (Object.keys(taskMatch).length > 0) {
-      Object.assign(taskFilter, taskMatch);
     }
 
     const [tasks, resources] = await Promise.all([

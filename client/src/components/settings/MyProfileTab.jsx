@@ -235,8 +235,10 @@ export default function MyProfileTab({ user, updateProfile }) {
                 </Col>
 
                 <Col xs={24} sm={12}>
+                  {/* Chỉ đọc: `companyName` là khóa phân lập dữ liệu giữa các công ty —
+                      đổi nó là chuyển tài khoản sang công ty khác, server từ chối. */}
                   <Form.Item name="companyName" label="Tên công ty / Doanh nghiệp">
-                    <Input prefix={<BankOutlined style={{ color: '#94a3b8' }} />} placeholder="Tên công ty của bạn" />
+                    <Input prefix={<BankOutlined style={{ color: '#94a3b8' }} />} disabled />
                   </Form.Item>
                 </Col>
               </Row>
