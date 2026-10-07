@@ -27,7 +27,7 @@ const resourceSchema = new mongoose.Schema(
       trim: true,
       default: 'Công ty Công nghệ RAO',
     },
-    // Skill Matrix
+    // Skill Matrix & Two-Way Competency Evaluation
     skills: [
       {
         name: {
@@ -35,17 +35,60 @@ const resourceSchema = new mongoose.Schema(
           required: true,
           trim: true,
         },
+        // Cấp độ chính thức dùng cho phân bổ và thuật toán (1=Beginner, 2=Intermediate, 3=Advanced, 4=Expert)
         level: {
           type: Number,
-          enum: [1, 2, 3, 4], // 1=Beginner, 2=Intermediate, 3=Advanced, 4=Expert
+          enum: [1, 2, 3, 4],
           required: true,
+          default: 1,
+        },
+        // Nhân viên tự đánh giá
+        selfLevel: {
+          type: Number,
+          enum: [1, 2, 3, 4],
+          default: 1,
+        },
+        // Quản lý đánh giá lại / phê duyệt
+        managerLevel: {
+          type: Number,
+          enum: [1, 2, 3, 4],
         },
         yearsOfExperience: {
           type: Number,
           default: 0,
         },
+        // Trạng thái đánh giá
+        evaluationStatus: {
+          type: String,
+          enum: ['draft', 'self_assessed', 'approved'],
+          default: 'approved',
+        },
+        managerFeedback: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        evaluatedAt: {
+          type: Date,
+        },
+        evaluatedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
       },
     ],
+    // Performance & Productivity Assessment
+    performanceRating: {
+      type: Number, // Thang điểm 1 - 5 sao
+      min: 1,
+      max: 5,
+      default: 4.5,
+    },
+    performanceNotes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     // Capacity
     maxCapacity: {
       type: Number, // Max hours per week

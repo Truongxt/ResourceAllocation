@@ -73,10 +73,6 @@ export default function AppNavigator() {
               component={BenchmarkScreen}
             />
             <Stack.Screen
-              name="TaskDetail"
-              component={TaskDetailScreen}
-            />
-            <Stack.Screen
               name="CalendarScreen"
               component={CalendarScreen}
             />

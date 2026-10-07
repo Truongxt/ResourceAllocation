@@ -63,6 +63,7 @@ của `server/tests/api.test.mjs`.
 | 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | ✅ | Nhập từng dòng: tên (gợi ý từ Skill Matrix nhân sự), mức yêu cầu Lv.1-4, trọng số 0-1. Danh sách kỹ năng kèm mức hiện luôn trên bảng công việc. Server chặn thiếu tên, level ngoài **1-4** (cùng thang với nhân sự), trọng số ngoài 0-1 |
 | 3.10 | Estimated Hours | Nhập giờ ước tính vs thực tế | ✅ | `estimatedHours` / `actualHours` |
 | 3.11 | Thay đổi trạng thái | Cập nhật progress, status | ✅ | `PATCH /:id/status`, tự set progress 0/100 |
+| 3.12 | Mức độ khó & Khớp năng lực | 4 mức độ khó (Dễ Lv.1 đến Chuyên gia Lv.4) + Cảnh báo độ khớp và quá tải | ✅ | Phân loại `difficulty` & `difficultyLevel` (1..4). Form Task tự động đối chiếu với kỹ năng được duyệt của nhân sự, cảnh báo trực quan nếu thiếu level hoặc nhân sự đang trong vùng quá tải (🔴 Red alert) |
 
 ---
 
@@ -80,6 +81,9 @@ của `server/tests/api.test.mjs`.
 | 4.8 | Workload View | Hiển thị workload hiện tại, utilization rate | ✅ | Virtual `utilizationRate` + thanh utilization. `currentWorkload` là tải **tuần hiện tại** (trải giờ task lên ngày làm việc, dùng lại `analytics/workloadTrend.js`) — cùng đơn vị với `maxCapacity`. Giờ của việc chưa xếp lịch nằm riêng ở `unscheduledWorkload` |
 | 4.9 | Department Filter | Lọc nhân sự theo bộ phận | ✅ | Filter by department |
 | 4.10 | Skill Search | Tìm nhân sự theo skill + level | ✅ | `?skill=&skillLevel=` (lọc `>=`) |
+| 4.11 | Biểu đồ Cột Năng suất & Phân bổ Tải | Trực quan hóa năng suất & tải làm việc qua sơ đồ cột 3 màu (🟢 🟡 🔴) | ✅ | Tab "Năng suất & Cân bằng tải" trong trang Nhân sự: hỗ trợ xem theo từng Nhân viên và theo Phòng ban. Phân loại màu: 🟢 Tối ưu (60-85%), 🟡 Cần lưu ý (<50% hoặc 85-100%), 🔴 Quá tải (>100% hoặc tỷ lệ thất bại cao). Có vạch chuẩn 100% định mức. Xem chi tiết tại [HR_PRODUCTIVITY_AND_EVALUATION.md](./HR_PRODUCTIVITY_AND_EVALUATION.md) |
+| 4.12 | Điều phối & San tải việc trực tiếp | Nút "San tải việc ➔" trên cột nhân sự/phòng ban quá tải | ✅ | Tích hợp trực tiếp với `BulkReassignModal`: mở danh sách task của nhân sự bị đỏ để chuyển nhanh sang nhân sự khác đang có cột xanh/vàng |
+| 4.13 | Đánh giá Năng lực Hai chiều | Nhân viên tự đánh giá kỹ năng ➔ Quản lý xét duyệt & chấm điểm hiệu suất | ✅ | `SelfSkillEvaluationModal` cho nhân viên tự chấm (1-4 sao); `SkillsMatrixModal` cho Quản lý so sánh đối chiếu tự đánh giá vs đánh giá của quản lý, chấm điểm hiệu suất (1-5 sao), ghi nhận xét, phê duyệt đưa vào thuật toán GA/CSP |
 
 ---
 
@@ -198,15 +202,15 @@ Phần logic thuần (CPM, thời lượng, nhận diện mốc) nằm ở [clie
 |--------|------|--------------|-------------|-----------|
 | 1. Auth | 8 | 8 | 0 | 0 |
 | 2. Projects | 9 | 9 | 0 | 0 |
-| 3. Tasks | 11 | 11 | 0 | 0 |
-| 4. Resources | 10 | 10 | 0 | 0 |
+| 3. Tasks | 12 | 12 | 0 | 0 |
+| 4. Resources | 13 | 13 | 0 | 0 |
 | 5. Optimization | 11 | 11 | 0 | 0 |
 | 6. Gantt Chart | 8 | 8 | 0 | 0 |
 | 7. Analytics | 7 | 7 | 0 | 0 |
 | 8. Reports | 5 | 5 | 0 | 0 |
 | 9. Departments | 4 | 4 | 0 | 0 |
 | 10. Bổ sung | 6 | 6 | 0 | 0 |
-| **Tổng** | **79** | **79 (100%)** | **0** | **0** |
+| **Tổng** | **83** | **83 (100%)** | **0** | **0** |
 
 Bảng trên nói về **web client**. App di động là một client riêng và phủ ít hơn hẳn — xem
 mục kế tiếp.

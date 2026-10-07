@@ -9,6 +9,9 @@ const {
   updateResource,
   deleteResource,
   updateSkills,
+  selfEvaluate,
+  managerEvaluate,
+  getProductivitySummary,
   recalculateWorkload,
   getResourceSummary,
   getMyLeaves,
@@ -165,6 +168,13 @@ router.post('/recalculate-workload', authorize('admin'), recalculateWorkload);
 router.get('/me/leaves', getMyLeaves);
 router.post('/me/leaves', addMyLeave);
 router.delete('/me/leaves/:leaveId', deleteMyLeave);
+
+// Báo cáo Năng suất & Sơ đồ Cột trực quan (Xanh/Vàng/Đỏ) theo Nhân sự & Phòng ban
+router.get('/productivity/summary', getProductivitySummary);
+
+// Đánh giá năng lực 2 chiều (Two-Way Skill Assessment)
+router.put('/my-evaluation', selfEvaluate);
+router.put('/:id/manager-evaluation', authorize('admin', 'project_manager'), resourceIdValidation, validate, managerEvaluate);
 
 router.get('/', listValidation, validate, getResources);
 router.get('/:id', resourceIdValidation, validate, getResourceById);

@@ -50,6 +50,13 @@ const DEPENDENCY_TYPE_OPTIONS = [
   { value: 'start_to_finish', label: 'SF — bắt đầu trước, mới kết thúc' },
 ];
 
+const TASK_DIFFICULTY_OPTIONS = [
+  { value: 'easy', label: '🟢 Dễ (Lv.1 — Junior)' },
+  { value: 'medium', label: '🟡 Vừa (Lv.2 — Tiêu chuẩn)' },
+  { value: 'hard', label: '🟠 Khó (Lv.3 — Senior)' },
+  { value: 'expert', label: '🔴 Rất khó (Lv.4 — Chuyên gia)' },
+];
+
 export default function TaskFormModal({
   open,
   onClose,
@@ -68,6 +75,9 @@ export default function TaskFormModal({
   submitting = false,
   t,
 }) {
+  const selectedAssigneeId = Form.useWatch('assignee', form);
+  const selectedDifficulty = Form.useWatch('difficulty', form) || 'medium';
+
   const currentProj = useMemo(() => {
     const projId = selectedProject || editingTask?.project?._id || editingTask?.project;
     return (projects || []).find((p) => (p._id || p.id) === projId) || editingTask?.project;
@@ -81,6 +91,43 @@ export default function TaskFormModal({
   const canEditDeadline = canManageTasks || (taskPerms?.canEditDeadline ?? false);
   const canEditTitleDesc = canManageTasks || (taskPerms?.canEditDetails ?? false);
   const canChangeAssignee = canManageTasks || (taskPerms?.canChangeAssignee ?? false);
+
+  const assigneeResource = useMemo(() => {
+    if (!selectedAssigneeId) return null;
+    return (
+      resources.find(
+        (r) => (r.user?._id || r.userId || r._id)?.toString() === selectedAssigneeId.toString()
+      ) || null
+    );
+  }, [selectedAssigneeId, resources]);
+
+  const difficultyMap = { easy: 1, medium: 2, hard: 3, expert: 4 };
+  const diffLevel = difficultyMap[selectedDifficulty] || 2;
+
+  const competencyAssessment = useMemo(() => {
+    if (!assigneeResource) return null;
+    const skills = assigneeResource.skills || [];
+    const maxSkillLevel = Math.max(1, ...skills.map((s) => s.managerLevel || s.level || 1));
+    const isOverloaded =
+      assigneeResource.isOverloaded ||
+      (assigneeResource.utilizationRate && assigneeResource.utilizationRate > 100);
+
+    let type = 'success';
+    let message = '🟢 Năng lực phù hợp với độ khó công việc';
+
+    if (isOverloaded) {
+      type = 'error';
+      message = `🔴 Cảnh báo Quá tải: Nhân sự này đang hoạt động ở mức ${assigneeResource.utilizationRate || '>100'}% công suất. Đề xuất san tải hoặc chọn nhân sự khác đang rảnh!`;
+    } else if (diffLevel > maxSkillLevel + 1) {
+      type = 'warning';
+      message = `⚠️ Cảnh báo Năng lực: Độ khó công việc (Level ${diffLevel}) vượt mức kỹ năng cao nhất của nhân sự (Level ${maxSkillLevel}). Cần người có kinh nghiệm kèm cặp!`;
+    } else if (maxSkillLevel >= diffLevel) {
+      type = 'success';
+      message = `🟢 Phù hợp lý tưởng: Trình độ kỹ năng (Level ${maxSkillLevel}) đáp ứng trọn vẹn độ khó công việc (Level ${diffLevel}).`;
+    }
+
+    return { type, message, isOverloaded };
+  }, [assigneeResource, diffLevel]);
 
   const permissionFeatures = [];
   if (canEditDeadline) permissionFeatures.push('Gia hạn / Sửa thời hạn');
@@ -149,9 +196,9 @@ export default function TaskFormModal({
           </Col>
         </Row>
 
-        {/* Phân công nhân sự & Độ ưu tiên */}
+        {/* Phân công nhân sự, Độ ưu tiên & Độ khó công việc */}
         <Row gutter={16}>
-          <Col span={12}>
+          <Col span={10}>
             <Form.Item name="assignee" label={t('projectDetail.assignee') || 'Phân công nhân sự'}>
               <Select
                 placeholder={t('tasks.form.assigneePlaceholder') || 'Chọn nhân sự phụ trách...'}
@@ -161,21 +208,38 @@ export default function TaskFormModal({
                   value: r.user?._id || r.userId || r._id,
                   label: (
                     <Space>
-                      <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                      <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: r.isOverloaded ? '#ef4444' : '#6366f1' }} />
                       <span>{r.user?.name || r.userName || r.position}</span>
-                      <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>{r.position}</Tag>
+                      <Tag color={r.isOverloaded ? 'error' : 'blue'} style={{ fontSize: 10, margin: 0 }}>
+                        {r.position} {r.utilizationRate ? `(${r.utilizationRate}%)` : ''}
+                      </Tag>
                     </Space>
                   ),
                 }))}
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col span={7}>
             <Form.Item name="priority" label={t('common.priority') || 'Độ ưu tiên'} rules={[{ required: true }]}>
               <Select options={priorityOptions()} disabled={!canManageTasks} />
             </Form.Item>
           </Col>
+          <Col span={7}>
+            <Form.Item name="difficulty" label="Độ khó công việc" initialValue="medium">
+              <Select options={TASK_DIFFICULTY_OPTIONS} disabled={!canManageTasks} />
+            </Form.Item>
+          </Col>
         </Row>
+
+        {/* Cảnh báo tương thích Năng lực & Quá tải (Competency Fit Indicator) */}
+        {competencyAssessment && (
+          <Alert
+            type={competencyAssessment.type}
+            showIcon
+            message={competencyAssessment.message}
+            style={{ marginBottom: 14, fontSize: 12.5, borderRadius: 8 }}
+          />
+        )}
 
         {/* Base Wework: Nhóm công việc & Công việc cha */}
         <Row gutter={16}>
