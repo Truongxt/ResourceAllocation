@@ -269,6 +269,8 @@ const createProject = async (req, res, next) => {
       color: req.body.color || '#6366f1',
       template: req.body.template || null,
     };
+    // Phòng ban vận hành không có hạn: ngày kết thúc gửi kèm (form cũ, import) bị bỏ.
+    if (projectData.kind === 'team') delete projectData.endDate;
 
     const project = await Project.create(projectData);
 
@@ -391,6 +393,20 @@ const updateProject = async (req, res, next) => {
     }
     if (req.body.template !== undefined) {
       updateData.template = req.body.template;
+    }
+
+    // Ngày bắt buộc hay không phụ thuộc loại SAU khi sửa, mà validator của schema
+    // không đọc được bản ghi cũ ở ngữ cảnh update — nên kiểm ở đây.
+    const nextKind = updateData.kind || project.kind || 'project';
+    if (nextKind === 'team') {
+      // Gỡ hẳn chứ không gán null: client gọi `dayjs(null)` sẽ ra Invalid Date.
+      delete updateData.endDate;
+      updateData.$unset = { endDate: 1 };
+    } else if (!(updateData.startDate || project.startDate) || !(updateData.endDate || project.endDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dự án có thời hạn cần ngày bắt đầu và ngày kết thúc',
+      });
     }
 
     const refError = await projectRefsError(

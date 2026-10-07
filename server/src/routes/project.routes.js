@@ -18,6 +18,8 @@ const {
 
 const router = express.Router();
 
+const PROJECT_KINDS = ['project', 'team'];
+
 const projectIdValidation = [
   param('id').isMongoId().withMessage('ID dự án không hợp lệ'),
 ];
@@ -66,8 +68,16 @@ const projectValidation = [
     .optional()
     .isIn(['low', 'medium', 'high', 'critical'])
     .withMessage('Độ ưu tiên không hợp lệ'),
-  body('startDate').notEmpty().withMessage('Ngày bắt đầu là bắt buộc').isISO8601().withMessage('Ngày bắt đầu không hợp lệ'),
-  body('endDate').notEmpty().withMessage('Ngày kết thúc là bắt buộc').isISO8601().withMessage('Ngày kết thúc không hợp lệ'),
+  body('kind').optional().isIn(PROJECT_KINDS).withMessage('Loại dự án không hợp lệ'),
+  // Phòng ban vận hành (`kind: 'team'`) chạy vô thời hạn nên không đòi ngày.
+  body('startDate')
+    .if((_, { req }) => req.body.kind !== 'team')
+    .notEmpty().withMessage('Ngày bắt đầu là bắt buộc'),
+  body('startDate').optional({ values: 'falsy' }).isISO8601().withMessage('Ngày bắt đầu không hợp lệ'),
+  body('endDate')
+    .if((_, { req }) => req.body.kind !== 'team')
+    .notEmpty().withMessage('Ngày kết thúc là bắt buộc'),
+  body('endDate').optional({ values: 'falsy' }).isISO8601().withMessage('Ngày kết thúc không hợp lệ'),
   body('budget').optional().isFloat({ min: 0 }).withMessage('Ngân sách phải lớn hơn hoặc bằng 0'),
   body('progress').optional().isFloat({ min: 0, max: 100 }).withMessage('Tiến độ phải từ 0 đến 100'),
   body('manager').optional().isMongoId().withMessage('Project Manager không hợp lệ'),
@@ -104,6 +114,7 @@ const updateProjectValidation = [
     .optional()
     .isIn(['low', 'medium', 'high', 'critical'])
     .withMessage('Độ ưu tiên không hợp lệ'),
+  body('kind').optional().isIn(PROJECT_KINDS).withMessage('Loại dự án không hợp lệ'),
   body('startDate').optional().isISO8601().withMessage('Ngày bắt đầu không hợp lệ'),
   body('endDate').optional().isISO8601().withMessage('Ngày kết thúc không hợp lệ'),
   body('budget').optional().isFloat({ min: 0 }).withMessage('Ngân sách phải lớn hơn hoặc bằng 0'),

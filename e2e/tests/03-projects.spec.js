@@ -126,6 +126,34 @@ test.describe('Quản lý dự án', () => {
     await expect(modal.getByText('Cài đặt nâng cao', { exact: false })).toBeVisible();
   });
 
+  // Phòng ban vận hành chạy vô thời hạn: ô khoảng ngày bắt buộc phải biến mất,
+  // nếu không thì form chặn đúng thứ server đã cho phép bỏ trống.
+  test('tạo phòng ban vận hành không cần ngày, hiện "Thường xuyên"', async ({ page }) => {
+    const problems = watchForProblems(page);
+    const name = uniqueName('E2E Phòng trực');
+
+    await page.getByRole('button', { name: 'Tạo dự án' }).click();
+    const modal = page.locator('.ant-modal');
+    await modal.locator('#name').fill(name);
+    await modal.getByText('Phòng ban vận hành').click();
+
+    await expect(modal.locator('#dateRange')).toHaveCount(0);
+    await expect(modal.locator('#teamStartDate')).toBeVisible();
+
+    await modal.getByRole('button', { name: 'Tạo dự án' }).click();
+    await expect(modal).toBeHidden({ timeout: 20_000 });
+
+    const row = page.locator('.ant-table-row').filter({ hasText: name });
+    await expect(row).toHaveCount(1, { timeout: 20_000 });
+    await expect(row.locator('.ant-tag').getByText('Vận hành', { exact: true })).toBeVisible();
+    await expect(row.getByText('Thường xuyên')).toBeVisible();
+
+    await row.locator('.anticon-delete').first().click();
+    await page.getByRole('button', { name: /^(OK|Xóa|Đồng ý)/ }).last().click();
+    await expect(page.locator('.ant-table-row').filter({ hasText: name })).toHaveCount(0, { timeout: 20_000 });
+    expect(problems).toEqual([]);
+  });
+
   test('mở chi tiết một dự án thì thấy đủ các tab và số liệu của nó', async ({ page }) => {
     const problems = watchForProblems(page);
 

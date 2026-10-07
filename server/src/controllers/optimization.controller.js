@@ -103,6 +103,17 @@ const loadOptimizationData = async (projectId, user) => {
     resourceFilter.companyName = companyScope;
   }
 
+  // Việc của phòng ban vận hành (`kind: 'team'`) là tải cố định: trực hệ thống hay
+  // họp định kỳ gắn với đúng người đó, phân công lại không có nghĩa. Bỏ khỏi biến khi
+  // chạy "Tất cả dự án", nhưng KHÔNG bỏ khỏi tải — chúng rơi vào `committedTasks` bên
+  // dưới vì không nằm trong `optimizedIds`. Chọn đích danh một team thì vẫn chạy được.
+  if (!projectId) {
+    const teamIds = await Project.find({ companyName: companyScope, kind: 'team' }).distinct('_id');
+    if (teamIds.length) {
+      taskFilter.project = { ...(taskFilter.project || {}), $nin: teamIds };
+    }
+  }
+
   const [tasks, resources] = await Promise.all([
     Task.find(taskFilter).select('title estimatedHours requiredSkills startDate endDate project status dependencies'),
     Resource.find(resourceFilter)

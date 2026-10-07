@@ -814,7 +814,9 @@ export default function ProjectDetail() {
                         ) : '—'}
                       </Descriptions.Item>
                       <Descriptions.Item label={t('gantt.period') || 'Thời gian'}>
-                        {formatDate(project.startDate)} → {formatDate(project.endDate)}
+                        {project.kind === 'team'
+                          ? `${project.startDate ? `Từ ${formatDate(project.startDate)} · ` : ''}Thường xuyên (phòng ban vận hành)`
+                          : `${formatDate(project.startDate)} → ${formatDate(project.endDate)}`}
                       </Descriptions.Item>
                       <Descriptions.Item label={t('projects.budget') || 'Ngân sách'}>
                         {formatCurrency(project.budget)}
