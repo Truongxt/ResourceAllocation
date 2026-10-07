@@ -32,7 +32,8 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
   }
 
   const isPrivileged = PRIVILEGED_ROLES.includes(user.role);
-  const isOwner = user.role === 'admin';
+  // Admin hệ thống theo role — KHÔNG phải cờ `User.isOwner` (Owner luôn có role admin).
+  const isAdmin = user.role === 'admin';
   const project = task?.project;
 
   let isProjectManager = isPrivileged;
@@ -58,7 +59,7 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
         if (memberObj.role === 'guest') isGuest = true;
       }
     }
-    if (isProjectManager || isOwner) {
+    if (isProjectManager || isAdmin) {
       isProjectMember = true;
     }
   }
@@ -85,7 +86,7 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
     task,
     project,
     isPrivileged,
-    isOwner,
+    isAdmin,
     isProjectManager,
     isCreator,
     isAssignee,
@@ -186,7 +187,7 @@ const canCreateTask = () => async (req, res, next) => {
         });
       }
     } else {
-      // Chuẩn: Thành viên được tạo nếu dự án bật phân quyền tạo việc (mặc định tắt nếu chưa cấu hình)
+      // Chuẩn: Thành viên được tạo nếu dự án bật phân quyền tạo việc (schema mặc định bật — `allowMembersCreateTasks: true`)
       if (!perms.allowMembersCreateTasks) {
         return res.status(403).json({
           success: false,
