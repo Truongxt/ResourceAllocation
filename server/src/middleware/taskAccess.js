@@ -139,10 +139,41 @@ const guardTaskCompany = async (req, res, next, id) => {
 };
 
 /**
- * Phân quyền Tạo mới công việc
- * - Admin & Project Manager: Có quyền tạo
- * - Thành viên dự án: Được tạo nếu dự án bật quyền allowMembersCreateTasks === true
- * - Khách: Được tạo nếu allowGuestCreateTask === true
+ * Lý do một người dùng KHÔNG được đặt công việc vào dự án này, hoặc `null` nếu được.
+ * Dùng chung cho tạo mới (`canCreateTask`) và chuyển việc sang dự án khác (`moveTask`):
+ * chuyển một công việc vào dự án cũng là thêm việc vào dự án đó.
+ *
+ * - Admin & Project Manager (theo role): được
+ * - Quản lý của chính dự án: được
+ * - Thành viên dự án: được nếu dự án bật `allowMembersCreateTasks`
+ * - Khách: được nếu `allowGuestCreateTask`
+ *
+ * Không xét công ty — đó là chốt riêng, áp cho cả admin/PM.
+ */
+const createDeniedReason = (user, project) => {
+  if (PRIVILEGED_ROLES.includes(user.role)) return null;
+
+  const managerId = project.manager?._id || project.manager;
+  if (managerId && managerId.toString() === user._id.toString()) return null;
+
+  const memberObj = (project.members || []).find((m) => {
+    const uid = m.user?._id || m.user || m;
+    return uid && uid.toString() === user._id.toString();
+  });
+  if (!memberObj) {
+    return 'Bạn không phải là thành viên của dự án này nên không có quyền tạo công việc.';
+  }
+
+  const perms = project.permissions || {};
+  if (memberObj.role === 'guest') {
+    return perms.allowGuestCreateTask ? null : 'Khách chưa được cấp quyền tạo công việc trong dự án này.';
+  }
+  // Schema mặc định bật — `allowMembersCreateTasks: true`
+  return perms.allowMembersCreateTasks ? null : 'Thành viên chưa được cấp quyền tự tạo công việc trong dự án này.';
+};
+
+/**
+ * Phân quyền Tạo mới công việc — xem `createDeniedReason`.
  */
 const canCreateTask = () => async (req, res, next) => {
   try {
@@ -161,40 +192,9 @@ const canCreateTask = () => async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
     }
 
-    const managerId = project.manager?._id || project.manager;
-    if (managerId && managerId.toString() === req.user._id.toString()) {
-      return next();
-    }
-
-    // Kiểm tra tư cách thành viên dự án
-    const memberObj = (project.members || []).find((m) => {
-      const uid = m.user?._id || m.user || m;
-      return uid && uid.toString() === req.user._id.toString();
-    });
-
-    if (!memberObj) {
-      return res.status(403).json({
-        success: false,
-        message: 'Bạn không phải là thành viên của dự án này nên không có quyền tạo công việc.',
-      });
-    }
-
-    const perms = project.permissions || {};
-    if (memberObj.role === 'guest') {
-      if (!perms.allowGuestCreateTask) {
-        return res.status(403).json({
-          success: false,
-          message: 'Khách chưa được cấp quyền tạo công việc trong dự án này.',
-        });
-      }
-    } else {
-      // Chuẩn: Thành viên được tạo nếu dự án bật phân quyền tạo việc (schema mặc định bật — `allowMembersCreateTasks: true`)
-      if (!perms.allowMembersCreateTasks) {
-        return res.status(403).json({
-          success: false,
-          message: 'Thành viên chưa được cấp quyền tự tạo công việc trong dự án này.',
-        });
-      }
+    const denied = createDeniedReason(req.user, project);
+    if (denied) {
+      return res.status(403).json({ success: false, message: denied });
     }
 
     next();
@@ -670,6 +670,7 @@ module.exports = {
   getTaskUserContext,
   guardTaskCompany,
   canCreateTask,
+  createDeniedReason,
   canModifyTask,
   canUpdateTaskStatus,
   canCompleteTask,

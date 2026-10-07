@@ -7,6 +7,7 @@ const TaskGroup = require('../models/TaskGroup');
 const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
+const { createDeniedReason } = require('../middleware/taskAccess');
 const {
   validateStatusTransition,
   resolveReviewers,
@@ -1464,6 +1465,21 @@ const moveTask = async (req, res, next) => {
         return res.status(404).json({ success: false, message: 'Không tìm thấy dự án đích' });
       }
 
+      // `canMoveTask` và `router.param('id')` chỉ soi công việc NGUỒN; dự án đích đi
+      // trong body nên phải tự kiểm. Chuyển việc vào dự án cũng là thêm việc vào đó,
+      // nên dùng đúng luật của tạo mới — kể cả chốt công ty áp cho admin/PM.
+      const userCompany = req.user.companyName || 'Công ty Công nghệ RAO';
+      if (targetProject.companyName && targetProject.companyName !== userCompany && req.user.role !== 'superadmin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Không thể chuyển công việc sang dự án của công ty khác',
+        });
+      }
+      const denied = createDeniedReason(req.user, targetProject);
+      if (denied) {
+        return res.status(403).json({ success: false, message: `Không thể chuyển sang dự án này: ${denied}` });
+      }
+
       // Tiền nhiệm của task giữ nguyên tham chiếu tới dự án cũ khi chuyển dự án
       // — cùng lỗi mà POST /tasks đã chặn bằng 400, nên chuyển dự án cũng phải
       // chặn tương tự thay vì để lại dependency trỏ khác dự án.
@@ -1509,6 +1525,18 @@ const moveTask = async (req, res, next) => {
       }
 
       task.project = targetProjectId;
+    }
+
+    // Nhóm đích phải thuộc đúng dự án mà công việc sẽ nằm sau khi chuyển — nếu không,
+    // công việc "thuộc" một dự án nhưng nằm trong nhóm của dự án khác (kể cả công ty khác).
+    if (targetTaskGroupId) {
+      const group = await TaskGroup.findById(targetTaskGroupId).select('project');
+      if (!group || String(group.project) !== String(task.project)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Nhóm công việc đích không thuộc dự án của công việc',
+        });
+      }
     }
     if (targetTaskGroupId !== undefined) task.taskGroup = targetTaskGroupId || null;
 

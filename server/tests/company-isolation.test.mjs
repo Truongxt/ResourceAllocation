@@ -467,4 +467,62 @@ S('Nhập Excel — ghi công việc hàng loạt vào dự án theo id');
   ok(outsider.status === 403, 'Member ngoài dự án KHÔNG nhập Excel được', `status=${outsider.status}`);
 }
 
+// ══════════════════════════════════════════════
+S('Di chuyển công việc — dự án và nhóm ĐÍCH');
+{
+  // `canMoveTask` và chốt `router.param('id')` chỉ soi công việc NGUỒN. Dự án đích
+  // (`targetProjectId`) và nhóm đích (`targetTaskGroupId`) đi trong body — cùng loại
+  // với lỗ nhập Excel — nên trước đây không ai kiểm chúng thuộc về đâu.
+  const bProj = await call('POST', '/projects', {
+    token: TB,
+    body: { name: `Dự án B ${stamp}`, startDate: '2026-11-01', endDate: '2026-12-01' },
+  });
+  const bProjId = bProj.data?.project?._id;
+  ok(!!bProjId, 'B tạo được dự án của mình', `status=${bProj.status}`);
+
+  // Nguồn và đích phải là hai dự án KHÁC nhau: `proj` ở trên là dự án đầu danh
+  // sách, tình cờ chính là RAO-MOB — dùng nó làm nguồn thì mọi lần chuyển thành
+  // chuyển tại chỗ và bài kiểm xanh mà không kiểm gì.
+  const all = projects.data?.projects || [];
+  const ecom = all.find((p) => p.code === 'ECOM-01');
+  const mob = all.find((p) => p.code === 'RAO-MOB');
+
+  const mv = await call('POST', '/tasks', {
+    token: TA,
+    body: { title: `Chuyển ${stamp}`, project: ecom._id, startDate: '2026-11-01', endDate: '2026-11-03' },
+  });
+  const mvId = mv.data.task._id;
+
+  // Nhóm việc của một dự án khác: gắn vào thì task "thuộc" một dự án nhưng nằm
+  // trong nhóm của dự án kia.
+  const grp = await call('POST', '/task-groups', { token: TA, body: { name: `Nhóm MOB ${stamp}`, project: mob._id } });
+  const grpId = grp.data?.group?._id;
+  const wrongGroup = await call('POST', `/tasks/${mvId}/move`, { token: TA, body: { targetTaskGroupId: grpId } });
+  ok(wrongGroup.status === 400, 'Không gắn được vào nhóm việc của dự án khác', `status=${wrongGroup.status}`);
+
+  // Member là người thực hiện: qua được `canMoveTask`, nhưng không phải thành viên
+  // dự án đích — tạo việc thẳng ở đó thì bị chặn, chuyển sang thì không được dễ hơn.
+  const hoa = await call('POST', '/auth/login', { body: { email: 'hoa.le@rao.com', password: 'password123' } });
+  const hoaTask = await call('POST', '/tasks', {
+    token: TA,
+    body: { title: `Của Hoa ${stamp}`, project: ecom._id, assignee: hoa.data.user._id,
+            startDate: '2026-11-01', endDate: '2026-11-03' },
+  });
+  const outsider = await call('POST', `/tasks/${hoaTask.data.task._id}/move`, {
+    token: hoa.data.token, body: { targetProjectId: mob._id },
+  });
+  ok(outsider.status === 403, 'Member KHÔNG chuyển được việc sang dự án mình không thuộc', `status=${outsider.status}`);
+
+  const fine = await call('POST', `/tasks/${mvId}/move`, { token: TA, body: { targetProjectId: mob._id, targetTaskGroupId: grpId } });
+  ok(fine.status === 200, 'Chuyển hợp lệ trong công ty, kèm nhóm của dự án đích, vẫn chạy', `status=${fine.status}`);
+
+  // Để cuối: nếu lỗ còn đó, công việc sang hẳn công ty B và mọi bước sau của A
+  // nhận 403 vì công việc không còn là của A — các bài phía trên sẽ đỏ dây chuyền.
+  const intoB = await call('POST', `/tasks/${mvId}/move`, { token: TA, body: { targetProjectId: bProjId } });
+  ok(intoB.status === 403, 'A KHÔNG chuyển được công việc sang dự án công ty B', `status=${intoB.status}`);
+
+  for (const t of [mvId, hoaTask.data.task._id]) await call('DELETE', `/tasks/${t}`, { token: TA });
+  if (grpId) await call('DELETE', `/task-groups/${grpId}`, { token: TA });
+}
+
 process.exit(summary() ? 1 : 0);
