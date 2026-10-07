@@ -707,8 +707,18 @@ mọi mục checklist `isCompleted: false`. Giữ nguyên `assignee`, `followers
 `POST /:id/move` đổi `project` và/hoặc `taskGroup`, rồi **kéo việc con theo cùng**. Gửi
 `targetTaskGroupId: null` để bỏ task ra khỏi nhóm. `targetProjectId` không tồn tại trả 404;
 nếu tiền nhiệm hiện có của task sẽ thuộc dự án khác (hoặc tạo tự phụ thuộc/vòng lặp) sau khi
-chuyển thì trả 400 — gỡ tiền nhiệm trước khi chuyển dự án. Chưa kiểm chiều ngược lại: các task
-**phụ thuộc vào** task đang chuyển không được cập nhật hay chặn.
+chuyển thì trả 400 — gỡ tiền nhiệm trước khi chuyển dự án. Chiều ngược lại cũng chặn: task
+khác **đang phụ thuộc vào** task này mà sẽ ở lại dự án cũ → 400 (việc con đi theo cha nên không
+tính).
+
+Dự án và nhóm **đích** đi trong body nên chốt `router.param('id')` không che được; controller
+tự kiểm:
+
+| Trường hợp | Kết quả |
+|------------|---------|
+| `targetProjectId` thuộc công ty khác (áp cả admin/PM) | **403** |
+| Người gọi không được tạo việc trong dự án đích — cùng luật với `POST /tasks` (`createDeniedReason`: ngoài dự án, hoặc dự án tắt quyền tạo việc của thành viên/khách) | **403** |
+| `targetTaskGroupId` không thuộc dự án mà task sẽ nằm sau khi chuyển | **400** |
 
 ### GET `/api/tasks/reminders`
 Chỉ lấy việc **giao cho chính người gọi**, có `endDate`, và chưa `done`. Trả bốn tập

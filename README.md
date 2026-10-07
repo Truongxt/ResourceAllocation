@@ -74,6 +74,7 @@ Yêu cầu: **Node.js ≥ 20** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run cleanup` | `server/` | Liệt kê dữ liệu mồ côi trong DB đang chạy; thêm `-- --apply` để xóa thật |
 | `npm run migrate:skill-level` | `server/` | Hạ `requiredSkills.level` cũ từ 5 về 4; thêm `-- --apply` để sửa thật |
 | `npm run migrate:dependencies` | `server/` | Chuyển `dependencies` cũ sang dạng `{ task, type }`; thêm `-- --apply` để sửa thật |
+| `npm run migrate:guest-company` | `server/` | Đưa tài khoản khách tạo trước khi có `guestCompany` về đúng công ty (suy từ dự án họ thuộc); thêm `-- --apply` để sửa thật |
 | `npm test` | `server/` | Kiểm thử API + Socket.IO trên DB + cổng riêng ([chi tiết](./server/tests/README.md)) |
 | `npm test` | `client/` | Logic thuần bằng node + kiểm thử render component bằng vitest ([chi tiết](./client/tests/README.md)) |
 | `npm test` | `mobile/` | Quy tắc quyền của app di động — node thuần, không cần cài dependencies |

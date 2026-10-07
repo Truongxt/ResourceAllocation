@@ -308,7 +308,7 @@ mới chặn. Script là loại một lần, xong hết mọi môi trường th�
   **813 kB** (gzip 266 kB) thay vì 1.544 kB. Chunk entry vẫn 559 kB — lõi antd + cssinjs
   mà khung layout cần ngay — nên cảnh báo >500 kB của Vite còn nguyên; muốn nhỏ hơn nữa
   thì phải đổi thư viện UI chứ không phải chia chunk khác đi.
-- Kiểm thử nay có **bốn lớp**, xem [docs/TESTING.md](./TESTING.md): `server/tests` 24 bộ qua
+- Kiểm thử nay có **bốn lớp**, xem [docs/TESTING.md](./TESTING.md): `server/tests` 25 bộ qua
   API và Socket.IO, `client/tests` 8 file component (37 bài, vitest + jsdom) kèm logic thuần,
   `mobile/tests` cho quy tắc quyền của app, và `e2e` 85 bài điều khiển Chromium thật trên hệ
   thống thật. Các trang nghiệp vụ (Tasks,
@@ -356,19 +356,20 @@ khi email mô phỏng) không đổi.
 theo trước đây nằm trong `try/catch` chỉ ghi console, nên request vẫn trả 201 dù thiếu
 Resource — người đó sẽ không xuất hiện ở `/resources` lẫn trong bài toán phân bổ mà không có
 dấu hiệu gì. Nay lỗi ở bước này khiến `User` vừa tạo bị xóa lại và request trả **500** thay vì
-201, để không bao giờ để lại User mồ côi Resource. Cùng mẫu try/catch-chỉ-log này còn ở
-`register()` (đăng ký demo doanh nghiệp) — **chưa sửa**, vì đó là luồng tự đăng ký công khai
-đã cấp session ngay sau đó; hủy tài khoản người dùng thật chỉ vì tạo Resource lỗi tạm thời sẽ
-đổi UX theo hướng xấu hơn, cần cân nhắc riêng.
+201, để không bao giờ để lại User mồ côi Resource. Cùng mẫu try/catch-chỉ-log này từng có ở
+`register()` (đăng ký demo doanh nghiệp) — **đã sửa** theo cùng cách ở `1768edd`: User vừa tạo
+được xóa lại và trả 500, vì User vô hình còn tệ hơn — email đã bị chiếm nên người dùng không
+tự đăng ký lại được. Bộ `hardening` có bài giữ ("Đăng ký phải trọn vẹn").
 
 **`POST /tasks/:id/move` không kiểm gì cả — đã sửa.** Trước đây không kiểm dự án đích có tồn
 tại, và không kiểm `dependencies` còn hợp lệ sau khi chuyển — chuyển một task sang dự án khác
 là đủ để nó giữ tiền nhiệm thuộc dự án cũ, đúng trường hợp mà `POST /tasks` chặn bằng 400. Nay
 `targetProjectId` không tồn tại trả 404; và nếu tiền nhiệm hiện có của task sẽ trở thành khác
 dự án (hoặc tự tham chiếu/vòng lặp) sau khi chuyển thì trả 400, dùng chung `validateDependencies`
-với `POST /tasks`. Chưa xử lý chiều ngược lại: các task khác **phụ thuộc vào** task đang
-chuyển (successor) không bị kiểm — chúng có thể trở thành phụ thuộc khác dự án mà không có
-cảnh báo nào, nằm ngoài phạm vi mô tả gốc của mục này.
+với `POST /tasks`. Chiều ngược lại (task khác **phụ thuộc vào** task đang chuyển) cũng đã chặn
+ở `cab0864`. Đợt rà 07/10 tìm thêm ba lỗ ở **phía đích** và đã sửa: chuyển được sang dự án của
+công ty khác, member là người thực hiện chuyển được sang dự án mình không thuộc, và
+`targetTaskGroupId` gắn được nhóm của dự án khác — xem `API.md`, mục `POST /:id/move`.
 
 **`POST /tasks/:id/report-result` để lộ nguyên văn lỗi Mongoose — đã sửa.** Gửi
 `deliverableLinks` dạng mảng chuỗi trước đây trả 400 kèm

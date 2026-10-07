@@ -27,6 +27,14 @@ Mỗi lỗ hổng dưới đây được tái hiện bằng request thật trư�
 - **Socket.IO không kiểm `isActive`.** Access token còn sống tới 15 phút sau khi khóa tài
   khoản, nên người bị khóa vẫn giữ socket và mở được socket mới. Nay handshake tra `User`, và
   khóa tài khoản thì ngắt luôn socket đang mở.
+- **Di chuyển công việc không kiểm phía đích.** `canMoveTask` và `router.param('id')` chỉ soi
+  công việc nguồn; `targetProjectId`/`targetTaskGroupId` đi trong body. Admin/PM chuyển được
+  công việc sang dự án **công ty khác**, member là người thực hiện chuyển được sang dự án mình
+  không thuộc, và nhóm đích gắn được nhóm của dự án khác. Nay 403/403/400; luật "ai được thêm
+  việc vào dự án" tách thành `createDeniedReason`, dùng chung với `canCreateTask`.
+- **Script `migrate:guest-company`** cho tài khoản khách tạo trước `15aad4f` (không công ty
+  nào thấy họ nhưng họ vẫn đăng nhập được). Quy về công ty theo dự án khách thuộc; mơ hồ thì
+  liệt kê ra, không đoán. Database dev không có khách nào như vậy; môi trường khác cần chạy.
 - **`xlsx` 0.18.5 còn prototype pollution và ReDoS**, mà nó đọc chính file người dùng tải
   lên. Nâng lên 0.20.3, cài từ `cdn.sheetjs.com` vì npm registry không có bản vá. Client
   khai báo `xlsx` mà không dùng — đã gỡ.
@@ -46,6 +54,12 @@ Mỗi lỗ hổng dưới đây được tái hiện bằng request thật trư�
   đó 3 bài là hệ quả dây chuyền. Thêm helper `showTaskList()`. Bài lọc `?status=blocked` trước
   đó "xanh" vì đếm 0 dòng — nay kiểm thật.
 - Bảng bộ test trong `server/tests/README.md` thiếu 15/24 bộ — đã bổ sung.
+
+### Docs
+
+- Hai mục "chưa sửa" trong tài liệu thực ra đã sửa từ 22/09 mà chưa ai cập nhật: `register()`
+  để lại User không có Resource (`1768edd`), và `move` không kiểm task đang phụ thuộc vào nó
+  (`cab0864`). Đã đổi trạng thái.
 
 ### Fixed
 

@@ -55,6 +55,7 @@ thường vì MongoDB chưa chạy, hoặc máy đang quá tải (chạy ngay sa
 | `email` | `email.test.mjs` | Tầng email ở mức đơn vị: **mặc định tắt** khi thiếu cấu hình (không được làm hỏng luồng giao việc), chỉ loại "được giao việc" mới gửi mail. Không cần server, database hay SMTP |
 | `sanitize` | `sanitize.test.mjs` | `middleware/sanitize.js` ở mức đơn vị: cắt đúng khóa toán tử Mongo và khóa gây ô nhiễm prototype, **không đụng** vào dữ liệu hợp lệ |
 | `cors` | `cors.test.mjs` | `config/cors.js` ở mức đơn vị: nhiều origin trong `CLIENT_URL` có tác dụng như nhau ở REST và Socket.IO, production chỉ nhận origin đã khai, dev nhận thêm IP mạng LAN đủ bốn nhóm số |
+| `migrate-guest-company` | `migrate-guest-company.test.mjs` | Quyết định của script migrate khách cũ ở mức đơn vị: chỉ quy về công ty khi dự án của khách trỏ về đúng một công ty; thuộc hai công ty hoặc không có dấu vết thì báo ra, không đoán; `--default-company` không gán ép khách đang mâu thuẫn |
 | `regex-search` | `regex-search.test.mjs` | Gửi `(`, `[`, `*`, `\` vào tham số tìm kiếm của 7 endpoint: phải trả 200 chứ không 500, khớp theo nghĩa đen, và mẫu ReDoS `(a+)+$` trả lời ngay |
 | `error-handler` | `error-handler.test.mjs` | Bộ bắt lỗi toàn cục ở mức đơn vị — chính nó từng ném lỗi với lỗi `insertMany` trùng khóa, trả 500 rỗng |
 | `refresh-token` | `refresh-token.test.mjs` | `classifyToken` ở mức đơn vị cho mọi nhánh, cộng gọi API thật tự giữ cookie: xoay vòng, thu hồi, phát hiện tái sử dụng, ân hạn đa tab, refresh token trong body chỉ cho client tự khai `X-Client-Type: mobile` |
@@ -66,7 +67,7 @@ thường vì MongoDB chưa chạy, hoặc máy đang quá tải (chạy ngay sa
 | `dependency-types` | `dependency-types.test.mjs` | Loại quan hệ phụ thuộc: dạng mới `{ task, type }` và mảng id phẳng cũ cùng đi qua một đường |
 | `department-wework` | `department-wework.test.mjs` | Quản lý phòng ban theo tài liệu Base Wework |
 | `hardening` | `hardening.test.mjs` | Các bản vá lớp e2e không chứng minh được: phân lập công ty, rò mật khẩu, validate payload, vai trò "khách" trong dự án |
-| `company-isolation` | `company-isolation.test.mjs` | Dựng công ty B mới rồi cho admin của nó thao tác lên dữ liệu công ty A chỉ bằng id: task, dự án, nhân sự, phòng ban, tối ưu hóa (cả bảng trước/sau bên analytics), nhật ký, nhóm việc, việc lặp lại, nhập Excel. Mọi đường phải 403 |
+| `company-isolation` | `company-isolation.test.mjs` | Dựng công ty B mới rồi cho admin của nó thao tác lên dữ liệu công ty A chỉ bằng id: task, dự án, nhân sự, phòng ban, tối ưu hóa (cả bảng trước/sau bên analytics), nhật ký, nhóm việc, việc lặp lại, nhập Excel. Mọi đường phải 403. Thêm phía **đích** của di chuyển công việc: dự án công ty khác, dự án người gọi không thuộc, nhóm của dự án khác — mỗi ca kiểm độc lập, ca chuyển sang công ty khác để cuối vì nếu lỗ còn thì nó kéo đổ các ca sau |
 
 ## Viết thêm bộ mới
 

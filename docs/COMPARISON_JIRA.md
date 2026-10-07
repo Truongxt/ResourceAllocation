@@ -14,7 +14,7 @@
 >   DB, chưa có luồng xác thực), JQL / filter lưu được, tự động hóa, webhook, API key cho máy,
 >   sprint, custom field, workflow tùy biến, backup và monitoring.
 > - Số liệu ở mục 0 (9 model, 56 endpoint, 8 bộ kiểm thử) là của ngày lập; hiện là 12 model,
->   118 endpoint, 24 bộ kiểm thử server cộng ba lớp test khác.
+>   118 endpoint, 25 bộ kiểm thử server cộng ba lớp test khác.
 
 ## 0. Phạm vi và cách làm
 

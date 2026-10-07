@@ -284,8 +284,10 @@ chạy dày nhất.
 nếu server từ chối. Server tự đặt `progress` 0/100 theo status.
 
 **Chuyển dự án** — `POST /tasks/:id/move`: kiểm dự án đích tồn tại (404) và **tiền nhiệm có
-còn hợp lệ sau khi chuyển không** (400, dùng chung `validateDependencies`). Chưa kiểm chiều
-ngược lại: task khác đang phụ thuộc *vào* nó.
+còn hợp lệ sau khi chuyển không** (400, dùng chung `validateDependencies`), cả chiều task khác
+đang phụ thuộc *vào* nó (400). Phía đích: dự án công ty khác → 403, người gọi không được tạo
+việc ở dự án đích → 403 (cùng `createDeniedReason` với `canCreateTask`), nhóm đích không thuộc
+dự án đích → 400.
 
 **Checklist** — thêm mục lấy `order = checklist.length`; xóa mục thì **đánh lại `order`** cho
 toàn bộ mục còn lại, nếu không sẽ có `order` trùng nhau.
@@ -422,7 +424,7 @@ Client đọc địa chỉ từ `VITE_SOCKET_URL`; **thiếu biến này thì m�
 
 ```bash
 npm run dev          # client :5173 + server :5000 song song
-cd server && npm test        # 24 bộ, vài phút
+cd server && npm test        # 25 bộ, vài phút
 cd client && npm test        # logic thuần + 8 file component
 cd mobile && npm test        # quy tắc quyền, node thuần, chưa cần cài gì
 npm run test:e2e             # 85 bài, 11 file, ~10 phút, Chromium thật
@@ -446,11 +448,11 @@ Chi tiết và danh sách lỗi từng lớp đã bắt được: [`TESTING.md`]
 Danh sách đầy đủ và lý do ở cuối [`FEATURES.md`](./FEATURES.md). Tóm tắt những chỗ **đang có
 thật trong code**:
 
-- **Chưa có migration cho tài khoản khách cũ** — khách tạo trước lúc tách `guestCompany` vẫn
-  mang tên đối tác trong `companyName`, nên không admin nào nhìn thấy họ nữa (họ **vẫn đăng
-  nhập được**).
-- `register()` vẫn có thể tạo User không kèm Resource (lỗi chỉ ghi console).
-- `move` task không kiểm các task đang phụ thuộc *vào* nó.
+- **Tài khoản khách cũ cần chạy migrate** — khách tạo trước lúc tách `guestCompany` vẫn mang
+  tên đối tác trong `companyName` nên không admin nào nhìn thấy họ (họ **vẫn đăng nhập được**).
+  Chạy `npm run migrate:guest-company` (khô) rồi `-- --apply` trên từng môi trường: khách thuộc
+  dự án của đúng một công ty được quy về công ty đó; khách không có dấu vết được liệt kê để
+  người chạy quyết (`--default-company=`). Database dev hiện không có khách nào như vậy.
 - `User.isGuest` vẫn chỉ là nhãn, chưa tự nối với vai trò `guest` trong dự án.
 - Chưa có bộ test nào **đếm bản ghi thật** cho `ActivityLog` và email sau lời gọi.
 - Backlog thiết kế: ảnh chụp workload định kỳ, bảng mã lỗi phía server để dịch được, ràng
