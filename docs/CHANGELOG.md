@@ -6,6 +6,45 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-10-07 (phòng ban vận hành, id công ty khác trong body)
+
+### Added
+
+- **Phòng ban vận hành** (`Project.kind: 'team'`): không có ngày kết thúc, chứa việc thường
+  ngày. Trước đây việc vận hành không có chỗ để nhập, nên tối ưu hóa luôn xuất phát từ năng lực
+  rảnh cao hơn thực tế. Việc trong team được tính vào tải. Tối ưu "Tất cả dự án" giữ chúng là
+  giờ đã cam kết thay vì phân công lại. Form dự án có ô chọn loại hình; với team, khoảng ngày bắt
+  buộc được đổi thành một ngày bắt đầu không bắt buộc.
+
+### Security
+
+- **Id của công ty khác đi trong body/query** (`3d93981`). Chốt `router.param('id')` chỉ soi id
+  trên URL; những id đi trong body thì mỗi controller phải tự kiểm, và nhiều chỗ chưa kiểm. Nay
+  gom vào `services/companyRefs.service.js` (`usersError`, `departmentError`, `projectRef`,
+  `taskGroupError`, `parentTaskError`, `stripProtected`…), áp cho:
+  - Công việc: `assignee`, `followers`, `reviewers`, `taskGroup`, `parentTask`, `project` khi tạo
+    và sửa; việc con; checklist; nhân bản sang dự án hoặc nhóm khác; bàn giao hàng loạt.
+  - Dự án: quản lý, thành viên, phòng ban (tạo, sửa, sửa nhanh, thêm thành viên), người duyệt
+    trong `reviewConfig`.
+  - Nhân sự, tài khoản, phòng ban: `user` của Resource, quản lý trực tiếp, trưởng phòng.
+  - Nhóm việc (`reorder` nay lọc theo công ty) và việc lặp lại.
+  - `GET /analytics/workload-trend?projectId=` không còn bỏ phạm vi người gọi; `loadOptimizationData`
+    lọc theo công ty cả khi có `projectId`.
+- **`companyName` trong body không còn chuyển được bản ghi sang công ty khác.** Task, dự án, nhân
+  sự, việc lặp lại: trường này bị gỡ khỏi payload. Hồ sơ tài khoản: từ chối khi khác công ty hiện
+  tại; ô này trên giao diện chuyển thành chỉ đọc.
+- Bộ `followers`: ranh giới 50/51 người theo dõi nay dựng bằng 50 tài khoản thật. Id giả bị từ
+  chối từ trước khi chạm tới trần, nên bài 50 không còn xanh được nữa.
+
+### Tests
+
+- Bộ `cross-company-refs` (62 assertion): admin công ty A gửi id của công ty B vào từng trường.
+  "An toàn" nghĩa là bị từ chối, hoặc bản ghi trả về không chứa id ngoài.
+- Bộ `project-kind` (20 assertion) và một bài e2e tạo team không cần ngày.
+- Ghi nhận khi viết test: nhánh "người không phải admin" trong `loadOptimizationData` không đi
+  tới được qua HTTP, vì `authorizeApp('optimize')` chỉ cho Owner/Admin/App Admin qua, mà nhánh đó
+  lại loại trừ đúng ba nhóm này.
+
 ## [Chưa phát hành] - 2026-10-07 (rà soát cấu hình và lỗi chạy thật)
 
 ### Security

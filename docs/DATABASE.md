@@ -106,8 +106,9 @@ Ba điểm thiết kế:
   code: String,              // Mã dự án (unique sparse, uppercase, max 10)
   status: String,            // 'planning' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled'
   priority: String,          // 'low' | 'medium' | 'high' | 'critical'
-  startDate: Date,           // required
-  endDate: Date,             // required
+  kind: String,              // 'project' (default) | 'team' — team = phòng ban vận hành, vô thời hạn
+  startDate: Date,           // required khi kind = 'project'
+  endDate: Date,             // required khi kind = 'project'; team KHÔNG BAO GIỜ có trường này
   budget: Number,            // default 0
   progress: Number,          // 0-100, tự tính lại từ tasks
   manager: ObjectId → Users, // REQUIRED — mặc định là user tạo dự án

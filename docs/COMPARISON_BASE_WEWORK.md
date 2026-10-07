@@ -70,7 +70,7 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
 | Tính năng Base | RAO | Ghi chú |
 |----------------|-----|---------|
 | Tạo dự án, thêm thành viên & quản lý | **Đầy đủ** | `POST /projects`, `/members` |
-| Phân biệt **Phòng ban (team)** và **Dự án (project)** | **Không có** | `startDate`/`endDate` là `required` trên Project; phòng ban không chứa công việc — xem [4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) |
+| Phân biệt **Phòng ban (team)** và **Dự án (project)** | **Đầy đủ** (07/10) | `Project.kind: 'team'` không có ngày kết thúc — xem [4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) |
 | Cấu hình phân quyền trong dự án | **Đầy đủ** | `PATCH /projects/:id/permissions` |
 | **Trường dữ liệu tùy chỉnh** | **Không có** | Xem [4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) |
 | Thiết lập **mục tiêu** | **Không có** | RAO chỉ có `progress` % suy ra từ task |
@@ -78,7 +78,7 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
 | **Nhân bản** dự án | **Không có** | Có `duplicateTask` nhưng không có `duplicateProject` |
 | **Đóng / mở** dự án | **Không có** | `status` có `completed`/`cancelled` nhưng không có khái niệm đóng để rút khỏi bộ lọc |
 | Dự án **mẫu** (template) | **Không có** | `Project.template` hiện chỉ là một `String`, không trỏ tới dự án mẫu nào |
-| Chuyển đổi loại dự án ↔ phòng ban | **Không có** | Hệ quả của việc chưa tách hai loại |
+| Chuyển đổi loại dự án ↔ phòng ban | **Đầy đủ** (07/10) | `PUT /projects/:id` với `kind`; chuyển về dự án thì bắt buộc có ngày kết thúc |
 | Xóa dự án | **Đầy đủ** | Chặn khi còn task, cần `?force=true` |
 
 ### IV. Nhóm công việc
@@ -195,6 +195,10 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
 - **Phác thảo**: rẻ nhất là thêm `Project.kind: 'project' | 'team'`, bỏ `required` của
   `startDate`/`endDate` khi `kind === 'team'`, và cho tầng tính capacity đọc cả hai loại. Không
   cần tách model mới.
+- **Đã làm (2026-10-07)** theo đúng phác thảo trên. Tầng tính capacity hóa ra không cần sửa:
+  nó vốn tính từ ngày của chính task, không phân biệt dự án. Phần phải quyết định thêm là
+  optimizer. Việc của team được giữ là **tải cố định**: không phân công lại khi chạy "Tất cả dự
+  án", nhưng vẫn tính vào giờ đã cam kết của người làm. Xem `docs/API.md`, mục POST `/api/projects`.
 
 ### 4.4. Vòng đời dự án: đóng/mở, nhân bản, mẫu thật
 
@@ -265,11 +269,14 @@ Nếu vẫn cần, đường vòng rẻ hơn: thêm `collaborators[]` **không**
 
 | Thứ tự | Hạng mục | Vì sao đặt ở đây |
 |--------|----------|------------------|
-| 1 | [4.1](#41-báo-cáo-kết-quả-theo-con-người) Báo cáo kết quả theo người | Dữ liệu và bộ lọc đã có sẵn — chi phí thấp nhất, giá trị thấy ngay |
-| 2 | [4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) Công việc cấp phòng ban | Thứ duy nhất ảnh hưởng tới **chất lượng thuật toán**, không chỉ giao diện |
+| 1 | [4.1](#41-báo-cáo-kết-quả-theo-con-người) Báo cáo kết quả theo người | Đã có một nửa từ 23/09 (`getProductivitySummary`, trong `resource.controller.js`): đếm theo người, tỉ lệ đúng hạn. Còn thiếu khoảng thời gian, `scope`, số việc trễ, số lần gia hạn, tab trong Reports |
+| 2 | ~~[4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) Công việc cấp phòng ban~~ | **Xong 07/10** |
 | 3 | [4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) Trường tùy chỉnh | Càng làm muộn càng đắt: lan sang form, Excel, bộ lọc, CSV |
 | 4 | [4.6](#46-xuất-dữ-liệu-công-việc) Xuất dữ liệu + [4.7](#47-đánh-giá-theo-nhóm-công-việc) Đánh giá theo nhóm + [4.8](#48-hai-việc-nhỏ-nhưng-lộ-ra-ngay-khi-dùng) | Đều nhỏ, đều dùng lại thứ đã có |
 | 5 | [4.4](#44-vòng-đời-dự-án-đóngmở-nhân-bản-mẫu-thật) Vòng đời dự án + [4.5](#45-đính-kèm-tệp-thật) Đính kèm | Cần quyết định hạ tầng lưu trữ trước khi code |
+
+Trạng thái từng hạng mục, cộng các mục thuật toán và mobile không có trong tài liệu này, được
+theo dõi ở [superpowers/plans/2026-10-07-lo-trinh-hoan-thien.md](./superpowers/plans/2026-10-07-lo-trinh-hoan-thien.md).
 
 Ngoài ra: **cập nhật lại [FEATURES.md](./FEATURES.md)** — nó đang mô tả một phiên bản cũ hơn
 code khá nhiều, và mọi báo cáo dựa vào nó sẽ sai theo.

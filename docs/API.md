@@ -451,11 +451,12 @@ Riêng `guest` dành cho tài khoản đối tác: quyền tạo công việc c�
 
 ### POST `/api/projects`
 ```json
-// Request Body — startDate & endDate BẮT BUỘC
+// Request Body — startDate & endDate BẮT BUỘC, trừ khi kind = 'team'
 {
   "name": "Website Redesign",
   "description": "Thiết kế lại giao diện website",
   "code": "WRD",                    // optional, tối đa 10 ký tự, tự uppercase, unique
+  "kind": "project",                // optional — 'project' (mặc định) | 'team'
   "priority": "high",
   "startDate": "2026-08-01",
   "endDate": "2026-12-31",
@@ -466,6 +467,19 @@ Riêng `guest` dành cho tài khoản đối tác: quyền tạo công việc c�
 // Response 201
 { "success": true, "data": { "project": { ... } }, "message": "Tạo dự án thành công" }
 ```
+
+**Phòng ban vận hành (`kind: 'team'`)** chạy vô thời hạn và chứa việc thường ngày (trực hệ
+thống, hỗ trợ khách, họp định kỳ):
+
+- Không đòi `startDate`/`endDate`. `startDate` được giữ nếu gửi, còn `endDate` luôn bị bỏ, kể cả
+  khi gửi kèm.
+- `PUT /api/projects/:id` với `kind: 'team'` sẽ **gỡ hẳn** `endDate` (`$unset`, không gán `null`).
+  Chuyển ngược `kind: 'project'` mà bản ghi lẫn body đều không có `endDate` thì nhận **400**.
+- Việc trong team **vẫn tính vào tải** (`/analytics/utilization`, `Resource.currentWorkload`),
+  vì tải được tính từ ngày của chính task.
+- Tối ưu hóa chạy **không** chọn dự án sẽ bỏ việc của team khỏi tập cần phân công. Chúng được
+  tính là giờ đã cam kết (`committedTasks`) của người làm. Truyền đích danh `projectId` của team
+  thì vẫn tối ưu được việc của nó.
 
 ### DELETE `/api/projects/:id`
 Nếu dự án còn task, API trả **400** kèm hướng dẫn. Thêm `?force=true` để xóa dự án **và toàn bộ task** của nó.
