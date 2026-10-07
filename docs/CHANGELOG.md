@@ -6,6 +6,28 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-10-07 (rà soát cấu hình và lỗi chạy thật)
+
+### Fixed
+
+- **Tạo/sửa nhân sự luôn trả 500 `mongoose is not defined`.** `validateDepartment`
+  trong `resource.controller.js` gọi `mongoose.Types.ObjectId.isValid` mà file không
+  import `mongoose`. Bộ `api` đỏ từ commit `b2978ab`.
+- **Socket.IO không nhận nhiều origin.** REST tách `CLIENT_URL` theo dấu phẩy, Socket.IO
+  nhận nguyên chuỗi — khai báo hai origin thì realtime âm thầm không kết nối. Nay cả hai
+  dùng chung `src/config/cors.js` (bộ test đơn vị `cors`).
+- **Regex mạng LAN ở dev chặn nhầm `172.x.x.x` và `10.x.x.x`** — chỉ khớp ba nhóm số.
+- **`readMailConfig` nạp lại `.env` với `override: true` cả ở production**, đè biến môi
+  trường thật của hạ tầng mỗi lần gửi mail. Nay chỉ làm ở môi trường không phải production.
+- **`AUTH_RATE_LIMIT_MAX` bị bỏ qua ngoài production** (luôn 200). Nay khai báo thì dùng,
+  bỏ trống thì production 10, dev 200. Bộ `security` đỏ vì lỗi này.
+- `Resource.utilizationRate` trả `Infinity` khi `fte = 0`.
+- Mobile không còn hard-code IP LAN của một máy: mặc định dò IP máy chạy Metro, hoặc đọc
+  `EXPO_PUBLIC_API_URL`; giả lập Android dùng `10.0.2.2`.
+- `set-test-pw.js` đọc nhầm `MONGO_URI` và viết cứng email/mật khẩu; nay nhận qua tham số.
+
+---
+
 ## [Chưa phát hành] - 2026-09-22 (rà soát phân lập công ty)
 
 ### Security
