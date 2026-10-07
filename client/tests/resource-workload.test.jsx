@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders } from './helpers.jsx';
+import { renderWithProviders, authState } from './helpers.jsx';
 import i18n from '../src/i18n';
 
 const mocks = vi.hoisted(() => ({ resources: vi.fn(), departments: vi.fn() }));
+vi.mock('../src/context/AuthContext', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useAuth: () => authState(),
+}));
 vi.mock('../src/services/resourceService', () => ({ default: { getAll: mocks.resources } }));
 vi.mock('../src/services/departmentService', () => ({ default: { getAll: mocks.departments } }));
 const { default: Resources } = await import('../src/pages/resources/Resources');
