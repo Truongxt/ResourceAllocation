@@ -25,6 +25,9 @@ import {
   DEFAULT_API_URL,
 } from '../../api/client';
 
+// IP máy chạy Metro, null khi không dò được (giả lập, chạy web) — khi đó ẩn gợi ý Wi-Fi
+const detectedHostIp = getDetectedHostIp();
+
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
   const { theme } = useTheme();
@@ -339,7 +342,7 @@ export default function LoginScreen({ navigation }) {
               />
               <TextInput
                 style={[styles.input, { color: theme.colors.text }]}
-                placeholder="http://172.27.37.181:5000/api"
+                placeholder={DEFAULT_API_URL}
                 placeholderTextColor={theme.colors.textMuted}
                 value={inputServerUrl}
                 onChangeText={setInputServerUrl}
@@ -353,14 +356,16 @@ export default function LoginScreen({ navigation }) {
               Gợi ý cấu hình nhanh:
             </Text>
             <View style={styles.quickTagsRow}>
-              <TouchableOpacity
-                style={[styles.quickTag, { borderColor: theme.colors.border }]}
-                onPress={() => handleQuickSetIp('http://172.27.37.181:5000/api')}
-              >
-                <Text style={[styles.quickTagText, { color: theme.colors.primaryLight }]}>
-                  💻 Wi-Fi PC (172.27.37.181)
-                </Text>
-              </TouchableOpacity>
+              {detectedHostIp && (
+                <TouchableOpacity
+                  style={[styles.quickTag, { borderColor: theme.colors.border }]}
+                  onPress={() => handleQuickSetIp(`http://${detectedHostIp}:5000/api`)}
+                >
+                  <Text style={[styles.quickTagText, { color: theme.colors.primaryLight }]}>
+                    💻 Wi-Fi PC ({detectedHostIp})
+                  </Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={[styles.quickTag, { borderColor: theme.colors.border }]}
                 onPress={() => handleQuickSetIp('http://10.0.2.2:5000/api')}

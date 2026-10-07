@@ -31,13 +31,18 @@ export const getDetectedHostIp = () => {
 
 const detectedIp = getDetectedHostIp();
 
-// Trên điện thoại thật, dùng IP máy chủ Wi-Fi (172.27.37.181). Trên giả lập Android Studio mới dùng 10.0.2.2
-export const DEFAULT_API_URL = detectedIp
-  ? `http://${detectedIp}:5000/api`
-  : Platform.select({
-      android: 'http://172.27.37.181:5000/api',
-      default: 'http://localhost:5000/api',
-    });
+// Thứ tự ưu tiên: EXPO_PUBLIC_API_URL (khai báo lúc build) → IP máy chạy Metro
+// (điện thoại thật cùng Wi-Fi) → địa chỉ mặc định của giả lập. Android emulator
+// nhìn thấy máy host qua 10.0.2.2. Không hard-code IP LAN của một máy cụ thể:
+// đổi mạng là app gọi vào khoảng không.
+export const DEFAULT_API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (detectedIp
+    ? `http://${detectedIp}:5000/api`
+    : Platform.select({
+        android: 'http://10.0.2.2:5000/api',
+        default: 'http://localhost:5000/api',
+      }));
 
 let customBaseUrl = null;
 
