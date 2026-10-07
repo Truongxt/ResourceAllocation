@@ -189,9 +189,11 @@ thuần — `mobile/tests/app-permissions.test.mjs`, 21 ca. Trong đó ca đáng
 **"thiếu cấu hình = `manage`"**: chọn nhầm chiều thì mọi tài khoản cũ mở app ra thấy thanh
 tab trống trơn, mà lỗi kiểu đó không ném exception nào cả.
 
-Trên mobile, `appPermissions` ẩn tab và ẩn nút thao tác. Ba lớp còn lại (`authorize`,
-`authorizeApp`, `taskAccess`) **chưa được phản ánh trên giao diện mobile** — server vẫn chặn
-đúng, nhưng app có thể bày ra thao tác rồi nhận 403.
+Trên mobile, `appPermissions` ẩn tab và ẩn nút thao tác. `authorizeApp` (App Admin) và
+`authorize` theo vai trò cũng đã được phản ánh ở mức **tab**: Tối ưu hóa ẩn theo
+`hasAppAccess('optimize')`, Nhân sự ẩn theo `canAccessResources` — cùng quy tắc với
+`Sidebar.jsx` của web. Còn **`taskAccess`** (quyền theo từng dự án/công việc) thì chưa — server
+vẫn chặn đúng, nhưng app có thể bày ra thao tác trên một công việc rồi nhận 403.
 
 Chỉnh ở: **Cài đặt → Phân quyền Thao tác & Ứng dụng → Quyền theo Phân hệ**.
 
@@ -420,7 +422,7 @@ Client đọc địa chỉ từ `VITE_SOCKET_URL`; **thiếu biến này thì m�
 
 ```bash
 npm run dev          # client :5173 + server :5000 song song
-cd server && npm test        # 20 bộ, vài phút
+cd server && npm test        # 24 bộ, vài phút
 cd client && npm test        # logic thuần + 8 file component
 cd mobile && npm test        # quy tắc quyền, node thuần, chưa cần cài gì
 npm run test:e2e             # 85 bài, 11 file, ~10 phút, Chromium thật
@@ -460,7 +462,8 @@ Riêng phần app di động:
   lỗi "sai tên trường" vừa sửa sẽ tái phát theo đúng cách cũ nếu không có gì đối chiếu tên
   trường mobile đọc với tên server trả.
 - **Lịch và Gantt chưa có trên mobile.**
-- Ba lớp quyền ngoài `appPermissions` chưa phản ánh lên giao diện mobile.
+- Quyền theo từng dự án/công việc (`taskAccess`) chưa phản ánh lên giao diện mobile; App Admin
+  và quyền theo vai trò thì đã có ở mức tab.
 - Mobile chưa có: việc lặp lại, nhóm việc, phụ thuộc, người theo dõi, duyệt việc, nhập/xuất
   Excel, các tab quản trị trong Cài đặt. Bảng đầy đủ ở [`FEATURES.md`](./FEATURES.md), mục
   "App di động — phủ được tới đâu".

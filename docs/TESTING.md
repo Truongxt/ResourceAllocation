@@ -5,7 +5,7 @@ Dự án có **bốn lớp kiểm thử**, mỗi lớp trả lời một câu h�
 
 | Lớp | Thư mục | Chạy bằng | Quy mô | Trả lời câu hỏi |
 |-----|---------|-----------|--------|-----------------|
-| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 20 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
+| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 24 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
 | Component | `client/tests/` | `npm test` trong `client/` | 3 file logic + 8 file component | Component vẽ đúng, xử lý đúng sự kiện không? |
 | Logic di động | `mobile/tests/` | `npm test` trong `mobile/` | 1 bộ logic thuần | Quy tắc quyền trên app có khớp với server không? |
 | Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 85 bài / 11 file | Ghép tất cả lại thì người dùng **dùng được** không? |
@@ -19,9 +19,9 @@ triển, 1 worker) vì nó khởi động thật, đăng nhập thật và chờ
 
 Chi tiết từng lớp:
 
-- [`server/tests/README.md`](../server/tests/README.md) — 19 bộ, gồm cả kiểm thử đơn vị cho GA/CSP/scoring
+- [`server/tests/README.md`](../server/tests/README.md) — 24 bộ, gồm cả kiểm thử đơn vị cho GA/CSP/scoring
 - [`client/tests/README.md`](../client/tests/README.md) — logic thuần chạy bằng `node`, component chạy bằng vitest
-- [`e2e/README.md`](../e2e/README.md) — 10 bộ điều khiển Chromium trên hệ thống thật
+- [`e2e/README.md`](../e2e/README.md) — 11 bộ điều khiển Chromium trên hệ thống thật
 
 ## Chạy tất cả
 

@@ -1,7 +1,20 @@
 # ⚖️ So sánh Jira với Resource Allocation Optimization (RAO)
 
 > Báo cáo đối chiếu năng lực giữa **Jira Software Cloud** và **hệ thống RAO trong repo này**.
-> Ngày lập: **2026-08-19**.
+> Ngày lập: **2026-08-19**. Cập nhật lần cuối: **2026-10-07**.
+
+> **Đã thay đổi từ ngày lập.** Nhiều khoảng trống bài này nêu đã được lấp; các ô tương ứng bên
+> dưới đã sửa theo code hiện tại, phần nhận định giữ nguyên để đọc được lý do ban đầu:
+>
+> - **Đã có**: bình luận, người theo dõi (watcher), việc con, trạng thái `failed`, email khi được
+>   giao việc (mặc định tắt), đa ngôn ngữ vi/en, refresh token thu hồi được (không còn token
+>   trong `localStorage`), nhật ký kiểm toán cho hành động Admin, tách bundle theo route, app di
+>   động Expo (phủ ít hơn web).
+> - **Vẫn chưa có**: @mention, tải tệp đính kèm thật (chỉ lưu link), 2FA (mới là một cờ trong
+>   DB, chưa có luồng xác thực), JQL / filter lưu được, tự động hóa, webhook, API key cho máy,
+>   sprint, custom field, workflow tùy biến, backup và monitoring.
+> - Số liệu ở mục 0 (9 model, 56 endpoint, 8 bộ kiểm thử) là của ngày lập; hiện là 12 model,
+>   118 endpoint, 24 bộ kiểm thử server cộng ba lớp test khác.
 
 ## 0. Phạm vi và cách làm
 
@@ -31,8 +44,9 @@ không biết kỹ năng, không biết ngày nghỉ, và không tự sinh phư�
 
 **Jira hơn RAO ở mọi thứ quanh việc dùng thật hằng ngày:** quy trình tùy biến, cộng tác
 (bình luận, tệp đính kèm, mention), tìm kiếm JQL, tự động hóa, tích hợp, mobile, SSO, và
-việc vận hành do Atlassian gánh. RAO còn thiếu ba thứ ảnh hưởng trực tiếp tới việc dùng thật:
-**bình luận, tệp đính kèm, và thông báo email**.
+việc vận hành do Atlassian gánh. Lúc lập bài, RAO thiếu ba thứ ảnh hưởng trực tiếp tới việc
+dùng thật: **bình luận, tệp đính kèm, và thông báo email**. Bình luận và email nay đã có; còn
+**tệp đính kèm** (cùng @mention) là khoảng trống cộng tác lớn nhất.
 
 **Vì vậy chúng bổ sung cho nhau hơn là thay thế nhau.** Mô hình hợp lý nhất là Jira làm hệ
 ghi nhận công việc, RAO làm lớp lập kế hoạch nguồn lực đọc dữ liệu từ Jira — chi tiết ở
@@ -47,7 +61,7 @@ Thang: **Đầy đủ** · **Một phần** · **Cần app / Premium** · **Khô
 | # | Nhóm năng lực | Jira gốc | RAO | Bên mạnh hơn |
 |---|---------------|----------|-----|--------------|
 | 1 | Quản lý công việc & quy trình | Đầy đủ | Một phần | **Jira** — cách biệt lớn |
-| 2 | Cộng tác trong công việc | Đầy đủ | Không có | **Jira** — cách biệt lớn |
+| 2 | Cộng tác trong công việc | Đầy đủ | Một phần (bình luận, người theo dõi, email; chưa có @mention, tệp đính kèm) | **Jira** |
 | 3 | Lập kế hoạch & lịch trình | Một phần | Đầy đủ | **RAO** |
 | 4 | Nguồn lực, năng lực & kỹ năng | Một phần (mức đội) | Đầy đủ (mức cá nhân) | **RAO** — cách biệt lớn |
 | 5 | Tối ưu hóa phân bổ tự động | Không có | Đầy đủ | **RAO** — Jira không có đối trọng |
@@ -67,8 +81,8 @@ RAO thắng 3 nhóm, Jira thắng 5, 1 nhóm ngang. Nhưng **nhóm 5 là nhóm J
 
 | Năng lực | Jira gốc | RAO |
 |----------|----------|-----|
-| Kiểu công việc | Epic / Story / Task / Bug / Sub-task, thêm kiểu tùy ý (gói trả phí) | **Một kiểu duy nhất**: `Task`. Không có epic, không có sub-task |
-| Trạng thái & quy trình | Workflow tùy biến: trạng thái, chuyển tiếp, điều kiện, validator, post-function theo từng dự án | 5 trạng thái **cố định trong code**: `todo · in_progress · review · done · blocked` ([Task.js:23](../server/src/models/Task.js#L23)) |
+| Kiểu công việc | Epic / Story / Task / Bug / Sub-task, thêm kiểu tùy ý (gói trả phí) | **Một kiểu duy nhất**: `Task`, có việc con (`parentTask`) và nhóm công việc. Không có epic |
+| Trạng thái & quy trình | Workflow tùy biến: trạng thái, chuyển tiếp, điều kiện, validator, post-function theo từng dự án | 6 trạng thái **cố định trong code**: `todo · in_progress · review · done · blocked · failed`, kèm luồng duyệt có SLA bật theo dự án ([Task.js](../server/src/models/Task.js)) |
 | Trường dữ liệu | Custom field không giới hạn, screen scheme, field config | Schema cố định. Muốn thêm trường phải sửa model + UI |
 | Bảng Kanban | Có, cấu hình cột/swimlane/WIP limit | Có, 5 cột cố định, kéo–thả đổi trạng thái, cập nhật lạc quan |
 | Scrum: sprint, backlog, velocity | Đầy đủ | **Không có** |
@@ -86,11 +100,11 @@ cỗ máy quy trình cấu hình được, RAO là một mô hình dữ liệu c
 
 | Năng lực | Jira gốc | RAO |
 |----------|----------|-----|
-| Bình luận, @mention | Đầy đủ | **Không có** |
-| Tệp đính kèm | Đầy đủ (2 GB ở gói Free) | **Không có** |
-| Theo dõi (watcher), lịch sử thay đổi từng trường | Đầy đủ | Không có watcher; có `ActivityLog` ở mức hệ thống |
+| Bình luận, @mention | Đầy đủ | **Bình luận có**; @mention chưa có |
+| Tệp đính kèm | Đầy đủ (2 GB ở gói Free) | **Chưa có** — `resultReport.attachments` chỉ lưu `{name, url}`, không có route tải tệp lên |
+| Theo dõi (watcher), lịch sử thay đổi từng trường | Đầy đủ | **Người theo dõi có** (trần 50, nhận thông báo); lịch sử từng trường thì không — chỉ `ActivityLog` ở mức hệ thống và `deadlineHistory` cho hạn chót |
 | Thông báo trong ứng dụng | Có | **Có, realtime** — Socket.IO xác thực JWT, room `user:<id>`, Notification Center + toast |
-| Thông báo email | Có | **Không có** (mục 10.6 trong backlog) |
+| Thông báo email | Có | **Có** khi được giao việc, mặc định tắt cho tới khi khai báo SMTP (FEATURES 10.6) |
 | Wiki / tài liệu kèm theo | Có qua Confluence | Không có |
 
 **Nhận xét.** Đây là khoảng trống nghiêm trọng nhất của RAO nếu định đưa vào dùng thật.
@@ -187,7 +201,7 @@ sẽ quá tải" chứ không nói được "tháng trước đội thực sự 
 | Tích hợp Git / CI-CD / Slack / Teams | Có | **Không có** |
 | Marketplace | Hàng nghìn app | Không có |
 | Nhập dữ liệu | Nhập CSV có wizard, nhập từ công cụ khác | **Dán nội dung CSV** vào modal — chưa chọn được file |
-| Ứng dụng mobile | iOS + Android | Không có (chỉ web) |
+| Ứng dụng mobile | iOS + Android | **Một phần**: app Expo dùng chung API, chưa có Lịch, Gantt và nhiều nhánh nghiệp vụ (xem FEATURES, mục "App di động") |
 
 **Nhận xét.** Đây là khoảng cách của "một sản phẩm" so với "một nền tảng có hệ sinh thái", và
 nó không thể lấp bằng vài sprint. Với RAO, hạng mục đáng làm nhất trong nhóm này không phải
@@ -199,9 +213,9 @@ tự động hóa mà là **kết nối với Jira** — xem mục 6.
 |----------|----------|-----|
 | Phân quyền | Permission scheme chi tiết theo dự án, project role, group | **3 role cứng**: admin / project_manager / member. `canModifyTask` cho người được giao tự cập nhật tiến độ việc của mình. Ranh giới có 12 assertion kiểm chứng |
 | SSO / SAML / SCIM | Có (Atlassian Guard) | **Không có** |
-| Xác thực | Có 2FA | JWT + bcrypt. **Chưa có refresh token / thu hồi token**; token nằm trong `localStorage` |
+| Xác thực | Có 2FA | JWT + bcrypt. Access token 15 phút giữ trong bộ nhớ, **refresh token thu hồi được** (cookie `httpOnly`, xoay vòng, phát hiện tái sử dụng). 2FA chưa có — `twoFactorEnabled` mới là cờ trong DB |
 | Chống lạm dụng | Nền tảng lo | `helmet`, CORS giới hạn theo `CLIENT_URL` (cả REST và Socket.IO), 10 lần đăng nhập sai / 15 phút, 1000 request / 15 phút, body 1 MB |
-| Nhật ký kiểm toán | Audit log riêng | `ActivityLog` — chưa có log kiểm toán riêng cho hành động Admin |
+| Nhật ký kiểm toán | Audit log riêng | `ActivityLog`, có ghi riêng các hành động Admin (xóa nhân sự/phòng ban, tính lại workload, xóa nhật ký) và phân lập theo công ty |
 | Sao lưu, khôi phục, data residency, SLA vận hành | Atlassian chịu trách nhiệm | **Chưa có gì** — chưa có backup, monitoring, hay kiểm thử tải |
 | Bắt buộc cấu hình an toàn khi deploy | — | `NODE_ENV=production` mà thiếu `JWT_SECRET` thì **server từ chối khởi động** |
 
@@ -257,18 +271,18 @@ Xếp theo mức ảnh hưởng tới việc dùng thật, kèm ước lượng 
 
 | Ưu tiên | Khoảng trống | Ảnh hưởng | Công sức |
 |---------|--------------|-----------|----------|
-| 1 | **Bình luận + tệp đính kèm** | Cao — không có thì bàn luận trôi ra Slack và dữ liệu thật nằm ngoài hệ thống | Vừa (thêm model, lưu tệp, UI) |
-| 2 | **Thông báo email** (10.6) | Cao — người được giao việc hiện chỉ biết khi đang mở app | Nhỏ |
+| 1 | **Tệp đính kèm + @mention** *(bình luận đã có)* | Cao — không gắn được tệp thì dữ liệu thật vẫn nằm ngoài hệ thống | Vừa (lưu tệp, giới hạn dung lượng/kiểu, UI) |
+| 2 | ~~**Thông báo email** (10.6)~~ | **Đã làm** — gửi khi được giao việc | — |
 | 3 | **API cho máy + webhook** | Cao nếu muốn nối với Jira hay CI | Vừa (API key, scope, tài liệu) |
 | 4 | **Ảnh chụp workload định kỳ** | Trung bình — hiện chỉ nhìn về phía trước, không có số liệu lịch sử thật | Nhỏ–vừa |
 | 5 | **Tìm kiếm nâng cao / filter lưu được** | Trung bình, tăng theo lượng dữ liệu | Vừa |
-| 6 | **SSO, refresh token, thu hồi token** | Trung bình, cao nếu triển khai trong doanh nghiệp | Vừa |
-| 7 | **Đa ngôn ngữ** (10.3) | Trung bình | Vừa |
+| 6 | **SSO, 2FA** *(refresh token và thu hồi token đã có)* | Trung bình, cao nếu triển khai trong doanh nghiệp | Vừa |
+| 7 | ~~**Đa ngôn ngữ** (10.3)~~ | **Đã làm** — vi/en cho toàn bộ giao diện web | — |
 | 8 | **Nhiều người trên một công việc, sub-task, nhiều kiểu công việc** | Trung bình | **Lớn** — cả solver đang giả định đúng 1 assignee/công việc |
 | 9 | **Sprint / backlog / báo cáo agile** | Thấp nếu định vị RAO là công cụ lập kế hoạch nguồn lực | Lớn |
 | 10 | **Workflow và custom field tùy biến** | Thấp với phạm vi hiện tại | **Rất lớn** — đây là lõi kiến trúc của Jira |
-| 11 | **Vận hành: backup, monitoring, kiểm thử tải, tách bundle theo route** | Cao khi lên môi trường thật | Vừa |
-| 12 | **Mobile** | Thấp–trung bình | Lớn (hoặc làm responsive tốt hơn) |
+| 11 | **Vận hành: backup, monitoring, kiểm thử tải** *(tách bundle theo route đã có)* | Cao khi lên môi trường thật | Vừa |
+| 12 | **Mobile** — đã có app Expo, còn thiếu Lịch, Gantt và nhiều nhánh nghiệp vụ | Thấp–trung bình | Lớn |
 
 Mục 8 đáng nói thêm: đó không phải một trường thiếu, mà là một **giả định nằm trong thuật
 toán**. Cho phép nhiều người trên một công việc là đổi cả không gian nghiệm của GA và CSP.

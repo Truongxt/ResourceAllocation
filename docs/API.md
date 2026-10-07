@@ -55,6 +55,12 @@ Mọi response thành công đều bọc dữ liệu trong `data` **dưới mộ
 theo tài nguyên: `projects`, `tasks`, `resources`, `departments`, `users`, `logs`,
 `notifications`, `results`, `result`, `project`, `task`, `resource`, `notification`, `department`.
 
+**Tham số `search` (và `skill` ở `/resources`)** khớp chuỗi con **theo nghĩa đen**, không phân
+biệt hoa thường. Ký tự đặc biệt của regex như `(`, `[`, `*`, `\` được escape trước khi dựng
+truy vấn (`src/utils/escapeRegex.js`) — trước đây chúng làm server trả 500, và một mẫu như
+`(a+)+$` có thể làm nghẽn cả tiến trình. Áp dụng cho `/tasks`, `/projects`, `/resources`,
+`/departments`, `/activity-logs`, `/auth/users`.
+
 ### Response lỗi
 
 ```json
@@ -369,7 +375,9 @@ riêng (dùng chung dữ liệu `/api/tasks`); `optimization` đã bị `authori
 { "isActive": false }
 ```
 Vô hiệu hóa tài khoản **thu hồi toàn bộ refresh token** của người đó — họ bị đẩy ra trong
-vòng một lần làm mới token, không phải chờ hết 7 ngày.
+vòng một lần làm mới token, không phải chờ hết 7 ngày. Đồng thời **mọi socket đang mở** của họ
+bị ngắt ngay, và handshake Socket.IO từ chối tài khoản `isActive: false` — access token còn
+sống tới 15 phút nên chỉ verify chữ ký là không đủ.
 
 ### PUT `/api/auth/users/:id/reset-password`
 ```json
@@ -517,11 +525,18 @@ Nhóm lớn nhất — **30 endpoint**. Mọi endpoint đều 🔒; cột Auth d
 |--------|----------|-------|------|
 | GET | `/excel/template` | Tải file mẫu `.xlsx` | — |
 | POST | `/excel/preview` | Xem trước dữ liệu từ file | — |
-| POST | `/excel/import` | Nhập hàng loạt vào một dự án | — |
+| POST | `/excel/import` | Nhập hàng loạt vào một dự án | `canCreateTask` |
 | GET | `/reassign-preview` | Xem trước tập việc sẽ bàn giao | 📋 PM+ |
 | POST | `/bulk-reassign` | Bàn giao hàng loạt | 📋 PM+ |
 
 Ba endpoint Excel nhận `multipart/form-data`, field file tên **`file`**.
+
+`/excel/import` nhận thêm field **`projectId`** và chịu cùng các chốt như `POST /tasks`: dự án
+không tồn tại → **404**, dự án của công ty khác → **403**, người không được tạo việc trong dự
+án đó (theo `canCreateTask`: ngoài dự án, hoặc dự án tắt `allowMembersCreateTasks`) → **403**.
+Công việc nhập vào mang `companyName` của dự án. `projectId` đi trong form chứ không trên URL,
+nên chốt `router.param('id')` của nhóm task không che được — trước bản vá, công ty khác ghi
+được hàng loạt công việc vào dự án chỉ bằng id.
 
 ¹ **Người được giao việc** (`assignee`) sửa được task của chính mình, nhưng chỉ ba trường
 `status`, `progress`, `actualHours`. Gửi kèm bất kỳ trường nào khác → **403** kèm danh sách
@@ -1262,6 +1277,9 @@ Các quy ước cần biết để không đọc sai:
 ```
 
 - Chỉ nhận `id` của kết quả `status === 'completed'`, ngược lại trả 404.
+- Kết quả của **công ty khác → 403** (cùng quy ước `resultBelongsTo` của `/optimization/*`: bản
+  ghi thiếu `companyName` thuộc công ty mặc định). `resources` và giờ của task đang mở chỉ lấy
+  trong công ty người gọi — trước bản vá, bảng liệt kê nhân sự của mọi công ty.
 - **`before`** được tính từ **task đang mở** (`todo`/`in_progress`/`review`) gộp theo `assignee`,
   cùng cách với `GET /analytics/utilization` — không đọc `Resource.currentWorkload` (field đó chỉ
   làm mới khi admin gọi `recalculate-workload` nên thường đã cũ). Nếu một nhân sự không có task

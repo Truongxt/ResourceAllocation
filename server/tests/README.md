@@ -50,8 +50,23 @@ thường vì MongoDB chưa chạy, hoặc máy đang quá tải (chạy ngay sa
 | `csp` | `csp.test.mjs` | CSPSolver ở mức đơn vị: ràng buộc H3 (lịch nghỉ) và H4 (phụ thuộc), cùng lan truyền AC-3 — cắt từ biến singleton, lan theo dây chuyền, phát hiện vô nghiệm với 0 vòng backtracking, và trường hợp AC-3 **không** cắt được gì. Không cần server lẫn database |
 | `api` | `api.test.mjs` | Toàn bộ REST API: health, xác thực, phân quyền 3 role, CRUD Projects/Tasks/Resources/Departments, 3 thuật toán tối ưu hóa, Analytics, Notifications, ActivityLog, dọn dữ liệu theo tầng |
 | `project-detail` | `project-detail.test.mjs` | Các API trang chi tiết dự án dùng, theo đúng thứ tự UI gọi, gồm cả nhánh lỗi và ranh giới phân quyền |
-| `socket` | `socket.test.mjs` | Socket.IO: từ chối kết nối thiếu/sai token, tách room theo user, nhận `notification:new` và `notification:read`, đối chiếu với bản ghi trong DB |
+| `socket` | `socket.test.mjs` | Socket.IO: từ chối kết nối thiếu/sai token, tách room theo user, nhận `notification:new` và `notification:read`, đối chiếu với bản ghi trong DB. Tài khoản bị vô hiệu hóa: socket đang mở bị ngắt ngay, token cũ (còn hạn) không mở được socket mới |
 | `notify-session` | `notify-session.test.mjs` | **Tác dụng phụ**, không phải response: bình luận / thêm người theo dõi / tạo việc con có thực sự sinh ra bản ghi thông báo không, và phiên đăng nhập có liệt kê + thu hồi được không. Cả bốn lỗi bộ này giữ đều từng trả 200 với body hợp lệ, nên bộ nào chỉ assert mã trạng thái sẽ không thấy gì |
+| `email` | `email.test.mjs` | Tầng email ở mức đơn vị: **mặc định tắt** khi thiếu cấu hình (không được làm hỏng luồng giao việc), chỉ loại "được giao việc" mới gửi mail. Không cần server, database hay SMTP |
+| `sanitize` | `sanitize.test.mjs` | `middleware/sanitize.js` ở mức đơn vị: cắt đúng khóa toán tử Mongo và khóa gây ô nhiễm prototype, **không đụng** vào dữ liệu hợp lệ |
+| `cors` | `cors.test.mjs` | `config/cors.js` ở mức đơn vị: nhiều origin trong `CLIENT_URL` có tác dụng như nhau ở REST và Socket.IO, production chỉ nhận origin đã khai, dev nhận thêm IP mạng LAN đủ bốn nhóm số |
+| `regex-search` | `regex-search.test.mjs` | Gửi `(`, `[`, `*`, `\` vào tham số tìm kiếm của 7 endpoint: phải trả 200 chứ không 500, khớp theo nghĩa đen, và mẫu ReDoS `(a+)+$` trả lời ngay |
+| `error-handler` | `error-handler.test.mjs` | Bộ bắt lỗi toàn cục ở mức đơn vị — chính nó từng ném lỗi với lỗi `insertMany` trùng khóa, trả 500 rỗng |
+| `refresh-token` | `refresh-token.test.mjs` | `classifyToken` ở mức đơn vị cho mọi nhánh, cộng gọi API thật tự giữ cookie: xoay vòng, thu hồi, phát hiện tái sử dụng, ân hạn đa tab, refresh token trong body chỉ cho client tự khai `X-Client-Type: mobile` |
+| `task-permissions` | `task-permissions.test.mjs` | Ma trận phân quyền thao tác trên công việc theo tài liệu Base Wework |
+| `followers` | `followers.test.mjs` | Người theo dõi: trần số lượng, ai được gỡ ai, và người theo dõi **không** sinh ra khối lượng công việc |
+| `task-failed` | `task-failed.test.mjs` | Trạng thái Thất bại: dự án phải bật, bắt buộc có lý do, không nhảy thẳng từ "Chờ đánh giá", và vết để lại trong DB |
+| `task-review` | `task-review.test.mjs` | Luồng Chờ đánh giá có SLA: các bước chuyển, và đúng/trễ hạn tính theo lúc **người làm** bấm hoàn thành |
+| `bulk-reassign` | `bulk-reassign.test.mjs` | Bàn giao hàng loạt: đúng phạm vi — không cuốn theo việc ở dự án khác, không viết lại việc đã đóng |
+| `dependency-types` | `dependency-types.test.mjs` | Loại quan hệ phụ thuộc: dạng mới `{ task, type }` và mảng id phẳng cũ cùng đi qua một đường |
+| `department-wework` | `department-wework.test.mjs` | Quản lý phòng ban theo tài liệu Base Wework |
+| `hardening` | `hardening.test.mjs` | Các bản vá lớp e2e không chứng minh được: phân lập công ty, rò mật khẩu, validate payload, vai trò "khách" trong dự án |
+| `company-isolation` | `company-isolation.test.mjs` | Dựng công ty B mới rồi cho admin của nó thao tác lên dữ liệu công ty A chỉ bằng id: task, dự án, nhân sự, phòng ban, tối ưu hóa (cả bảng trước/sau bên analytics), nhật ký, nhóm việc, việc lặp lại, nhập Excel. Mọi đường phải 403 |
 
 ## Viết thêm bộ mới
 

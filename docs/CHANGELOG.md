@@ -8,6 +8,45 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ## [Chưa phát hành] - 2026-10-07 (rà soát cấu hình và lỗi chạy thật)
 
+### Security
+
+Mỗi lỗ hổng dưới đây được tái hiện bằng request thật trước khi sửa, và có test giữ lại.
+
+- **Nhập Excel ghi được vào dự án công ty khác.** `POST /tasks/excel/import` nhận
+  `projectId` trong form multipart, nên chốt `router.param('id')` không che được; controller
+  cũng không kiểm dự án. Admin công ty B nhập được công việc vào dự án của A (200), id dự án
+  không tồn tại thì sinh công việc mồ côi (200). Nay: 404 / 403 như `POST /tasks`, công việc
+  mang công ty của dự án, và route gắn thêm `canCreateTask` — trước đó member ngoài dự án
+  cũng nhập được.
+- **Bảng trước/sau tối ưu lộ dữ liệu giữa công ty.** `GET /analytics/optimization-comparison/:id`
+  không kiểm công ty của kết quả và liệt kê nhân sự **mọi** công ty. Nay 403 với kết quả công
+  ty khác, nhân sự và giờ task lọc theo công ty. Đường `/optimization/compare` vốn đã chặn đúng.
+- **Tìm kiếm dựng regex thẳng từ chuỗi người dùng gõ** ở 7 endpoint: gõ `(` là 500, mẫu
+  `(a+)+$` có thể làm nghẽn tiến trình. Nay escape qua `src/utils/escapeRegex.js` (bộ test
+  `regex-search`).
+- **Socket.IO không kiểm `isActive`.** Access token còn sống tới 15 phút sau khi khóa tài
+  khoản, nên người bị khóa vẫn giữ socket và mở được socket mới. Nay handshake tra `User`, và
+  khóa tài khoản thì ngắt luôn socket đang mở.
+- **`xlsx` 0.18.5 còn prototype pollution và ReDoS**, mà nó đọc chính file người dùng tải
+  lên. Nâng lên 0.20.3, cài từ `cdn.sheetjs.com` vì npm registry không có bản vá. Client
+  khai báo `xlsx` mà không dùng — đã gỡ.
+
+### Changed
+
+- **Yêu cầu Node.js ≥ 20** (nodemailer 10). `npm audit fix` ở server: body-parser, express,
+  qs, proxy-addr, engine.io, ip-address, morgan, multer — server còn 0 lỗ hổng. Client còn 2
+  advisory ở `react-router` 6, chỉ vá được bằng v7.
+- axios lên 1.20 ở client và mobile.
+- Thêm `.gitattributes` (`* text=auto eol=lf`): repo đã lưu LF, file này chặn những commit
+  đổi kết thúc dòng hàng loạt do `core.autocrlf` khác nhau giữa các máy.
+
+### Tests
+
+- Trang Công việc mặc định mở Kanban (`b2978ab`) mà bộ e2e vẫn tìm dòng bảng: 10 bài đỏ, trong
+  đó 3 bài là hệ quả dây chuyền. Thêm helper `showTaskList()`. Bài lọc `?status=blocked` trước
+  đó "xanh" vì đếm 0 dòng — nay kiểm thật.
+- Bảng bộ test trong `server/tests/README.md` thiếu 15/24 bộ — đã bổ sung.
+
 ### Fixed
 
 - **Tạo/sửa nhân sự luôn trả 500 `mongoose is not defined`.** `validateDepartment`
