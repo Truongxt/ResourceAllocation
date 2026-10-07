@@ -239,4 +239,4 @@ router.delete('/:id/followers/:userId', taskIdValidation, canManageFollowers('re
 router.get('/:id/subtasks', taskIdValidation, validate, getSubtasks);
 router.post('/:id/subtasks', taskIdValidation, validate, canCreateSubtask(), createSubtask);
 
-module.exports = router;
+module.exports = router;
