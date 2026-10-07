@@ -13,7 +13,11 @@
  * Cách đo: đăng ký một công ty B hoàn toàn mới, rồi cho admin của nó thao tác lên
  * công việc của công ty A **chỉ bằng id**. Mọi đường đều phải là 403.
  */
-import { call, ok, section as S, summary } from './helpers.mjs';
+import { createRequire } from 'module';
+import { API, call, ok, section as S, summary } from './helpers.mjs';
+
+const require = createRequire(import.meta.url);
+const XLSX = require('xlsx');
 
 const stamp = Date.now();
 
@@ -396,6 +400,61 @@ S('Nhóm việc và việc lặp lại');
 
     await call('DELETE', `/recurring-tasks/${recId}`, { token: TA });
   }
+}
+
+// ══════════════════════════════════════════════
+S('Nhập Excel — ghi công việc hàng loạt vào dự án theo id');
+{
+  // `projectId` đi trong form multipart, không qua `router.param('id')` nên chốt
+  // phân lập của nhóm task không che được. Controller trước đây cũng không kiểm
+  // dự án thuộc công ty nào, cả `canCreateTask` cũng không gắn vào route này.
+  const marker = `Excel ${stamp}`;
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Tên công việc / Nhóm công việc (*)'],
+    [marker],
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Tasks');
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+  const importExcel = async (token, projectId) => {
+    const form = new FormData();
+    form.append('file', new Blob([buffer]), 'tasks.xlsx');
+    form.append('projectId', projectId);
+    const res = await fetch(`${API}/tasks/excel/import`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    return { status: res.status, ...(await res.json().catch(() => ({}))) };
+  };
+  const countMarker = async () => {
+    const r = await call('GET', `/tasks?project=${proj._id}&search=${encodeURIComponent(marker)}&limit=100`, { token: TA });
+    return (r.data?.tasks || []).filter((t) => t.title === marker).length;
+  };
+
+  const before = await countMarker();
+  const cross = await importExcel(TB, proj._id);
+  ok(cross.status === 403, 'B KHÔNG nhập được công việc vào dự án của A', `status=${cross.status}`);
+  ok((await countMarker()) === before, 'Dự án của A không mọc thêm công việc nào', `trước=${before}`);
+
+  const missing = await importExcel(TA, '000000000000000000000000');
+  ok(missing.status === 404, 'Dự án không tồn tại → 404', `status=${missing.status}`);
+
+  const own = await importExcel(TA, proj._id);
+  ok(own.status === 200 && own.data?.totalImported === 1, 'A vẫn nhập được vào dự án của mình', `status=${own.status}`);
+  const created = own.data?.tasks?.[0];
+  ok(created?.companyName === proj.companyName, 'Công việc nhập vào mang công ty của dự án',
+    `${created?.companyName} / ${proj.companyName}`);
+  if (created?._id) await call('DELETE', `/tasks/${created._id}`, { token: TA });
+
+  // Cùng công ty nhưng không thuộc dự án: `POST /tasks` chặn bằng `canCreateTask`,
+  // đường nhập Excel thì không gắn guard đó nên member vẫn ghi hàng loạt được.
+  // Dữ liệu mẫu: Lê Thị Hoa là member ECOM-01, không thuộc RAO-MOB.
+  const hoa = await call('POST', '/auth/login', { body: { email: 'hoa.le@rao.com', password: 'password123' } });
+  const mob = (projects.data?.projects || []).find((p) => p.code === 'RAO-MOB');
+  const outsider = await importExcel(hoa.data.token, mob._id);
+  ok(outsider.status === 403, 'Member ngoài dự án KHÔNG nhập Excel được', `status=${outsider.status}`);
 }
 
 process.exit(summary() ? 1 : 0);

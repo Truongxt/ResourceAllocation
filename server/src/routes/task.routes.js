@@ -174,7 +174,7 @@ router.get('/stats/summary', getTaskSummary);
 // Base Wework: Excel import & template (Đặt trước /:id)
 router.get('/excel/template', downloadExcelTemplate);
 router.post('/excel/preview', upload.single('file'), previewExcelTasks);
-router.post('/excel/import', upload.single('file'), importExcelTasks);
+router.post('/excel/import', upload.single('file'), canCreateTask(), importExcelTasks);
 // Base Wework: Reminders (Nhắc nhở công việc cần hoàn thành - đặt trước /:id)
 router.get('/reminders', getTaskReminders);
 

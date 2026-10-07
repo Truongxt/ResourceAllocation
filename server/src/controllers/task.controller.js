@@ -1631,7 +1631,23 @@ const importExcelTasks = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Vui lòng chọn dự án tiếp nhận công việc' });
     }
 
-    const companyName = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    // Cùng hai chốt như `createTask`. `projectId` đi trong form multipart nên
+    // `router.param('id')` không che được — thiếu đoạn này thì công ty khác ghi
+    // được hàng loạt công việc vào dự án chỉ bằng id.
+    const project = await Project.findById(projectId).select('companyName');
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
+    }
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền nhập công việc vào dự án của công ty khác',
+      });
+    }
+
+    // Gắn công ty theo dự án chứa công việc, như `createTask`
+    const companyName = project.companyName || userCompany;
     const result = await importTasksFromExcel({
       buffer: req.file.buffer,
       projectId,

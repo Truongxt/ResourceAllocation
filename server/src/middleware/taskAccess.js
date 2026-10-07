@@ -150,7 +150,8 @@ const canCreateTask = () => async (req, res, next) => {
       return next();
     }
 
-    const { project: projectId } = req.body;
+    // Form nhập Excel gửi `projectId` thay vì `project`
+    const projectId = req.body.project || req.body.projectId;
     if (!projectId) {
       return res.status(400).json({ success: false, message: 'Dự án tiếp nhận công việc là bắt buộc' });
     }
