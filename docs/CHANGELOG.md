@@ -6,7 +6,17 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
-## [Chưa phát hành] - 2026-10-08 (benchmark trên dữ liệu thật)
+## [Chưa phát hành] - 2026-10-08 (báo cáo kết quả theo người, benchmark trên dữ liệu thật)
+
+### Added
+
+- **Báo cáo kết quả theo người** (`GET /analytics/performance`, tab "Kết quả theo người" trong
+  Reports). Báo cáo trả lời câu hỏi "kỳ này ai làm kịp việc": với mỗi người có số việc đúng hạn,
+  trễ hạn, thất bại, quá hạn, chờ duyệt và số lần gia hạn deadline. Có ba phạm vi: của tôi, cấp
+  dưới trực tiếp (theo `User.manager`) và toàn công ty (chỉ Owner/Admin). Kỳ báo cáo lọc theo
+  deadline, mặc định là tháng này. Đúng hạn đo bằng `completedAt`. Việc xong không có mốc thời
+  gian và việc còn mở không có deadline được đếm riêng, không bị lặng lẽ bỏ đi.
+  `getProductivitySummary` (tab Năng suất trong Nhân sự) giữ nguyên.
 
 ### Security
 
@@ -29,6 +39,8 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   không chọn dự án và một lần chọn dự án của B. Số việc và số nhân sự phải khớp đúng với
   `GET /optimization/readiness`. Trước khi sửa, hai bài này lần lượt nhận 4 việc và 5 nhân sự của
   công ty khác, và 400 (rỗng).
+- Bộ `performance-summary` (14 assertion, đơn vị) và `performance` (20 assertion, HTTP) cho báo
+  cáo kết quả. Phía client có `performance-report.test.jsx` (3 test).
 
 ## [Chưa phát hành] - 2026-10-07 (phòng ban vận hành, id công ty khác trong body)
 

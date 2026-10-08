@@ -1191,6 +1191,7 @@ Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
 | GET | `/utilization` | Utilization từng nhân sự + theo phòng ban + burnout risk | 🔒 |
 | GET | `/tasks` | Phân bố task theo status/priority/project + tỉ lệ giờ | 🔒 |
 | GET | `/workload-trend` | Chuỗi thời gian khối lượng vs năng lực | 🔒 |
+| GET | `/performance` | Kết quả theo người: đúng hạn, trễ, thất bại, quá hạn, gia hạn | 🔒 |
 | GET | `/optimization-comparison/:id` | So sánh trạng thái hiện tại vs kết quả tối ưu hóa | 🔒 |
 
 ### GET `/api/analytics/utilization`
@@ -1277,6 +1278,46 @@ Các quy ước cần biết để không đọc sai:
   Chúng không nằm trong biểu đồ, nên phải được báo lại thay vì im lặng biến mất.
 - Khoảng quá dài mà vẽ theo ngày sẽ tự **hạ xuống tuần** — vì vậy `granularity` trong response
   mới là nguồn đúng, không phải tham số đã gửi. Vượt trần số mốc thì cắt bớt và bật `truncated`.
+
+### GET `/api/analytics/performance`
+
+| Query | Mặc định | Ghi chú |
+|---|---|---|
+| `scope` | `me` | `me` \| `subordinates` (người có `User.manager` là mình) \| `all` (chỉ **Owner/Admin**, người khác nhận **403**). Giá trị lạ → **400** |
+| `from`, `to` | tháng hiện tại | `YYYY-MM-DD` hiểu theo giờ server, `to` tính tới cuối ngày. Sai định dạng hoặc `from > to` → **400** |
+
+```json
+{
+  "success": true,
+  "data": {
+    "scope": "subordinates",
+    "from": "...", "to": "...",
+    "people": [
+      { "user": { "_id": "...", "name": "...", "email": "...", "avatar": "..." }, "department": "...",
+        "total": 4, "done": 2, "onTime": 1, "late": 1, "doneNoTimestamp": 0,
+        "failed": 1, "pendingReview": 0, "overdue": 0, "open": 1,
+        "extensions": 1, "onTimeRate": 50 }
+    ],
+    "totals": { "total": 4, "...": "cùng các trường như một dòng" },
+    "excluded": { "noDeadline": 1 }
+  }
+}
+```
+
+- Một việc thuộc kỳ khi **deadline (`endDate`) nằm trong `[from, to]`**. Việc không có deadline
+  thì không xếp được vào kỳ nào. Nếu việc đó còn mở, nó được đếm vào `excluded.noDeadline`.
+- Đúng hạn và trễ hạn đo bằng `completedAt` (lúc người làm bấm Hoàn thành), **không** bằng
+  `reviewedAt`. Việc `done` không có `completedAt` (từ trước khi có luồng đánh giá) vào
+  `doneNoTimestamp` và không được tính là đúng hạn.
+- Mỗi việc rơi vào đúng một nhóm: `total = done + failed + pendingReview + overdue + open`, và
+  `done = onTime + late + doneNoTimestamp`. `overdue` và `open` gồm `todo`, `in_progress` và
+  `blocked`, phân biệt bằng việc deadline đã qua hay chưa. Việc chờ duyệt chưa xét hạn, vì còn
+  có thể bị trả lại.
+- `onTimeRate = onTime / (onTime + late)`. Giá trị là `null` khi chưa có việc nào đo được.
+  `totals.onTimeRate` được tính lại từ số đếm, không phải trung bình các tỉ lệ.
+- `extensions` đếm số lần **lùi** deadline ra sau trong `deadlineHistory`.
+- Ai trong phạm vi cũng có một dòng, kể cả người không có việc nào, vì quản lý cần thấy cả
+  người không làm gì. `all` bỏ tài khoản khách.
 
 ### GET `/api/analytics/optimization-comparison/:id`
 ```json

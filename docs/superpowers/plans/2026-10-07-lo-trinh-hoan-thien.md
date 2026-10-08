@@ -13,7 +13,7 @@ phụ thuộc vào những gì giai đoạn trước để lại, nên viết ch
 | # | Giai đoạn | Trạng thái |
 |---|-----------|------------|
 | 1 | Dự án loại "team" | ✅ **Xong** — `57a8e9a`. Server 27/27 bộ, client 37/37, e2e `03-projects` 10/10 |
-| 2 | Báo cáo kết quả theo người | ⏳ Chưa làm — đã có một nửa từ 23/09 (`getProductivitySummary`) |
+| 2 | Báo cáo kết quả theo người | ✅ **Xong** — [plan](./2026-10-08-bao-cao-ket-qua-theo-nguoi.md). Server 29/29 bộ, client 40/40 |
 | 3 | Xuất công việc + thông báo Thất bại/đổi deadline | ⏳ Chưa làm |
 | 4 | Vòng đời dự án | ⏳ Chưa làm |
 | 5 | Thuật toán phần 1 (S1/S3, hội tụ) | ⏳ Chưa làm |
