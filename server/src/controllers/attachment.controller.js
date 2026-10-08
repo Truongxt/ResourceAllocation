@@ -84,15 +84,22 @@ const uploadAttachment = async (req, res, next) => {
     }
 
     const storageKey = await fileStorage.save(req.file.buffer);
-    const created = await Attachment.create({
-      task: task._id,
-      companyName: task.project?.companyName,
-      originalName,
-      mimeType,
-      size: req.file.size,
-      storageKey,
-      uploadedBy: req.user._id,
-    });
+    let created;
+    try {
+      created = await Attachment.create({
+        task: task._id,
+        companyName: task.project?.companyName,
+        originalName,
+        mimeType,
+        size: req.file.size,
+        storageKey,
+        uploadedBy: req.user._id,
+      });
+    } catch (error) {
+      // Không có bản ghi thì không ai tìm lại được tệp này nữa — xóa ngay, đừng để mồ côi.
+      await fileStorage.remove(storageKey);
+      throw error;
+    }
     await created.populate('uploadedBy', 'name email avatar');
 
     logActivity({
