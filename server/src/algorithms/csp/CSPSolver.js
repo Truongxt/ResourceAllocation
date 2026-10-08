@@ -121,13 +121,24 @@ class CSPSolver {
       return counts;
     });
 
+    this._stopReason = null;
     const result = this._backtrack(assignment, tasks, reducedDomains, resources, loads);
 
     const solveTime = Date.now() - startTime;
 
     if (!result) {
+      // Thử hết mà không có thì mới là vô nghiệm. Hết ngân sách giữa chừng thì chỉ biết là
+      // chưa tìm ra — nói thành "vô nghiệm" sẽ đẩy người dùng đi nới ràng buộc vô ích.
+      const budget = this._stopReason === 'timeout'
+        ? `${this.timeout} ms`
+        : `${this.maxIterations} bước`;
+      const message = this._stopReason
+        ? `Hết ngân sách tìm kiếm (${budget}) nên chưa tìm xong — bài toán có thể vẫn có nghiệm`
+        : 'Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc';
       return {
-        ...this._emptyResult('Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc'),
+        ...this._emptyResult(message),
+        stopReason: this._stopReason,
+        exhaustive: !this._stopReason,
         diagnostics: this._explainFailure(tasks, resources),
         iterations: this._iterations,
         solveTime,
@@ -437,11 +448,19 @@ class CSPSolver {
   // Backtracking with MRV + LCV
   // ──────────────────────────────────────────────
   _backtrack(assignment, tasks, domains, resources, loads) {
+    // Đã hết ngân sách ở một nhánh khác: dừng hẳn, không tốn thêm bước nào.
+    if (this._stopReason) return null;
     this._iterations++;
 
-    // Check timeout
-    if (Date.now() - this._startTime > this.timeout) return null;
-    if (this._iterations > this.maxIterations) return null;
+    // Hết ngân sách khác với vô nghiệm: ghi lại lý do để `solve()` báo đúng.
+    if (Date.now() - this._startTime > this.timeout) {
+      this._stopReason = 'timeout';
+      return null;
+    }
+    if (this._iterations > this.maxIterations) {
+      this._stopReason = 'maxIterations';
+      return null;
+    }
 
     // Check if complete
     if (Object.keys(assignment).length === tasks.length) {
@@ -482,6 +501,7 @@ class CSPSolver {
       // Recurse
       const result = this._backtrack(assignment, tasks, domains, resources, loads);
       if (result) return result;
+      if (this._stopReason) return null;
 
       // Undo
       delete assignment[varIdx];

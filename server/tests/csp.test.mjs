@@ -437,4 +437,33 @@ S('S2 — vẫn cân tải: khớp hơn một chút mà gần hết chỗ thì t
   ok(assignedTo(result, 'A') === 'Khá-rảnh', 'Chỗ trống vẫn có trọng số, không bị kỹ năng lấn hết', `chọn: ${assignedTo(result, 'A')}`);
 }
 
+// Trước đây chạm `maxIterations` cũng báo "Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc",
+// y như đã thử hết — người dùng tưởng bài toán vô nghiệm trong khi tìm kiếm chỉ bị cắt ngang.
+S('Hết ngân sách tìm kiếm khác với vô nghiệm');
+{
+  const heavy = (id) => ({ ...task(id, 2, 4), estimatedHours: 30 });
+
+  // 3 việc 30h cùng tuần, 2 người 40h: mỗi người nhận được đúng một việc → vô nghiệm thật.
+  // Từng việc riêng lẻ đều vừa, nên chỉ backtracking mới phát hiện ra.
+  const none = await solver().solve([heavy('A'), heavy('B'), heavy('C')], [resource('R1'), resource('R2')]);
+  ok(none.success === false && none.stopReason === null && none.exhaustive === true,
+    'Thử hết mà không có → exhaustive, không có stopReason', `${none.stopReason} / ${none.exhaustive}`);
+  ok(none.message === 'Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc', 'Câu báo vô nghiệm giữ nguyên', none.message);
+
+  // Có nghiệm (3 việc nhẹ, 2 người) nhưng ngân sách chỉ 1 bước.
+  const cut = await new CSPSolver({ timeout: 5000, maxIterations: 1 })
+    .solve([task('A', 2, 4), task('B', 2, 4), task('C', 2, 4)], [resource('R1'), resource('R2')]);
+  ok(cut.success === false && cut.stopReason === 'maxIterations' && cut.exhaustive === false,
+    'Chạm maxIterations → stopReason, không exhaustive', `${cut.stopReason} / ${cut.exhaustive}`);
+  ok(/chưa tìm xong/.test(cut.message) && !/Không tìm thấy giải pháp thỏa mãn/.test(cut.message),
+    'Câu báo nói rõ là chưa tìm xong, không nói vô nghiệm', cut.message);
+
+  // Chạm trần thì dừng hẳn: trước đây các tầng trên vẫn thử tiếp, mỗi lần tốn thêm một bước.
+  const many = Array.from({ length: 12 }, (_, i) => heavy(`H${i}`));
+  const capped = await new CSPSolver({ timeout: 5000, maxIterations: 50 })
+    .solve(many, Array.from({ length: 6 }, (_, i) => resource(`R${i}`)));
+  ok(capped.stopReason === 'maxIterations' && capped.iterations <= 51,
+    'Dừng ngay khi chạm trần, không đếm vượt', `iterations=${capped.iterations}`);
+}
+
 process.exit(summary() === 0 ? 0 : 1);
