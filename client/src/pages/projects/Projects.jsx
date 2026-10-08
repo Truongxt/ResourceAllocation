@@ -58,7 +58,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import projectService from '../../services/projectService';
-import ProjectLifecycleMenu from '../../components/projects/ProjectLifecycleMenu';
+import ProjectRowActions from '../../components/projects/ProjectRowActions';
 import ProjectDuplicateModal from '../../components/projects/ProjectDuplicateModal';
 import departmentService from '../../services/departmentService';
 import companySettingService from '../../services/companySettingService';
@@ -339,6 +339,24 @@ export default function Projects() {
     }
   };
 
+  // Dạng bảng và dạng thẻ phải dùng chung một cụm nút: trước đây thẻ tự vẽ nút riêng nên
+  // dự án lưu trữ vẫn có nút sửa, và quyền "Chỉ xem" vẫn thấy nút sửa/xóa.
+  const renderProjectActions = (project) => (
+    <ProjectRowActions
+      project={project}
+      canManage={canManageModule('projects')}
+      onTaskGroups={(p) => {
+        setGroupProjectTarget(p);
+        setTaskGroupModalOpen(true);
+      }}
+      onQuickEdit={openQuickEdit}
+      onEdit={openEdit}
+      onDelete={handleDelete}
+      onDuplicate={openDuplicate}
+      onChanged={loadProjects}
+    />
+  );
+
   const handleDeleteDepartment = async (id) => {
     try {
       await departmentService.remove(id);
@@ -600,50 +618,7 @@ export default function Projects() {
       key: 'actions',
       width: 120,
       align: 'right',
-      // Quyền phân hệ "Chỉ xem" thì không còn thao tác nào ghi được: server chặn
-      // hết, nên hiện nút ra chỉ để người dùng bấm vào rồi nhận 403.
-      render: (_, record) => !canManageModule('projects') ? null : record.isArchived ? (
-        // Dự án lưu trữ là chỉ đọc: chỉ còn Mở lại và Nhân bản.
-        <ProjectLifecycleMenu project={record} onDuplicate={openDuplicate} onChanged={loadProjects} />
-      ) : (
-        <Space size="small">
-          <Tooltip title="Quản lý nhóm công việc">
-            <Button
-              type="text"
-              size="small"
-              icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
-              onClick={() => {
-                setGroupProjectTarget(record);
-                setTaskGroupModalOpen(true);
-              }}
-            />
-          </Tooltip>
-          <Tooltip title="Chỉnh sửa nhanh (Base Wework)">
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined style={{ color: '#6366f1' }} />}
-              onClick={() => openQuickEdit(record)}
-            />
-          </Tooltip>
-          <Tooltip title={t('common.edit') || 'Chỉnh sửa toàn bộ'}>
-            <Button type="text" size="small" icon={<SettingOutlined />} onClick={() => openEdit(record)} />
-          </Tooltip>
-          <Tooltip title={t('common.delete') || 'Xóa'}>
-            <Popconfirm
-              title={t('projects.deleteConfirm') || 'Xác nhận xóa dự án?'}
-              description={t('projects.deleteWarning') || 'Hành động này sẽ xóa toàn bộ công việc liên quan.'}
-              onConfirm={() => handleDelete(record._id)}
-              okText={t('common.delete') || 'Xóa'}
-              cancelText={t('common.cancel') || 'Hủy'}
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-            </Popconfirm>
-          </Tooltip>
-          <ProjectLifecycleMenu project={record} onDuplicate={openDuplicate} onChanged={loadProjects} />
-        </Space>
-      ),
+      render: (_, record) => renderProjectActions(record),
     },
   ];
 
@@ -1178,38 +1153,7 @@ export default function Projects() {
                             {t('common.viewDetails') || 'Chi tiết dự án'} →
                           </Button>
 
-                          <Space size="small">
-                            <Tooltip title="Quản lý nhóm công việc">
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
-                                onClick={() => {
-                                  setGroupProjectTarget(proj);
-                                  setTaskGroupModalOpen(true);
-                                }}
-                              />
-                            </Tooltip>
-                            <Tooltip title="Chỉnh sửa nhanh (Base Wework)">
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<EditOutlined style={{ color: '#6366f1' }} />}
-                                onClick={() => openQuickEdit(proj)}
-                              />
-                            </Tooltip>
-                            <Tooltip title={t('common.edit') || 'Chỉnh sửa toàn bộ'}>
-                              <Button type="text" size="small" icon={<SettingOutlined />} onClick={() => openEdit(proj)} />
-                            </Tooltip>
-                            <Popconfirm
-                              title={t('projects.deleteConfirm') || 'Xác nhận xóa dự án?'}
-                              onConfirm={() => handleDelete(proj._id)}
-                              okButtonProps={{ danger: true }}
-                            >
-                              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-                            </Popconfirm>
-                            <ProjectLifecycleMenu project={proj} onDuplicate={openDuplicate} onChanged={loadProjects} />
-                          </Space>
+                          {renderProjectActions(proj)}
                         </div>
                       </div>
                     </Col>

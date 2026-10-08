@@ -17,6 +17,7 @@ vi.mock('../src/services/projectService', () => ({
 }));
 const { default: ProjectLifecycleMenu } = await import('../src/components/projects/ProjectLifecycleMenu');
 const { default: ProjectDuplicateModal } = await import('../src/components/projects/ProjectDuplicateModal');
+const { default: ProjectRowActions } = await import('../src/components/projects/ProjectRowActions');
 
 const project = (extra = {}) => ({ _id: 'p1', name: 'Website', startDate: '2026-11-02T00:00:00.000Z', ...extra });
 const openMenu = async () => userEvent.click(screen.getByRole('button', { name: 'Thao tác khác' }));
@@ -77,5 +78,38 @@ describe('Modal nhân bản', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Lưu mẫu' }));
     await waitFor(() => expect(mocks.duplicate).toHaveBeenCalled());
     expect(mocks.duplicate.mock.calls[0][1]).toEqual({ name: 'Mẫu — Website', asTemplate: true });
+  });
+});
+
+// Bảng và thẻ ở màn Dự án dùng chung cụm nút này. Trước đây thẻ tự vẽ nút riêng nên
+// dự án lưu trữ vẫn có nút sửa, và quyền "Chỉ xem" vẫn thấy nút sửa/xóa.
+describe('Cụm thao tác của một dự án', () => {
+  const EDIT_BUTTONS = ['Quản lý nhóm công việc', 'Chỉnh sửa nhanh', 'Sửa', 'Xóa'];
+
+  it('dự án đang chạy: đủ nút sửa, xóa và menu vòng đời', () => {
+    renderWithProviders(<ProjectRowActions project={project()} canManage />);
+    for (const name of EDIT_BUTTONS) expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Thao tác khác' })).toBeInTheDocument();
+  });
+
+  it('dự án lưu trữ: chỉ còn menu vòng đời', () => {
+    renderWithProviders(<ProjectRowActions project={project({ isArchived: true })} canManage />);
+    for (const name of EDIT_BUTTONS) expect(screen.queryByRole('button', { name })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Thao tác khác' })).toBeInTheDocument();
+  });
+
+  it('quyền phân hệ "Chỉ xem": không có nút nào', () => {
+    const { container } = renderWithProviders(<ProjectRowActions project={project()} canManage={false} />);
+    expect(container.querySelectorAll('button')).toHaveLength(0);
+  });
+
+  it('nút gọi lại với đúng dự án', async () => {
+    const onEdit = vi.fn();
+    const onQuickEdit = vi.fn();
+    renderWithProviders(<ProjectRowActions project={project()} canManage onEdit={onEdit} onQuickEdit={onQuickEdit} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Sửa' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa nhanh' }));
+    expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ _id: 'p1' }));
+    expect(onQuickEdit).toHaveBeenCalledWith(expect.objectContaining({ _id: 'p1' }));
   });
 });
