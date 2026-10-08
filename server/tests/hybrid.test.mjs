@@ -158,4 +158,53 @@ S('Miền rỗng — không được để GA bí');
   ok(picked[0] === 0, 'Chỉ số nằm ngoài danh sách nhân sự bị bỏ qua', `chọn: ${picked[0]}`);
 }
 
+S('Benchmark Studio: cột Hybrid thật sự chạy trên miền của CSP');
+{
+  // Cột Hybrid từng truyền miền vào CONSTRUCTOR của GA (`feasibleDomains`), nơi không ai
+  // đọc — nên nó chỉ là GA với tỉ lệ lai ghép/đột biến khác, không có pha CSP nào.
+  const { runComparativeBenchmark } = require('../src/algorithms/benchmark/benchmarkRunner');
+  const tasks = [task('t1', [{ name: 'React', level: 3 }]), task('t2', [{ name: 'Node.js', level: 3 }])];
+  const people = [
+    resource('r0', [{ name: 'React', level: 4 }]), resource('r1', [{ name: 'Node.js', level: 4 }]),
+    resource('r2', [{ name: 'Excel', level: 4 }]), resource('r3', [{ name: 'Excel', level: 4 }]),
+  ];
+  const report = await runComparativeBenchmark(tasks, people, { populationSize: 10, maxGenerations: 5 });
+  const h = report.results.hybrid;
+  ok(h.domainReduction?.restricted === true, 'GA của cột Hybrid nhận miền đã lọc', JSON.stringify(h.domainReduction || null));
+  ok(h.domainReduction?.feasiblePairs === 2, 'Miền chỉ còn đúng 2 cặp khả thi trên 8', `feasiblePairs=${h.domainReduction?.feasiblePairs}`);
+  ok(Number.isInteger(report.results.genetic.convergenceGeneration) && Number.isInteger(h.convergenceGeneration),
+    'GA và Hybrid báo tốc độ hội tụ');
+  ok(Number.isInteger(report.results.csp.contextSwitches), 'Mỗi cột báo số lần chuyển ngữ cảnh');
+}
+
+S('GA: số thế hệ và tốc độ hội tụ');
+{
+  // 1 việc × 1 người: thế hệ 0 đã tối ưu, không bao giờ cải thiện. `targetFitness` không
+  // thể đạt, nên GA chỉ dừng vì trì trệ — đúng ở thế hệ 3.
+  const stuck = await new GeneticAlgorithm({ populationSize: 10, maxGenerations: 100, stagnationLimit: 3, targetFitness: 2 })
+    .optimize([task('t1')], [resource('r1')]);
+  const last = stuck.convergenceHistory[stuck.convergenceHistory.length - 1];
+  ok(stuck.generations === 3, '`generations` là thế hệ dừng thật, không phải mốc ghi lịch sử', `generations=${stuck.generations}`);
+  ok(last.generation === 3, '`convergenceHistory` kết thúc đúng ở thế hệ dừng', `cuối=${last.generation}`);
+  ok(stuck.metrics.convergenceGeneration === 0, 'Không cải thiện gì → tốc độ hội tụ = 0', `=${stuck.metrics.convergenceGeneration}`);
+
+  const fixed = await new GeneticAlgorithm({ populationSize: 10, maxGenerations: 7, stagnationLimit: 100, targetFitness: 2 })
+    .optimize([task('t1')], [resource('r1')]);
+  ok(fixed.generations === 7, 'Chạy hết maxGenerations → generations = maxGenerations', `generations=${fixed.generations}`);
+
+  // Bài toán có chỗ để cải thiện: 12 việc, 4 người lệch kỹ năng.
+  const tasks = Array.from({ length: 12 }, (_, i) => task(`t${i}`, [{ name: i % 2 ? 'React' : 'Node.js', level: 3 }]));
+  const people = [
+    resource('r0', [{ name: 'React', level: 4 }]), resource('r1', [{ name: 'Node.js', level: 4 }]),
+    resource('r2', [{ name: 'React', level: 1 }]), resource('r3', [{ name: 'Node.js', level: 1 }]),
+  ];
+  const run = await new GeneticAlgorithm({ populationSize: 20, maxGenerations: 60, stagnationLimit: 100, targetFitness: 2 })
+    .optimize(tasks, people);
+  const cg = run.metrics.convergenceGeneration;
+  ok(Number.isInteger(cg) && cg >= 0 && cg <= run.generations, 'Tốc độ hội tụ nằm trong [0, generations]', `cg=${cg}, generations=${run.generations}`);
+  const h = run.convergenceHistory;
+  const improved = h[h.length - 1].fitness > h[0].fitness;
+  ok(!improved || cg >= 1, 'Có cải thiện thì tốc độ hội tụ ≥ 1', `đầu=${h[0].fitness} cuối=${h[h.length - 1].fitness} cg=${cg}`);
+}
+
 process.exit(summary() === 0 ? 0 : 1);

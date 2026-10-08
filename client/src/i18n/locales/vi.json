@@ -488,7 +488,9 @@
       "totalCost": "Tổng chi phí ước tính",
       "averageUtilization": "Tỉ lệ sử dụng trung bình",
       "violatedConstraints": "Ràng buộc bị vi phạm",
-      "executionTime": "Thời gian chạy"
+      "executionTime": "Thời gian chạy",
+      "contextSwitches": "Chuyển ngữ cảnh (số dự án thừa)",
+      "convergenceGeneration": "Hội tụ 90% (thế hệ)"
     },
     "unit": {
       "percent": "%",

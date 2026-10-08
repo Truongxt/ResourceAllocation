@@ -498,6 +498,11 @@ let gaId;
   ok(hy.data.result.status === 'completed', 'Hybrid chạy xong');
   ok('cspFeasible' in hy.data, 'Hybrid trả cờ cspFeasible');
   ok(hy.data.result.constraintReport !== undefined, 'Hybrid có constraintReport từ pha CSP');
+  // Schema `metrics` là strict: chỉ số không khai báo sẽ bị bỏ khi lưu mà không báo gì.
+  const saved = (await call('GET', `/optimization/${hy.data.result._id}`, { token: TOK.admin })).data?.result?.metrics || {};
+  ok(Number.isInteger(saved.contextSwitches) && Number.isInteger(saved.convergenceGeneration),
+    'Kết quả đã lưu giữ contextSwitches và convergenceGeneration',
+    `contextSwitches=${saved.contextSwitches} convergenceGeneration=${saved.convergenceGeneration}`);
 
   // Pha GA phải chạy trên miền do pha CSP lọc, không phải chạy rời rạc như trước.
   const reduction = hy.data.result.domainReduction;

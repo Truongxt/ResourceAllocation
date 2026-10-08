@@ -90,6 +90,9 @@ function generateBenchmarkDataset(scaleOrConfig = 'medium') {
   // 2. Generate Tasks
   const tasks = [];
   const baseDate = new Date();
+  // Mỗi việc thuộc một trong ⌈n/10⌉ dự án — thiếu trường này thì không đo được chuyển
+  // ngữ cảnh (S3), và thứ tự ứng viên của CSP không có gì để ưu tiên "cùng dự án".
+  const numProjects = Math.max(1, Math.ceil(numTasks / 10));
 
   for (let i = 1; i <= numTasks; i++) {
     const numReqSkills = getRandomInt(1, 3);
@@ -113,6 +116,7 @@ function generateBenchmarkDataset(scaleOrConfig = 'medium') {
       requiredSkills,
       priority: ['low', 'medium', 'high', 'critical'][getRandomInt(0, 3)],
       status: 'todo',
+      project: `synth-project-${getRandomInt(1, numProjects)}`,
       startDate,
       endDate,
     });

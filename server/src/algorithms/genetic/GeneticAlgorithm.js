@@ -19,6 +19,20 @@ const {
   emptyMetrics,
 } = require('../scoring');
 
+/**
+ * Tốc độ hội tụ: thế hệ đầu tiên đạt 90% TỔNG MỨC CẢI THIỆN của cả lần chạy,
+ * `best(g) − best(0) ≥ 0.9 · (best(cuối) − best(0))`. Không cải thiện gì thì 0.
+ *
+ * Không dùng "đạt 90% fitness cuối" theo nghĩa đen: fitness thế hệ 0 thường đã ≥ 0.9
+ * lần fitness cuối, nên chỉ số đó gần như luôn bằng 0 và không phân biệt được gì.
+ */
+function convergenceGenerationOf(bestByGeneration) {
+  const first = bestByGeneration[0];
+  const gain = bestByGeneration[bestByGeneration.length - 1] - first;
+  if (!(gain > 0)) return 0;
+  return bestByGeneration.findIndex((f) => f - first >= 0.9 * gain);
+}
+
 class GeneticAlgorithm {
   constructor(options = {}) {
     this.populationSize = options.populationSize || 100;
@@ -79,6 +93,10 @@ class GeneticAlgorithm {
     let stagnation = 0;
 
     const convergenceHistory = [{ generation: 0, fitness: bestFitness }];
+    // Fitness tốt nhất của MỌI thế hệ, chỉ để tính tốc độ hội tụ. `convergenceHistory`
+    // chỉ lấy mỗi 10 thế hệ cho nhẹ response — tính trên nó thì sai tới 9 thế hệ.
+    const bestByGeneration = [bestFitness];
+    let lastGeneration = 0;
 
     // Evolution loop
     for (let gen = 1; gen <= this.maxGenerations; gen++) {
@@ -131,6 +149,9 @@ class GeneticAlgorithm {
         stagnation++;
       }
 
+      bestByGeneration.push(bestFitness);
+      lastGeneration = gen;
+
       // Record every 10 generations or last
       if (gen % 10 === 0 || gen === this.maxGenerations) {
         convergenceHistory.push({ generation: gen, fitness: bestFitness });
@@ -141,15 +162,25 @@ class GeneticAlgorithm {
       if (stagnation >= this.stagnationLimit) break;
     }
 
+    // Dừng sớm (trì trệ, đạt ngưỡng) thì thế hệ cuối không rơi vào mốc ghi ở trên.
+    if (convergenceHistory[convergenceHistory.length - 1].generation !== lastGeneration) {
+      convergenceHistory.push({ generation: lastGeneration, fitness: bestFitness });
+    }
+
     // Build result
     const assignments = this._buildAssignments(bestChromosome, tasks, resources, skillMatrix);
-    const metrics = computeMetrics(bestChromosome, tasks, resources, skillMatrix);
+    const metrics = {
+      ...computeMetrics(bestChromosome, tasks, resources, skillMatrix),
+      convergenceGeneration: convergenceGenerationOf(bestByGeneration),
+    };
 
     return {
       success: true,
       assignments,
       fitness: Math.round(bestFitness * 10000) / 10000,
-      generations: convergenceHistory[convergenceHistory.length - 1].generation,
+      // Thế hệ dừng THẬT. Trước đây lấy mốc ghi lịch sử cuối (bội số của 10), nên dừng
+      // ở thế hệ 57 thì báo 50.
+      generations: lastGeneration,
       convergenceHistory,
       metrics,
       executionTime: Date.now() - startTime,

@@ -50,6 +50,10 @@ const optimizationResultSchema = new mongoose.Schema(
       totalCost: Number,
       overallocatedResources: Number,
       averageUtilization: Number,
+      // S3: Σ theo người của (số dự án − 1). Chỉ đo, không nằm trong fitness.
+      contextSwitches: Number,
+      // GA/Hybrid: thế hệ đầu tiên đạt 90% tổng mức cải thiện fitness.
+      convergenceGeneration: Number,
       resourceUtilization: [
         {
           resource: { type: mongoose.Schema.Types.ObjectId, ref: 'Resource' },

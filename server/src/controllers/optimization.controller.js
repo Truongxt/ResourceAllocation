@@ -115,7 +115,7 @@ const loadOptimizationData = async (projectId, user) => {
       assignee: { $in: memberUserIds },
       status: { $in: ['todo', 'in_progress', 'review'] },
       _id: { $nin: optimizedIds },
-    }).select('assignee estimatedHours startDate endDate');
+    }).select('assignee estimatedHours startDate endDate project');
 
     committedTasks.forEach((t) => {
       const key = String(t.assignee);
@@ -124,6 +124,8 @@ const loadOptimizationData = async (projectId, user) => {
         startDate: t.startDate,
         endDate: t.endDate,
         estimatedHours: t.estimatedHours || 0,
+        // Cho chỉ số chuyển ngữ cảnh (S3): người đang ôm dự án khác cũng là một ngữ cảnh.
+        project: t.project,
       });
     });
   }
@@ -414,6 +416,8 @@ const COMPARISON_METRICS = [
   { key: 'averageSkillMatch', digits: 0, higherIsBetter: true, pick: (r) => r.metrics?.averageSkillMatch },
   { key: 'workloadVariance', digits: 2, higherIsBetter: false, pick: (r) => r.metrics?.workloadVariance },
   { key: 'overallocatedResources', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.overallocatedResources },
+  { key: 'contextSwitches', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.contextSwitches },
+  { key: 'convergenceGeneration', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.convergenceGeneration },
   { key: 'totalCost', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.totalCost },
   { key: 'averageUtilization', digits: 0, higherIsBetter: null, pick: (r) => r.metrics?.averageUtilization },
   { key: 'violatedConstraints', digits: 0, higherIsBetter: false, pick: (r) => r.constraintReport?.violated },
@@ -603,6 +607,8 @@ const compareResults = async (req, res, next) => {
         totalCost: r.metrics?.totalCost ?? null,
         overallocatedResources: r.metrics?.overallocatedResources ?? null,
         averageUtilization: r.metrics?.averageUtilization ?? null,
+        contextSwitches: r.metrics?.contextSwitches ?? null,
+        convergenceGeneration: r.metrics?.convergenceGeneration ?? null,
       },
       // GA không kiểm tra ràng buộc, nhưng Mongoose vẫn dựng sẵn nested path rỗng cho
       // nó. Chỉ coi là có báo cáo khi thực sự có con số, để cột GA hiển thị "—" thay

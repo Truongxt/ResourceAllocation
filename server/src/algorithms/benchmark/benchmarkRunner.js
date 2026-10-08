@@ -23,6 +23,7 @@ async function runComparativeBenchmark(tasks, resources, options = {}) {
       skillMatchRate: parseFloat((greedyRes.metrics?.averageSkillMatch || 0).toFixed(1)),
       workloadStdDev: parseFloat((greedyRes.metrics?.workloadVariance || 0).toFixed(2)),
       overallocationCount: greedyRes.metrics?.overallocatedResources || 0,
+      contextSwitches: greedyRes.metrics?.contextSwitches ?? 0,
       totalCost: greedyRes.metrics?.totalCost || 0,
       constraintViolations: greedyRes.metrics?.overallocatedResources > 0 ? 1 : 0,
       assignedCount: greedyRes.assignments?.length || 0,
@@ -47,6 +48,7 @@ async function runComparativeBenchmark(tasks, resources, options = {}) {
       skillMatchRate: parseFloat((cspRes.metrics?.averageSkillMatch || 0).toFixed(1)),
       workloadStdDev: parseFloat((cspRes.metrics?.workloadVariance || 0).toFixed(2)),
       overallocationCount: cspRes.metrics?.overallocatedResources || 0,
+      contextSwitches: cspRes.metrics?.contextSwitches ?? 0,
       totalCost: cspRes.metrics?.totalCost || 0,
       constraintViolations: cspRes.constraintViolations?.length || (cspRes.success === false ? 1 : 0),
       assignedCount: cspRes.assignments?.length || 0,
@@ -73,10 +75,13 @@ async function runComparativeBenchmark(tasks, resources, options = {}) {
       skillMatchRate: parseFloat((gaRes.metrics?.averageSkillMatch || 0).toFixed(1)),
       workloadStdDev: parseFloat((gaRes.metrics?.workloadVariance || 0).toFixed(2)),
       overallocationCount: gaRes.metrics?.overallocatedResources || 0,
+      contextSwitches: gaRes.metrics?.contextSwitches ?? 0,
       totalCost: gaRes.metrics?.totalCost || 0,
       constraintViolations: gaRes.metrics?.overallocatedResources > 0 ? 1 : 0,
       assignedCount: gaRes.assignments?.length || 0,
       convergenceHistory: (gaRes.convergenceHistory || []).slice(-30),
+      generations: gaRes.generations || 0,
+      convergenceGeneration: gaRes.metrics?.convergenceGeneration ?? 0,
     };
   } catch (err) {
     console.error('Benchmark GA Error:', err);
@@ -88,14 +93,15 @@ async function runComparativeBenchmark(tasks, resources, options = {}) {
     const hybridCsp = new CSPSolver({ minSkillMatchThreshold: 0.1 });
     const feasibleDomains = hybridCsp.buildFeasibleDomains(tasks, resources);
 
+    // Miền đi qua `optimize`, không qua constructor: trước đây truyền `feasibleDomains`
+    // vào constructor — nơi không ai đọc — nên cột này chỉ là GA với tỉ lệ khác.
     const hybridGa = new GeneticAlgorithm({
       populationSize,
       maxGenerations,
-      feasibleDomains,
       crossoverRate: 0.85,
       mutationRate: 0.12,
     });
-    const hybridRes = await hybridGa.optimize(tasks, resources);
+    const hybridRes = await hybridGa.optimize(tasks, resources, { domains: feasibleDomains });
     results.hybrid = {
       name: 'Hybrid (CSP → GA)',
       algorithm: 'hybrid',
@@ -104,10 +110,14 @@ async function runComparativeBenchmark(tasks, resources, options = {}) {
       skillMatchRate: parseFloat((hybridRes.metrics?.averageSkillMatch || 0).toFixed(1)),
       workloadStdDev: parseFloat((hybridRes.metrics?.workloadVariance || 0).toFixed(2)),
       overallocationCount: hybridRes.metrics?.overallocatedResources || 0,
+      contextSwitches: hybridRes.metrics?.contextSwitches ?? 0,
       totalCost: hybridRes.metrics?.totalCost || 0,
       constraintViolations: 0,
       assignedCount: hybridRes.assignments?.length || 0,
       convergenceHistory: (hybridRes.convergenceHistory || []).slice(-30),
+      generations: hybridRes.generations || 0,
+      convergenceGeneration: hybridRes.metrics?.convergenceGeneration ?? 0,
+      domainReduction: hybridRes.domainReduction,
     };
   } catch (err) {
     console.error('Benchmark Hybrid Error:', err);

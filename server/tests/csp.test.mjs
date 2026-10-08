@@ -393,4 +393,48 @@ S('H1 tính theo TUẦN, không theo tổng giờ');
     `(${result.propagation?.arcs})`);
 }
 
+// ══════════════════════════════════════════════
+// Ràng buộc mềm: thứ tự thử ứng viên = điểm có trọng số
+//   0.35 · khớp kỹ năng (S1) + 0.30 · chỗ trống (S2) + 0.15 · đã có việc cùng dự án (S3).
+// Lời giải đầu tiên tìm được được trả về luôn, nên thứ tự này CHÍNH LÀ ràng buộc mềm.
+// Ngưỡng kỹ năng 0 để không ai bị lọc — chỉ còn thứ tự quyết định.
+const soft = () => new CSPSolver({ timeout: 5000, minSkillMatchThreshold: 0 });
+const inP = (t, project) => ({ ...t, project });
+
+S('S1 — rảnh như nhau thì chọn người khớp kỹ năng hơn');
+{
+  const tasks = [needing('A', 2, 6, 'React')];
+  const people = [
+    resource('Yếu', { skills: [{ name: 'React', level: 2 }] }),
+    resource('Giỏi', { skills: [{ name: 'React', level: 4 }] }),
+  ];
+  const result = await soft().solve(tasks, people);
+  ok(assignedTo(result, 'A') === 'Giỏi', 'Chọn người khớp 100% thay vì 67%', `chọn: ${assignedTo(result, 'A')}`);
+}
+
+S('S3 — kỹ năng ngang nhau thì chọn người đã có việc cùng dự án');
+{
+  const tasks = [inP(task('A', 2, 6), 'P'), inP(task('B', 2, 6), 'P')];
+  const result = await soft().solve(tasks, [resource('R1'), resource('R2')]);
+  ok(assignedTo(result, 'A') === assignedTo(result, 'B'), 'Hai việc cùng dự án về cùng một người',
+    `A→${assignedTo(result, 'A')}, B→${assignedTo(result, 'B')}`);
+
+  // Ngữ cảnh có sẵn từ tải đã cam kết, không chỉ từ lần chạy này.
+  const committed = [{ project: 'P', estimatedHours: 8, startDate: day(2), endDate: day(6) }];
+  const one = await soft().solve([inP(task('C', 2, 6), 'P')], [resource('R1'), resource('R2', { committedTasks: committed })]);
+  ok(assignedTo(one, 'C') === 'R2', 'Người đang làm dự án đó (tải đã cam kết) được ưu tiên', `chọn: ${assignedTo(one, 'C')}`);
+}
+
+S('S2 — vẫn cân tải: khớp hơn một chút mà gần hết chỗ thì thua người rảnh hẳn');
+{
+  const small = { ...needing('A', 2, 6, 'React'), estimatedHours: 2 };
+  const busy = [{ project: 'X', estimatedHours: 36, startDate: day(2), endDate: day(6) }];
+  const people = [
+    resource('Giỏi-bận', { skills: [{ name: 'React', level: 4 }], committedTasks: busy }),
+    resource('Khá-rảnh', { skills: [{ name: 'React', level: 2 }] }),
+  ];
+  const result = await soft().solve([small], people);
+  ok(assignedTo(result, 'A') === 'Khá-rảnh', 'Chỗ trống vẫn có trọng số, không bị kỹ năng lấn hết', `chọn: ${assignedTo(result, 'A')}`);
+}
+
 process.exit(summary() === 0 ? 0 : 1);

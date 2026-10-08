@@ -243,6 +243,34 @@ export default function BenchmarkStudio() {
           hybrid: h.overallocationCount || 0,
         },
         {
+          key: 'contextSwitches',
+          metric: (
+            <Space size={6}>
+              <TeamOutlined style={{ color: '#8b5cf6' }} />
+              <span>Chuyển ngữ cảnh (S3)</span>
+            </Space>
+          ),
+          hint: 'Σ theo người của (số dự án đang ôm − 1). Càng nhỏ, mỗi người càng ít phải nhảy giữa các dự án',
+          greedy: g.contextSwitches ?? 0,
+          csp: c.contextSwitches ?? 0,
+          genetic: ga.contextSwitches ?? 0,
+          hybrid: h.contextSwitches ?? 0,
+        },
+        {
+          key: 'convergence',
+          metric: (
+            <Space size={6}>
+              <RiseOutlined style={{ color: '#0ea5e9' }} />
+              <span>Hội tụ 90% (thế hệ)</span>
+            </Space>
+          ),
+          hint: 'Thế hệ đầu tiên đạt 90% tổng mức cải thiện fitness của lần chạy. Chỉ áp dụng cho GA và Hybrid',
+          greedy: '—',
+          csp: '—',
+          genetic: `${ga.convergenceGeneration ?? 0} / ${ga.generations ?? 0}`,
+          hybrid: `${h.convergenceGeneration ?? 0} / ${h.generations ?? 0}`,
+        },
+        {
           key: 'cost',
           metric: (
             <Space size={6}>

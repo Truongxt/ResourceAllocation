@@ -488,7 +488,9 @@
       "totalCost": "Estimated total cost",
       "averageUtilization": "Average utilization",
       "violatedConstraints": "Violated constraints",
-      "executionTime": "Runtime"
+      "executionTime": "Runtime",
+      "contextSwitches": "Context switches (extra projects)",
+      "convergenceGeneration": "90% convergence (generation)"
     },
     "unit": {
       "percent": "%",

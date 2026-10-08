@@ -121,3 +121,21 @@ test.describe('Tối ưu hóa phân bổ', () => {
     expect(Number(kpi.replace('%', '').trim())).toBeLessThanOrEqual(100);
   });
 });
+
+test.describe('Benchmark Studio', () => {
+  test('chạy tập nhỏ: bảng có chuyển ngữ cảnh và tốc độ hội tụ của GA/Hybrid', async ({ page }) => {
+    const problems = watchForProblems(page);
+    await login(page, 'admin');
+    await page.goto('/benchmark');
+    await page.getByText('Tập Nhỏ (Small)').click();
+    await page.getByRole('button', { name: 'Chạy Thực Nghiệm' }).click();
+
+    const contextRow = page.locator('.ant-table-row').filter({ hasText: 'Chuyển ngữ cảnh (S3)' });
+    await expect(contextRow).toBeVisible({ timeout: 60_000 });
+    const convergenceRow = page.locator('.ant-table-row').filter({ hasText: 'Hội tụ 90% (thế hệ)' });
+    // GA và Hybrid hiện "x / y" (thế hệ hội tụ / thế hệ dừng); Greedy và CSP không áp dụng.
+    await expect(convergenceRow).toContainText(/\d+ \/ \d+/);
+    await expect(convergenceRow).toContainText('—');
+    expect(problems).toEqual([]);
+  });
+});

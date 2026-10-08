@@ -28,7 +28,17 @@ const {
   computeMetrics,
   emptyMetrics,
   weeklyDemandOf,
+  projectOf,
 } = require('../scoring');
+
+/**
+ * Trọng số thứ tự thử ứng viên (ràng buộc mềm). Hai trọng số đầu theo đúng tỉ lệ
+ * `skillMatch`/`workloadBalance` của fitness, để CSP và GA cùng hiểu thế nào là
+ * phân công tốt. S3 không có trong fitness nên trọng số của nó chọn riêng: đủ để
+ * thắng chênh lệch chỗ trống do một việc thường gây ra (8h/40h × 0.30 = 0.06),
+ * nhưng thua chênh lệch kỹ năng rõ rệt (0.5 × 0.35 = 0.175).
+ */
+const SOFT_WEIGHTS = { skill: DEFAULT_WEIGHTS.skillMatch, room: DEFAULT_WEIGHTS.workloadBalance, sameProject: 0.15 };
 const {
   dependencyTaskId,
   dependencyType,
@@ -99,6 +109,17 @@ class CSPSolver {
     });
     // Nhu cầu theo tuần của từng task tính một lần rồi dùng lại suốt quá trình tìm kiếm.
     this._demands = tasks.map((task) => weeklyDemandOf(task));
+    // Cho thứ tự thử ứng viên: điểm kỹ năng (S1) và các dự án mỗi người đang ôm (S3),
+    // khởi tạo từ tải đã cam kết rồi cập nhật theo từng bước gán / quay lui.
+    const skillMatrix = buildSkillMatrix(tasks, resources);
+    this._skillMatrix = skillMatrix;
+    this._projectOfTask = tasks.map(projectOf);
+    this._projectCounts = resources.map((r) => {
+      const counts = new Map();
+      ((r && r.committedTasks) || []).map(projectOf).filter(Boolean)
+        .forEach((p) => counts.set(p, (counts.get(p) || 0) + 1));
+      return counts;
+    });
 
     const result = this._backtrack(assignment, tasks, reducedDomains, resources, loads);
 
@@ -115,7 +136,6 @@ class CSPSolver {
 
     // Chuyển lời giải {taskIndex: resourceIndex} về dạng mảng để dùng chung hàm chấm điểm
     const solution = tasks.map((_, tIdx) => result[tIdx]);
-    const skillMatrix = buildSkillMatrix(tasks, resources);
 
     const assignments = this._buildAssignments(result, tasks, resources, skillMatrix);
     const constraintReport = this._validateConstraints(result, tasks, resources);
@@ -438,8 +458,8 @@ class CSPSolver {
     unassigned.sort((a, b) => a.domainSize - b.domainSize);
     const varIdx = unassigned[0].t;
 
-    // LCV: Order domain values by least constraining
-    const orderedValues = this._orderByLCV(varIdx, domains, resources, loads, tasks);
+    // Thứ tự thử ứng viên theo điểm ràng buộc mềm S1/S2/S3 — xem `_orderCandidates`.
+    const orderedValues = this._orderCandidates(varIdx, domains, resources, loads);
 
     for (const rIdx of orderedValues) {
       const demand = this._demands[varIdx];
@@ -457,6 +477,7 @@ class CSPSolver {
       // Assign
       assignment[varIdx] = rIdx;
       this._applyDemand(loads[rIdx], demand, +1);
+      this._trackProject(varIdx, rIdx, +1);
 
       // Recurse
       const result = this._backtrack(assignment, tasks, domains, resources, loads);
@@ -465,21 +486,42 @@ class CSPSolver {
       // Undo
       delete assignment[varIdx];
       this._applyDemand(loads[rIdx], demand, -1);
+      this._trackProject(varIdx, rIdx, -1);
     }
 
     return null;
   }
 
-  // LCV: Order values by how many options they leave for other variables
-  _orderByLCV(varIdx, domains, resources, loads, tasks) {
-    // Chỗ trống còn lại tính theo TUẦN NẶNG NHẤT hiện có của mỗi người, cùng đơn vị
-    // với capacity. Xếp người còn nhiều chỗ lên trước để ít ràng buộc các biến sau.
-    const remainingOf = (rIdx) => {
+  /**
+   * Thứ tự thử ứng viên cho một biến = điểm ràng buộc mềm, cao trước:
+   *   S1  khớp kỹ năng                         × 0.35
+   *   S2  chỗ trống của tuần nặng nhất / capacity × 0.30   (trước đây là tiêu chí DUY NHẤT — LCV)
+   *   S3  đã có việc cùng dự án                  × 0.15
+   * Backtracking trả về lời giải đầu tiên tìm được, nên thứ tự này chính là nơi ràng
+   * buộc mềm có tác dụng. Hòa điểm thì giữ thứ tự miền để kết quả tất định.
+   */
+  _orderCandidates(varIdx, domains, resources, loads) {
+    const project = this._projectOfTask[varIdx];
+    const scoreOf = (rIdx) => {
       const capacity = (resources[rIdx].maxCapacity || 40) * (resources[rIdx].fte || 1);
-      return capacity - this._peakOf(loads[rIdx]);
+      const room = capacity > 0 ? Math.max(0, Math.min(1, (capacity - this._peakOf(loads[rIdx])) / capacity)) : 0;
+      const sameProject = project && this._projectCounts[rIdx].get(project) ? 1 : 0;
+      return SOFT_WEIGHTS.skill * this._skillMatrix[varIdx][rIdx]
+        + SOFT_WEIGHTS.room * room
+        + SOFT_WEIGHTS.sameProject * sameProject;
     };
+    const scores = new Map(domains[varIdx].map((rIdx) => [rIdx, scoreOf(rIdx)]));
+    return [...domains[varIdx]].sort((a, b) => scores.get(b) - scores.get(a));
+  }
 
-    return [...domains[varIdx]].sort((a, b) => remainingOf(b) - remainingOf(a));
+  /** Cập nhật sổ dự án mỗi người đang ôm khi gán (+1) hoặc quay lui (-1). */
+  _trackProject(varIdx, rIdx, delta) {
+    const project = this._projectOfTask[varIdx];
+    if (!project) return;
+    const counts = this._projectCounts[rIdx];
+    const next = (counts.get(project) || 0) + delta;
+    if (next > 0) counts.set(project, next);
+    else counts.delete(project);
   }
 
   // ──────────────────────────────────────────────
