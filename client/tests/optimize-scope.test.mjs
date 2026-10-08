@@ -4,7 +4,7 @@
 // Lệch một chiều thì PM thấy trang Tối ưu nhưng mọi nút đều nhận 403; lệch chiều kia thì PM
 // được phép mà không có lối vào.
 
-import { optimizeScopeOf, optimizableProjects } from '../src/utils/optimizeScope.js';
+import { optimizeScopeOf, optimizableProjects, defaultOptimizeProject } from '../src/utils/optimizeScope.js';
 
 let passed = 0;
 let failed = 0;
@@ -43,6 +43,20 @@ check('PM: chỉ dự án có manager là mình (manager populate hay chưa đ�
   optimizableProjects(projects, { _id: 'u-pm', role: 'project_manager' }).map((p) => p._id), ['p1', 'p2']);
 check('Admin: mọi dự án', optimizableProjects(projects, { _id: 'u-a', role: 'admin' }).map((p) => p._id), ['p1', 'p2', 'p3']);
 check('Không có quyền: không dự án nào', optimizableProjects(projects, { _id: 'u-m', role: 'member' }), []);
+
+section('Dự án chọn sẵn cho PM');
+// Dự án không có việc mở thì bấm chạy chỉ nhận 400 — với dữ liệu mẫu, dự án mới nhất của PM
+// (RAO-MOB) đúng là như vậy.
+check('Bỏ qua dự án không có việc mở',
+  defaultOptimizeProject([
+    { _id: 'p1', taskStats: { openTasks: 0 } },
+    { _id: 'p2', taskStats: { openTasks: 3 } },
+  ])?._id, 'p2');
+check('Không dự án nào có việc mở → vẫn chọn dự án đầu', defaultOptimizeProject([
+  { _id: 'p1', taskStats: { openTasks: 0 } },
+  { _id: 'p2' },
+])?._id, 'p1');
+check('Danh sách rỗng → không chọn', defaultOptimizeProject([]), null);
 
 console.log(`\n  ${passed} đạt, ${failed} hỏng`);
 process.exit(failed ? 1 : 0);

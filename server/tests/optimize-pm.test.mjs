@@ -35,6 +35,20 @@ await call('POST', '/tasks', {
 
 section('Chuẩn bị');
 ok(!!pmId && !!own, 'PM mẫu quản lý ít nhất một dự án', `pm=${pmId} own=${own?._id}`);
+
+section('Số việc mở trong danh sách dự án');
+{
+  // Client chọn sẵn dự án có việc mở theo `taskStats.openTasks` thay vì để người dùng bấm
+  // chạy rồi nhận 400 — nên con số này phải đếm đúng tập trạng thái tối ưu hóa đọc.
+  const listed = (await call('GET', '/projects?limit=100', { token: pm })).data?.projects || [];
+  const mismatched = [];
+  for (const p of listed) {
+    const tasks = (await call('GET', `/tasks?project=${p._id}&limit=100`, { token: admin })).data?.tasks || [];
+    const open = tasks.filter((t) => ['todo', 'in_progress', 'review'].includes(t.status)).length;
+    if (p.taskStats?.openTasks !== open) mismatched.push(`${p.code || p.name}: ${p.taskStats?.openTasks} ≠ ${open}`);
+  }
+  ok(listed.length > 0 && mismatched.length === 0, 'taskStats.openTasks = số việc todo/in_progress/review', mismatched.join('; '));
+}
 ok(!!other?._id && String(other.manager?._id || other.manager) !== String(pmId), 'Có một dự án PM không quản lý');
 
 section('Chạy thuật toán');

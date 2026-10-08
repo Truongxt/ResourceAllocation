@@ -21,3 +21,12 @@ export function optimizableProjects(projects, user) {
   if (scope === 'managed') return projects.filter((p) => p.manager && idOf(p.manager) === idOf(user._id));
   return [];
 }
+
+/**
+ * Dự án chọn sẵn khi người dùng không có "Tất cả dự án" (PM): dự án đầu tiên còn việc mở
+ * (`taskStats.openTasks` của `GET /projects`), vì dự án không có việc mở thì chạy chỉ nhận 400.
+ * Không dự án nào còn việc thì vẫn chọn dự án đầu để trang không trống.
+ */
+export function defaultOptimizeProject(projects) {
+  return projects.find((p) => p.taskStats?.openTasks > 0) || projects[0] || null;
+}

@@ -29,7 +29,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import optimizationService from '../../services/optimizationService';
 import projectService from '../../services/projectService';
-import { optimizeScopeOf, optimizableProjects } from '../../utils/optimizeScope';
+import { optimizeScopeOf, optimizableProjects, defaultOptimizeProject } from '../../utils/optimizeScope';
 import OptimizationConfigCard from '../../components/optimization/OptimizationConfigCard';
 import OptimizationResultView from '../../components/optimization/OptimizationResultView';
 import OptimizationHistoryTable from '../../components/optimization/OptimizationHistoryTable';
@@ -80,12 +80,13 @@ export default function Optimization() {
   const loadProjects = useCallback(async () => {
     try {
       const res = await projectService.getAll({ limit: 100 });
-      // PM chỉ chạy được trên dự án mình quản lý, và không có "Tất cả dự án": chọn sẵn dự
-      // án đầu tiên để mọi nút trên trang dùng được ngay thay vì nhận 403.
+      // PM chỉ chạy được trên dự án mình quản lý, và không có "Tất cả dự án": chọn sẵn một
+      // dự án còn việc mở để mọi nút trên trang dùng được ngay thay vì nhận 403 hay 400.
       const usable = optimizableProjects(res.data.data.projects || [], user);
       setProjects(usable);
-      if (managedOnly && usable.length) {
-        setParams((p) => (p.projectId ? p : { ...p, projectId: usable[0]._id }));
+      const preset = managedOnly ? defaultOptimizeProject(usable) : null;
+      if (preset) {
+        setParams((p) => (p.projectId ? p : { ...p, projectId: preset._id }));
       }
     } catch {
       // Bỏ qua lỗi kết nối ban đầu

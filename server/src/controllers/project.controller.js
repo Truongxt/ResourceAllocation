@@ -134,6 +134,13 @@ const getProjects = async (req, res, next) => {
               $cond: [{ $eq: ['$status', 'done'] }, 1, 0],
             },
           },
+          // Đúng tập trạng thái tối ưu hóa đọc (`loadOptimizationData`): client dựa vào
+          // con số này để chọn sẵn dự án chạy được, thay vì để người dùng nhận 400.
+          openTasks: {
+            $sum: {
+              $cond: [{ $in: ['$status', ['todo', 'in_progress', 'review']] }, 1, 0],
+            },
+          },
         },
       },
     ]);
@@ -142,6 +149,7 @@ const getProjects = async (req, res, next) => {
       acc[stat._id.toString()] = {
         totalTasks: stat.totalTasks,
         completedTasks: stat.completedTasks,
+        openTasks: stat.openTasks,
       };
       return acc;
     }, {});
@@ -151,6 +159,7 @@ const getProjects = async (req, res, next) => {
       json.taskStats = statsMap[project._id.toString()] || {
         totalTasks: 0,
         completedTasks: 0,
+        openTasks: 0,
       };
       return json;
     });

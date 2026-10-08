@@ -131,12 +131,13 @@ test.describe('Tối ưu hóa cho PM', () => {
     await page.goto('/optimization');
     await expect(page.getByRole('heading', { name: 'Tối ưu hóa Phân bổ Nguồn lực' })).toBeVisible();
 
-    // Dự án mẫu của PM: ECOM-01 (có việc mở) hoặc RAO-MOB — chọn sẵn, không để trống.
-    const projectSelect = page.locator('.ant-select').filter({ hasText: /ECOM-01|RAO-MOB/ }).first();
+    // Dự án mẫu của PM: RAO-MOB (mới nhất, không có việc mở) và ECOM-01 (có việc mở). Trang
+    // chọn sẵn dự án còn việc mở, không phải dự án đứng đầu danh sách.
+    const projectSelect = page.locator('.ant-select').filter({ hasText: 'ECOM-01' }).first();
     await expect(projectSelect).toBeVisible();
     await expect(page.getByText('Tất cả dự án')).toHaveCount(0);
 
-    // Chọn dự án có việc mở. Danh sách chỉ gồm dự án PM quản lý.
+    // Danh sách chỉ gồm dự án PM quản lý.
     await projectSelect.click();
     const options = page.locator('.ant-select-dropdown:visible .ant-select-item-option');
     await expect(options).toHaveCount(2);
