@@ -199,6 +199,9 @@ async function seedData() {
       project: p1._id,
       assignee: designer._id,
       status: 'done',
+      // Việc xong phải có mốc xong: báo cáo kết quả đo đúng hạn bằng completedAt, thiếu thì
+      // việc mẫu này rơi vào nhóm "xong nhưng không có mốc" trên mọi database mới.
+      completedAt: today,
       priority: 'high',
       estimatedHours: 24,
       actualHours: 22,
