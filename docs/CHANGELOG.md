@@ -30,6 +30,12 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Fixed
 
+- **Kéo thẻ Kanban sang Hoàn thành không ghi `completedAt`.** Chỉ luồng "Báo hoàn thành" ghi mốc
+  này. Hệ quả là báo cáo kết quả xếp phần lớn việc xong ở dự án không bật đánh giá vào "xong
+  nhưng không có mốc", và loại chúng khỏi tỉ lệ đúng hạn. Nay mọi đường sang `done` đều ghi mốc,
+  trừ khi đi từ Chờ đánh giá: lúc đó mốc lúc nộp được giữ nguyên. Việc đã xong **trước** bản sửa
+  này vẫn không có mốc, và không bịa ra được.
+
 - **Bản in Gantt bị cắt và mất thanh.** Nút In đã có, nhưng trục thời gian cuộn ngang, nên bản
   in chỉ ra khung đang thấy trên màn hình. Ở thang Ngày với dữ liệu mẫu, 1065px trục thời gian
   nằm khuất. Thanh vẽ bằng màu nền, mà hộp thoại in mặc định bỏ màu nền, nên bản in còn không
@@ -41,6 +47,21 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 - **CSV của Reports lệch cột khi tên có dấu `"`.** Nay dùng tiện ích CSV chung.
 
 ### Security
+
+- **`PUT /tasks/:id` đổi được trạng thái mà không qua chốt nào.** Form sửa công việc luôn gửi
+  `status`, và đường này ghi thẳng giá trị đó. Tái hiện bằng request thật trước khi sửa:
+  - Người thực hiện tự đặt `done` ở dự án bật đánh giá: 200.
+  - Đặt `failed` khi dự án chưa bật Thất bại, hoặc không có lý do: 200.
+  - Người thực hiện tự đánh `failed` dù `failureConfig.allowedRoles` không có vai đó: 200, chỉ
+    cần không gửi kèm `failureReason`.
+
+  Thất bại qua đường này cũng không ghi `failedAt`/`failedBy` và không gửi `task_failed`. Nay
+  `PUT` đi qua cùng `validateStatusTransition` và cùng chốt quyền với `PATCH /:id/status`, nhưng
+  chỉ khi `status` thật sự đổi, để lưu lại form không bị chặn. Các trường ghi kèm được gom vào
+  `statusChangeFields`, dùng chung cho cả hai đường.
+- **`PUT /tasks/:id` ghi được vết của luồng trạng thái từ body.** PM hoặc người tạo việc gửi
+  `completedAt` sớm hơn deadline là biến một việc trễ thành đúng hạn trong báo cáo kết quả.
+  `reviewDecision` cũng ghi được như vậy. Nay các trường này bị bỏ qua.
 
 - **Benchmark trên "dữ liệu thật" đọc được dữ liệu của công ty khác.** `runBenchmark` gọi
   `loadOptimizationData(projectId)` mà không kèm người gọi. Khi không chọn dự án, mọi nhánh lọc
@@ -67,6 +88,10 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   nội dung có lý do và ngày mới, `PUT` lại cùng `endDate` thì không sinh thông báo.
 - Client: `csv.test.mjs` (8, logic thuần) và `task-export.test.jsx`. Bài xuất CSV đã được thử
   ngược: làm hỏng vòng lặp phân trang thì test đỏ.
+- Bộ `task-status-paths` (20 assertion) giữ cả hai đường đổi trạng thái: ba lớp chặn trên `PUT`,
+  người được phép vẫn làm được, lưu lại form không bị chặn, `completedAt` trên mọi đường sang
+  `done`, và vết trạng thái không ghi được từ body. Đã thử ngược: bỏ dòng gỡ trường thì
+  `completedAt` gửi lên đè được mốc thật.
 - e2e: bài in Gantt ở `07-analytics` đo dưới media print ở bề ngang A4 ngang, rồi đọc lệnh tô màu
   trong PDF thật. Đã thử ngược: bỏ `print-color-adjust` thì PDF mất màu thanh và test đỏ.
 

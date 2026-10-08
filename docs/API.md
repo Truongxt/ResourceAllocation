@@ -623,8 +623,15 @@ Schema có setter tự bọc mỗi ObjectId thành `{ task, type }` với `type`
 
 ### Hành vi tự động
 - Tạo/sửa/xóa task đều **tính lại `progress` của dự án** (trung bình progress các task, task `done` tính 100).
-- `PUT /:id` khi đổi status sang `done` → `progress` tự set 100.
-- `PATCH /:id/status`: `done` → progress 100; `todo` → progress 0.
+- **Hai đường đổi trạng thái đi qua cùng một chốt**: `PATCH /:id/status` và `PUT /:id` (form sửa
+  công việc luôn gửi kèm `status`). Khi `status` thật sự đổi, cả hai cùng kiểm `validateStatusTransition`
+  (đánh giá, Thất bại cần dự án bật và cần lý do) và quyền `failureConfig.allowedRoles`. Cả hai cũng
+  ghi cùng các trường: `done` → progress 100 và `completedAt` (giữ mốc lúc nộp nếu đi từ Chờ đánh
+  giá); `todo` → progress 0; `failed` → `failureReason`, `failedAt`, `failedBy`. Gửi `status` trùng
+  trạng thái hiện tại thì không kiểm gì, để lưu lại form không bị chặn.
+- `PUT /:id` **bỏ qua** các trường là vết của luồng trạng thái: `completedAt`, `failedAt`, `failedBy`,
+  `reviewRequestedAt`, `reviewedAt`, `reviewedBy`, `reviewDecision`, `reviewComment`. `failureReason`
+  chỉ được nhận khi `status` đổi sang `failed`.
 - Không cho phép đổi `project` của task qua `PUT`.
 - Xóa task sẽ gỡ nó khỏi `dependencies` của mọi task khác.
 - Gán `assignee` cho người khác sẽ tạo **notification real-time** qua Socket.IO.
@@ -1374,7 +1381,7 @@ người thao tác):
 | `type` | Khi nào | Nội dung có |
 |--------|---------|-------------|
 | `task_comment` | Có bình luận mới | Tên người bình luận |
-| `task_failed` | Việc bị đánh dấu Thất bại (`PATCH /tasks/:id/status`) | Lý do thất bại. Thay cho `task_status_changed`, nên người thực hiện không nhận hai lần |
+| `task_failed` | Việc bị đánh dấu Thất bại (`PATCH /tasks/:id/status` hoặc `PUT /tasks/:id`) | Lý do thất bại. Thay cho `task_status_changed`, nên người thực hiện không nhận hai lần |
 | `task_deadline_changed` | Đổi hạn qua `PATCH /tasks/:id/deadline`, hoặc `PUT /tasks/:id` với `endDate` **khác** ngày cũ | Ngày cũ → ngày mới (`dd/mm/yyyy`), và lý do nếu có |
 
 ### Sự kiện Socket.IO

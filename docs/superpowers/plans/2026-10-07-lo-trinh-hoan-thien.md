@@ -35,16 +35,15 @@ phần đang dở trước khi lập lộ trình; nay đã commit, và `cross-co
   Nếu muốn PM chạy được tối ưu thì phải nới `authorizeApp('optimize')`, và khi đó cần viết lại
   phần thu hẹp phạm vi theo dự án của người gọi.
 
-### Phát hiện trong giai đoạn 3, chưa sửa
+### Phát hiện trong giai đoạn 3
 
-- **`PUT /tasks/:id` đổi được `status` mà không qua `validateStatusTransition`.** Mới xác nhận
-  bằng đọc code, chưa tái hiện bằng request. Cả hai validator của PUT đều nhận `status`, kể cả
-  `failed`. Người thực hiện được sửa `status` qua đường này (`ASSIGNEE_EDITABLE_FIELDS` trong
-  `taskAccess.js`), nên có thể đã vượt cả ba chốt mà `PATCH /:id/status` giữ: chặn tự kết luận
-  "Hoàn thành" khi dự án bật đánh giá, bắt buộc lý do Thất bại, và `failureConfig`. Đường này
-  cũng không ghi `completedAt`/`failedAt`, nên làm lệch báo cáo kết quả (giai đoạn 2), và không
-  gửi `task_failed`. Nên vá trước giai đoạn 4.
-- **Màn Công việc chỉ hiện 50 việc đầu mà không báo.** Màn này gọi `GET /tasks` không kèm
+- ✅ **`PUT /tasks/:id` đổi được `status` mà không qua chốt nào** — đã vá ngày 2026-10-08 (bộ
+  `task-status-paths`). Tái hiện bằng request thật: người thực hiện tự kết luận xong khi dự án bật
+  đánh giá, và tự đánh Thất bại không lý do dù không được phép. Cùng đợt vá thêm: kéo thẻ Kanban
+  sang Hoàn thành không ghi `completedAt`, và `PUT` ghi được `completedAt` từ body. Việc đã xong
+  trước bản vá vẫn không có mốc. Nếu cần, có thể khôi phục mốc từ nhật ký hoạt động
+  (`UPDATE_TASK_STATUS` sang `done` có thời điểm), nhưng chưa làm.
+- ⏳ **Màn Công việc chỉ hiện 50 việc đầu mà không báo.** Màn này gọi `GET /tasks` không kèm
   `limit`/`page`, server mặc định 50. Nút Xuất CSV đã tự đi hết các trang, nhưng danh sách trên
   màn hình vẫn thiếu.
 
