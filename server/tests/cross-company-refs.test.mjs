@@ -217,6 +217,22 @@ S('Tối ưu hóa, báo cáo, nhật ký — projectId/user của B');
   ok(ready.status >= 400 || !(ready.data?.totalTasks > 0), 'GET /optimization/readiness — không đếm việc của B',
     `status=${ready.status} totalTasks=${ready.data?.totalTasks}`);
 
+  // Benchmark trên "dữ liệu thật" phải thấy đúng tập mà readiness thấy. Trước đây nó
+  // gọi `loadOptimizationData` không kèm người dùng: bỏ projectId thì kéo việc và nhân
+  // sự của MỌI công ty; có projectId thì lọc theo công ty mặc định, nên B nhận về rỗng.
+  const benchSeesOwn = async (label, token, projectId) => {
+    const q = projectId ? `?projectId=${projectId}` : '';
+    const own = (await call('GET', `/optimization/readiness${q}`, { token })).data || {};
+    const bench = await call('POST', '/optimization/benchmark', {
+      token, body: { useDatabaseData: true, projectId, populationSize: 10, maxGenerations: 5 },
+    });
+    const want = `(${own.totalTasks} tasks, ${own.totalResources} nhân sự)`;
+    ok(own.ready && bench.status === 200 && bench.data?.datasetLabel?.includes(want), label,
+      `status=${bench.status} nhận "${bench.data?.datasetLabel || bench.message}", muốn ${want}`);
+  };
+  await benchSeesOwn('POST /optimization/benchmark (B, tất cả dự án) — chỉ thấy dữ liệu của B', TB);
+  await benchSeesOwn('POST /optimization/benchmark (B, dự án của B) — thấy việc của chính B', TB, bProj);
+
   const trend = await call('GET', `/analytics/workload-trend?projectId=${bProj}&from=2026-11-01&to=2026-11-30`, { token: TA });
   // Việc của B giao cho người của B — không khớp nhân sự nào của A — nên nếu lọt vào
   // thì nằm ở `excluded`, không phải trên biểu đồ. Không việc nào được phép lọt vào.

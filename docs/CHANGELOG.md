@@ -6,6 +6,30 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-10-08 (benchmark trên dữ liệu thật)
+
+### Security
+
+- **Benchmark trên "dữ liệu thật" đọc được dữ liệu của công ty khác.** `runBenchmark` gọi
+  `loadOptimizationData(projectId)` mà không kèm người gọi. Khi không chọn dự án, mọi nhánh lọc
+  công ty đều bị bỏ qua, nên admin của bất kỳ công ty nào cũng kéo được công việc và nhân sự của
+  mọi công ty. Khi có chọn dự án thì ngược lại: nó lọc theo công ty mặc định, nên công ty khác
+  nhận về rỗng. Nay hàm nhận `req.user`. Nhánh "Tất cả dự án" cũng không còn phụ thuộc vào
+  `user`, nên hàm không bao giờ trả dữ liệu chưa lọc theo công ty.
+
+### Removed
+
+- Nhánh "người không phải admin" trong `loadOptimizationData`. Đây là code chết, vì
+  `authorizeApp('optimize')` chỉ cho Owner, Admin và App Admin qua, mà nhánh này lại loại trừ
+  đúng ba nhóm đó.
+
+### Tests
+
+- `cross-company-refs` thêm hai bài (nay 64 assertion): admin công ty B chạy benchmark, một lần
+  không chọn dự án và một lần chọn dự án của B. Số việc và số nhân sự phải khớp đúng với
+  `GET /optimization/readiness`. Trước khi sửa, hai bài này lần lượt nhận 4 việc và 5 nhân sự của
+  công ty khác, và 400 (rỗng).
+
 ## [Chưa phát hành] - 2026-10-07 (phòng ban vận hành, id công ty khác trong body)
 
 ### Added

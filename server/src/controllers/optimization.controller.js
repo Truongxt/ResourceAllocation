@@ -65,40 +65,11 @@ const loadOptimizationData = async (projectId, user) => {
         resourceFilter.companyName = companyScope;
       }
     }
-  } else if (user && user.role !== 'admin' && !user.isOwner && !user.appAdmins?.includes('optimize')) {
-    // Nếu không chỉ định projectId và không phải admin/owner/appAdmin: giới hạn theo dự án của user
-    const userProjects = await Project.find({
-      companyName: companyScope,
-      $or: [
-        { manager: user._id },
-        { 'members.user': user._id },
-        { createdBy: user._id },
-      ],
-    }).select('_id members');
-    const userProjectIds = userProjects.map((p) => p._id);
-    taskFilter.project = { $in: userProjectIds };
-    taskFilter.companyName = companyScope;
-
-    const allowedUserIds = new Set();
-    allowedUserIds.add(user._id.toString());
-    userProjects.forEach((p) => {
-      if (p.members) {
-        p.members.forEach((m) => {
-          if (m.user) allowedUserIds.add(m.user.toString());
-        });
-      }
-    });
-
-    resourceFilter = {
-      isActive: true,
-      companyName: companyScope,
-      $or: [
-        { user: { $in: Array.from(allowedUserIds) } },
-        { createdBy: user._id },
-      ],
-    };
-  } else if (user) {
-    // Admin chọn "Tất cả dự án": lấy toàn bộ công việc và nhân sự của công ty mình
+  } else {
+    // "Tất cả dự án": toàn bộ công việc và nhân sự của công ty mình. Không cần thu hẹp
+    // theo dự án của người gọi — `authorizeApp('optimize')` chỉ cho Owner/Admin/App
+    // Admin tới đây. Không điều kiện `user`: thiếu người gọi thì vẫn lọc theo công ty
+    // mặc định, không bao giờ trả dữ liệu của mọi công ty.
     taskFilter.companyName = companyScope;
     resourceFilter.companyName = companyScope;
   }
@@ -925,7 +896,7 @@ const runBenchmark = async (req, res, next) => {
     let datasetLabel = '';
 
     if (useDatabaseData) {
-      const liveData = await loadOptimizationData(projectId);
+      const liveData = await loadOptimizationData(projectId, req.user);
       tasks = liveData.tasks;
       resources = liveData.resources;
       datasetLabel = `Dữ liệu Thực tế Hệ thống (${tasks.length} tasks, ${resources.length} nhân sự)`;

@@ -8,7 +8,7 @@ Mười hạng mục, chia thành chín giai đoạn. Mỗi giai đoạn tự ch
 được commit riêng. Chỉ giai đoạn đang làm mới có plan chi tiết. Lý do: các giai đoạn sau
 phụ thuộc vào những gì giai đoạn trước để lại, nên viết chi tiết trước sẽ phải viết lại.
 
-## Trạng thái (cập nhật 2026-10-07)
+## Trạng thái (cập nhật 2026-10-08)
 
 | # | Giai đoạn | Trạng thái |
 |---|-----------|------------|
@@ -26,17 +26,14 @@ phụ thuộc vào những gì giai đoạn trước để lại, nên viết ch
 Làm ngoài lộ trình, cùng ngày: **chặn id của công ty khác trong body/query** (`3d93981`). Đây là
 phần đang dở trước khi lập lộ trình; nay đã commit, và `cross-company-refs` đạt 62/62.
 
-### Phát hiện trong lúc làm, chưa sửa
+### Phát hiện trong lúc làm, đã xử lý ngày 2026-10-08
 
-- **`runBenchmark` có thể đọc dữ liệu của công ty khác.** Với `useDatabaseData: true`, nó gọi
-  `loadOptimizationData(projectId)` mà không truyền người dùng. Khi **không** có `projectId`, cả
-  hai nhánh có lọc công ty đều bị bỏ qua (chúng cần `user`), nên admin của bất kỳ công ty nào
-  chạy benchmark trên "dữ liệu thật" đều kéo được công việc và nhân sự của mọi công ty. Khi có
-  `projectId` thì ngược lại: nó lọc theo công ty mặc định, nên công ty khác nhận về rỗng. Nên vá
-  trước giai đoạn 2, vì đây là lỗi phân lập dữ liệu.
-- **Nhánh "người không phải admin" trong `loadOptimizationData` là code chết.**
-  `authorizeApp('optimize')` chỉ cho Owner/Admin/App Admin qua, mà nhánh đó lại loại trừ đúng
-  ba nhóm này. Hoặc xóa nhánh, hoặc nới middleware nếu PM thật sự cần chạy tối ưu.
+- **`runBenchmark` đọc được dữ liệu của công ty khác** khi chạy trên "dữ liệu thật". Nay hàm
+  truyền `req.user`, và `loadOptimizationData` luôn lọc theo công ty. Có test trong
+  `cross-company-refs` (64/64).
+- **Nhánh "người không phải admin" trong `loadOptimizationData`** là code chết, nay đã xóa.
+  Nếu muốn PM chạy được tối ưu thì phải nới `authorizeApp('optimize')`, và khi đó cần viết lại
+  phần thu hẹp phạm vi theo dự án của người gọi.
 
 ## Lộ trình
 
