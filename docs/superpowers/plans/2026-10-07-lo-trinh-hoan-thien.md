@@ -26,7 +26,7 @@ riêng theo file và đạt. **e2e chưa chạy lại sau đợt dọn tồn đ�
 | 4 | Vòng đời dự án | `7faaadd`, `d3cf283`, `c8055f9` | [plan](./2026-10-08-vong-doi-du-an.md). Lưu trữ (chỉ đọc), nhân bản, dự án mẫu |
 | 5 | Thuật toán phần 1 (S1/S3, hội tụ) | `1c73ee0`, `b13e3c0` | [plan](./2026-10-08-thuat-toan-phan-1.md). Số đo trước/sau ở ALGORITHMS.md mục 2.3 và 3.3 |
 | 6 | Thuật toán phần 2 (job, snapshot, Régin) | `0bae0f4`, `9e946f9` | [plan](./2026-10-08-job-dinh-ky-va-thuat-toan-phan-2.md). Job qua endpoint nội bộ + cron ngoài; ảnh chụp workload; Régin đo rồi bỏ (clique lớn nhất = 2) |
-| — | Dọn tồn đọng nhỏ | `8b01b01`, `ca15897`, `edd9847`, `66c1660`, `72d31a4` | Nút ở dạng thẻ màn Dự án; cảnh báo job `stale` trên Dashboard; bộ sinh dữ liệu Benchmark theo vai trò; CSP tách hết ngân sách khỏi vô nghiệm |
+| — | Dọn tồn đọng nhỏ | `8b01b01`, `ca15897`, `edd9847`, `66c1660`, `72d31a4`, `f5b8b00` | Nút ở dạng thẻ màn Dự án; cảnh báo job `stale` trên Dashboard; bộ sinh dữ liệu Benchmark theo vai trò; CSP tách hết ngân sách khỏi vô nghiệm; Benchmark Studio về ngưỡng 0.5 (người dùng chốt 2026-10-08) |
 
 **Lỗi phát hiện trong lúc làm và đã sửa** (mỗi lỗi đều được tái hiện trước khi sửa và có test giữ lại):
 
@@ -70,8 +70,6 @@ riêng theo file và đạt. **e2e chưa chạy lại sau đợt dọn tồn đ�
   quyết có làm không.
 - **Các bảng trước/sau ở ALGORITHMS.md mục 2.3 đo bằng bộ sinh cũ.** Bộ sinh mới cho CSP giải được 16/30 small,
   19/30 medium ở ngưỡng 0.5 (cũ: 0/30, 5/30). Cần đo lại trước khi lấy số cho luận văn.
-- **Benchmark Studio vẫn chạy CSP và Hybrid ở ngưỡng 0.1** (`benchmarkRunner.js`). Ngưỡng này sinh ra để chữa
-  bộ sinh cũ. Với bộ sinh mới có thể về lại 0.5 như hệ thống thật, nhưng số trong Studio sẽ đổi. Cần người dùng quyết.
 - **S1/S3 làm tải kém cân hơn** (σ medium 15.3 → 16.2). Nếu cần, chỉnh trọng số `SOFT_WEIGHTS` trong
   `CSPSolver.js` và đo lại bằng cách ở ALGORITHMS.md mục 2.3.
 - **Job việc lặp lại sinh một lượt mỗi cấu hình mỗi lần gọi**: lỡ nhiều lượt thì các lần gọi sau đuổi kịp dần,

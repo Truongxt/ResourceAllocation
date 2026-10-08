@@ -71,6 +71,8 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   của một người có thật trong đội và đòi kỹ năng từ cụm của vai trò đó. Ở ngưỡng 0.5, small giải
   được 16/30, medium 19/30. Các lần thất bại còn lại là capacity (small) hoặc chạm trần 10 000 bước
   (medium). Chi tiết ở ALGORITHMS.md mục 2.3.
+- **Benchmark Studio chạy CSP và Hybrid ở ngưỡng kỹ năng 0.1**, trong khi hệ thống thật dùng 0.5. Ngưỡng
+  đó đặt ra để chữa bộ sinh dữ liệu cũ. Nay về mặc định 0.5, nên số của hai cột này trong Studio đổi theo.
 - **CSP báo "vô nghiệm" khi chỉ hết ngân sách tìm kiếm.** Chạm `maxIterations` hoặc `timeout` từng cho
   cùng câu "Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc" như khi đã thử hết, nên người dùng đi
   nới ràng buộc vô ích. Nay kết quả có `stopReason` và `exhaustive`, câu báo nói rõ "chưa tìm xong".

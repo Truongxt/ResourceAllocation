@@ -197,7 +197,7 @@ lần, so cặp những bộ mà cả hai bản cùng giải được):
 
 | | Khớp kỹ năng (%) | Chuyển ngữ cảnh | Fitness | Độ lệch tải σ (giờ) | Giải được |
 |---|---|---|---|---|---|
-| medium, ngưỡng 0.1 (như Benchmark Studio) | 57 → **76** | 60 → **32** | 0.699 → **0.762** | 15.3 → 16.2 | 20 → **24**/30 |
+| medium, ngưỡng 0.1 (như Benchmark Studio trước `f5b8b00`) | 57 → **76** | 60 → **32** | 0.699 → **0.762** | 15.3 → 16.2 | 20 → **24**/30 |
 | small, ngưỡng 0.1 | 55 → **62** | 4.0 → **2.5** | 0.688 → **0.694** | 9.7 → 14.9 | 8 → 8/30 |
 | medium, ngưỡng 0 | 27 → **75** | 61 → **32** | 0.594 → **0.762** | 15.0 → 16.1 | 25 → **28**/30 |
 | small, ngưỡng 0 | 27 → **55** | 4.2 → **2.0** | 0.583 → **0.667** | 11.6 → 15.9 | 30 → 30/30 |
@@ -208,7 +208,7 @@ duy nhất. Fitness vẫn tăng vì khớp kỹ năng có trọng số lớn hơ
 > Bảng trên đo bằng **bộ sinh dữ liệu cũ**. Bộ đó làm CSP rất hay vô nghiệm: mỗi việc đòi 1–3 kỹ
 > năng ngẫu nhiên trong 15, độc lập với kỹ năng của người, nên thường có việc không ai có kỹ năng và
 > bộ lọc H2 loại sạch. Ở ngưỡng mặc định 0.5, CSP chỉ giải được 0/30 bộ small. Vì vậy bảng đo ở
-> ngưỡng 0.1 (Benchmark Studio dùng đúng ngưỡng này) và ngưỡng 0 (bỏ hẳn bộ lọc kỹ năng, để chỉ còn
+> ngưỡng 0.1 (Benchmark Studio dùng ngưỡng này cho tới `f5b8b00`; nay dùng ngưỡng mặc định 0.5 như hệ thống thật) và ngưỡng 0 (bỏ hẳn bộ lọc kỹ năng, để chỉ còn
 > thứ tự quyết định).
 >
 > **Bộ sinh hiện tại** (`datasetGenerator.js`) gắn kỹ năng vào vai trò. Mỗi người nắm trọn cụm kỹ
