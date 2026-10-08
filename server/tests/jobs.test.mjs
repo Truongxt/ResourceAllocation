@@ -119,7 +119,10 @@ S('Job chụp workload: khớp trang Utilization, chạy lại trong ngày khôn
   ok(first.status === 200 && again.status === 200, 'Chạy hai lần trong ngày đều 200', `${first.status}/${again.status}`);
   ok(first.data?.result?.snapshots > 0, 'Báo số nhân sự đã chụp', JSON.stringify(first.data?.result));
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Ngày địa phương, như `dayKey` của ảnh chụp và `parseBound` của endpoint. `toISOString()`
+  // là ngày UTC: từ 00:00 đến 07:00 giờ VN nó còn là hôm qua, và bài này đỏ oan.
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const hist = await call('GET', `/analytics/workload-history?from=${today}&to=${today}`, { token: admin });
   const people = hist.data?.history?.resources || [];
   ok(hist.status === 200 && people.length > 0, 'GET /analytics/workload-history trả chuỗi theo người', `status=${hist.status} ${people.length} người`);
