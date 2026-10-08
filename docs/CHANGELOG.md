@@ -17,7 +17,8 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
     tải **đã ghi nhận**, khác `workload-trend` vốn suy ra từ lịch hiện tại.
 
   Mỗi lần chạy được ghi vào `JobRun`. `GET /api/jobs/status` (Owner/Admin) báo `stale` khi job chưa
-  từng chạy hoặc quá hạn, vì quên cấu hình cron không làm nổ lỗi nào. Cách cấu hình ở README mục
+  từng chạy hoặc quá hạn, vì quên cấu hình cron không làm nổ lỗi nào. Dashboard hiện cảnh báo cho
+  Owner/Admin khi có job `stale`, kèm lỗi của lần chạy gần nhất nếu có. Cách cấu hình ở README mục
   "Job định kỳ".
 - **All-different (Régin): quyết định không làm.** Đo trên database dev, e2e và test: clique lớn nhất
   của đồ thị xung đột H4 là 2, tức là ràng buộc `≠` nhị phân mà AC-3 đã lọc trọn vẹn. Chi tiết ở
@@ -64,6 +65,14 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Fixed
 
+- **Dữ liệu tổng hợp của Benchmark làm CSP vô nghiệm vì bộ sinh, không phải vì bài toán.** Kỹ năng
+  của người và kỹ năng việc đòi được bốc độc lập từ 15 kỹ năng, nên 26% việc ở bộ small không ai đạt
+  ngưỡng H2 0.5 và CSP giải được 0/30 bộ small. Nay cả hai gắn vào vai trò: mỗi việc thuộc vai trò
+  của một người có thật trong đội và đòi kỹ năng từ cụm của vai trò đó. Ở ngưỡng 0.5, small giải
+  được 16/30, medium 19/30. Các lần thất bại còn lại là capacity (small) hoặc chạm trần 10 000 bước
+  (medium). Chi tiết ở ALGORITHMS.md mục 2.3.
+- **Màn Dự án, dạng thẻ**: dự án lưu trữ vẫn hiện nút sửa và xóa, và quyền phân hệ "Chỉ xem" vẫn
+  thấy các nút đó. Nay dạng thẻ dùng chung cụm nút với dạng bảng (`ProjectRowActions`).
 - **"Việc lặp lại" chưa từng tự sinh việc.** `generatePendingRecurringTasks` không có ai gọi, nên
   việc chỉ được sinh khi bấm "Chạy ngay". Nay job `recurring-tasks` gọi hàm này. Hàm cũng **không an
   toàn khi chạy đồng thời**: tái hiện bằng hai request song song thì sinh ra 2 việc. Nay mỗi cấu hình
@@ -133,6 +142,10 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Tests
 
+- Bộ `benchmark-dataset` (14 assertion, đơn vị): mọi việc có người đạt ngưỡng 0.5, vẫn còn lựa chọn
+  giữa các ứng viên, việc nằm trọn trong một vai trò có người đảm nhận. Ở bộ sinh cũ, 202/800 việc
+  small không ai đạt ngưỡng.
+- Client: `job-stale-alert` (6 bài) và 4 bài cho cụm nút dự án trong `project-lifecycle`.
 - `cross-company-refs` thêm hai bài (nay 64 assertion): admin công ty B chạy benchmark, một lần
   không chọn dự án và một lần chọn dự án của B. Số việc và số nhân sự phải khớp đúng với
   `GET /optimization/readiness`. Trước khi sửa, hai bài này lần lượt nhận 4 việc và 5 nhân sự của

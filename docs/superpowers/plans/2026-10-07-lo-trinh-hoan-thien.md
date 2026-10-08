@@ -12,8 +12,9 @@ phụ thuộc vào những gì giai đoạn trước để lại, nên viết ch
 
 **Ưu tiên hiện tại (chốt với người dùng ngày 2026-10-08): hoàn thành chương trình trước, sửa luận văn sau.**
 
-Số test ở lần chạy gần nhất: server **32/32 bộ**, client **48/48** (cộng 4 bộ logic thuần), e2e **88/88**
-khi chạy trọn bộ sau GĐ4. Sau đó có thêm 1 bài e2e (Benchmark Studio), đã chạy riêng theo file và đạt.
+Số test ở lần chạy gần nhất (sau đợt dọn tồn đọng, 2026-10-08): server **33/33 bộ**, client **58/58** (cộng 4
+bộ logic thuần). e2e **88/88** khi chạy trọn bộ sau GĐ4. Sau đó có thêm 1 bài e2e (Benchmark Studio), đã chạy
+riêng theo file và đạt. **e2e chưa chạy lại sau đợt dọn tồn đọng.**
 
 ### Đã làm
 
@@ -25,6 +26,7 @@ khi chạy trọn bộ sau GĐ4. Sau đó có thêm 1 bài e2e (Benchmark Studio
 | 4 | Vòng đời dự án | `7faaadd`, `d3cf283`, `c8055f9` | [plan](./2026-10-08-vong-doi-du-an.md). Lưu trữ (chỉ đọc), nhân bản, dự án mẫu |
 | 5 | Thuật toán phần 1 (S1/S3, hội tụ) | `1c73ee0`, `b13e3c0` | [plan](./2026-10-08-thuat-toan-phan-1.md). Số đo trước/sau ở ALGORITHMS.md mục 2.3 và 3.3 |
 | 6 | Thuật toán phần 2 (job, snapshot, Régin) | `0bae0f4`, `9e946f9` | [plan](./2026-10-08-job-dinh-ky-va-thuat-toan-phan-2.md). Job qua endpoint nội bộ + cron ngoài; ảnh chụp workload; Régin đo rồi bỏ (clique lớn nhất = 2) |
+| — | Dọn tồn đọng nhỏ | `8b01b01`, `ca15897`, `edd9847`, `66c1660` | Nút ở dạng thẻ màn Dự án; cảnh báo job `stale` trên Dashboard; bộ sinh dữ liệu Benchmark theo vai trò |
 
 **Lỗi phát hiện trong lúc làm và đã sửa** (mỗi lỗi đều được tái hiện trước khi sửa và có test giữ lại):
 
@@ -40,6 +42,8 @@ khi chạy trọn bộ sau GĐ4. Sau đó có thêm 1 bài e2e (Benchmark Studio
 | Cột Hybrid của Benchmark Studio không chạy Hybrid (miền CSP truyền nhầm chỗ) | `1c73ee0` |
 | GA báo số thế hệ theo mốc ghi lịch sử (bội số của 10), không phải thế hệ dừng thật | `1c73ee0` |
 | "Việc lặp lại" chưa từng tự sinh việc (không ai gọi bộ sinh), và sinh trùng khi gọi song song | `0bae0f4` |
+| Dạng thẻ ở màn Dự án: dự án lưu trữ còn nút sửa; quyền "Chỉ xem" còn thấy nút sửa/xóa | `8b01b01` |
+| Bộ sinh dữ liệu Benchmark làm CSP vô nghiệm 0/30 bộ small (26% việc không ai đạt ngưỡng H2) | `edd9847` |
 
 ### Chưa làm
 
@@ -59,14 +63,17 @@ khi chạy trọn bộ sau GĐ4. Sau đó có thêm 1 bài e2e (Benchmark Studio
   Số đúng: 76.3 / 51.8 thế hệ dừng (Hybrid ít hơn ~32%), hội tụ 90% ở thế hệ 13.9 / 1.8. Fitness 0.8530 cả
   hai. Báo cáo cũng chưa có S1/S3, `contextSwitches` và các bản sửa ở bảng trên.
 - **Khi triển khai phải cấu hình cron và `JOB_SECRET`** (README mục "Job định kỳ"). Thiếu thì hai job không
-  bao giờ chạy. **Giao diện chưa hiện trạng thái job**: chỉ thấy qua `GET /api/jobs/status`. Nên có cảnh báo
-  cho Owner/Admin khi `stale`.
+  bao giờ chạy. Dashboard đã cảnh báo Owner/Admin khi có job `stale` (`ca15897`).
 - **Việc đã xong trước `152df0e` không có `completedAt`**, nên báo cáo kết quả các kỳ cũ xếp chúng vào "xong
   nhưng không có mốc". Có thể khôi phục từ nhật ký hoạt động (`UPDATE_TASK_STATUS` sang `done`). Cần người dùng
   quyết có làm không.
-- **Dạng thẻ (grid) ở màn Dự án**: dự án lưu trữ vẫn hiện nút sửa. Dạng bảng đã ẩn; server vẫn chặn bằng 409.
-- **Dữ liệu tổng hợp của Benchmark làm CSP rất hay vô nghiệm**: việc đòi kỹ năng mà không ai có. Ở ngưỡng mặc
-  định 0.5, CSP giải được 0/30 bộ small. Nên sửa bộ sinh cho thực tế hơn trước khi lấy số cho luận văn.
+- **Các bảng trước/sau ở ALGORITHMS.md mục 2.3 đo bằng bộ sinh cũ.** Bộ sinh mới cho CSP giải được 16/30 small,
+  19/30 medium ở ngưỡng 0.5 (cũ: 0/30, 5/30). Cần đo lại trước khi lấy số cho luận văn.
+- **Benchmark Studio vẫn chạy CSP và Hybrid ở ngưỡng 0.1** (`benchmarkRunner.js`). Ngưỡng này sinh ra để chữa
+  bộ sinh cũ. Với bộ sinh mới có thể về lại 0.5 như hệ thống thật, nhưng số trong Studio sẽ đổi. Cần người dùng quyết.
+- **CSP báo "Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc" cả khi chỉ chạm `maxIterations`** (10 000 bước).
+  Trên bộ medium, cả 11/30 lần thất bại đều dừng quanh 10 250 bước: chưa chắc vô nghiệm. Nên tách câu báo hết
+  ngân sách tìm kiếm khỏi câu báo vô nghiệm.
 - **S1/S3 làm tải kém cân hơn** (σ medium 15.3 → 16.2). Nếu cần, chỉnh trọng số `SOFT_WEIGHTS` trong
   `CSPSolver.js` và đo lại bằng cách ở ALGORITHMS.md mục 2.3.
 - **Job việc lặp lại sinh một lượt mỗi cấu hình mỗi lần gọi**: lỡ nhiều lượt thì các lần gọi sau đuổi kịp dần,

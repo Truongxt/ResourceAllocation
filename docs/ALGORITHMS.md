@@ -205,10 +205,25 @@ lần, so cặp những bộ mà cả hai bản cùng giải được):
 Cái giá là **tải kém cân hơn** (σ tăng): đó là hệ quả trực tiếp của việc S2 không còn là tiêu chí
 duy nhất. Fitness vẫn tăng vì khớp kỹ năng có trọng số lớn hơn cân tải.
 
-> Dữ liệu tổng hợp làm CSP rất hay **vô nghiệm**: mỗi việc đòi 1–3 kỹ năng ngẫu nhiên trong 15, nên
-> thường có việc mà không ai có kỹ năng đó và bộ lọc H2 loại sạch. Ở ngưỡng mặc định 0.5, CSP chỉ
-> giải được 0/30 bộ small và 3/30 bộ medium. Vì vậy bảng trên đo ở ngưỡng 0.1 (Benchmark Studio dùng
-> đúng ngưỡng này) và ngưỡng 0 (bỏ hẳn bộ lọc kỹ năng, để chỉ còn thứ tự quyết định).
+> Bảng trên đo bằng **bộ sinh dữ liệu cũ**. Bộ đó làm CSP rất hay vô nghiệm: mỗi việc đòi 1–3 kỹ
+> năng ngẫu nhiên trong 15, độc lập với kỹ năng của người, nên thường có việc không ai có kỹ năng và
+> bộ lọc H2 loại sạch. Ở ngưỡng mặc định 0.5, CSP chỉ giải được 0/30 bộ small. Vì vậy bảng đo ở
+> ngưỡng 0.1 (Benchmark Studio dùng đúng ngưỡng này) và ngưỡng 0 (bỏ hẳn bộ lọc kỹ năng, để chỉ còn
+> thứ tự quyết định).
+>
+> **Bộ sinh hiện tại** (`datasetGenerator.js`) gắn kỹ năng vào vai trò. Mỗi người nắm trọn cụm kỹ
+> năng của vai trò mình (cấp 2–4), cộng 0–2 kỹ năng ngoài cụm (cấp 1–2). Mỗi việc thuộc vai trò của
+> một người có thật trong đội và đòi 1–3 kỹ năng (cấp 1–3) từ cụm đó, nên luôn có ít nhất một người
+> khớp ≥ 2/3. Đo 30 bộ mỗi ô:
+>
+> | | Bộ sinh cũ | Bộ sinh mới | Nguyên nhân thất bại còn lại |
+> |---|---|---|---|
+> | small, ngưỡng 0.5 | 0/30 (30 miền rỗng) | **16/30** | Vô nghiệm thật vì capacity (tìm kiếm cạn sau < 2 300 bước) |
+> | small, ngưỡng 0.1 | 9/30 (20 miền rỗng) | **28/30** | Như trên |
+> | medium, ngưỡng 0.5 | 5/30 (22 miền rỗng) | **19/30** | Chạm `maxIterations` (10 000), chưa chắc vô nghiệm |
+> | medium, ngưỡng 0.1 | 29/30 | 22/30 | Như trên. Ít ứng viên hơn: việc thuộc vai trò, nên người ngoài vai trò ít khi đạt dù chỉ 0.1 |
+>
+> Các bảng so sánh trước/sau trong tài liệu này chưa được đo lại bằng bộ sinh mới.
 
 ### 2.4 Algorithm: Backtracking + lọc miền giá trị
 
