@@ -12,9 +12,8 @@ phụ thuộc vào những gì giai đoạn trước để lại, nên viết ch
 
 **Ưu tiên hiện tại (chốt với người dùng ngày 2026-10-08): hoàn thành chương trình trước, sửa luận văn sau.**
 
-Số test ở lần chạy gần nhất (sau đợt dọn tồn đọng, 2026-10-08): server **33/33 bộ**, client **58/58** (cộng 4
-bộ logic thuần), mobile **35 + 14 + 10 jest**. e2e **88/88** khi chạy trọn bộ sau GĐ4. Sau đó có thêm 1 bài e2e (Benchmark Studio), đã chạy
-riêng theo file và đạt. **e2e chưa chạy lại sau đợt dọn tồn đọng.**
+Số test ở lần chạy gần nhất (2026-10-08, sau GĐ9): server **33/33 bộ**, client **58/58** (cộng 4 bộ logic thuần),
+mobile **35 + 14** (node thuần) **+ 10** (jest), e2e **89/89**.
 
 ### Đã làm
 
