@@ -1368,6 +1368,15 @@ Các quy ước cần biết để không đọc sai:
 **Query**: `unread=true` để chỉ lấy chưa đọc, `page`, `limit`.
 Response `GET /` có thêm `unreadCount` ở cấp gốc.
 
+Những loại thông báo về công việc mà người thực hiện **và** người theo dõi cùng nhận (trừ chính
+người thao tác):
+
+| `type` | Khi nào | Nội dung có |
+|--------|---------|-------------|
+| `task_comment` | Có bình luận mới | Tên người bình luận |
+| `task_failed` | Việc bị đánh dấu Thất bại (`PATCH /tasks/:id/status`) | Lý do thất bại. Thay cho `task_status_changed`, nên người thực hiện không nhận hai lần |
+| `task_deadline_changed` | Đổi hạn qua `PATCH /tasks/:id/deadline`, hoặc `PUT /tasks/:id` với `endDate` **khác** ngày cũ | Ngày cũ → ngày mới (`dd/mm/yyyy`), và lý do nếu có |
+
 ### Sự kiện Socket.IO
 Client kết nối tới `http://localhost:5000` với `auth: { token }`. Server đưa socket vào room `user:<userId>`.
 

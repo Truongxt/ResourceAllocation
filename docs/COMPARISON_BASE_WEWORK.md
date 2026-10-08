@@ -111,7 +111,7 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
 | Điều chỉnh deadline có vết | **Đầy đủ, hơn Base** | `deadlineHistory` lưu ngày cũ/mới, người sửa, lý do |
 | Thao tác hàng loạt | **Một phần** | Chỉ có bàn giao hàng loạt; Base còn sửa/xóa/chuyển nhóm hàng loạt |
 | **Nhập Excel** | **Một phần** | Có mẫu + xem trước + nhập; **thiếu cột phụ thuộc** mà Base hỗ trợ — [excelTaskImport.service.js](../server/src/services/excelTaskImport.service.js) |
-| **Xuất Excel / xuất Gantt** | **Không có** | Nhập được nhưng không lấy ra được — xem [4.6](#46-xuất-dữ-liệu-công-việc) |
+| **Xuất Excel / xuất Gantt** | **Có từ 08/10** | Xuất CSV theo bộ lọc ở màn Công việc; in Gantt trọn trục thời gian — xem [4.6](#46-xuất-dữ-liệu-công-việc) |
 | **Tệp đính kèm thật** | **Không có** | Xem [4.5](#45-đính-kèm-tệp-thật) |
 | Đồng bộ Google Calendar | **Không có** | RAO có lịch nội bộ, không xuất ra ngoài |
 | Nhắc nhở (Reminders) | **Đầy đủ** | `GET /tasks/reminders` + `RemindersDrawer` |
@@ -227,6 +227,12 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
   Reports. Nhập được mà không lấy ra được là một sự bất đối xứng khó biện hộ với người dùng.
 - **Phác thảo**: dùng lại đúng bộ tiện ích CSV đã có ở ba màn kia cho màn Công việc; xuất Gantt
   thì `window.print()` đã dựng sẵn cho Reports, áp cùng cách.
+- **Đã làm (08/10)**: thực tế không có tiện ích CSV nào để dùng lại — Projects và Resources chỉ
+  *nhập* CSV, còn Reports tự dựng chuỗi và không escape dấu `"`. Nay có `client/src/utils/csv.js`
+  (escape đủ, chặn công thức Excel), Reports chuyển sang dùng nó, và màn Công việc có nút Xuất
+  CSV đi hết mọi trang theo bộ lọc đang áp dụng. Gantt vốn có nút In, nhưng bản in chỉ ra khung
+  đang thấy trên màn hình và mất màu thanh. Nay bản in trọn trục thời gian, co vừa A4 ngang và
+  giữ màu.
 
 ### 4.7. Đánh giá theo nhóm công việc
 
@@ -244,6 +250,9 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
   nên `Notification.create` ném `ValidationError` và thông báo **mất hẳn** chứ không rơi về
   `system`. Vẫn còn thiếu: **đánh dấu Thất bại và đổi deadline không gửi thông báo nào** —
   chỗ đó thiếu lời gọi `sendNotification`, không phải thiếu giá trị enum.
+  **Đã làm (08/10)**: thêm `task_failed` (kèm lý do) và `task_deadline_changed` (ngày cũ → mới,
+  cả hai đường đổi hạn), gửi cho người thực hiện và người theo dõi. Trước đó Thất bại chỉ gửi
+  một `task_status_changed` chung cho người thực hiện, không có lý do.
 - **Email quá hẹp**: `EMAILED_TYPES` chỉ chứa `task_assigned`
   ([email.service.js:15](../server/src/services/email.service.js#L15)), và bật/tắt ở mức toàn hệ
   thống. Base cho cấu hình theo từng dự án. Quyết định "chỉ gửi một loại để hộp thư không ngập"
@@ -269,10 +278,10 @@ Nếu vẫn cần, đường vòng rẻ hơn: thêm `collaborators[]` **không**
 
 | Thứ tự | Hạng mục | Vì sao đặt ở đây |
 |--------|----------|------------------|
-| 1 | [4.1](#41-báo-cáo-kết-quả-theo-con-người) Báo cáo kết quả theo người | Đã có một nửa từ 23/09 (`getProductivitySummary`, trong `resource.controller.js`): đếm theo người, tỉ lệ đúng hạn. Còn thiếu khoảng thời gian, `scope`, số việc trễ, số lần gia hạn, tab trong Reports |
+| 1 | ~~[4.1](#41-báo-cáo-kết-quả-theo-con-người) Báo cáo kết quả theo người~~ | **Xong 08/10** — `GET /analytics/performance` và tab "Kết quả theo người" |
 | 2 | ~~[4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) Công việc cấp phòng ban~~ | **Xong 07/10** |
 | 3 | [4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) Trường tùy chỉnh | Càng làm muộn càng đắt: lan sang form, Excel, bộ lọc, CSV |
-| 4 | [4.6](#46-xuất-dữ-liệu-công-việc) Xuất dữ liệu + [4.7](#47-đánh-giá-theo-nhóm-công-việc) Đánh giá theo nhóm + [4.8](#48-hai-việc-nhỏ-nhưng-lộ-ra-ngay-khi-dùng) | Đều nhỏ, đều dùng lại thứ đã có |
+| 4 | ~~[4.6](#46-xuất-dữ-liệu-công-việc) Xuất dữ liệu~~ + [4.7](#47-đánh-giá-theo-nhóm-công-việc) Đánh giá theo nhóm + [4.8](#48-hai-việc-nhỏ-nhưng-lộ-ra-ngay-khi-dùng) | 4.6 và phần thông báo của 4.8 **xong 08/10**. Còn 4.7 và phần email của 4.8 |
 | 5 | [4.4](#44-vòng-đời-dự-án-đóngmở-nhân-bản-mẫu-thật) Vòng đời dự án + [4.5](#45-đính-kèm-tệp-thật) Đính kèm | Cần quyết định hạ tầng lưu trữ trước khi code |
 
 Trạng thái từng hạng mục, cộng các mục thuật toán và mobile không có trong tài liệu này, được

@@ -14,7 +14,7 @@ phụ thuộc vào những gì giai đoạn trước để lại, nên viết ch
 |---|-----------|------------|
 | 1 | Dự án loại "team" | ✅ **Xong** — `57a8e9a`. Server 27/27 bộ, client 37/37, e2e `03-projects` 10/10 |
 | 2 | Báo cáo kết quả theo người | ✅ **Xong** — [plan](./2026-10-08-bao-cao-ket-qua-theo-nguoi.md). Server 29/29 bộ, client 40/40 |
-| 3 | Xuất công việc + thông báo Thất bại/đổi deadline | ⏳ Chưa làm |
+| 3 | Xuất công việc + thông báo Thất bại/đổi deadline | ✅ **Xong** — [plan](./2026-10-08-xuat-cong-viec-va-thong-bao.md). Server 29/29 bộ, client 41/41, e2e 87/87 |
 | 4 | Vòng đời dự án | ⏳ Chưa làm |
 | 5 | Thuật toán phần 1 (S1/S3, hội tụ) | ⏳ Chưa làm |
 | 6 | Thuật toán phần 2 (snapshot, Régin) | ⏳ Chưa làm — cần chọn cách chạy job định kỳ |
@@ -34,6 +34,19 @@ phần đang dở trước khi lập lộ trình; nay đã commit, và `cross-co
 - **Nhánh "người không phải admin" trong `loadOptimizationData`** là code chết, nay đã xóa.
   Nếu muốn PM chạy được tối ưu thì phải nới `authorizeApp('optimize')`, và khi đó cần viết lại
   phần thu hẹp phạm vi theo dự án của người gọi.
+
+### Phát hiện trong giai đoạn 3, chưa sửa
+
+- **`PUT /tasks/:id` đổi được `status` mà không qua `validateStatusTransition`.** Mới xác nhận
+  bằng đọc code, chưa tái hiện bằng request. Cả hai validator của PUT đều nhận `status`, kể cả
+  `failed`. Người thực hiện được sửa `status` qua đường này (`ASSIGNEE_EDITABLE_FIELDS` trong
+  `taskAccess.js`), nên có thể đã vượt cả ba chốt mà `PATCH /:id/status` giữ: chặn tự kết luận
+  "Hoàn thành" khi dự án bật đánh giá, bắt buộc lý do Thất bại, và `failureConfig`. Đường này
+  cũng không ghi `completedAt`/`failedAt`, nên làm lệch báo cáo kết quả (giai đoạn 2), và không
+  gửi `task_failed`. Nên vá trước giai đoạn 4.
+- **Màn Công việc chỉ hiện 50 việc đầu mà không báo.** Màn này gọi `GET /tasks` không kèm
+  `limit`/`page`, server mặc định 50. Nút Xuất CSV đã tự đi hết các trang, nhưng danh sách trên
+  màn hình vẫn thiếu.
 
 ## Lộ trình
 

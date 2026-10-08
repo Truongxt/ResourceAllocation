@@ -6,9 +6,19 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
-## [Chưa phát hành] - 2026-10-08 (báo cáo kết quả theo người, benchmark trên dữ liệu thật)
+## [Chưa phát hành] - 2026-10-08 (báo cáo kết quả theo người, xuất công việc, thông báo, benchmark)
 
 ### Added
+
+- **Xuất CSV ở màn Công việc.** File xuất theo đúng bộ lọc đang áp dụng và đi hết mọi trang.
+  Server trả tối đa 100 việc mỗi trang, nên lấy danh sách đang hiện trên màn hình là thiếu.
+  Tiện ích chung `client/src/utils/csv.js`: mọi ô trong ngoặc kép, `"` được nhân đôi, ô bắt đầu
+  bằng `= + - @` bị chặn thành công thức Excel, có BOM UTF-8.
+- **Thông báo khi Thất bại và khi đổi deadline** (`task_failed`, `task_deadline_changed`), gửi
+  cho người thực hiện và người theo dõi, trừ người thao tác. Thông báo Thất bại có kèm lý do.
+  Thông báo đổi hạn có ngày cũ → ngày mới, và được gửi ở cả `PATCH /tasks/:id/deadline` lẫn
+  `PUT /tasks/:id`. Trước đây Thất bại chỉ gửi một `task_status_changed` chung cho người thực
+  hiện, còn đổi hạn thì không gửi gì.
 
 - **Báo cáo kết quả theo người** (`GET /analytics/performance`, tab "Kết quả theo người" trong
   Reports). Báo cáo trả lời câu hỏi "kỳ này ai làm kịp việc": với mỗi người có số việc đúng hạn,
@@ -17,6 +27,18 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   deadline, mặc định là tháng này. Đúng hạn đo bằng `completedAt`. Việc xong không có mốc thời
   gian và việc còn mở không có deadline được đếm riêng, không bị lặng lẽ bỏ đi.
   `getProductivitySummary` (tab Năng suất trong Nhân sự) giữ nguyên.
+
+### Fixed
+
+- **Bản in Gantt bị cắt và mất thanh.** Nút In đã có, nhưng trục thời gian cuộn ngang, nên bản
+  in chỉ ra khung đang thấy trên màn hình. Ở thang Ngày với dữ liệu mẫu, 1065px trục thời gian
+  nằm khuất. Thanh vẽ bằng màu nền, mà hộp thoại in mặc định bỏ màu nền, nên bản in còn không
+  có thanh nào. Nay trang Gantt in khổ A4 ngang, trải hết trục thời gian rồi co cho vừa bề
+  ngang trang, và giữ màu.
+- **Mọi trang in đều mất khoảng 265px ở mép trái.** Thanh bên đã ẩn khi in, nhưng lề chừa cho
+  nó (inline style trong `App.jsx`) vẫn còn. Lề này còn đang chạy transition khi chuyển sang
+  media in, nên có thể bị chụp ở giá trị giữa chừng.
+- **CSV của Reports lệch cột khi tên có dấu `"`.** Nay dùng tiện ích CSV chung.
 
 ### Security
 
@@ -41,6 +63,12 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   công ty khác, và 400 (rỗng).
 - Bộ `performance-summary` (14 assertion, đơn vị) và `performance` (20 assertion, HTTP) cho báo
   cáo kết quả. Phía client có `performance-report.test.jsx` (3 test).
+- `notify-session` thêm 11 assertion (nay 31): ai nhận `task_failed` và `task_deadline_changed`,
+  nội dung có lý do và ngày mới, `PUT` lại cùng `endDate` thì không sinh thông báo.
+- Client: `csv.test.mjs` (8, logic thuần) và `task-export.test.jsx`. Bài xuất CSV đã được thử
+  ngược: làm hỏng vòng lặp phân trang thì test đỏ.
+- e2e: bài in Gantt ở `07-analytics` đo dưới media print ở bề ngang A4 ngang, rồi đọc lệnh tô màu
+  trong PDF thật. Đã thử ngược: bỏ `print-color-adjust` thì PDF mất màu thanh và test đỏ.
 
 ## [Chưa phát hành] - 2026-10-07 (phòng ban vận hành, id công ty khác trong body)
 
