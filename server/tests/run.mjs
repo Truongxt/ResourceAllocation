@@ -55,6 +55,7 @@ const SUITES = [
   { name: 'cross-company-refs', file: 'cross-company-refs.test.mjs', label: 'Id công ty khác trong body và query' },
   { name: 'jobs', file: 'jobs.test.mjs', label: 'Job định kỳ qua endpoint nội bộ' },
   { name: 'performance', file: 'performance.test.mjs', label: 'Báo cáo kết quả theo người — HTTP' },
+  { name: 'optimize-pm', file: 'optimize-pm.test.mjs', label: 'Tối ưu hóa cho PM, thu hẹp theo dự án' },
 ];
 
 const filter = process.argv[2];

@@ -1,7 +1,8 @@
 const express = require('express');
 const { param } = require('express-validator');
 const { validate } = require('../middleware/validate');
-const { protect, authorize, authorizeApp } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
+const { resolveOptimizeScope } = require('../services/optimizeScope');
 const {
   runGeneticAlgorithm,
   runCSPSolver,
@@ -37,8 +38,22 @@ const authorizeApplyOptimization = (req, res, next) => {
 };
 
 router.use(protect);
-// Chặn mọi truy cập hoặc sử dụng thuật toán nếu tài khoản không phải Owner, Admin hoặc App Admin của Base Optimize+
-router.use(authorizeApp('optimize'));
+// Owner, Admin, App Admin của Base Optimize+: toàn công ty. PM: chỉ dự án mình quản lý —
+// phạm vi gắn vào `req.optimizeScope` và được kiểm ở từng handler. Còn lại: 403.
+router.use(async (req, res, next) => {
+  try {
+    req.optimizeScope = await resolveOptimizeScope(req.user);
+    if (!req.optimizeScope) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn chưa được cấp quyền dùng Base Optimize+. Vui lòng liên hệ Owner hoặc Admin.',
+      });
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Run algorithms & benchmark
 router.post('/run/genetic', runGeneticAlgorithm);

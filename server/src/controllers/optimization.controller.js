@@ -10,6 +10,7 @@ const { runComparativeBenchmark } = require('../algorithms/benchmark/benchmarkRu
 const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
+const { projectScopeError, resultScopeError } = require('../services/optimizeScope');
 
 /** Công ty của người gọi — dùng chung cho cả phân lập lẫn phạm vi dữ liệu. */
 const companyOf = (user) => (user && user.companyName) || 'Công ty Công nghệ RAO';
@@ -26,6 +27,21 @@ const resultBelongsTo = (result, user) => {
   if (user?.role === 'superadmin') return true;
   const owner = result.companyName || 'Công ty Công nghệ RAO';
   return owner === companyOf(user);
+};
+
+/**
+ * Phạm vi tối ưu của người gọi (`req.optimizeScope`, gắn ở optimization.routes.js): PM chỉ
+ * được đụng tới dự án mình quản lý. Trả 403 và `true` nếu bị chặn.
+ */
+const denyProject = (req, res, projectId) => {
+  const message = projectScopeError(req.optimizeScope, projectId);
+  if (message) res.status(403).json({ success: false, message });
+  return Boolean(message);
+};
+const denyResult = (req, res, result) => {
+  const message = resultScopeError(req.optimizeScope, result);
+  if (message) res.status(403).json({ success: false, message });
+  return Boolean(message);
 };
 
 /**
@@ -71,9 +87,9 @@ const loadOptimizationData = async (projectId, user) => {
     }
   } else {
     // "Tất cả dự án": toàn bộ công việc và nhân sự của công ty mình. Không cần thu hẹp
-    // theo dự án của người gọi — `authorizeApp('optimize')` chỉ cho Owner/Admin/App
-    // Admin tới đây. Không điều kiện `user`: thiếu người gọi thì vẫn lọc theo công ty
-    // mặc định, không bao giờ trả dữ liệu của mọi công ty.
+    // theo dự án của người gọi — PM không tới được nhánh này (`denyProject` chặn khi
+    // thiếu projectId), chỉ Owner/Admin/App Admin. Không điều kiện `user`: thiếu người
+    // gọi thì vẫn lọc theo công ty mặc định, không bao giờ trả dữ liệu của mọi công ty.
     taskFilter.companyName = companyScope;
     resourceFilter.companyName = companyScope;
   }
@@ -168,6 +184,7 @@ const runGeneticAlgorithm = async (req, res, next) => {
       costWeight,
       overallocationWeight,
     } = req.body;
+    if (denyProject(req, res, projectId)) return;
 
     const { tasks, resources } = await loadOptimizationData(projectId, req.user);
 
@@ -239,6 +256,7 @@ const runGeneticAlgorithm = async (req, res, next) => {
 const runCSPSolver = async (req, res, next) => {
   try {
     const { projectId, maxIterations, timeout, minSkillMatchThreshold } = req.body;
+    if (denyProject(req, res, projectId)) return;
 
     const { tasks, resources } = await loadOptimizationData(projectId, req.user);
 
@@ -291,6 +309,7 @@ const runCSPSolver = async (req, res, next) => {
 const runHybrid = async (req, res, next) => {
   try {
     const { projectId, ...gaParams } = req.body;
+    if (denyProject(req, res, projectId)) return;
     const { tasks, resources } = await loadOptimizationData(projectId, req.user);
 
     if (!tasks.length || !resources.length) {
@@ -372,7 +391,9 @@ const getHistory = async (req, res, next) => {
           ? { $in: [userCompany, null, undefined] }
           : userCompany,
     };
-    if (req.user && req.user.role !== 'admin') {
+    if (req.optimizeScope && !req.optimizeScope.all) {
+      filter.projectFilter = { $in: [...req.optimizeScope.projectIds] };
+    } else if (req.user && req.user.role !== 'admin') {
       filter.runBy = req.user._id;
     }
     if (req.query.algorithm) filter.algorithm = req.query.algorithm;
@@ -578,6 +599,8 @@ const compareResults = async (req, res, next) => {
         message: 'Không có quyền so sánh kết quả tối ưu của công ty khác',
       });
     }
+    const outOfScope = found.find((r) => resultScopeError(req.optimizeScope, r));
+    if (outOfScope && denyResult(req, res, outOfScope)) return;
 
     // Giữ đúng thứ tự người dùng chọn — Mongo trả về theo thứ tự lưu trữ, và các cột
     // trong bảng so sánh phải khớp với thứ tự đó thì người đọc mới lần được.
@@ -670,6 +693,7 @@ const getResultById = async (req, res, next) => {
         message: 'Không có quyền xem kết quả tối ưu của công ty khác',
       });
     }
+    if (denyResult(req, res, result)) return;
 
     res.json({
       success: true,
@@ -702,6 +726,7 @@ const applyResult = async (req, res, next) => {
         message: 'Không có quyền áp dụng kết quả tối ưu của công ty khác',
       });
     }
+    if (denyResult(req, res, result)) return;
 
     if (result.status !== 'completed') {
       return res.status(400).json({ success: false, message: 'Chỉ có thể áp dụng kết quả đã hoàn thành' });
@@ -829,6 +854,7 @@ const rollbackResult = async (req, res, next) => {
         message: 'Không có quyền hoàn tác kết quả tối ưu của công ty khác',
       });
     }
+    if (denyResult(req, res, result)) return;
 
     if (!result.isApplied) {
       return res.status(400).json({ success: false, message: 'Chỉ có thể hoàn tác phương án đã được áp dụng' });
@@ -910,6 +936,7 @@ const runBenchmark = async (req, res, next) => {
     let datasetLabel = '';
 
     if (useDatabaseData) {
+      if (denyProject(req, res, projectId)) return;
       const liveData = await loadOptimizationData(projectId, req.user);
       tasks = liveData.tasks;
       resources = liveData.resources;
@@ -965,6 +992,7 @@ const runBenchmark = async (req, res, next) => {
 const getOptimizationReadiness = async (req, res, next) => {
   try {
     const { projectId } = req.query;
+    if (denyProject(req, res, projectId)) return;
     const { tasks, resources } = await loadOptimizationData(projectId, req.user);
 
     const unassignedTasks = tasks.filter((t) => !t.assignee).length;
