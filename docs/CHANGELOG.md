@@ -42,6 +42,16 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Fixed
 
+- **Bốn màn hình chỉ thấy trang đầu của danh sách công việc mà không báo.** Server trả tối đa 100
+  việc mỗi trang (mặc định 50) và cắt `limit` lớn hơn về 100.
+  - Màn Công việc: Kanban, danh sách và chip "Tổng" dừng ở 50.
+  - Lịch: gửi `limit: 200`, nhận về 100.
+  - Gantt: dừng ở 100.
+  - Tìm kiếm toàn cục: lọc phía client trên 50 việc đầu, nên việc thứ 51 trở đi không bao giờ tìm thấy.
+
+  Nay cả bốn đi hết các trang qua `taskService.getAllPages`, trần 1000 việc. Màn Công việc vượt
+  trần thì báo "Đang hiện X / Y công việc". Cùng đợt sửa: chip "Bị chặn" đếm `status === 'cancelled'`,
+  một trạng thái không tồn tại, nên luôn ra 0.
 - **Kéo thẻ Kanban sang Hoàn thành không ghi `completedAt`.** Chỉ luồng "Báo hoàn thành" ghi mốc
   này. Hệ quả là báo cáo kết quả xếp phần lớn việc xong ở dự án không bật đánh giá vào "xong
   nhưng không có mốc", và loại chúng khỏi tỉ lệ đúng hạn. Nay mọi đường sang `done` đều ghi mốc,

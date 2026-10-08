@@ -43,9 +43,9 @@ phần đang dở trước khi lập lộ trình; nay đã commit, và `cross-co
   sang Hoàn thành không ghi `completedAt`, và `PUT` ghi được `completedAt` từ body. Việc đã xong
   trước bản vá vẫn không có mốc. Nếu cần, có thể khôi phục mốc từ nhật ký hoạt động
   (`UPDATE_TASK_STATUS` sang `done` có thời điểm), nhưng chưa làm.
-- ⏳ **Màn Công việc chỉ hiện 50 việc đầu mà không báo.** Màn này gọi `GET /tasks` không kèm
-  `limit`/`page`, server mặc định 50. Nút Xuất CSV đã tự đi hết các trang, nhưng danh sách trên
-  màn hình vẫn thiếu.
+- ✅ **Màn Công việc chỉ hiện 50 việc đầu mà không báo** — đã sửa ngày 2026-10-08. Rà ra thì Lịch
+  (100), Gantt (100) và tìm kiếm toàn cục (50) cũng mắc cùng lỗi. Cả bốn nay dùng
+  `taskService.getAllPages` (trần 1000 việc), và màn Công việc báo khi chạm trần.
 
 ## Lộ trình
 
