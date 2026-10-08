@@ -65,13 +65,13 @@ export default function ProjectDetailScreen({ route, navigation }) {
 
   const loadProjectData = useCallback(async () => {
     try {
-      const [pRes, tRes, gRes] = await Promise.all([
+      // Đi hết mọi trang: trước đây chỉ thấy 50 việc đầu (trang mặc định của server).
+      const [pRes, { tasks: rawTasks }, gRes] = await Promise.all([
         projectApi.getById(projectId),
-        taskApi.getAll({ project: projectId }),
+        taskApi.getAllPages({ project: projectId }),
         taskGroupApi.getByProject(projectId).catch(() => ({ data: { data: [] } })),
       ]);
       const projectData = pRes.data?.data?.project || pRes.data?.data || null;
-      const rawTasks = tRes.data?.data?.tasks || tRes.data?.tasks || (Array.isArray(tRes.data?.data) ? tRes.data.data : []);
       const rawGroups = gRes.data?.data?.groups || gRes.data?.groups || (Array.isArray(gRes.data?.data) ? gRes.data.data : []);
       setProject(projectData);
       setTasks(Array.isArray(rawTasks) ? rawTasks : []);

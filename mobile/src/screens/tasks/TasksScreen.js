@@ -143,11 +143,11 @@ export default function TasksScreen({ navigation }) {
       if (scopeFilter !== 'all') params.scope = scopeFilter;
       if (timeFilter !== 'all') params.timeFilter = timeFilter;
 
-      const [tRes, pRes] = await Promise.all([
-        taskApi.getAll(params),
+      // Đi hết mọi trang: trước đây chỉ thấy 50 việc đầu (trang mặc định của server).
+      const [{ tasks: rawTasks }, pRes] = await Promise.all([
+        taskApi.getAllPages(params),
         projectApi.getAll({ limit: 50 }),
       ]);
-      const rawTasks = tRes.data?.data?.tasks || tRes.data?.tasks || (Array.isArray(tRes.data?.data) ? tRes.data.data : []);
       const rawProjects = pRes.data?.data?.projects || pRes.data?.projects || (Array.isArray(pRes.data?.data) ? pRes.data.data : []);
       setTasks(Array.isArray(rawTasks) ? rawTasks : []);
       setProjects(Array.isArray(rawProjects) ? rawProjects : []);

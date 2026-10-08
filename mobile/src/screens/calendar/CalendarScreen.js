@@ -74,12 +74,12 @@ export default function CalendarScreen({ navigation }) {
       const from = currentMonth.startOf('month').subtract(7, 'day').format('YYYY-MM-DD');
       const to = currentMonth.endOf('month').add(7, 'day').format('YYYY-MM-DD');
 
-      const [tRes, pRes] = await Promise.all([
-        taskApi.getAll({ from, to, limit: 100 }),
+      // Đi hết mọi trang: trước đây `limit: 100` làm tháng có hơn 100 việc mất phần còn lại.
+      const [{ tasks: rawTasks }, pRes] = await Promise.all([
+        taskApi.getAllPages({ from, to }),
         projectApi.getAll({ limit: 50 }),
       ]);
 
-      const rawTasks = tRes.data?.data?.tasks || tRes.data?.tasks || (Array.isArray(tRes.data?.data) ? tRes.data.data : []);
       const rawProjects = pRes.data?.data?.projects || pRes.data?.projects || (Array.isArray(pRes.data?.data) ? pRes.data.data : []);
 
       setTasks(Array.isArray(rawTasks) ? rawTasks : []);
