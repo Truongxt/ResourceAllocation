@@ -35,6 +35,8 @@ import {
 } from '@ant-design/icons';
 import optimizationService from '../../services/optimizationService';
 import { formatCurrency } from '../../i18n/format';
+import { useAuth } from '../../context/AuthContext';
+import { optimizeScopeOf } from '../../utils/optimizeScope';
 import './BenchmarkStudio.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -71,6 +73,12 @@ const DATASET_PRESETS = [
 ];
 
 export default function BenchmarkStudio() {
+  const { user } = useAuth();
+  // "Dữ liệu thật" chạy trên toàn công ty; PM chỉ được dự án mình quản lý nên không có lựa
+  // chọn này (server cũng chặn bằng 403).
+  const presets = optimizeScopeOf(user) === 'managed'
+    ? DATASET_PRESETS.filter((preset) => preset.key !== 'live')
+    : DATASET_PRESETS;
   const [selectedDataset, setSelectedDataset] = useState('medium');
   const [running, setRunning] = useState(false);
   const [benchmarkData, setBenchmarkData] = useState(null);
@@ -329,7 +337,7 @@ export default function BenchmarkStudio() {
         <Row gutter={[16, 20]} align="middle">
           <Col xs={24} lg={18}>
             <div className="benchmark-dataset-grid">
-              {DATASET_PRESETS.map((preset) => {
+              {presets.map((preset) => {
                 const isSelected = selectedDataset === preset.key;
                 return (
                   <div

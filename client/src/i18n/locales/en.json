@@ -398,6 +398,7 @@
     "allProjects": "All projects",
     "pickAlgorithm": "Choose an algorithm",
     "filterByProject": "Filter by project (optional)",
+    "pickManagedProject": "Pick a project you manage",
     "gaParams": "GA parameters",
     "fitnessWeights": "Fitness weights",
     "weightWorkload": "Workload balance",

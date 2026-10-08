@@ -19,7 +19,8 @@ const SIDEBAR = {
     hidden: [],
   },
   project_manager: {
-    visible: ['Dashboard', 'Dự án', 'Công việc', 'Nhân sự', 'Gantt Chart', 'Báo cáo'],
+    // PM chạy được tối ưu, thu hẹp theo dự án mình quản lý (server/src/services/optimizeScope.js)
+    visible: ['Dashboard', 'Dự án', 'Công việc', 'Nhân sự', 'Tối ưu hóa', 'Benchmark Studio', 'Gantt Chart', 'Báo cáo'],
     hidden: [],
   },
   member: {

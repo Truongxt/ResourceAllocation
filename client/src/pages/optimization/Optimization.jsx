@@ -29,6 +29,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import optimizationService from '../../services/optimizationService';
 import projectService from '../../services/projectService';
+import { optimizeScopeOf, optimizableProjects } from '../../utils/optimizeScope';
 import OptimizationConfigCard from '../../components/optimization/OptimizationConfigCard';
 import OptimizationResultView from '../../components/optimization/OptimizationResultView';
 import OptimizationHistoryTable from '../../components/optimization/OptimizationHistoryTable';
@@ -41,6 +42,7 @@ export default function Optimization() {
   const { t } = useTranslation();
   const { user, hasAppAccess } = useAuth();
   const canAccess = Boolean(hasAppAccess ? hasAppAccess('optimize') : (user?.isOwner || user?.role === 'admin' || user?.appAdmins?.includes('optimize')));
+  const managedOnly = optimizeScopeOf(user) === 'managed';
 
   // --- TRẠNG THÁI CẤU HÌNH THUẬT TOÁN ---
   const [algorithm, setAlgorithm] = useState('genetic');
@@ -78,11 +80,17 @@ export default function Optimization() {
   const loadProjects = useCallback(async () => {
     try {
       const res = await projectService.getAll({ limit: 100 });
-      setProjects(res.data.data.projects || []);
+      // PM chỉ chạy được trên dự án mình quản lý, và không có "Tất cả dự án": chọn sẵn dự
+      // án đầu tiên để mọi nút trên trang dùng được ngay thay vì nhận 403.
+      const usable = optimizableProjects(res.data.data.projects || [], user);
+      setProjects(usable);
+      if (managedOnly && usable.length) {
+        setParams((p) => (p.projectId ? p : { ...p, projectId: usable[0]._id }));
+      }
     } catch {
       // Bỏ qua lỗi kết nối ban đầu
     }
-  }, []);
+  }, [user, managedOnly]);
 
   /**
    * Tải danh sách lịch sử các đợt chạy tối ưu
@@ -100,6 +108,11 @@ export default function Optimization() {
    * Tải dữ liệu trạng thái sẵn sàng (Pre-flight readiness)
    */
   const loadReadiness = useCallback(async () => {
+    // PM không có "Tất cả dự án": chưa chọn dự án thì không có gì để kiểm.
+    if (managedOnly && !params.projectId) {
+      setReadiness(null);
+      return;
+    }
     setReadinessLoading(true);
     try {
       const res = await optimizationService.getReadiness(params.projectId || undefined);
@@ -109,7 +122,7 @@ export default function Optimization() {
     } finally {
       setReadinessLoading(false);
     }
-  }, [params.projectId]);
+  }, [params.projectId, managedOnly]);
 
   useEffect(() => {
     loadProjects();
@@ -308,6 +321,7 @@ export default function Optimization() {
             params={params}
             setParams={setParams}
             projects={projects}
+            allowAllProjects={!managedOnly}
             running={running}
             onRun={handleRun}
             t={t}

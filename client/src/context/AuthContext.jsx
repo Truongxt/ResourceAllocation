@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
 import { setToken, clearToken, getToken } from '../services/tokenStore';
+import { optimizeScopeOf } from '../utils/optimizeScope';
 // Dùng thẳng i18n thay vì hook: các câu dưới đây chỉ là phương án dự phòng khi
 // server không trả về `message`, và chúng được dựng lúc gọi hàm chứ không phải
 // lúc render, nên không có gì để hook theo dõi.
@@ -122,6 +123,8 @@ export function AuthProvider({ children }) {
   // Kiểm tra quyền truy cập phân hệ / Quản trị ứng dụng (App Admin)
   const hasAppAccess = useCallback((appKey) => {
     if (!user) return false;
+    // Tối ưu hóa mở cho cả PM (thu hẹp theo dự án họ quản lý) — xem utils/optimizeScope.js.
+    if (appKey === 'optimize') return optimizeScopeOf(user) !== null;
     if (user.isOwner) return true;
     if (user.role === 'admin') return true;
     return Array.isArray(user.appAdmins) && user.appAdmins.includes(appKey);

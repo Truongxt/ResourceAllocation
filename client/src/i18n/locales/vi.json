@@ -398,6 +398,7 @@
     "allProjects": "Tất cả dự án",
     "pickAlgorithm": "Chọn thuật toán tối ưu",
     "filterByProject": "Lọc theo dự án (Tùy chọn)",
+    "pickManagedProject": "Chọn một dự án bạn quản lý",
     "gaParams": "Tham số thuật toán GA",
     "fitnessWeights": "Trọng số Fitness",
     "weightWorkload": "Cân bằng tải (Workload)",
