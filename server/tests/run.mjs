@@ -10,6 +10,8 @@
  */
 
 import { spawn } from 'child_process';
+import { rmSync } from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -18,6 +20,9 @@ const SERVER_DIR = path.join(__dirname, '..');
 
 const PORT = process.env.TEST_PORT || '5099';
 const DB = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/resource_allocation_test';
+// Tệp đính kèm của test nằm ngoài `server/uploads` của môi trường dev, và được dọn trước mỗi lượt.
+const UPLOAD_DIR = process.env.TEST_UPLOAD_DIR || path.join(os.tmpdir(), 'rao_test_uploads');
+rmSync(UPLOAD_DIR, { recursive: true, force: true });
 
 const SUITES = [
   // Bộ đơn vị, không cần server lẫn database — chạy trước để lỗi thuật toán lộ ra sớm.
@@ -56,6 +61,7 @@ const SUITES = [
   { name: 'jobs', file: 'jobs.test.mjs', label: 'Job định kỳ qua endpoint nội bộ' },
   { name: 'performance', file: 'performance.test.mjs', label: 'Báo cáo kết quả theo người — HTTP' },
   { name: 'optimize-pm', file: 'optimize-pm.test.mjs', label: 'Tối ưu hóa cho PM, thu hẹp theo dự án' },
+  { name: 'attachments', file: 'attachments.test.mjs', label: 'Đính kèm tệp trên công việc' },
 ];
 
 const filter = process.argv[2];
@@ -75,6 +81,7 @@ const env = {
   MONGODB_URI: DB,
   JWT_SECRET: process.env.JWT_SECRET || 'rao_test_secret',
   JOB_SECRET: process.env.JOB_SECRET || 'rao_test_job_secret',
+  UPLOAD_DIR,
   // Bộ e2e đăng nhập và gọi API liên tục từ cùng một IP; ngưỡng thật sẽ chặn giữa chừng.
   // Bản thân middleware giới hạn tần suất được kiểm riêng trong bộ `security`.
   AUTH_RATE_LIMIT_MAX: '10000',

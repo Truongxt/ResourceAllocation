@@ -9,6 +9,7 @@ const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
 const { createDeniedReason } = require('../middleware/taskAccess');
 const { placementError, inactiveProjectIds } = require('../services/projectLifecycle.service');
+const { removeAttachments } = require('../services/attachment.service');
 const {
   DEFAULT_COMPANY,
   companyOf,
@@ -863,6 +864,7 @@ const deleteTask = async (req, res, next) => {
     );
 
     await task.deleteOne();
+    await removeAttachments({ task: task._id });
 
     // Recalculate project progress
     await recalculateProjectProgress(projectId);

@@ -51,6 +51,13 @@ const {
   previewReassign,
   bulkReassign,
 } = require('../controllers/task.controller');
+const {
+  parseUpload,
+  listAttachments,
+  uploadAttachment,
+  downloadAttachment,
+  deleteAttachment,
+} = require('../controllers/attachment.controller');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -227,6 +234,17 @@ router.patch('/:id/deadline', taskIdValidation, validate, canUpdateDeadline(), u
 // Comments
 router.post('/:id/comments', taskIdValidation, validate, addComment);
 router.delete('/:id/comments/:commentId', deleteComment);
+
+// Tệp đính kèm. Nằm dưới `/:id` để đi qua `guardTaskCompany` (công ty, dự án lưu trữ) và
+// quyền phân hệ Công việc như mọi thao tác khác trên việc.
+const attachmentIdValidation = [
+  ...taskIdValidation,
+  param('attachmentId').isMongoId().withMessage('ID tệp không hợp lệ'),
+];
+router.get('/:id/attachments', taskIdValidation, validate, listAttachments);
+router.post('/:id/attachments', taskIdValidation, validate, parseUpload, uploadAttachment);
+router.get('/:id/attachments/:attachmentId/download', attachmentIdValidation, validate, downloadAttachment);
+router.delete('/:id/attachments/:attachmentId', attachmentIdValidation, validate, deleteAttachment);
 
 // Checklist
 router.post('/:id/checklist', taskIdValidation, validate, canManageChecklist(), addChecklistItem);

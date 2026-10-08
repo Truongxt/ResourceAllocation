@@ -7,6 +7,7 @@ const CompanySetting = require('../models/CompanySetting');
 const { logActivity } = require('../services/activityLog.service');
 const { stripProtected, usersError, departmentError } = require('../services/companyRefs.service');
 const { archiveBlocker, cloneProject } = require('../services/projectLifecycle.service');
+const { removeAttachments } = require('../services/attachment.service');
 
 /** Quản lý, thành viên và phòng ban gửi lên phải cùng công ty với dự án. */
 const projectRefsError = async ({ manager, members, department }, company) => {
@@ -557,6 +558,9 @@ const deleteProject = async (req, res, next) => {
     }
 
     if (req.query.force === 'true') {
+      // Tệp đính kèm trước, khi còn biết việc nào thuộc dự án — xóa việc rồi thì tệp thành mồ côi.
+      const taskIds = await Task.find({ project: req.params.id }).distinct('_id');
+      await removeAttachments({ task: { $in: taskIds } });
       await Task.deleteMany({ project: req.params.id });
     }
 
