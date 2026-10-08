@@ -506,7 +506,9 @@ thống, hỗ trợ khách, họp định kỳ):
 Nếu dự án còn task, API trả **400** kèm hướng dẫn. Thêm `?force=true` để xóa dự án **và toàn bộ task** của nó.
 
 ### Danh sách dự án có thêm `taskStats`
-Mỗi phần tử trong `GET /` được bổ sung `taskStats: { totalTasks, completedTasks }`.
+Mỗi phần tử trong `GET /` được bổ sung `taskStats: { totalTasks, completedTasks, openTasks }`.
+`openTasks` đếm việc `todo`/`in_progress`/`review` — đúng tập tối ưu hóa đọc; trang Tối ưu dùng nó
+để chọn sẵn cho PM một dự án chạy được.
 
 ---
 

@@ -10,6 +10,13 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Added
 
+- **Mobile: PM vào được Tối ưu hóa**, giống web: ô chọn dự án chỉ có dự án họ quản lý, không có "Tất cả
+  dự án"; Benchmark ẩn "Dữ liệu Thật". Owner/Admin có thêm ô chọn dự án (mặc định "Tất cả dự án").
+  Logic phạm vi chép nguyên `client/src/utils/optimizeScope.js`, có test khóa hai bản giống nhau.
+- **PM được chọn sẵn dự án còn việc mở** (web và mobile) thay vì dự án mới nhất — với dữ liệu mẫu là
+  RAO-MOB, không có việc mở, bấm chạy nhận 400. `GET /projects` trả thêm `taskStats.openTasks`
+  (todo/in_progress/review, đúng tập tối ưu hóa đọc).
+- **Script `npm run measure:csp-soft`** đo lại bảng S1/S3 của ALGORITHMS.md mục 2.3 với seed cố định.
 - **PM chạy được tối ưu hóa, thu hẹp theo dự án mình quản lý** (`Project.manager`). Trước đây
   `authorizeApp('optimize')` chặn PM ngay cửa, nên cả hai route Áp dụng/Hoàn tác vốn đã khai cho PM
   cũng không tới được. Mọi lối vào đều kiểm dự án: chạy, `/readiness`, benchmark dữ liệu thật, lịch sử,
@@ -76,6 +83,11 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Fixed
 
+- **Mobile: màn Tối ưu hóa chưa từng chạy được.** Gọi `POST /optimization/run` — route không tồn tại
+  (server có `/run/genetic|csp|hybrid`) — với trọng số sai tên. Kèm theo: độ khớp kỹ năng nhân thêm 100
+  (server đã trả 0–100, ra "Khớp 8500%"); số giả "92%"/"420ms" khi thiếu dữ liệu; báo "Thành công" cả khi
+  thuật toán không xếp được; lịch sử đọc `status === 'applied'` (không tồn tại, trường thật là
+  `isApplied`) nên phương án đã áp dụng vẫn có nút Áp dụng, và "Đã gán" luôn ra 0.
 - **Việc lặp lại lỡ nhiều lượt** (cron ngừng) phải đợi chừng ấy lần gọi mới đuổi kịp. Nay một lần gọi sinh
   bù mọi lượt đến hạn, mỗi việc mang đúng ngày của lượt đó, tối đa 31 lượt mỗi cấu hình.
 - **Seeder tạo việc Hoàn thành không có `completedAt`**, nên mọi database mới đều có một việc "xong nhưng

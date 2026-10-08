@@ -8,13 +8,12 @@ Mười hạng mục, chia thành chín giai đoạn. Mỗi giai đoạn tự ch
 được commit riêng. Chỉ giai đoạn đang làm mới có plan chi tiết. Lý do: các giai đoạn sau
 phụ thuộc vào những gì giai đoạn trước để lại, nên viết chi tiết trước sẽ phải viết lại.
 
-## Trạng thái (cập nhật 2026-10-08)
+## Trạng thái (cập nhật 2026-10-09)
 
 **Ưu tiên hiện tại (chốt với người dùng ngày 2026-10-08): hoàn thành chương trình trước, sửa luận văn sau.**
 
-Số test ở lần chạy gần nhất (2026-10-08, sau đợt dọn tồn đọng thứ hai): server **35/35 bộ**, client **58/58**
-(cộng 5 bộ logic thuần), mobile **35 + 14** (node thuần) **+ 10** (jest). e2e **89/89** khi chạy trọn bộ sau GĐ9;
-sau đó thêm 2 bài (Tối ưu cho PM) và sửa 1 bài (sidebar PM), chỉ chạy lại hai file `06`, `08` (18/18).
+Số test ở lần chạy gần nhất (2026-10-09, sau đợt dọn tồn đọng thứ ba): server **35/35 bộ**, client **58/58**
+(cộng 5 bộ logic thuần), mobile **38 + 14 + 1** (node thuần) **+ 19** (jest), e2e **91/91** (trọn bộ).
 
 ### Đã làm
 
@@ -28,6 +27,7 @@ sau đó thêm 2 bài (Tối ưu cho PM) và sửa 1 bài (sidebar PM), chỉ ch
 | 6 | Thuật toán phần 2 (job, snapshot, Régin) | `0bae0f4`, `9e946f9` | [plan](./2026-10-08-job-dinh-ky-va-thuat-toan-phan-2.md). Job qua endpoint nội bộ + cron ngoài; ảnh chụp workload; Régin đo rồi bỏ (clique lớn nhất = 2) |
 | — | Dọn tồn đọng nhỏ | `8b01b01`, `ca15897`, `edd9847`, `66c1660`, `72d31a4`, `f5b8b00` | Nút ở dạng thẻ màn Dự án; cảnh báo job `stale` trên Dashboard; bộ sinh dữ liệu Benchmark theo vai trò; CSP tách hết ngân sách khỏi vô nghiệm; Benchmark Studio về ngưỡng 0.5 (người dùng chốt 2026-10-08) |
 | — | Dọn tồn đọng, đợt hai | `fbbd5ab`, `178eb51`, `7f984e2`, `3662cdd`, `05acc0b` | Trùng index `companyName`; khôi phục `completedAt` (script + seeder); việc lặp lại sinh bù lượt lỡ (trần 31); PM chạy tối ưu theo dự án mình quản lý (server + web) |
+| — | Dọn tồn đọng, đợt ba | `bd27c24`, `86ae1db`, `bd74ae1`, `7462d3f` | PM chọn sẵn dự án còn việc mở (`taskStats.openTasks`); mobile mở Tối ưu cho PM; đo lại S1/S3 bằng bộ sinh mới (`npm run measure:csp-soft`); e2e trọn bộ 91/91 |
 | 9 | Mobile: Gantt, test giao diện | `7be9ee8`, `2d486ab`, `a609ea5`, `172c062` | [plan](./2026-10-08-mobile-gantt.md). Gantt chỉ xem; jest-expo + RNTL; mobile tải đủ mọi trang |
 
 **Lỗi phát hiện trong lúc làm và đã sửa** (mỗi lỗi đều được tái hiện trước khi sửa và có test giữ lại):
@@ -48,6 +48,8 @@ sau đó thêm 2 bài (Tối ưu cho PM) và sửa 1 bài (sidebar PM), chỉ ch
 | Bộ sinh dữ liệu Benchmark làm CSP vô nghiệm 0/30 bộ small (26% việc không ai đạt ngưỡng H2) | `edd9847` |
 | CSP báo "vô nghiệm" khi chỉ chạm `maxIterations`/`timeout`, và đếm vượt trần (~10 250 bước) | `72d31a4` |
 | Mobile: Công việc / chi tiết dự án chỉ thấy 50 việc đầu, Lịch chỉ thấy 100 | `2d486ab` |
+| Mobile: màn Tối ưu gọi `POST /optimization/run` (không tồn tại) nên chưa từng chạy được; độ khớp kỹ năng nhân thêm 100; số giả khi thiếu dữ liệu; lịch sử đọc `status === 'applied'` (trường thật là `isApplied`) | `86ae1db` |
+| Bài test `jobs` lấy "hôm nay" theo UTC, đỏ oan từ 00:00 đến 07:00 giờ VN | `7462d3f` |
 
 ### Chưa làm
 
@@ -59,31 +61,23 @@ sau đó thêm 2 bài (Tối ưu cho PM) và sửa 1 bài (sidebar PM), chỉ ch
 | 8 | Đính kèm tệp thật | Lưu đĩa hay S3; trần dung lượng |
 | 10 | react-router v7 | Có chấp nhận đổi API router không |
 
-**Việc dở, chưa làm** (cập nhật 2026-10-08, theo thứ tự nên làm):
+**Việc dở, chưa làm** (cập nhật 2026-10-09, theo thứ tự nên làm):
 
-1. **Mobile chưa mở Tối ưu hóa cho PM.** Server và web đã cho PM chạy trên dự án mình quản lý (`3662cdd`,
-   `05acc0b`), nhưng `mobile/src/utils/appPermissions.js` (`hasAppAccess`) vẫn chỉ cho Owner/Admin/App Admin,
-   nên PM không thấy tab Tối ưu hóa. Khi mở phải làm như web: `OptimizationScreen` chỉ liệt kê dự án PM quản lý,
-   không có "Tất cả dự án"; màn Benchmark ẩn lựa chọn dữ liệu thật. Logic phạm vi nên chép nguyên
-   `client/src/utils/optimizeScope.js` kèm bài test so hai bản, như đã làm với `gantt.js`.
-2. **Chạy lại trọn bộ e2e.** Sau các commit tối ưu cho PM mới chạy lại hai file `06`, `08`.
-3. **Đo lại các bảng trước/sau ở ALGORITHMS.md mục 2.3** bằng bộ sinh dữ liệu mới (`edd9847`) và ngưỡng 0.5.
-   Bảng hiện tại đo bằng bộ sinh cũ ở ngưỡng 0.1 và 0. Bản "trước" là thứ tự LCV chỉ xét chỗ trống (trước
-   `1c73ee0`); đo trên cùng 30 bộ mỗi cỡ, so cặp các bộ cả hai bản cùng giải được.
-4. **Quyết định có chỉnh trọng số S1/S3 không** (`SOFT_WEIGHTS` trong `CSPSolver.js`). S1/S3 làm tải kém cân hơn
-   (σ medium 15.3 → 16.2, số đo cũ). Chờ số của mục 3 rồi mới quyết.
-5. **Database dev còn 1 việc Hoàn thành không có `completedAt`** ("Thiết kế Design System & Wireframes", do
+1. **Quyết định có chỉnh trọng số S1/S3 không** (`SOFT_WEIGHTS` trong `CSPSolver.js`) — cần người dùng quyết.
+   Số đo mới (ALGORITHMS.md mục 2.3, bộ sinh mới, ngưỡng 0.5, medium): khớp kỹ năng 85 → 94%, chuyển ngữ cảnh
+   60.6 → 33.8, fitness 0.796 → 0.820, nhưng σ tải 16.4 → 18.3 giờ (small: 14.8 → 18.0). Giữ nguyên, hay tăng
+   trọng số S2 (chỗ trống) để đổi bớt khớp kỹ năng lấy cân tải. Chỉnh xong thì đo lại bằng
+   `npm run measure:csp-soft` (thư mục `server`).
+2. **Database dev còn 1 việc Hoàn thành không có `completedAt`** ("Thiết kế Design System & Wireframes", do
    seeder cũ tạo, không có nhật ký nên script để nguyên). Seed lại hoặc sửa tay. Môi trường khác thì chạy
    `npm run migrate:completed-at` (chạy khô trước), rồi `-- --apply`.
-6. **Nhỏ, giao diện:** trang Tối ưu của PM chọn sẵn dự án đầu tiên theo thứ tự tạo mới nhất, có thể là dự án
-   không có việc mở (với dữ liệu mẫu là RAO-MOB) — bấm chạy thì nhận 400. Nên chọn sẵn dự án có việc mở.
-7. **Khi triển khai phải cấu hình cron và `JOB_SECRET`** (README mục "Job định kỳ"). Thiếu thì hai job không bao
+3. **Khi triển khai phải cấu hình cron và `JOB_SECRET`** (README mục "Job định kỳ"). Thiếu thì hai job không bao
    giờ chạy; Dashboard cảnh báo Owner/Admin khi có job `stale` (`ca15897`).
-8. **Báo cáo luận văn dùng số đo cũ** — để sau cùng theo quyết định ngày 2026-10-08. `docs/build_thesis_report.py`
+4. **Báo cáo luận văn dùng số đo cũ** — để sau cùng theo quyết định ngày 2026-10-08. `docs/build_thesis_report.py`
    dòng 503–509 và 527 (kéo theo file `.docx`/`.pdf`) ghi "GA dừng sau 119 thế hệ, Hybrid 90, giảm ~24%". Số đúng:
    76.3 / 51.8 thế hệ dừng (Hybrid ít hơn ~32%), hội tụ 90% ở thế hệ 13.9 / 1.8. Fitness 0.8530 cả hai. Báo cáo
    cũng chưa có S1/S3, `contextSwitches`, bộ sinh dữ liệu mới, ngưỡng 0.5 của Benchmark và các bản sửa ở bảng trên.
-   Nên làm sau mục 3 để lấy số mới một lần.
+   Số mới của S1/S3 đã có (ALGORITHMS.md mục 2.3, `bd74ae1`); nếu mục 1 đổi trọng số thì đo lại trước khi sửa.
 
 ## Lộ trình
 
