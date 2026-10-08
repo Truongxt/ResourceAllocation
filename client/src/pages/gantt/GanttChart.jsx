@@ -49,6 +49,13 @@ const ZOOM_LEVELS = [
 
 const GROUP_MODES = ['none', 'project', 'resource'];
 
+// Bản in: co cả biểu đồ (cột tên + trục thời gian) cho vừa bề ngang một trang A4
+// ngang. 1000px chừa chỗ cho lề nội dung trong bề ngang in được 277mm ≈ 1047px.
+// Tính từ `chartWidth` chứ không đo DOM lúc in, vì trình duyệt dàn trang in xong
+// mới có số đo — khi đó đã muộn để đổi.
+const GANTT_SIDEBAR_WIDTH = 260; // khớp `.gantt-sidebar` trong GanttChart.css
+const PRINT_TARGET_WIDTH = 1000;
+
 const UNGROUPED_KEY = '__ungrouped__';
 
 // Phải khớp với chiều cao hàng trong GanttChart.css (.gantt-timeline-row).
@@ -154,6 +161,7 @@ export default function GanttChart() {
   }, [timelineStart, totalDays]);
 
   const chartWidth = totalDays * zoom.dayWidth;
+  const printZoom = Math.min(1, PRINT_TARGET_WIDTH / (GANTT_SIDEBAR_WIDTH + chartWidth));
 
   // ──────────────────────────────────────────────
   // Row model: danh sách phẳng gồm hàng nhóm và hàng task, dùng chung
@@ -495,7 +503,7 @@ export default function GanttChart() {
   const taskCount = rows.filter((r) => r.type === 'task').length;
 
   return (
-    <div style={{ maxWidth: 1400 }}>
+    <div className="gantt-page" style={{ maxWidth: 1400 }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
@@ -585,7 +593,7 @@ export default function GanttChart() {
           {tasks.length === 0 ? (
             <Empty description={t('gantt.empty')} style={{ padding: 48 }} />
           ) : (
-            <div className="gantt-viewport">
+            <div className="gantt-viewport" style={{ '--gantt-print-zoom': printZoom }}>
               {/* Task Names Sidebar */}
               <div className="gantt-sidebar">
                 <div className="gantt-sidebar-header">

@@ -68,6 +68,7 @@ function AppLayout({ children }) {
     <Layout style={{ minHeight: '100vh' }}>
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       <Layout
+        className="app-main"
         style={{
           marginLeft: collapsed ? 72 : 240,
           transition: 'margin-left 0.2s ease',
@@ -77,6 +78,7 @@ function AppLayout({ children }) {
       >
         <Header collapsed={collapsed} />
         <Content
+          className="app-content"
           style={{
             marginTop: 80,
             marginBottom: 24,

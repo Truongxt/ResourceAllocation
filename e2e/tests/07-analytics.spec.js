@@ -8,6 +8,28 @@
 
 const { test, expect } = require('@playwright/test');
 const { login, watchForProblems } = require('../support/helpers');
+const zlib = require('zlib');
+
+/**
+ * Các màu tô (`r g b rg`) xuất hiện trong một file PDF. Giải nén từng stream rồi gom
+ * lệnh tô màu — đủ để biết một màu có thật sự được in ra không, không cần dựng ảnh.
+ */
+const pdfFillColors = (buf) => {
+  const s = buf.toString('latin1');
+  const fills = [];
+  for (const m of s.matchAll(/stream\r?\n/g)) {
+    const start = m.index + m[0].length;
+    try {
+      const ops = zlib.inflateSync(buf.subarray(start, s.indexOf('endstream', start))).toString('latin1');
+      for (const f of ops.match(/[\d.]+ [\d.]+ [\d.]+ rg/g) || []) fills.push(f.split(' ').slice(0, 3).map(Number));
+    } catch { /* stream không nén bằng Flate (ảnh, font) */ }
+  }
+  return fills;
+};
+const hasFill = (fills, hex) => {
+  const want = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return fills.some((f) => f.every((v, i) => Math.abs(v - want[i]) < 0.01));
+};
 
 test.describe('Dashboard', () => {
   test.beforeEach(async ({ page }) => {
@@ -94,6 +116,39 @@ test.describe('Sơ đồ Gantt', () => {
       await content.locator('.ant-segmented-item').filter({ hasText: scale }).first().click();
       await expect(content).toContainText('Công việc (3)');
     }
+  });
+
+  test('bản in chứa trọn trục thời gian, co vừa bề ngang trang', async ({ page }, testInfo) => {
+    // Thang Ngày là thang rộng nhất: trục thời gian dài hơn màn hình nhiều lần.
+    await page.locator('.ant-layout-content .ant-segmented-item').filter({ hasText: 'Ngày' }).first().click();
+    await expect(page.locator('.gantt-task-bar').first()).toBeVisible();
+
+    // Bề ngang in được của A4 ngang, lề 10mm: 277mm ≈ 1047px. Trình duyệt dàn trang in
+    // theo bề ngang này, nên đo trên viewport cùng cỡ dưới media print.
+    const PRINTABLE = 1047;
+    await page.setViewportSize({ width: PRINTABLE, height: 900 });
+    await page.emulateMedia({ media: 'print' });
+
+    const m = await page.evaluate(() => {
+      const wrap = document.querySelector('.gantt-timeline-wrap');
+      const cells = document.querySelectorAll('.gantt-header-cell');
+      return {
+        hiddenBehindScroll: wrap.scrollWidth - wrap.clientWidth,
+        viewportRight: document.querySelector('.gantt-viewport').getBoundingClientRect().right,
+        lastCellRight: cells[cells.length - 1].getBoundingClientRect().right,
+      };
+    });
+    expect(m.hiddenBehindScroll, 'phần trục thời gian nằm khuất sau thanh cuộn').toBeLessThanOrEqual(1);
+    expect(m.viewportRight, 'mép phải biểu đồ').toBeLessThanOrEqual(PRINTABLE + 1);
+    expect(m.lastCellRight, 'mép phải ô ngày cuối cùng').toBeLessThanOrEqual(PRINTABLE + 1);
+
+    // PDF thật, giữ lại để mở ra xem khi cần.
+    // `printBackground: false` giống mặc định của hộp thoại in: thanh Gantt vẽ bằng màu nền,
+    // nên phải tự giữ màu (`print-color-adjust`) chứ không trông vào ô "Đồ họa nền".
+    const pdf = await page.pdf({ path: testInfo.outputPath('gantt.pdf'), preferCSSPageSize: true, printBackground: false });
+    const fills = pdfFillColors(pdf);
+    expect(hasFill(fills, '#3b82f6'), 'thanh "Đang làm" còn màu trong PDF').toBe(true);
+    expect(hasFill(fills, '#10b981'), 'thanh "Hoàn thành" còn màu trong PDF').toBe(true);
   });
 
   test('chú giải trạng thái và đường găng hiện đủ', async ({ page }) => {

@@ -69,3 +69,9 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+/* In: thanh bên và header đã ẩn, nên bỏ luôn lề chừa cho chúng (inline style trong
+   App.jsx) — không thì mọi trang in mất khoảng 265px bề ngang ở mép trái. */
+@media print {
+  .app-main { margin-left: 0 !important; transition: none !important; background: #fff !important; }
+  .app-content { margin: 0 !important; min-height: 0 !important; }
+}
