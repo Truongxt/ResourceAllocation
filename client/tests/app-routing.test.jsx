@@ -33,6 +33,11 @@ vi.mock('../src/services/analyticsService', () => ({
   default: { getDashboard: vi.fn().mockResolvedValue({ data: { data: {} } }) },
 }));
 
+// Dashboard hỏi trạng thái job cho admin; không mock thì mỗi lần dựng là một request thật.
+vi.mock('../src/services/jobService', () => ({
+  default: { getStatus: vi.fn().mockResolvedValue({ data: { data: { jobs: [] } } }) },
+}));
+
 const { default: App } = await import('../src/App.jsx');
 
 // Mốc nhận biết chunk Dashboard đã về. Neo vào tiêu đề trang (role heading) chứ không
