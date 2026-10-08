@@ -156,20 +156,29 @@ export default function ProjectDetailScreen({ route, navigation }) {
         showBack
         onBack={() => navigation.goBack()}
         rightElement={
-          <TouchableOpacity
-            style={styles.editBtnHeader}
-            onPress={() => {
-              if (project) {
-                setEditName(project.name || '');
-                setEditCode(project.code || '');
-                setEditBudget(String(project.budget || ''));
-                setEditDesc(project.description || '');
-                setEditModalOpen(true);
-              }
-            }}
-          >
-            <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity
+              style={styles.editBtnHeader}
+              accessibilityLabel="Xem tiến độ (Gantt)"
+              onPress={() => navigation.navigate('GanttScreen', { projectId })}
+            >
+              <Ionicons name="bar-chart-outline" size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.editBtnHeader}
+              onPress={() => {
+                if (project) {
+                  setEditName(project.name || '');
+                  setEditCode(project.code || '');
+                  setEditBudget(String(project.budget || ''));
+                  setEditDesc(project.description || '');
+                  setEditModalOpen(true);
+                }
+              }}
+            >
+              <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
+          </View>
         }
       />
 

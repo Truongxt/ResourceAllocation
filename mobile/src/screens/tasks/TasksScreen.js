@@ -580,6 +580,26 @@ export default function TasksScreen({ navigation }) {
             />
           </TouchableOpacity>
 
+          {/* Gantt View Button */}
+          <TouchableOpacity
+            accessibilityLabel="Xem tiến độ (Gantt)"
+            onPress={() => navigation.navigate('GanttScreen')}
+            style={[
+              styles.calendarNavBtn,
+              {
+                backgroundColor: theme.isDark
+                  ? 'rgba(255,255,255,0.08)'
+                  : '#e2e8f0',
+              },
+            ]}
+          >
+            <Ionicons
+              name="bar-chart-outline"
+              size={18}
+              color={theme.colors.text}
+            />
+          </TouchableOpacity>
+
           {/* Add Task Button */}
           <TouchableOpacity
             onPress={() => setShowCreateModal(true)}
