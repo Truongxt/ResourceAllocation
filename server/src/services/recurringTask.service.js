@@ -109,6 +109,17 @@ async function generatePendingRecurringTasks() {
       const taskStart = item.nextRunDate || now;
       const taskEnd = new Date(taskStart.getTime() + (item.durationHours || 8) * 3600 * 1000);
 
+      // 0. NHẬN lượt này trước khi tạo gì. Job được cron bên ngoài gọi, có thể gọi trùng
+      // (gọi lại khi timeout, hai instance): hai lần chạy cùng đọc thấy cấu hình đến hạn.
+      // Chỉ lần nào đổi được `nextRunDate` từ đúng giá trị cũ mới được sinh việc. Lỡ tạo
+      // việc lỗi sau khi đã nhận thì mất một lượt — vẫn hơn sinh trùng.
+      const nextDate = calculateNextRunDate(item, taskStart);
+      const claimed = await RecurringTask.findOneAndUpdate(
+        { _id: item._id, isActive: true, nextRunDate: item.nextRunDate ?? null },
+        { $set: { nextRunDate: nextDate, lastGeneratedAt: now, ...(nextDate ? {} : { isActive: false }) } },
+      );
+      if (!claimed) continue;
+
       // 1. Tạo công việc cha
       const newTask = await Task.create({
         title: item.title,
@@ -156,15 +167,7 @@ async function generatePendingRecurringTasks() {
         }
       }
 
-      // 3. Tính mốc sinh tiếp theo
-      const nextDate = calculateNextRunDate(item, taskStart);
-      item.lastGeneratedAt = now;
-      item.nextRunDate = nextDate;
-      if (!nextDate) {
-        item.isActive = false; // Đã hết hạn chu kỳ
-      }
-      await item.save();
-
+      // Mốc sinh tiếp theo đã được ghi lúc nhận lượt (bước 0); hết chu kỳ thì đã tắt.
       generatedTasks.push(newTask);
     } catch (err) {
       console.error(`[RecurringTask] Error generating task for ${item._id}:`, err);

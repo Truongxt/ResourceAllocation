@@ -17,6 +17,8 @@ const activityLogRoutes = require('./src/routes/activityLog.routes');
 const taskGroupRoutes = require('./src/routes/taskGroup.routes');
 const recurringTaskRoutes = require('./src/routes/recurringTask.routes');
 const companySettingRoutes = require('./src/routes/companySetting.routes');
+const jobRoutes = require('./src/routes/job.routes');
+const internalRoutes = require('./src/routes/internal.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./src/middleware/error');
@@ -58,6 +60,9 @@ app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/task-groups', taskGroupRoutes);
 app.use('/api/recurring-tasks', recurringTaskRoutes);
 app.use('/api/company-settings', companySettingRoutes);
+app.use('/api/jobs', jobRoutes);
+// Gọi từ cron bên ngoài, khóa bằng X-Job-Secret — không qua đăng nhập. Xem internal.routes.js.
+app.use('/api/internal', internalRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

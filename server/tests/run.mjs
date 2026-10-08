@@ -51,6 +51,7 @@ const SUITES = [
   { name: 'hardening', file: 'hardening.test.mjs', label: 'Phân lập công ty, rò mật khẩu, validate payload' },
   { name: 'company-isolation', file: 'company-isolation.test.mjs', label: 'Phân lập công ty trên task, dự án, nhân sự, phòng ban' },
   { name: 'cross-company-refs', file: 'cross-company-refs.test.mjs', label: 'Id công ty khác trong body và query' },
+  { name: 'jobs', file: 'jobs.test.mjs', label: 'Job định kỳ qua endpoint nội bộ' },
   { name: 'performance', file: 'performance.test.mjs', label: 'Báo cáo kết quả theo người — HTTP' },
 ];
 
@@ -70,6 +71,7 @@ const env = {
   TEST_PORT: PORT,
   MONGODB_URI: DB,
   JWT_SECRET: process.env.JWT_SECRET || 'rao_test_secret',
+  JOB_SECRET: process.env.JOB_SECRET || 'rao_test_job_secret',
   // Bộ e2e đăng nhập và gọi API liên tục từ cùng một IP; ngưỡng thật sẽ chặn giữa chừng.
   // Bản thân middleware giới hạn tần suất được kiểm riêng trong bộ `security`.
   AUTH_RATE_LIMIT_MAX: '10000',

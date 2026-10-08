@@ -2,6 +2,7 @@ const Project = require('../models/Project');
 const Task = require('../models/Task');
 const Resource = require('../models/Resource');
 const User = require('../models/User');
+const WorkloadSnapshot = require('../models/WorkloadSnapshot');
 const OptimizationResult = require('../models/OptimizationResult');
 const mongoose = require('mongoose');
 const { buildWorkloadTrend, weeklyLoadOf } = require('../analytics/workloadTrend');
@@ -689,7 +690,61 @@ const getPerformanceReport = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Lịch sử tải ĐÃ GHI NHẬN theo ngày (từ job `workload-snapshot`)
+ * @route   GET /api/analytics/workload-history?from&to
+ * @access  Private — cùng phạm vi nhân sự với các báo cáo analytics khác
+ *
+ * Khác `workload-trend`: endpoint đó suy tải từ lịch hiện tại, còn đây là con số đã được
+ * chụp tại từng ngày. Ngày chưa có ảnh chụp (job chưa chạy) thì không có điểm — không nội
+ * suy, để chỗ trống lộ ra là job đã không chạy. Mặc định 30 ngày gần nhất.
+ */
+const getWorkloadHistory = async (req, res, next) => {
+  try {
+    const now = new Date();
+    const from = req.query.from ? parseBound(req.query.from, false) : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+    const to = req.query.to ? parseBound(req.query.to, true) : now;
+    if (!from || !to || from > to) {
+      return res.status(400).json({ success: false, message: 'Khoảng thời gian không hợp lệ' });
+    }
+
+    const { resourceMatch } = await getUserAnalyticsScope(req.user);
+    const resources = await Resource.find(resourceMatch).populate('user', 'name').select('user position').lean();
+    const snapshots = await WorkloadSnapshot.find({
+      resource: { $in: resources.map((r) => r._id) },
+      date: { $gte: from, $lte: to },
+    }).sort('date').lean();
+
+    const byResource = new Map(resources.map((r) => [String(r._id), { _id: r._id, name: r.user?.name || r.position, points: [] }]));
+    const totals = new Map();
+    snapshots.forEach((s) => {
+      const point = { date: s.date, workload: s.workload, capacity: s.capacity, utilization: s.utilization, openTasks: s.openTasks };
+      byResource.get(String(s.resource))?.points.push(point);
+      const key = s.date.toISOString();
+      const total = totals.get(key) || { date: s.date, workload: 0, capacity: 0 };
+      total.workload = Math.round((total.workload + s.workload) * 10) / 10;
+      total.capacity += s.capacity;
+      totals.set(key, total);
+    });
+
+    res.json({
+      success: true,
+      data: {
+        history: {
+          from,
+          to,
+          resources: [...byResource.values()].filter((r) => r.points.length),
+          totals: [...totals.values()],
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
+  getWorkloadHistory,
   getDashboardOverview,
   getUtilizationBreakdown,
   getTaskAnalytics,

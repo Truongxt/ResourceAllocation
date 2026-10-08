@@ -9,6 +9,7 @@ const {
   getWorkloadTrend,
   getOptimizationComparison,
   getPerformanceReport,
+  getWorkloadHistory,
 } = require('../controllers/analytics.controller');
 
 const router = express.Router();
@@ -21,6 +22,7 @@ router.get('/utilization', getUtilizationBreakdown);
 router.get('/tasks', getTaskAnalytics);
 router.get('/workload-trend', getWorkloadTrend);
 router.get('/performance', getPerformanceReport);
+router.get('/workload-history', getWorkloadHistory);
 router.get(
   '/optimization-comparison/:id',
   [param('id').isMongoId().withMessage('ID không hợp lệ')],

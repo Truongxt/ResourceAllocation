@@ -13,6 +13,8 @@ const RefreshToken = require('../models/RefreshToken');
 const TaskGroup = require('../models/TaskGroup');
 const RecurringTask = require('../models/RecurringTask');
 const CompanySetting = require('../models/CompanySetting');
+const JobRun = require('../models/JobRun');
+const WorkloadSnapshot = require('../models/WorkloadSnapshot');
 const { syncResourceWorkload } = require('../services/workload.service');
 
 // .env nằm ở thư mục gốc dự án, không phải trong server/
@@ -38,6 +40,8 @@ async function seedData() {
       // trỏ vào khoảng không. Bỏ sót thì chúng nằm lại tới khi TTL dọn.
       RefreshToken,
       TaskGroup, RecurringTask, CompanySetting,
+      // Lịch sử job nói về dữ liệu đã bị xóa; để lại thì /jobs/status báo "đã chạy" sai.
+      JobRun, WorkloadSnapshot,
     ];
     await Promise.all(collections.map((model) => model.deleteMany({})));
     console.log(`Cleared all ${collections.length} collections.`);
