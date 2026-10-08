@@ -13,7 +13,7 @@ phụ thuộc vào những gì giai đoạn trước để lại, nên viết ch
 **Ưu tiên hiện tại (chốt với người dùng ngày 2026-10-08): hoàn thành chương trình trước, sửa luận văn sau.**
 
 Số test ở lần chạy gần nhất (sau đợt dọn tồn đọng, 2026-10-08): server **33/33 bộ**, client **58/58** (cộng 4
-bộ logic thuần). e2e **88/88** khi chạy trọn bộ sau GĐ4. Sau đó có thêm 1 bài e2e (Benchmark Studio), đã chạy
+bộ logic thuần), mobile **35 + 14 + 10 jest**. e2e **88/88** khi chạy trọn bộ sau GĐ4. Sau đó có thêm 1 bài e2e (Benchmark Studio), đã chạy
 riêng theo file và đạt. **e2e chưa chạy lại sau đợt dọn tồn đọng.**
 
 ### Đã làm
@@ -27,6 +27,7 @@ riêng theo file và đạt. **e2e chưa chạy lại sau đợt dọn tồn đ�
 | 5 | Thuật toán phần 1 (S1/S3, hội tụ) | `1c73ee0`, `b13e3c0` | [plan](./2026-10-08-thuat-toan-phan-1.md). Số đo trước/sau ở ALGORITHMS.md mục 2.3 và 3.3 |
 | 6 | Thuật toán phần 2 (job, snapshot, Régin) | `0bae0f4`, `9e946f9` | [plan](./2026-10-08-job-dinh-ky-va-thuat-toan-phan-2.md). Job qua endpoint nội bộ + cron ngoài; ảnh chụp workload; Régin đo rồi bỏ (clique lớn nhất = 2) |
 | — | Dọn tồn đọng nhỏ | `8b01b01`, `ca15897`, `edd9847`, `66c1660`, `72d31a4`, `f5b8b00` | Nút ở dạng thẻ màn Dự án; cảnh báo job `stale` trên Dashboard; bộ sinh dữ liệu Benchmark theo vai trò; CSP tách hết ngân sách khỏi vô nghiệm; Benchmark Studio về ngưỡng 0.5 (người dùng chốt 2026-10-08) |
+| 9 | Mobile: Gantt, test giao diện | `7be9ee8`, `2d486ab`, `a609ea5`, `172c062` | [plan](./2026-10-08-mobile-gantt.md). Gantt chỉ xem; jest-expo + RNTL; mobile tải đủ mọi trang |
 
 **Lỗi phát hiện trong lúc làm và đã sửa** (mỗi lỗi đều được tái hiện trước khi sửa và có test giữ lại):
 
@@ -45,16 +46,16 @@ riêng theo file và đạt. **e2e chưa chạy lại sau đợt dọn tồn đ�
 | Dạng thẻ ở màn Dự án: dự án lưu trữ còn nút sửa; quyền "Chỉ xem" còn thấy nút sửa/xóa | `8b01b01` |
 | Bộ sinh dữ liệu Benchmark làm CSP vô nghiệm 0/30 bộ small (26% việc không ai đạt ngưỡng H2) | `edd9847` |
 | CSP báo "vô nghiệm" khi chỉ chạm `maxIterations`/`timeout`, và đếm vượt trần (~10 250 bước) | `72d31a4` |
+| Mobile: Công việc / chi tiết dự án chỉ thấy 50 việc đầu, Lịch chỉ thấy 100 | `2d486ab` |
 
 ### Chưa làm
 
-**Các giai đoạn còn lại** — mỗi giai đoạn cần người dùng quyết trước khi làm (trừ GĐ9):
+**Các giai đoạn còn lại** — mỗi giai đoạn cần người dùng quyết trước khi làm:
 
 | # | Giai đoạn | Cần quyết |
 |---|-----------|-----------|
 | 7 | Trường dữ liệu tùy chỉnh (lớn: lan sang form, Excel, bộ lọc, CSV) | Danh sách kiểu trường cho bản đầu |
 | 8 | Đính kèm tệp thật | Lưu đĩa hay S3; trần dung lượng |
-| 9 | Mobile: màn Gantt, test giao diện | — (làm được ngay) |
 | 10 | react-router v7 | Có chấp nhận đổi API router không |
 
 **Tồn đọng nhỏ, đã biết nhưng chưa xử lý:**

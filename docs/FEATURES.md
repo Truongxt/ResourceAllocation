@@ -234,16 +234,18 @@ làm hỏng hẳn tính năng.
 | Báo cáo | 🔨 | xuất CSV, so sánh trước/sau tối ưu |
 | Nhật ký, Thông báo | ✅ | — |
 | Cài đặt | 🔨 | danh bạ người dùng, nhóm, phân quyền phân hệ, phiên đăng nhập, nghỉ phép |
-| **Lịch** | ⬜ | cả màn |
-| **Gantt** | ⬜ | cả màn |
+| Lịch | ✅ | — |
+| Gantt | ✅ chỉ xem | kéo thả dời lịch, mũi tên phụ thuộc, nhóm theo dự án, in |
 
 Quyền theo phân hệ (`appPermissions`) nay đã được áp trên mobile giống web: tab và nút bị ẩn
 khi không đủ quyền. App Admin (`appAdmins`) và quyền theo vai trò cũng đã ẩn đúng tab Tối ưu
 hóa và Nhân sự. Còn quyền theo từng dự án/công việc thì chưa — server vẫn chặn đúng, nhưng
 giao diện có thể bày ra thao tác rồi nhận 403.
 
-Hai màn **Lịch** và **Gantt** là khoảng trống lớn nhất, và cũng là hai thứ khó bê nguyên
-xuống màn hình điện thoại nhất — nên để trống là một lựa chọn, không phải sơ suất.
+Gantt trên mobile cố ý **chỉ xem**: kéo thả trên màn nhỏ dễ kéo nhầm khi đang cuộn, còn mũi tên
+phụ thuộc phải thêm `react-native-svg`. Màn có thu phóng ngày/tuần, lọc dự án, đường găng (CPM dùng
+chung `gantt.js` với web), vạch hôm nay và danh sách việc chưa có lịch. Mở từ màn Công việc hoặc
+chi tiết dự án.
 
 ### Đa ngôn ngữ — phạm vi và giới hạn
 

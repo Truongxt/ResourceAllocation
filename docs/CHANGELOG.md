@@ -10,6 +10,10 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Added
 
+- **Mobile: màn Gantt (chỉ xem).** Thu phóng ngày/tuần, lọc dự án, đường găng, vạch hôm nay; việc
+  thiếu ngày được liệt kê riêng là "chưa có lịch". Mở từ màn Công việc và chi tiết dự án. Logic CPM chép
+  nguyên từ web, có test khóa hai bản giống nhau.
+- **Mobile: test giao diện** bằng `jest-expo` + `@testing-library/react-native`.
 - **Job định kỳ qua endpoint nội bộ** (`POST /api/internal/jobs/:name`, khóa `X-Job-Secret` =
   `JOB_SECRET`), gọi từ cron bên ngoài. Có hai job:
   - `recurring-tasks`
@@ -65,6 +69,8 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Fixed
 
+- **Mobile: Công việc và chi tiết dự án chỉ thấy 50 việc đầu, Lịch chỉ thấy 100.** Đúng lỗi web đã sửa ở
+  `51f0d5f`. Nay đi hết mọi trang qua `taskApi.getAllPages` (trần 10 trang).
 - **Dữ liệu tổng hợp của Benchmark làm CSP vô nghiệm vì bộ sinh, không phải vì bài toán.** Kỹ năng
   của người và kỹ năng việc đòi được bốc độc lập từ 15 kỹ năng, nên 26% việc ở bộ small không ai đạt
   ngưỡng H2 0.5 và CSP giải được 0/30 bộ small. Nay cả hai gắn vào vai trò: mỗi việc thuộc vai trò

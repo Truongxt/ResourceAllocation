@@ -77,7 +77,7 @@ Yêu cầu: **Node.js ≥ 20** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run migrate:guest-company` | `server/` | Đưa tài khoản khách tạo trước khi có `guestCompany` về đúng công ty (suy từ dự án họ thuộc); thêm `-- --apply` để sửa thật |
 | `npm test` | `server/` | Kiểm thử API + Socket.IO trên DB + cổng riêng ([chi tiết](./server/tests/README.md)) |
 | `npm test` | `client/` | Logic thuần bằng node + kiểm thử render component bằng vitest ([chi tiết](./client/tests/README.md)) |
-| `npm test` | `mobile/` | Quy tắc quyền của app di động — node thuần, không cần cài dependencies |
+| `npm test` | `mobile/` | Logic thuần (quyền, Gantt) và test giao diện jest-expo — cần `npm install` trong `mobile/` |
 | `npm start` | `mobile/` | Chạy app Expo (cần `npm install` trong `mobile/` trước) |
 | `npm run test:e2e` | gốc | Kiểm thử giao diện bằng Chromium thật, tự khởi động client + server ([chi tiết](./e2e/README.md)) |
 | `npm run test:e2e:install` | gốc | Tải trình duyệt cho Playwright — chạy một lần trước lần test đầu tiên |

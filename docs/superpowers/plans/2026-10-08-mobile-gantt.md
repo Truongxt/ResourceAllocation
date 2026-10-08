@@ -2,6 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Trạng thái (2026-10-08): đã làm xong Task 1–5.** Mobile: `app-permissions` 35, `gantt` 14, jest 10 bài.
+> Metro đóng gói được bản Android (`expo export`) sau khi thêm màn. Chưa chạy trên máy thật hay giả lập.
+
 **Goal:** Mobile có màn Gantt chỉ xem, và có bộ test dựng màn hình thật (không chỉ logic thuần).
 
 **Spec:** lộ trình giai đoạn 9 trong [2026-10-07-lo-trinh-hoan-thien.md](./2026-10-07-lo-trinh-hoan-thien.md).
