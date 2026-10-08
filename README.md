@@ -70,7 +70,7 @@ Yêu cầu: **Node.js ≥ 20** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run dev:server` | gốc | Chỉ chạy server (port 5000) |
 | `npm run build` | gốc | Build client cho production |
 | `npm start` | `server/` | Chạy server không auto-reload |
-| `npm run seed` | `server/` | Tạo dữ liệu mẫu (xóa sạch cả 12 collection, rồi đồng bộ workload) |
+| `npm run seed` | `server/` | Tạo dữ liệu mẫu (xóa sạch cả 14 collection, rồi đồng bộ workload) |
 | `npm run cleanup` | `server/` | Liệt kê dữ liệu mồ côi trong DB đang chạy; thêm `-- --apply` để xóa thật |
 | `npm run migrate:skill-level` | `server/` | Hạ `requiredSkills.level` cũ từ 5 về 4; thêm `-- --apply` để sửa thật |
 | `npm run migrate:dependencies` | `server/` | Chuyển `dependencies` cũ sang dạng `{ task, type }`; thêm `-- --apply` để sửa thật |
@@ -84,6 +84,27 @@ Yêu cầu: **Node.js ≥ 20** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run test:e2e:ui` | gốc | Chế độ gỡ lỗi tương tác của Playwright |
 | `npm run test:e2e:report` | gốc | Mở báo cáo HTML của lần chạy e2e gần nhất |
 | `npm run preview` | `client/` | Xem thử bản build production |
+
+## Job định kỳ
+
+Server **không tự hẹn giờ**. Hai job phải được một cron bên ngoài (cron của hệ điều hành, Cloud
+Scheduler, GitHub Actions…) gọi vào endpoint nội bộ, khóa bằng `JOB_SECRET` trong `.env`:
+
+| Job | Gọi | Việc làm |
+|-----|-----|----------|
+| `recurring-tasks` | mỗi giờ | Sinh công việc từ các cấu hình "Việc lặp lại" đã đến hạn |
+| `workload-snapshot` | mỗi ngày | Chụp tải của mọi nhân sự, làm lịch sử cho báo cáo |
+
+```bash
+# crontab -e
+0 * * * *  curl -fsS -X POST -H "X-Job-Secret: $JOB_SECRET" https://<host>/api/internal/jobs/recurring-tasks
+5 0 * * *  curl -fsS -X POST -H "X-Job-Secret: $JOB_SECRET" https://<host>/api/internal/jobs/workload-snapshot
+```
+
+Cả hai job **chạy lại an toàn**: gọi trùng hoặc gọi lại khi timeout không sinh việc trùng, chụp lại
+trong ngày thì ghi đè. Thiếu `JOB_SECRET` thì endpoint trả 503. Quên cấu hình cron thì không có lỗi
+nào nổ ra, nên hãy kiểm `GET /api/jobs/status` (Owner/Admin): job chưa từng chạy, hoặc quá hạn, có
+`stale: true`.
 
 ## Tài liệu
 

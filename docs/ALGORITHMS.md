@@ -275,7 +275,24 @@ còn arc consistency nhìn **quan hệ giữa hai** biến.
 | **Thứ tự giá trị** (thay LCV từ 08/10) | ✅ | `_orderCandidates()` — điểm ràng buộc mềm S1/S2/S3, xem mục 2.3. LCV cũ (chỉ capacity còn lại) nay là thành phần S2 |
 | **Node consistency** theo capacity | ✅ | `_nodeConsistency()` — bước 3 |
 | **AC-3** đúng nghĩa | ✅ | `_arcConsistency()` — bước 4, chạy trên đồ thị H4, có đẩy lại cung sau mỗi lần cắt |
-| **All-different** (Régin) | ❌ | Chưa implement — xem giới hạn của AC-3 trên `≠` ở mục 2.4 |
+| **All-different** (Régin) | — | **Quyết định không làm (08/10)**, xem ghi chú dưới bảng |
+
+**Vì sao không làm all-different.** Régin chỉ lọc được nhiều hơn AC-3 khi có một tập **từ 3 biến trở lên
+đôi một khác nhau**, tức clique kích thước ≥ 3 trong đồ thị xung đột H4. Đo trên việc đang mở của từng công
+ty, dựng đồ thị đúng như CSP dựng (`_buildDependencyConflicts`):
+
+| Database | Việc đang mở | Việc có phụ thuộc | Cạnh H4 | Clique lớn nhất |
+|---|---|---|---|---|
+| dev (công ty ABC) | 21 | 13 | 3 | **2** |
+| dev (công ty mặc định) | 2 | — | 1 | 2 |
+| e2e, test (dữ liệu mẫu) | 2–3 | 2 | 1 | 2 |
+
+Bộ sinh dữ liệu benchmark không tạo phụ thuộc nào. Clique kích thước 2 chính là ràng buộc nhị phân `≠`, và
+AC-3 đã lọc nó trọn vẹn. Về cấu trúc, muốn có clique 3 thì phải có ba việc phụ thuộc đôi một **và** chồng
+lịch đôi một. Với phụ thuộc finish-to-start, chồng lịch đã là lỗi dữ liệu, nên đó là ba lỗi lịch cùng lúc.
+Trường hợp "nhiều việc trùng giờ mà capacity chỉ đủ cho một" cũng không phải all-different: nó phụ thuộc số
+giờ của từng việc, tức là ràng buộc tích lũy (cumulative), và đã được kiểm qua capacity theo tuần. Nếu dữ
+liệu thật về sau xuất hiện clique ≥ 3 thì đo lại bằng cùng cách.
 
 ---
 

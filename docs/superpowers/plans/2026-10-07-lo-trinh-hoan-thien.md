@@ -17,7 +17,7 @@ phụ thuộc vào những gì giai đoạn trước để lại, nên viết ch
 | 3 | Xuất công việc + thông báo Thất bại/đổi deadline | ✅ **Xong** — [plan](./2026-10-08-xuat-cong-viec-va-thong-bao.md). Server 29/29 bộ, client 41/41, e2e 87/87 |
 | 4 | Vòng đời dự án | ✅ **Xong** — [plan](./2026-10-08-vong-doi-du-an.md). Server 31/31 bộ, client 46/46, e2e 88/88 |
 | 5 | Thuật toán phần 1 (S1/S3, hội tụ) | ✅ **Xong** — [plan](./2026-10-08-thuat-toan-phan-1.md). Số đo trước/sau ở ALGORITHMS.md mục 2.3 và 3.3 |
-| 6 | Thuật toán phần 2 (snapshot, Régin) | ⏳ Chưa làm — cần chọn cách chạy job định kỳ |
+| 6 | Thuật toán phần 2 (snapshot, Régin) | ✅ **Xong** — [plan](./2026-10-08-job-dinh-ky-va-thuat-toan-phan-2.md). Job định kỳ qua endpoint nội bộ + cron ngoài; snapshot workload; Régin đo rồi bỏ (clique lớn nhất = 2). Sửa kèm: "Việc lặp lại" chưa từng tự chạy |
 | 7 | Trường dữ liệu tùy chỉnh | ⏳ Chưa làm — cần spec riêng |
 | 8 | Đính kèm tệp thật | ⏳ Chưa làm — cần chọn đĩa hay S3 |
 | 9 | Mobile Gantt + test giao diện | ⏳ Chưa làm |

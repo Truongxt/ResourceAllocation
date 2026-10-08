@@ -30,6 +30,8 @@
      ├─▶│ ActivityLogs  │      │ RefreshTokens │
      │  └───────────────┘      └───────▲───────┘
      └──────────────────────────────────┘
+
+  Ghi bởi job định kỳ:  WorkloadSnapshots (Resources × ngày)   JobRuns (mỗi lần chạy job)
 ```
 
 ---
@@ -475,6 +477,48 @@ Cấu hình cấp công ty. Một bản ghi cho mỗi `companyName`, ràng buộ
 Hai cờ này quyết định ai thấy được nút "Tạo dự án" / "Tạo Department" trên giao diện —
 `client/src/pages/projects/Projects.jsx` đọc chúng cùng với vai trò và quyền App Admin.
 Chúng **không** thay thế kiểm tra ở server; route vẫn tự kiểm quyền.
+
+---
+
+## 12. WorkloadSnapshots Collection
+
+Tải **đã ghi nhận** của một nhân sự trong một ngày, do job `workload-snapshot` ghi (xem API.md mục 14).
+
+```javascript
+{
+  date: Date,                // nửa đêm (giờ server) của ngày chụp
+  resource: ObjectId → Resources,
+  user: ObjectId → Users,
+  companyName: String,
+  workload: Number,          // giờ của tuần cao điểm — đúng con số trang Utilization lúc chụp
+  unscheduled: Number,       // giờ đã giao nhưng chưa có ngày
+  capacity: Number,          // maxCapacity × fte
+  utilization: Number,       // %
+  openTasks: Number,         // việc todo / in_progress / review
+  updatedAt: Date
+}
+```
+
+**Indexes**: `(resource, date)` **unique** — chạy lại job trong ngày thì ghi đè; `(companyName, date)`.
+
+---
+
+## 13. JobRuns Collection
+
+Một lần chạy job định kỳ. Job được cron bên ngoài gọi, nên đây là bằng chứng duy nhất job có chạy hay không.
+
+```javascript
+{
+  name: String,              // 'recurring-tasks' | 'workload-snapshot'
+  status: String,            // 'running' | 'success' | 'failed'
+  startedAt: Date,
+  finishedAt: Date,
+  result: Mixed,             // ví dụ { generated: 3 } hoặc { date, snapshots }
+  error: String
+}
+```
+
+**Indexes**: `(name, startedAt)`; TTL 90 ngày trên `startedAt`.
 
 ---
 

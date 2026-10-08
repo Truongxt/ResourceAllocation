@@ -10,6 +10,18 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Added
 
+- **Job định kỳ qua endpoint nội bộ** (`POST /api/internal/jobs/:name`, khóa `X-Job-Secret` =
+  `JOB_SECRET`), gọi từ cron bên ngoài. Có hai job:
+  - `recurring-tasks`
+  - `workload-snapshot`: chụp tải hằng ngày, đọc qua `GET /api/analytics/workload-history`. Đây là
+    tải **đã ghi nhận**, khác `workload-trend` vốn suy ra từ lịch hiện tại.
+
+  Mỗi lần chạy được ghi vào `JobRun`. `GET /api/jobs/status` (Owner/Admin) báo `stale` khi job chưa
+  từng chạy hoặc quá hạn, vì quên cấu hình cron không làm nổ lỗi nào. Cách cấu hình ở README mục
+  "Job định kỳ".
+- **All-different (Régin): quyết định không làm.** Đo trên database dev, e2e và test: clique lớn nhất
+  của đồ thị xung đột H4 là 2, tức là ràng buộc `≠` nhị phân mà AC-3 đã lọc trọn vẹn. Chi tiết ở
+  ALGORITHMS.md mục 2.5.
 - **Ràng buộc mềm S1/S3 trong CSP.** Trước đây CSP chọn ứng viên chỉ theo capacity còn lại (LCV).
   Nay chọn theo điểm `0.35 · khớp kỹ năng + 0.30 · chỗ trống + 0.15 · đã có việc cùng dự án`. Đo
   trên cùng 30 bộ medium (ngưỡng 0.1, như Benchmark Studio): khớp kỹ năng 57 → 76%, chuyển ngữ
@@ -52,6 +64,10 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Fixed
 
+- **"Việc lặp lại" chưa từng tự sinh việc.** `generatePendingRecurringTasks` không có ai gọi, nên
+  việc chỉ được sinh khi bấm "Chạy ngay". Nay job `recurring-tasks` gọi hàm này. Hàm cũng **không an
+  toàn khi chạy đồng thời**: tái hiện bằng hai request song song thì sinh ra 2 việc. Nay mỗi cấu hình
+  được nhận nguyên tử trên `nextRunDate` trước khi sinh việc.
 - **Cột Hybrid của Benchmark Studio không chạy Hybrid.** Miền của CSP được truyền vào
   *constructor* của GA (`feasibleDomains`), nơi không ai đọc, nên cột đó chỉ là GA với tỉ lệ lai
   ghép/đột biến khác. Mọi kết luận "Hybrid tốt hơn GA" rút từ trang này trước 08/10 đều không có

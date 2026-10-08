@@ -1220,6 +1220,7 @@ Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
 | GET | `/tasks` | Phân bố task theo status/priority/project + tỉ lệ giờ | 🔒 |
 | GET | `/workload-trend` | Chuỗi thời gian khối lượng vs năng lực | 🔒 |
 | GET | `/performance` | Kết quả theo người: đúng hạn, trễ, thất bại, quá hạn, gia hạn | 🔒 |
+| GET | `/workload-history` | Tải **đã ghi nhận** theo ngày (từ job `workload-snapshot`) | 🔒 |
 | GET | `/optimization-comparison/:id` | So sánh trạng thái hiện tại vs kết quả tối ưu hóa | 🔒 |
 
 ### GET `/api/analytics/utilization`
@@ -1279,8 +1280,8 @@ Gửi notification real-time cho toàn hệ thống và ghi ActivityLog.
 }
 ```
 
-**Đây là dữ liệu suy ra, không phải dữ liệu ghi nhận.** Hệ thống không lưu ảnh chụp workload
-theo ngày. Endpoint trải `estimatedHours` của mỗi công việc đều lên các **ngày làm việc**
+**Đây là dữ liệu suy ra, không phải dữ liệu ghi nhận.** Tải đã ghi nhận theo ngày nằm ở
+`GET /analytics/workload-history` (từ 08/10, xem bên dưới). Endpoint trải `estimatedHours` của mỗi công việc đều lên các **ngày làm việc**
 trong khoảng `startDate`–`endDate` của nó rồi cộng theo từng người. Nó trả lời "khối lượng đã
 cam kết rơi vào lúc nào", **không** trả lời "tháng trước ai đã thực sự làm bao nhiêu".
 
@@ -1549,6 +1550,43 @@ Cấu hình cấp công ty. Một bản ghi cho mỗi `companyName`; bản ghi �
 Hai cờ này quyết định **giao diện có hiện nút "Tạo dự án" / "Tạo Department"** hay không.
 Chúng không thay thế kiểm tra ở server: route tạo dự án vẫn tự kiểm quyền, nên đặt
 `all_members` rồi gọi API bằng tài khoản không đủ quyền vẫn bị chặn.
+
+---
+
+## 14. Job định kỳ
+
+Server không tự hẹn giờ; cron bên ngoài gọi endpoint nội bộ. Cấu hình xem README mục "Job định kỳ".
+
+| Method | Endpoint | Mô tả | Auth |
+|--------|----------|-------|------|
+| POST | `/api/internal/jobs/:name` | Chạy một job: `recurring-tasks`, `workload-snapshot` | header `X-Job-Secret` |
+| GET | `/api/jobs/status` | Lần chạy gần nhất và cờ `stale` của từng job | Owner/Admin |
+
+- `/api/internal/jobs/:name`: thiếu hoặc sai `X-Job-Secret` → **401** (token đăng nhập, kể cả admin, không thay được);
+  server không đặt `JOB_SECRET` → **503**; tên lạ → **404**. Response `{ data: { job, result } }`, ví dụ
+  `{ generated: 3 }` hay `{ date, snapshots: 12 }`.
+- Cả hai job chạy lại an toàn. `recurring-tasks`: mỗi cấu hình được nhận bằng `findOneAndUpdate` có điều kiện
+  trên `nextRunDate` cũ trước khi sinh việc, nên gọi trùng không sinh trùng. Mỗi lần gọi sinh **một** lượt
+  cho mỗi cấu hình đến hạn; lỡ nhiều lượt thì các lần gọi sau đuổi kịp dần. `workload-snapshot`: upsert theo
+  `(resource, ngày)`.
+- `/api/jobs/status` → `{ jobs: [{ name, schedule, staleAfterHours, lastRunAt, lastStatus, lastError, lastSuccessAt, stale }] }`.
+  `stale` = chưa từng chạy thành công, hoặc lần thành công gần nhất cũ hơn `staleAfterHours` (3 giờ cho
+  `recurring-tasks`, 30 giờ cho `workload-snapshot`).
+
+### GET `/api/analytics/workload-history?from&to`
+
+Mặc định 30 ngày gần nhất; `YYYY-MM-DD` theo giờ server. Phạm vi nhân sự giống các báo cáo analytics khác.
+
+```json
+{ "history": {
+    "from": "...", "to": "...",
+    "resources": [ { "_id": "...", "name": "...",
+                     "points": [ { "date": "...", "workload": 32, "capacity": 40, "utilization": 80, "openTasks": 3 } ] } ],
+    "totals": [ { "date": "...", "workload": 210.5, "capacity": 400 } ] } }
+```
+
+`workload` là đúng con số trang Utilization hiện **tại thời điểm chụp** (giờ của tuần cao điểm, việc đang mở).
+Ngày job không chạy thì không có điểm: không nội suy, để khoảng trống lộ ra là job đã không chạy.
 
 ---
 
