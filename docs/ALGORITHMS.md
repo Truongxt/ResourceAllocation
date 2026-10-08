@@ -220,7 +220,7 @@ duy nhất. Fitness vẫn tăng vì khớp kỹ năng có trọng số lớn hơ
 > |---|---|---|---|
 > | small, ngưỡng 0.5 | 0/30 (30 miền rỗng) | **16/30** | Vô nghiệm thật vì capacity (tìm kiếm cạn sau < 2 300 bước) |
 > | small, ngưỡng 0.1 | 9/30 (20 miền rỗng) | **28/30** | Như trên |
-> | medium, ngưỡng 0.5 | 5/30 (22 miền rỗng) | **19/30** | Chạm `maxIterations` (10 000), chưa chắc vô nghiệm |
+> | medium, ngưỡng 0.5 | 5/30 (22 miền rỗng) | **19/30** | Chạm `maxIterations` (10 000), chưa chắc vô nghiệm — nay báo `stopReason: 'maxIterations'` |
 > | medium, ngưỡng 0.1 | 29/30 | 22/30 | Như trên. Ít ứng viên hơn: việc thuộc vai trò, nên người ngoài vai trò ít khi đạt dù chỉ 0.1 |
 >
 > Các bảng so sánh trước/sau trong tài liệu này chưa được đo lại bằng bộ sinh mới.
@@ -262,7 +262,16 @@ Luồng thực tế trong `CSPSolver.solve()`:
 ```
 
 **Điều kiện dừng của backtracking**: `maxIterations` (mặc định 10 000) hoặc
-`timeout` (mặc định 30 000 ms).
+`timeout` (mặc định 30 000 ms). Hết ngân sách **không** có nghĩa là vô nghiệm, nên kết quả thất bại
+phân biệt hai trường hợp:
+
+| Trường hợp | `stopReason` | `exhaustive` | `message` |
+|---|---|---|---|
+| Đã thử hết mọi nhánh | `null` | `true` | "Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc" |
+| Chạm trần | `'maxIterations'` hoặc `'timeout'` | `false` | "Hết ngân sách tìm kiếm (…) nên chưa tìm xong — bài toán có thể vẫn có nghiệm" |
+
+Trước đây cả hai cùng một câu báo. Khi đó, chạm trần xong các tầng trên vẫn thử tiếp ứng viên còn lại,
+mỗi lần tốn thêm một bước. Vì vậy một lượt "10 000 bước" thực ra dừng ở khoảng 10 250 bước.
 
 Bước 3 và 4 là hai việc khác nhau và trước đây bị gộp làm một dưới cái tên "AC-3":
 node consistency chỉ nhìn **một** biến (task này có vừa capacity của người kia không),

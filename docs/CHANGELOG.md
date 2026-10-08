@@ -71,6 +71,10 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   của một người có thật trong đội và đòi kỹ năng từ cụm của vai trò đó. Ở ngưỡng 0.5, small giải
   được 16/30, medium 19/30. Các lần thất bại còn lại là capacity (small) hoặc chạm trần 10 000 bước
   (medium). Chi tiết ở ALGORITHMS.md mục 2.3.
+- **CSP báo "vô nghiệm" khi chỉ hết ngân sách tìm kiếm.** Chạm `maxIterations` hoặc `timeout` từng cho
+  cùng câu "Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc" như khi đã thử hết, nên người dùng đi
+  nới ràng buộc vô ích. Nay kết quả có `stopReason` và `exhaustive`, câu báo nói rõ "chưa tìm xong".
+  Chạm trần xong cũng dừng hẳn: trước đây các tầng trên vẫn thử tiếp, đếm vượt trần (~10 250 bước).
 - **Màn Dự án, dạng thẻ**: dự án lưu trữ vẫn hiện nút sửa và xóa, và quyền phân hệ "Chỉ xem" vẫn
   thấy các nút đó. Nay dạng thẻ dùng chung cụm nút với dạng bảng (`ProjectRowActions`).
 - **"Việc lặp lại" chưa từng tự sinh việc.** `generatePendingRecurringTasks` không có ai gọi, nên
