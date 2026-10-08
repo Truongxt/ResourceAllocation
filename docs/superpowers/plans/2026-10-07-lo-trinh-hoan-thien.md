@@ -63,21 +63,24 @@ Số test ở lần chạy gần nhất (2026-10-09, sau đợt dọn tồn đ�
 
 **Việc dở, chưa làm** (cập nhật 2026-10-09, theo thứ tự nên làm):
 
-1. **Quyết định có chỉnh trọng số S1/S3 không** (`SOFT_WEIGHTS` trong `CSPSolver.js`) — cần người dùng quyết.
-   Số đo mới (ALGORITHMS.md mục 2.3, bộ sinh mới, ngưỡng 0.5, medium): khớp kỹ năng 85 → 94%, chuyển ngữ cảnh
-   60.6 → 33.8, fitness 0.796 → 0.820, nhưng σ tải 16.4 → 18.3 giờ (small: 14.8 → 18.0). Giữ nguyên, hay tăng
-   trọng số S2 (chỗ trống) để đổi bớt khớp kỹ năng lấy cân tải. Chỉnh xong thì đo lại bằng
-   `npm run measure:csp-soft` (thư mục `server`).
-2. **Database dev còn 1 việc Hoàn thành không có `completedAt`** ("Thiết kế Design System & Wireframes", do
-   seeder cũ tạo, không có nhật ký nên script để nguyên). Seed lại hoặc sửa tay. Môi trường khác thì chạy
-   `npm run migrate:completed-at` (chạy khô trước), rồi `-- --apply`.
-3. **Khi triển khai phải cấu hình cron và `JOB_SECRET`** (README mục "Job định kỳ"). Thiếu thì hai job không bao
-   giờ chạy; Dashboard cảnh báo Owner/Admin khi có job `stale` (`ca15897`).
-4. **Báo cáo luận văn dùng số đo cũ** — để sau cùng theo quyết định ngày 2026-10-08. `docs/build_thesis_report.py`
+1. **Khi triển khai phải cấu hình cron và `JOB_SECRET`** (README mục "Job định kỳ"). Thiếu thì hai job không bao
+   giờ chạy; Dashboard cảnh báo Owner/Admin khi có job `stale` (`ca15897`). Môi trường có dữ liệu từ trước
+   `152df0e` thì chạy `npm run migrate:completed-at` (chạy khô trước), rồi `-- --apply`.
+2. **Báo cáo luận văn dùng số đo cũ** — để sau cùng theo quyết định ngày 2026-10-08. `docs/build_thesis_report.py`
    dòng 503–509 và 527 (kéo theo file `.docx`/`.pdf`) ghi "GA dừng sau 119 thế hệ, Hybrid 90, giảm ~24%". Số đúng:
    76.3 / 51.8 thế hệ dừng (Hybrid ít hơn ~32%), hội tụ 90% ở thế hệ 13.9 / 1.8. Fitness 0.8530 cả hai. Báo cáo
    cũng chưa có S1/S3, `contextSwitches`, bộ sinh dữ liệu mới, ngưỡng 0.5 của Benchmark và các bản sửa ở bảng trên.
-   Số mới của S1/S3 đã có (ALGORITHMS.md mục 2.3, `bd74ae1`); nếu mục 1 đổi trọng số thì đo lại trước khi sửa.
+   Số mới của S1/S3 đã có (ALGORITHMS.md mục 2.3, `bd74ae1`).
+
+**Đã quyết ngày 2026-10-09:**
+
+- **Giữ nguyên trọng số S1/S3** (`SOFT_WEIGHTS` trong `CSPSolver.js`). Số đo mới (medium, ngưỡng 0.5): khớp
+  kỹ năng 85 → 94%, chuyển ngữ cảnh 60.6 → 33.8, fitness 0.796 → 0.820, σ tải 16.4 → 18.3 giờ. Fitness — đã gồm
+  cân tải 0.30 — tăng ở cả bốn ô; σ tăng không gây quá tải vì H1 vẫn chặn vượt capacity; trọng số chỉ tác động
+  CSP chạy riêng (Hybrid lấy miền, không lấy thứ tự), ai cần tải đều dùng GA/Hybrid. Lý lẽ cho luận văn: CSP xếp
+  ứng viên theo đúng tỉ lệ trọng số của fitness.
+- **Database dev:** việc "Thiết kế Design System & Wireframes" được sửa tay, `completedAt = updatedAt` (lúc
+  seeder tạo). Dữ liệu mẫu nên lấy mốc gần đúng được; script migrate vẫn không đoán trên dữ liệu thật.
 
 ## Lộ trình
 
