@@ -192,24 +192,33 @@ cùng hiểu thế nào là phân công tốt. S3 không nằm trong fitness —
 để thắng chênh lệch chỗ trống mà một việc thường gây ra (8h/40h × 0.30 = 0.06), nhưng thua chênh
 lệch kỹ năng rõ rệt (0.5 × 0.35 = 0.175).
 
-Trước 08/10, thứ tự này chỉ xét chỗ trống (LCV). Đo trên **cùng** 30 bộ dữ liệu mỗi cỡ (sinh một
-lần, so cặp những bộ mà cả hai bản cùng giải được):
+Trước 08/10, thứ tự này chỉ xét chỗ trống (LCV). Đo bằng `npm run measure:csp-soft` (thư mục
+`server`): 30 bộ mỗi cỡ sinh **một lần** bằng bộ sinh hiện tại với seed cố định (chạy lại ra đúng
+số này), chạy cả hai bản trên cùng dữ liệu, trung bình trên những bộ mà **cả hai** bản cùng giải
+được (cột "Số cặp"). Bản "trước" chỉ khác ở thứ tự thử ứng viên. Đo ngày 08/10, sau `edd9847`:
 
-| | Khớp kỹ năng (%) | Chuyển ngữ cảnh | Fitness | Độ lệch tải σ (giờ) | Giải được |
-|---|---|---|---|---|---|
-| medium, ngưỡng 0.1 (như Benchmark Studio trước `f5b8b00`) | 57 → **76** | 60 → **32** | 0.699 → **0.762** | 15.3 → 16.2 | 20 → **24**/30 |
-| small, ngưỡng 0.1 | 55 → **62** | 4.0 → **2.5** | 0.688 → **0.694** | 9.7 → 14.9 | 8 → 8/30 |
-| medium, ngưỡng 0 | 27 → **75** | 61 → **32** | 0.594 → **0.762** | 15.0 → 16.1 | 25 → **28**/30 |
-| small, ngưỡng 0 | 27 → **55** | 4.2 → **2.0** | 0.583 → **0.667** | 11.6 → 15.9 | 30 → 30/30 |
+| | Khớp kỹ năng (%) | Chuyển ngữ cảnh | Fitness | Độ lệch tải σ (giờ) | Giải được | Số cặp |
+|---|---|---|---|---|---|---|
+| medium, ngưỡng 0.5 (mặc định, như Benchmark Studio) | 85 → **94** | 60.6 → **33.8** | 0.796 → **0.820** | 16.4 → 18.3 | 15 → **18**/30 | 11 |
+| small, ngưỡng 0.5 | 92 → **95** | 3.9 → **2.9** | 0.793 → **0.796** | 14.8 → 18.0 | 15 → 15/30 | 15 |
+| medium, ngưỡng 0 | 30 → **93** | 60.6 → **34.4** | 0.604 → **0.820** | 15.7 → 16.5 | 25 → **30**/30 | 25 |
+| small, ngưỡng 0 | 38 → **87** | 4.3 → **3.4** | 0.619 → **0.784** | 12.5 → 14.4 | 29 → **30**/30 | 29 |
 
-Cái giá là **tải kém cân hơn** (σ tăng): đó là hệ quả trực tiếp của việc S2 không còn là tiêu chí
-duy nhất. Fitness vẫn tăng vì khớp kỹ năng có trọng số lớn hơn cân tải.
+Cái giá là **tải kém cân hơn** (σ tăng 0.8–3.2 giờ ở mọi ô): đó là hệ quả trực tiếp của việc S2
+không còn là tiêu chí duy nhất. Fitness vẫn tăng vì khớp kỹ năng có trọng số lớn hơn cân tải.
 
-> Bảng trên đo bằng **bộ sinh dữ liệu cũ**. Bộ đó làm CSP rất hay vô nghiệm: mỗi việc đòi 1–3 kỹ
-> năng ngẫu nhiên trong 15, độc lập với kỹ năng của người, nên thường có việc không ai có kỹ năng và
-> bộ lọc H2 loại sạch. Ở ngưỡng mặc định 0.5, CSP chỉ giải được 0/30 bộ small. Vì vậy bảng đo ở
-> ngưỡng 0.1 (Benchmark Studio dùng ngưỡng này cho tới `f5b8b00`; nay dùng ngưỡng mặc định 0.5 như hệ thống thật) và ngưỡng 0 (bỏ hẳn bộ lọc kỹ năng, để chỉ còn
-> thứ tự quyết định).
+Ở ngưỡng 0.5, bộ lọc H2 đã loại phần lớn người khớp kém, nên S1 còn ít chỗ để nâng khớp kỹ năng
+(85 → 94); phần lớn tác dụng là gom việc cùng dự án (S3: chuyển ngữ cảnh gần giảm một nửa ở
+medium). Ngưỡng 0 bỏ hẳn bộ lọc kỹ năng, chỉ còn thứ tự quyết định — đó là chỗ thấy rõ nhất S1
+làm gì. Hai bản giải được những tập bộ **khác nhau** ở medium ngưỡng 0.5 (15 và 18 bộ, chỉ 11 bộ
+chung): cả hai thất bại ở đây đều do chạm `maxIterations`, và thứ tự khác nhau thì đi lạc ở những
+bộ khác nhau.
+
+> Bảng trước bản này đo bằng **bộ sinh dữ liệu cũ**, ở ngưỡng 0.1 và 0 (ngưỡng 0.5 khi đó vô nghiệm
+> 0/30 bộ small). Bộ đó làm CSP rất hay vô nghiệm: mỗi việc đòi 1–3 kỹ năng ngẫu nhiên trong 15,
+> độc lập với kỹ năng của người, nên thường có việc không ai có kỹ năng và bộ lọc H2 loại sạch.
+> Hướng thay đổi giống bảng mới (khớp kỹ năng và chuyển ngữ cảnh tốt lên, σ tăng), nhưng các con số
+> không so trực tiếp được với bảng trên.
 >
 > **Bộ sinh hiện tại** (`datasetGenerator.js`) gắn kỹ năng vào vai trò. Mỗi người nắm trọn cụm kỹ
 > năng của vai trò mình (cấp 2–4), cộng 0–2 kỹ năng ngoài cụm (cấp 1–2). Mỗi việc thuộc vai trò của
@@ -223,7 +232,8 @@ duy nhất. Fitness vẫn tăng vì khớp kỹ năng có trọng số lớn hơ
 > | medium, ngưỡng 0.5 | 5/30 (22 miền rỗng) | **19/30** | Chạm `maxIterations` (10 000), chưa chắc vô nghiệm — nay báo `stopReason: 'maxIterations'` |
 > | medium, ngưỡng 0.1 | 29/30 | 22/30 | Như trên. Ít ứng viên hơn: việc thuộc vai trò, nên người ngoài vai trò ít khi đạt dù chỉ 0.1 |
 >
-> Các bảng so sánh trước/sau trong tài liệu này chưa được đo lại bằng bộ sinh mới.
+> Bảng trước/sau ở đầu mục này đã đo bằng bộ sinh mới. Bảng ở mục 3.3 dùng bài toán dựng tay,
+> không qua bộ sinh, nên không bị ảnh hưởng.
 
 ### 2.4 Algorithm: Backtracking + lọc miền giá trị
 
