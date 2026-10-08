@@ -14,6 +14,8 @@
  *      biến thành khóa tài khoản.
  */
 
+import { optimizeScopeOf } from './optimizeScope.js';
+
 export const APP_PERMISSION_RANK = { none: 0, view: 1, manage: 2 };
 
 /** @returns {0|1|2} 0 = không được vào, 1 = chỉ xem, 2 = được sửa. */
@@ -44,6 +46,8 @@ export const canManageModule = (user, moduleKey) => appPermissionRank(user, modu
  */
 export const hasAppAccess = (user, appKey) => {
   if (!user) return false;
+  // Tối ưu hóa mở cho cả PM (thu hẹp theo dự án họ quản lý) — xem utils/optimizeScope.js.
+  if (appKey === 'optimize') return optimizeScopeOf(user) !== null;
   if (user.isOwner) return true;
   if (user.role === 'admin') return true;
   return Array.isArray(user.appAdmins) && user.appAdmins.includes(appKey);

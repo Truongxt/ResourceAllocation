@@ -17,7 +17,11 @@ import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import EmptyState from '../../components/common/EmptyState';
 import optimizationApi from '../../api/optimizationApi';
-import { formatTimeAgo, formatDate } from '../../utils/formatters';
+import projectApi from '../../api/projectApi';
+import { formatTimeAgo } from '../../utils/formatters';
+import { optimizeScopeOf, optimizableProjects, defaultOptimizeProject } from '../../utils/optimizeScope.js';
+
+const projectLabel = (p) => (p.code ? `${p.code} · ${p.name}` : p.name);
 
 const ALGORITHMS = [
   {
@@ -49,9 +53,14 @@ export default function OptimizationScreen() {
   const { theme } = useTheme();
   // Mặc định của phân hệ này là `view`: chạy thử thì được, nhưng áp phương án
   // vào hệ thống là ghi đè phân công thật nên phải có quyền sửa.
-  const { canManageModule } = useAuth();
+  const { user, canManageModule } = useAuth();
   const canApply = canManageModule('optimization');
+  // PM chỉ chạy trên dự án mình quản lý: không có "Tất cả dự án" (server trả 403).
+  const managedOnly = optimizeScopeOf(user) === 'managed';
 
+  const [projects, setProjects] = useState([]);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const [projectId, setProjectId] = useState(''); // '' = Tất cả dự án
   const [activeTab, setActiveTab] = useState('run'); // 'run' | 'history'
   const [selectedAlgo, setSelectedAlgo] = useState('genetic');
   const [selectedPreset, setSelectedPreset] = useState('balance');
@@ -83,27 +92,56 @@ export default function OptimizationScreen() {
     }
   }, [activeTab, loadHistory]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await projectApi.getAll({ limit: 100 });
+        if (cancelled) return;
+        const usable = optimizableProjects(res.data?.data?.projects || [], user);
+        setProjects(usable);
+        // Chọn sẵn dự án còn việc mở: dự án không có việc thì chạy chỉ nhận 400.
+        if (managedOnly) setProjectId(defaultOptimizeProject(usable)?._id || '');
+      } catch (err) {
+        console.log('Error loading projects for optimization:', err);
+      } finally {
+        if (!cancelled) setProjectsLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, managedOnly]);
+
   const handleRunOptimization = async () => {
     setRunning(true);
     try {
       const preset = PRESETS.find((p) => p.key === selectedPreset);
-      const payload = {
-        algorithm: selectedAlgo,
+      // Tham số phẳng như `optimizationService.run` của web; hệ số chi phí để server mặc định.
+      const params = {
+        projectId: projectId || undefined,
         populationSize: 100,
         maxGenerations: 400,
         crossoverRate: 0.8,
         mutationRate: 0.1,
-        weights: {
-          workloadBalance: preset?.wWorkload || 0.4,
-          skillMatch: preset?.wSkill || 0.4,
-          overloadPenalty: preset?.wOverload || 0.2,
-        },
+        workloadWeight: preset.wWorkload,
+        skillWeight: preset.wSkill,
+        overallocationWeight: preset.wOverload,
       };
 
-      const res = await optimizationApi.run(payload);
-      if (res.data?.success) {
-        setResult(res.data.data);
-        Alert.alert('Thành công', 'Đã tìm thấy phương án phân bổ tối ưu!');
+      const res = await optimizationApi.run(selectedAlgo, params);
+      const runResult = res.data?.data?.result;
+      if (runResult) {
+        setResult(runResult);
+        // Thuật toán không xếp được vẫn trả HTTP 200 — phải nói rõ, không báo thành công.
+        if (runResult.status === 'failed') {
+          Alert.alert(
+            'Không tìm được phương án',
+            runResult.errorMessage || 'Không tìm được phương án thỏa mãn tất cả ràng buộc'
+          );
+        } else {
+          Alert.alert('Thành công', 'Đã tìm thấy phương án phân bổ tối ưu!');
+        }
       }
     } catch (err) {
       Alert.alert('Lỗi', err.response?.data?.message || 'Có lỗi khi chạy tối ưu hóa');
@@ -201,6 +239,61 @@ export default function OptimizationScreen() {
               bằng workload và tối đa skill match
             </Text>
           </View>
+
+          {/* Project Scope */}
+          <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>
+            Phạm vi dự án
+          </Text>
+          {managedOnly && projectsLoaded && projects.length === 0 ? (
+            <Text style={[styles.scopeNote, { color: theme.colors.textSecondary }]}>
+              Bạn chưa quản lý dự án nào. PM chỉ chạy tối ưu được trên dự án mình quản lý.
+            </Text>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.presetsRow}
+            >
+              {[
+                ...(managedOnly ? [] : [{ _id: '', label: 'Tất cả dự án' }]),
+                ...projects.map((p) => ({ _id: p._id, label: projectLabel(p) })),
+              ].map((p) => {
+                const isSelected = projectId === p._id;
+                return (
+                  <TouchableOpacity
+                    key={p._id || 'all'}
+                    testID={`optimize-project-${p._id || 'all'}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    onPress={() => setProjectId(p._id)}
+                    style={[
+                      styles.presetPill,
+                      {
+                        backgroundColor: isSelected
+                          ? 'rgba(99, 102, 241, 0.15)'
+                          : theme.isDark
+                          ? 'rgba(255,255,255,0.05)'
+                          : '#f1f5f9',
+                        borderColor: isSelected ? theme.colors.primary : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.presetText,
+                        {
+                          color: isSelected ? theme.colors.primary : theme.colors.text,
+                          fontWeight: isSelected ? '700' : '500',
+                        },
+                      ]}
+                    >
+                      {p.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
           {/* Preset Selector */}
           <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>
@@ -311,14 +404,16 @@ export default function OptimizationScreen() {
             })}
           </View>
 
-          {/* Run Button */}
-          <Button
-            title={running ? 'Đang chạy thuật toán...' : '⚡ Bắt đầu Tối ưu hóa'}
-            onPress={handleRunOptimization}
-            loading={running}
-            size="lg"
-            style={styles.runBtn}
-          />
+          {/* Run Button — PM chưa có dự án nào để chọn thì chạy chỉ nhận 403 */}
+          {(!managedOnly || projectId) && (
+            <Button
+              title={running ? 'Đang chạy thuật toán...' : '⚡ Bắt đầu Tối ưu hóa'}
+              onPress={handleRunOptimization}
+              loading={running}
+              size="lg"
+              style={styles.runBtn}
+            />
+          )}
 
           {/* Results Section */}
           {result && (
@@ -344,7 +439,7 @@ export default function OptimizationScreen() {
                         { color: theme.colors.primaryLight },
                       ]}
                     >
-                      {(result.bestFitness || result.fitness || 0).toFixed(2)}
+                      {(result.fitness || 0).toFixed(4)}
                     </Text>
                   </View>
 
@@ -363,7 +458,7 @@ export default function OptimizationScreen() {
                         { color: theme.colors.success },
                       ]}
                     >
-                      {result.assignedCount || result.assignments?.length || 0}
+                      {result.assignments?.length || 0}
                     </Text>
                   </View>
 
@@ -379,9 +474,10 @@ export default function OptimizationScreen() {
                     <Text
                       style={[styles.metricVal, { color: theme.colors.accent }]}
                     >
-                      {result.averageSkillMatch
-                        ? `${(result.averageSkillMatch * 100).toFixed(0)}%`
-                        : '92%'}
+                      {/* Server trả sẵn thang 0–100 (scoring.js). */}
+                      {typeof result.metrics?.averageSkillMatch === 'number'
+                        ? `${Math.round(result.metrics.averageSkillMatch)}%`
+                        : '—'}
                     </Text>
                   </View>
 
@@ -400,14 +496,14 @@ export default function OptimizationScreen() {
                         { color: theme.colors.warning },
                       ]}
                     >
-                      {result.executionTime
+                      {typeof result.executionTime === 'number'
                         ? `${result.executionTime}ms`
-                        : '420ms'}
+                        : '—'}
                     </Text>
                   </View>
                 </View>
 
-                {canApply && (
+                {canApply && result.status === 'completed' && (
                   <Button
                     title="Áp dụng phương án này vào hệ thống"
                     onPress={() => handleApply(result._id)}
@@ -442,13 +538,13 @@ export default function OptimizationScreen() {
                             item.task?.title ||
                             `Task #${idx + 1}`}
                         </Text>
-                        <Badge
-                          label={`Khớp ${Math.round(
-                            (item.skillMatch || 0.9) * 100
-                          )}%`}
-                          color="#10b981"
-                          size="sm"
-                        />
+                        {typeof item.skillMatch === 'number' && (
+                          <Badge
+                            label={`Khớp ${Math.round(item.skillMatch)}%`}
+                            color="#10b981"
+                            size="sm"
+                          />
+                        )}
                       </View>
                       <View style={styles.assigneeRow}>
                         <Ionicons
@@ -488,7 +584,9 @@ export default function OptimizationScreen() {
             />
           }
           renderItem={({ item }) => {
-            const isApplied = item.status === 'applied';
+            // `status` chỉ là running/completed/failed; đã áp dụng hay chưa nằm ở `isApplied`.
+            const isApplied = Boolean(item.isApplied);
+            const isFailed = item.status === 'failed';
             return (
               <Card style={styles.historyCard}>
                 <View style={styles.historyTop}>
@@ -515,6 +613,14 @@ export default function OptimizationScreen() {
                       size="sm"
                     />
                   )}
+                  {isFailed && (
+                    <Badge
+                      label="Thất bại"
+                      color="#ef4444"
+                      bg="rgba(239, 68, 68, 0.15)"
+                      size="sm"
+                    />
+                  )}
                 </View>
 
                 <View style={styles.historyMetrics}>
@@ -524,7 +630,16 @@ export default function OptimizationScreen() {
                       { color: theme.colors.text },
                     ]}
                   >
-                    Fitness: <Text style={{ fontWeight: '800', color: theme.colors.primaryLight }}>{(item.bestFitness || item.fitness || 0).toFixed(2)}</Text> · Đã gán: <Text style={{ fontWeight: '700' }}>{item.assignedCount || item.assignments?.length || 0}</Text> việc
+                    {item.projectFilter ? projectLabel(item.projectFilter) : 'Tất cả dự án'}
+                  </Text>
+                  {/* Lịch sử không kèm `assignments` (server bỏ cho nhẹ): đếm số việc đưa vào chạy. */}
+                  <Text
+                    style={[
+                      styles.historyMetricText,
+                      { color: theme.colors.text },
+                    ]}
+                  >
+                    Fitness: <Text style={{ fontWeight: '800', color: theme.colors.primaryLight }}>{(item.fitness || 0).toFixed(4)}</Text> · <Text style={{ fontWeight: '700' }}>{item.taskCount || 0}</Text> việc
                   </Text>
                   <Text
                     style={[
@@ -536,7 +651,7 @@ export default function OptimizationScreen() {
                   </Text>
                 </View>
 
-                {!isApplied && canApply && (
+                {!isApplied && !isFailed && canApply && (
                   <Button
                     title="Áp dụng phương án này"
                     onPress={() => handleApply(item._id)}
@@ -615,6 +730,11 @@ const styles = StyleSheet.create({
   },
   presetText: {
     fontSize: 12,
+  },
+  scopeNote: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 16,
   },
   algoList: {
     gap: 8,
