@@ -989,6 +989,17 @@
     "overview": "Overview",
     "overviewHint": "Track progress and the work that needs your attention.",
     "planAllocation": "Plan allocation",
+    "jobs": {
+      "staleTitle": "Scheduled jobs are not running on time",
+      "staleHint": "If a job has never run, cron is most likely not configured or JOB_SECRET is missing (see the README section \"Job định kỳ\").",
+      "neverRan": "has never run",
+      "lastSuccess": "last succeeded at {{time}}",
+      "lastFailed": "last run failed: {{error}}",
+      "names": {
+        "recurring-tasks": "Recurring tasks",
+        "workload-snapshot": "Daily workload snapshot"
+      }
+    },
     "loadError": "Could not load data. Please try again.",
     "projectTotal": "{{count}} projects in your scope",
     "taskDone": "{{count}} tasks completed",

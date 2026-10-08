@@ -989,6 +989,17 @@
     "overview": "Tổng quan",
     "overviewHint": "Theo dõi tiến độ và những việc cần điều chỉnh trong nhóm.",
     "planAllocation": "Lập phương án phân bổ",
+    "jobs": {
+      "staleTitle": "Job định kỳ không chạy đúng hạn",
+      "staleHint": "Nếu chưa từng chạy, nhiều khả năng cron chưa được cấu hình hoặc thiếu JOB_SECRET (xem README, mục \"Job định kỳ\").",
+      "neverRan": "chưa từng chạy",
+      "lastSuccess": "lần chạy thành công gần nhất lúc {{time}}",
+      "lastFailed": "lần gần nhất thất bại: {{error}}",
+      "names": {
+        "recurring-tasks": "Sinh việc lặp lại",
+        "workload-snapshot": "Chụp tải hằng ngày"
+      }
+    },
     "loadError": "Không tải được dữ liệu. Vui lòng thử lại.",
     "projectTotal": "{{count}} dự án trong phạm vi của bạn",
     "taskDone": "{{count}} việc đã hoàn thành",
