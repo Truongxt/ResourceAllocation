@@ -31,6 +31,7 @@ npm run test:watch    # component, chế độ theo dõi
 | Link thông báo | `notification-link.test.jsx` | Chặn open redirect ở `notif.link` — đích điều hướng động duy nhất của client. Bấm thật qua giao diện, không gọi thẳng hàm kiểm tra |
 | Đổi ngôn ngữ | `language-switch.test.jsx` | Bấm nút đổi ngôn ngữ thì sidebar, tiêu đề trang, nhãn enum, nhãn form và thông báo lỗi validation có đổi theo không, và lựa chọn có được nhớ không |
 | Làm mới token | `api-refresh.test.jsx` | Interceptor 401 tự làm mới rồi chạy lại request. Ca quan trọng nhất: nhiều request cùng hết hạn chỉ được kích hoạt **một** lượt làm mới — nhiều hơn thì server hiểu là token bị đánh cắp và thu hồi cả chuỗi |
+| Báo cáo kết quả | `performance-report.test.jsx` | Tab Kết quả theo người: Admin mở thẳng phạm vi toàn công ty, member không thấy lựa chọn đó (server trả 403), đổi phạm vi thì gọi lại API, tỉ lệ `null` hiện `—`, và các việc bị loại khỏi báo cáo được báo ra |
 
 Đuôi `.jsx` đánh dấu **trình chạy** (vitest + jsdom), không có nghĩa là file phải chứa JSX:
 `api-refresh.test.jsx` không render component nào nhưng vẫn cần `localStorage` của jsdom.

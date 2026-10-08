@@ -765,7 +765,8 @@
       "utilization": "Resource histogram",
       "departments": "By department",
       "projects": "Project report",
-      "trend": "Trend over time"
+      "trend": "Trend over time",
+      "performance": "Results by person"
     },
     "stats": {
       "totalResources": "Total people",
@@ -811,6 +812,28 @@
       "loadRow": "Load (hours)",
       "capacityRow": "Capacity (hours)",
       "totalRow": "TOTAL"
+    },
+    "performance": {
+      "scopeMe": "Mine",
+      "scopeSubordinates": "Direct reports",
+      "scopeAll": "Whole company",
+      "periodHint": "Counts tasks due within the period",
+      "loadError": "Could not load the results report",
+      "empty": "No one in this scope",
+      "emptySubordinates": "You are not the direct manager of anyone",
+      "noTimestamp": "{{count}} completed tasks have no completion time (from before the review flow), so they are left out of the on-time rate.",
+      "noDeadline": "{{count}} open tasks have no deadline, so they belong to no period.",
+      "columns": {
+        "person": "Person",
+        "total": "Tasks",
+        "onTime": "On time",
+        "late": "Late",
+        "failed": "Failed",
+        "overdue": "Overdue",
+        "pendingReview": "Awaiting review",
+        "extensions": "Extensions",
+        "onTimeRate": "On-time rate"
+      }
     }
   },
   "gantt": {

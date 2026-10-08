@@ -25,6 +25,7 @@ const SUITES = [
   { name: 'csp', file: 'csp.test.mjs', label: 'CSP — ràng buộc H3/H4' },
   { name: 'hybrid', file: 'hybrid.test.mjs', label: 'Hybrid — bàn giao CSP → GA' },
   { name: 'workload-trend', file: 'workload-trend.test.mjs', label: 'Chuỗi thời gian khối lượng' },
+  { name: 'performance-summary', file: 'performance-summary.test.mjs', label: 'Báo cáo kết quả theo người — phép tính' },
   { name: 'email', file: 'email.test.mjs', label: 'Email — bật/tắt và nội dung thư' },
   { name: 'sanitize', file: 'sanitize.test.mjs', label: 'Cắt toán tử Mongo khỏi request' },
   { name: 'cors', file: 'cors.test.mjs', label: 'Origin dùng chung cho REST và Socket.IO' },
@@ -48,6 +49,7 @@ const SUITES = [
   { name: 'hardening', file: 'hardening.test.mjs', label: 'Phân lập công ty, rò mật khẩu, validate payload' },
   { name: 'company-isolation', file: 'company-isolation.test.mjs', label: 'Phân lập công ty trên task, dự án, nhân sự, phòng ban' },
   { name: 'cross-company-refs', file: 'cross-company-refs.test.mjs', label: 'Id công ty khác trong body và query' },
+  { name: 'performance', file: 'performance.test.mjs', label: 'Báo cáo kết quả theo người — HTTP' },
 ];
 
 const filter = process.argv[2];

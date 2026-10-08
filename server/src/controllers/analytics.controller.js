@@ -1,10 +1,13 @@
 const Project = require('../models/Project');
 const Task = require('../models/Task');
 const Resource = require('../models/Resource');
+const User = require('../models/User');
 const OptimizationResult = require('../models/OptimizationResult');
 const mongoose = require('mongoose');
 const { buildWorkloadTrend, weeklyLoadOf } = require('../analytics/workloadTrend');
 const { getUserAnalyticsScope } = require('../services/analyticsScope.service');
+const { summarizePerformance } = require('../analytics/performanceSummary');
+const { DEFAULT_COMPANY, companyOf } = require('../services/companyRefs.service');
 
 /**
  * @desc    Dashboard overview — tổng hợp real data
@@ -611,10 +614,86 @@ const getOptimizationComparison = async (req, res, next) => {
   }
 };
 
+const PERFORMANCE_SCOPES = ['me', 'subordinates', 'all'];
+
+// `YYYY-MM-DD` hiểu theo ngày địa phương, và `to` lấy tới cuối ngày: `new Date('2026-10-31')`
+// là nửa đêm UTC, sẽ đánh rơi việc có hạn chiều ngày 31.
+const parseBound = (value, endOfDay) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = m
+    ? new Date(+m[1], +m[2] - 1, +m[3], ...(endOfDay ? [23, 59, 59, 999] : [0, 0, 0, 0]))
+    : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+/**
+ * @desc    Báo cáo kết quả theo người: đúng hạn, trễ, thất bại, quá hạn, chờ duyệt, gia hạn
+ * @route   GET /api/analytics/performance?scope=me|subordinates|all&from&to
+ * @access  Private — scope=all chỉ dành cho Owner/Admin
+ *
+ * Một việc thuộc kỳ báo cáo khi deadline (`endDate`) nằm trong [from, to]. Mặc định là
+ * tháng hiện tại. Phép tính nằm ở `analytics/performanceSummary.js`.
+ */
+const getPerformanceReport = async (req, res, next) => {
+  try {
+    const scope = req.query.scope || 'me';
+    if (!PERFORMANCE_SCOPES.includes(scope)) {
+      return res.status(400).json({ success: false, message: 'Phạm vi không hợp lệ (me, subordinates, all)' });
+    }
+    // Đây là dữ liệu đánh giá nhân sự: xem cả công ty chỉ dành cho Owner/Admin. Không
+    // lặng lẽ rơi về "me", để client biết mình đang không được xem.
+    if (scope === 'all' && !req.user.isOwner && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Chỉ Owner hoặc Admin được xem báo cáo của toàn công ty' });
+    }
+
+    const now = new Date();
+    const from = req.query.from ? parseBound(req.query.from, false) : new Date(now.getFullYear(), now.getMonth(), 1);
+    const to = req.query.to ? parseBound(req.query.to, true) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    if (!from || !to || from > to) {
+      return res.status(400).json({ success: false, message: 'Khoảng thời gian không hợp lệ' });
+    }
+
+    const company = companyOf(req.user);
+    const companyName = company === DEFAULT_COMPANY ? { $in: [company, null] } : company;
+
+    const peopleFilter = { companyName, isActive: true };
+    if (scope === 'me') peopleFilter._id = req.user._id;
+    else if (scope === 'subordinates') peopleFilter.manager = req.user._id;
+    else peopleFilter.isGuest = { $ne: true };
+
+    const people = await User.find(peopleFilter).select('name email avatar department').lean();
+    const ids = people.map((p) => p._id);
+
+    const [tasks, noDeadline] = await Promise.all([
+      Task.find({ companyName, assignee: { $in: ids }, endDate: { $gte: from, $lte: to } })
+        .select('assignee status endDate completedAt deadlineHistory')
+        .lean(),
+      // Việc không có deadline không xếp được vào kỳ nào. Đếm phần còn mở để người xem
+      // biết báo cáo đang bỏ sót bao nhiêu, thay vì im lặng.
+      Task.countDocuments({
+        companyName,
+        assignee: { $in: ids },
+        endDate: null,
+        status: { $in: ['todo', 'in_progress', 'blocked', 'review'] },
+      }),
+    ]);
+
+    const report = summarizePerformance(tasks, people, now);
+
+    res.json({
+      success: true,
+      data: { scope, from, to, ...report, excluded: { noDeadline } },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardOverview,
   getUtilizationBreakdown,
   getTaskAnalytics,
   getWorkloadTrend,
   getOptimizationComparison,
+  getPerformanceReport,
 };

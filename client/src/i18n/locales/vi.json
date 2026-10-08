@@ -765,7 +765,8 @@
       "utilization": "Resource Histogram",
       "departments": "Phân bổ theo Phòng ban",
       "projects": "Báo cáo Dự án",
-      "trend": "Xu hướng theo thời gian"
+      "trend": "Xu hướng theo thời gian",
+      "performance": "Kết quả theo người"
     },
     "stats": {
       "totalResources": "Tổng nhân sự",
@@ -811,6 +812,28 @@
       "loadRow": "Tải (giờ)",
       "capacityRow": "Năng lực (giờ)",
       "totalRow": "TỔNG"
+    },
+    "performance": {
+      "scopeMe": "Của tôi",
+      "scopeSubordinates": "Cấp dưới trực tiếp",
+      "scopeAll": "Toàn công ty",
+      "periodHint": "Tính các việc có deadline trong kỳ",
+      "loadError": "Không tải được báo cáo kết quả",
+      "empty": "Không có ai trong phạm vi này",
+      "emptySubordinates": "Bạn chưa là quản lý trực tiếp của ai",
+      "noTimestamp": "{{count}} việc đã xong nhưng không có mốc hoàn thành (từ trước khi có luồng đánh giá), nên không tính vào tỉ lệ đúng hạn.",
+      "noDeadline": "{{count}} việc đang mở không có deadline nên không thuộc kỳ nào.",
+      "columns": {
+        "person": "Nhân sự",
+        "total": "Số việc",
+        "onTime": "Đúng hạn",
+        "late": "Trễ hạn",
+        "failed": "Thất bại",
+        "overdue": "Quá hạn",
+        "pendingReview": "Chờ duyệt",
+        "extensions": "Lần gia hạn",
+        "onTimeRate": "Tỉ lệ đúng hạn"
+      }
     }
   },
   "gantt": {

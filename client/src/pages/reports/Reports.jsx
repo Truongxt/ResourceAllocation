@@ -29,9 +29,11 @@ import {
   ProjectOutlined,
   WarningOutlined,
   LineChartOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 import analyticsService from '../../services/analyticsService';
 import ExecutiveReportModal from '../../components/reports/ExecutiveReportModal';
+import PerformanceReport from '../../components/reports/PerformanceReport';
 import { formatDayMonth } from '../../i18n/format';
 import './Reports.css';
 
@@ -638,6 +640,16 @@ export default function Reports() {
                   </Space>
                 </Spin>
               ),
+            },
+            {
+              key: 'performance',
+              label: (
+                <span>
+                  <TrophyOutlined /> {t('reports.tabs.performance')}
+                </span>
+              ),
+              // Chỉ dựng khi mở tab: component tự gọi API, không cần gọi lúc trang vừa tải.
+              children: activeTab === 'performance' ? <PerformanceReport /> : null,
             },
           ]}
         />
