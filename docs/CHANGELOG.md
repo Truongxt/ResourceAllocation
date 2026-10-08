@@ -10,6 +10,16 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Added
 
+- **Ràng buộc mềm S1/S3 trong CSP.** Trước đây CSP chọn ứng viên chỉ theo capacity còn lại (LCV).
+  Nay chọn theo điểm `0.35 · khớp kỹ năng + 0.30 · chỗ trống + 0.15 · đã có việc cùng dự án`. Đo
+  trên cùng 30 bộ medium (ngưỡng 0.1, như Benchmark Studio): khớp kỹ năng 57 → 76%, chuyển ngữ
+  cảnh 60 → 32, fitness 0.699 → 0.762, số bộ giải được 20 → 24. Đổi lại, tải kém cân hơn (σ 15.3
+  → 16.2). Chi tiết ở ALGORITHMS.md mục 2.3.
+- **Hai chỉ số mới**, lưu trong kết quả tối ưu, hiện ở Benchmark Studio và bảng so sánh:
+  - `contextSwitches` (S3): số dự án thừa của mỗi người. Chỉ đo, không vào fitness.
+  - `convergenceGeneration`: thế hệ đạt 90% tổng mức cải thiện.
+
+  Bộ sinh dữ liệu benchmark nay gắn dự án cho từng việc.
 - **Vòng đời dự án: lưu trữ, nhân bản, mẫu.**
   - **Lưu trữ** (`POST /projects/:id/archive`, `/unarchive`): dự án rời khỏi danh sách mặc định và
     thành chỉ đọc. Mọi thao tác ghi lên nó và lên việc của nó trả 409, kể cả với admin/PM. Chỉ lưu trữ
@@ -42,6 +52,13 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Fixed
 
+- **Cột Hybrid của Benchmark Studio không chạy Hybrid.** Miền của CSP được truyền vào
+  *constructor* của GA (`feasibleDomains`), nơi không ai đọc, nên cột đó chỉ là GA với tỉ lệ lai
+  ghép/đột biến khác. Mọi kết luận "Hybrid tốt hơn GA" rút từ trang này trước 08/10 đều không có
+  cơ sở. Nay miền đi qua `optimize(..., { domains })`.
+- **GA báo sai số thế hệ.** `generations` lấy mốc ghi lịch sử cuối (bội số của 10) thay vì thế hệ
+  dừng thật, và `convergenceHistory` thiếu điểm cuối khi dừng sớm. Bảng GA/Hybrid ở ALGORITHMS.md
+  mục 3.3 đã đo lại: 76 / 52 thế hệ (bảng cũ ghi 119 / 90).
 - **Bốn màn hình chỉ thấy trang đầu của danh sách công việc mà không báo.** Server trả tối đa 100
   việc mỗi trang (mặc định 50) và cắt `limit` lớn hơn về 100.
   - Màn Công việc: Kanban, danh sách và chip "Tổng" dừng ở 50.

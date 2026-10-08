@@ -169,15 +169,46 @@ Hai task nối tiếp đúng thứ tự (`end(tₐ) = start(tᵦ)`) **không** b
 lịch, nên một người vẫn được làm tuần tự cả hai.
 
 H3 và H4 có bộ kiểm thử đơn vị riêng, chạy thẳng vào `CSPSolver` không qua HTTP:
-`cd server && npm test csp` (28 assertion).
+`cd server && npm test csp` (52 assertion, gồm thứ tự ứng viên S1/S2/S3).
 
 ### 2.3 Soft Constraints
 
 | # | Constraint | Trạng thái |
 |---|-----------|-----------|
-| S1 | Prefer higher skill match | ❌ Chưa implement — CSP chỉ lọc theo ngưỡng, không xếp hạng theo điểm khớp |
-| S2 | Prefer balanced workload | ✅ Có, gián tiếp qua LCV (ưu tiên resource còn nhiều capacity nhất) |
-| S3 | Minimize context switching | ❌ Chưa implement — không xét `project` khi chọn resource |
+| S1 | Prefer higher skill match | ✅ Trọng số 0.35 trong thứ tự thử ứng viên |
+| S2 | Prefer balanced workload | ✅ Trọng số 0.30: chỗ trống của tuần nặng nhất / capacity |
+| S3 | Minimize context switching | ✅ Trọng số 0.15: người đã có việc cùng dự án (trong lần chạy hoặc tải đã cam kết) |
+
+Backtracking trả về **lời giải đầu tiên** tìm được, nên thứ tự thử ứng viên chính là nơi ràng
+buộc mềm có tác dụng:
+
+```
+score(r, t) = 0.35 · skill(t, r) + 0.30 · chỗ_trống(r) + 0.15 · cùng_dự_án(r, t)
+```
+
+Hai trọng số đầu theo đúng tỉ lệ `skillMatch`/`workloadBalance` của fitness (mục 1.2), để CSP và GA
+cùng hiểu thế nào là phân công tốt. S3 không nằm trong fitness — nó chỉ được **đo** qua
+`metrics.contextSwitches` (mục 4), nên lịch sử fitness cũ vẫn so được. Trọng số 0.15 của S3 chọn
+để thắng chênh lệch chỗ trống mà một việc thường gây ra (8h/40h × 0.30 = 0.06), nhưng thua chênh
+lệch kỹ năng rõ rệt (0.5 × 0.35 = 0.175).
+
+Trước 08/10, thứ tự này chỉ xét chỗ trống (LCV). Đo trên **cùng** 30 bộ dữ liệu mỗi cỡ (sinh một
+lần, so cặp những bộ mà cả hai bản cùng giải được):
+
+| | Khớp kỹ năng (%) | Chuyển ngữ cảnh | Fitness | Độ lệch tải σ (giờ) | Giải được |
+|---|---|---|---|---|---|
+| medium, ngưỡng 0.1 (như Benchmark Studio) | 57 → **76** | 60 → **32** | 0.699 → **0.762** | 15.3 → 16.2 | 20 → **24**/30 |
+| small, ngưỡng 0.1 | 55 → **62** | 4.0 → **2.5** | 0.688 → **0.694** | 9.7 → 14.9 | 8 → 8/30 |
+| medium, ngưỡng 0 | 27 → **75** | 61 → **32** | 0.594 → **0.762** | 15.0 → 16.1 | 25 → **28**/30 |
+| small, ngưỡng 0 | 27 → **55** | 4.2 → **2.0** | 0.583 → **0.667** | 11.6 → 15.9 | 30 → 30/30 |
+
+Cái giá là **tải kém cân hơn** (σ tăng): đó là hệ quả trực tiếp của việc S2 không còn là tiêu chí
+duy nhất. Fitness vẫn tăng vì khớp kỹ năng có trọng số lớn hơn cân tải.
+
+> Dữ liệu tổng hợp làm CSP rất hay **vô nghiệm**: mỗi việc đòi 1–3 kỹ năng ngẫu nhiên trong 15, nên
+> thường có việc mà không ai có kỹ năng đó và bộ lọc H2 loại sạch. Ở ngưỡng mặc định 0.5, CSP chỉ
+> giải được 0/30 bộ small và 3/30 bộ medium. Vì vậy bảng trên đo ở ngưỡng 0.1 (Benchmark Studio dùng
+> đúng ngưỡng này) và ngưỡng 0 (bỏ hẳn bộ lọc kỹ năng, để chỉ còn thứ tự quyết định).
 
 ### 2.4 Algorithm: Backtracking + lọc miền giá trị
 
@@ -241,7 +272,7 @@ còn arc consistency nhìn **quan hệ giữa hai** biến.
 | Heuristic | Trạng thái | Cách implement |
 |-----------|-----------|----------------|
 | **MRV** (Minimum Remaining Values) | ✅ | Sắp xếp biến chưa gán theo `domain.length` tăng dần, lấy biến đầu |
-| **LCV** (Least Constraining Value) | ✅ | Sắp xếp resource theo capacity còn lại **giảm dần** |
+| **Thứ tự giá trị** (thay LCV từ 08/10) | ✅ | `_orderCandidates()` — điểm ràng buộc mềm S1/S2/S3, xem mục 2.3. LCV cũ (chỉ capacity còn lại) nay là thành phần S2 |
 | **Node consistency** theo capacity | ✅ | `_nodeConsistency()` — bước 3 |
 | **AC-3** đúng nghĩa | ✅ | `_arcConsistency()` — bước 4, chạy trên đồ thị H4, có đẩy lại cung sau mỗi lần cắt |
 | **All-different** (Régin) | ❌ | Chưa implement — xem giới hạn của AC-3 trên `≠` ở mục 2.4 |
@@ -304,16 +335,23 @@ lọc), `feasiblePairs` (sau khi lọc), `tasksReopened`, và cờ `restricted`.
 Đo thử trên bài toán 20 công việc × 12 nhân sự, mỗi người chỉ thạo 1 kỹ năng
 (240 cặp → 48 cặp khả thi, giảm 80%), trung bình 40 lần chạy mỗi chế độ:
 
-| | Fitness trung bình | Số thế hệ tới khi dừng |
-|---|---|---|
-| GA chạy một mình | 0.8519 | 119 |
-| Hybrid (miền từ CSP) | 0.8532 | 90 |
+| | Fitness trung bình | Thế hệ dừng | Hội tụ 90% (thế hệ) |
+|---|---|---|---|
+| GA chạy một mình | 0.8530 | 76.3 | 13.9 |
+| Hybrid (miền từ CSP) | 0.8530 | 51.8 | **1.8** |
 
-Thu hẹp miền chủ yếu giúp **hội tụ nhanh hơn** (~24% ít thế hệ hơn) chứ không nâng
-fitness lên đáng kể — điều này hợp lý, vì GA vốn cũng tự học được cách tránh nhân sự
-thiếu kỹ năng, chỉ là phải trả giá bằng nhiều thế hệ.
+Thu hẹp miền giúp **hội tụ nhanh hơn hẳn** chứ không nâng fitness lên: GA vốn cũng tự học được
+cách tránh nhân sự thiếu kỹ năng, chỉ là phải trả giá bằng nhiều thế hệ. Đo lại ngày 08/10. Bảng
+cũ (119 / 90 thế hệ) đo bằng trường `generations` khi trường này còn lỗi: nó lấy **mốc ghi lịch sử
+cuối** (bội số của 10) thay vì thế hệ dừng thật. "Hội tụ 90%" là chỉ số mới, định nghĩa ở mục 4.
 
-Kiểm thử: `cd server && npm test hybrid` (19 assertion).
+> **Benchmark Studio trước 08/10 không chạy Hybrid thật.** Cột Hybrid truyền miền của CSP vào
+> **constructor** của GA (`feasibleDomains`), nơi không ai đọc. Cột đó thật ra là GA với tỉ lệ lai
+> ghép/đột biến khác, nên mọi kết luận "Hybrid tốt hơn GA" rút từ trang này trước ngày đó đều không
+> có cơ sở. Nay miền đi qua `optimize(..., { domains })`, và cột Hybrid báo kèm `domainReduction`.
+
+Kiểm thử: `cd server && npm test hybrid` (29 assertion, gồm số thế hệ, tốc độ hội tụ và cột Hybrid
+của Benchmark Studio).
 
 ---
 
@@ -329,13 +367,16 @@ Kiểm thử: `cd server && npm test hybrid` (19 assertion).
 | **Total Cost** | `metrics.totalCost` | `Σ (hourlyRate[r] × estimatedHours[t])` | tiền |
 | **Fitness** | `fitness` (cấp gốc) | công thức mục 1.2, làm tròn 4 chữ số | 0-1 |
 | **Execution Time** | `executionTime` | thời gian chạy | ms |
+| **Context Switches** (S3) | `metrics.contextSwitches` | `Σ_người max(0, số dự án − 1)`, tính cả dự án của tải đã cam kết | số nguyên, càng nhỏ càng tốt |
+| **Convergence Speed** | `metrics.convergenceGeneration` (GA, Hybrid) | thế hệ đầu tiên có `best(g) − best(0) ≥ 0.9 · (best(cuối) − best(0))`; không cải thiện → 0 | thế hệ |
 
 > `averageSkillMatch` và `assignments[].skillMatch` được nhân 100 trước khi lưu (thang %),
 > trong khi `fitness` giữ thang 0-1. Đừng nhầm hai thang này khi hiển thị.
 
-**Chưa implement**: "Convergence Speed" (số generation đạt 90% fitness) không được tính ở bất kỳ đâu.
-Muốn suy ra, phải tự duyệt `convergenceHistory` ở phía client — lưu ý mảng này chỉ ghi lại
-generation 0, các generation chia hết cho 10, và generation cuối.
+"Hội tụ 90%" đo theo **mức cải thiện**, không theo "đạt 90% fitness cuối". Theo nghĩa đen, fitness
+của thế hệ 0 thường đã ≥ 0.9 lần fitness cuối, nên chỉ số luôn bằng 0. Nó được tính trên fitness
+tốt nhất của **mọi** thế hệ, giữ trong bộ nhớ lúc chạy, chứ không trên `convergenceHistory`: mảng
+đó chỉ ghi thế hệ 0, các thế hệ chia hết cho 10, và thế hệ dừng thật (kể cả khi dừng sớm).
 
 ---
 
