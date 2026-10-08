@@ -50,6 +50,44 @@ const recalculateProjectProgress = async (projectId) => {
   await Project.findByIdAndUpdate(projectId, { progress });
 };
 
+/** `dd/mm/yyyy` theo giờ server — dùng trong nội dung thông báo. */
+const formatDay = (value) => {
+  if (!value) return 'chưa có';
+  const d = new Date(value);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+};
+
+/**
+ * Báo cho người thực hiện và người theo dõi của một công việc, trừ chính người thao tác.
+ * `followers`/`assignee` có thể là id hoặc object đã populate.
+ */
+const notifyTaskPeople = (task, actor, { type, title, message }) => {
+  const idOf = (v) => String(v?._id || v);
+  const actorId = String(actor._id);
+  const recipients = new Set(
+    [...(task.followers || []), task.assignee].filter(Boolean).map(idOf).filter((id) => id !== actorId)
+  );
+  recipients.forEach((recipient) => {
+    sendNotification({
+      recipient,
+      actor: actor._id,
+      type,
+      title,
+      message,
+      entityType: 'task',
+      entityId: task._id,
+      link: '/tasks',
+    });
+  });
+};
+
+const notifyDeadlineChanged = (task, actor, oldEndDate, newEndDate, reason) =>
+  notifyTaskPeople(task, actor, {
+    type: 'task_deadline_changed',
+    title: 'Đổi hạn công việc',
+    message: `${actor.name} đổi hạn "${task.title}": ${formatDay(oldEndDate)} → ${formatDay(newEndDate)}${reason ? `. Lý do: ${reason}` : ''}`,
+  });
+
 /**
  * Công việc này có thuộc công ty của người gọi không.
  *
@@ -607,6 +645,12 @@ const updateTask = async (req, res, next) => {
       });
     }
 
+    // Cùng điều kiện với việc ghi `deadlineHistory` ở trên: gửi lại đúng ngày cũ thì im.
+    const deadlineEntry = updateData.$push?.deadlineHistory;
+    if (deadlineEntry) {
+      notifyDeadlineChanged(updatedTask, req.user, deadlineEntry.oldEndDate, deadlineEntry.newEndDate, req.body.deadlineReason);
+    }
+
     logActivity({
       req,
       action: 'UPDATE_TASK',
@@ -700,8 +744,15 @@ const updateTaskStatus = async (req, res, next) => {
       await syncResourceWorkload(task.assignee);
     }
 
-    // Notify assignee if status changed by someone else
-    if (
+    if (status === 'failed') {
+      // Việc đóng lại với kết quả xấu: người theo dõi cũng cần biết, và cần biết vì sao.
+      // Thay hẳn thông báo đổi trạng thái chung bên dưới, để không ai nhận hai lần.
+      notifyTaskPeople(updatedTask, req.user, {
+        type: 'task_failed',
+        title: 'Công việc thất bại',
+        message: `${req.user.name} đánh dấu "${updatedTask.title}" là Thất bại. Lý do: ${updateData.failureReason}`,
+      });
+    } else if (
       updatedTask.assignee &&
       updatedTask.assignee._id.toString() !== req.user._id.toString()
     ) {
@@ -1643,8 +1694,11 @@ const updateDeadline = async (req, res, next) => {
       changedAt: new Date(),
     });
 
+    const oldEndDate = task.endDate;
     task.endDate = new Date(newEndDate);
     await task.save();
+
+    notifyDeadlineChanged(task, req.user, oldEndDate, task.endDate, reason);
 
     const populated = await Task.findById(task._id)
       .populate('deadlineHistory.changedBy', 'name email avatar');
