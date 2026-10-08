@@ -2,6 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Trạng thái (2026-10-09): đã làm xong Task 1–4.** Server 36/36 bộ (`attachments` 40/40), client 68/68,
+> bài e2e đính kèm đạt. Lệch so với plan: bỏ trường `project` trên `Attachment` (việc chuyển được dự án
+> nên trường đó sẽ sai), dọn tệp theo id các việc. `GET /tasks/:id` trả thêm `project.isArchived` để tab
+> Tệp ẩn nút tải lên/xóa khi chỉ đọc.
+
 **Goal:** Người dùng tải tệp lên một công việc, xem danh sách, tải về và xóa được. Hiện tại `resultReport.attachments` chỉ là trường trong DB: không có đường tải lên, giao diện cũng không dùng.
 
 **Spec:** [COMPARISON_BASE_WEWORK.md mục 4.5](../../COMPARISON_BASE_WEWORK.md#45-đính-kèm-tệp-thật), lộ trình: [2026-10-07-lo-trinh-hoan-thien.md](./2026-10-07-lo-trinh-hoan-thien.md) (GĐ8)

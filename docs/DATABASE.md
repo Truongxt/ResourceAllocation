@@ -32,6 +32,7 @@
      └──────────────────────────────────┘
 
   Ghi bởi job định kỳ:  WorkloadSnapshots (Resources × ngày)   JobRuns (mỗi lần chạy job)
+  Gắn với Tasks:        Attachments (nội dung tệp nằm trên đĩa, UPLOAD_DIR)
 ```
 
 ---
@@ -519,6 +520,32 @@ Một lần chạy job định kỳ. Job được cron bên ngoài gọi, nên �
 ```
 
 **Indexes**: `(name, startedAt)`; TTL 90 ngày trên `startedAt`.
+
+---
+
+## 14. Attachments Collection
+
+Tệp đính kèm của một công việc. Ở đây chỉ có siêu dữ liệu; nội dung nằm trong `UPLOAD_DIR`
+(`server/src/services/fileStorage.js`) dưới khóa `storageKey`.
+
+```javascript
+{
+  task: ObjectId → Tasks,
+  companyName: String,
+  originalName: String,      // tên người dùng đặt, có dấu, ≤ 255 ký tự
+  mimeType: String,          // suy từ đuôi tệp, không theo thứ client khai
+  size: Number,              // byte, ≤ 10 MB
+  storageKey: String,        // 32 ký tự hex ngẫu nhiên — select: false, không bao giờ trả ra client
+  uploadedBy: ObjectId → Users,
+  createdAt: Date
+}
+```
+
+**Indexes**: `task`.
+
+Không lưu dự án: việc chuyển được sang dự án khác, nên xóa theo dự án phải đi qua id các việc.
+Xóa việc hoặc xóa dự án (`force`) xóa cả tệp trên đĩa; nhân bản thì không chép tệp.
+`resultReport.attachments` của Tasks là trường cũ (`{ name, url, size }`), không gắn với collection này.
 
 ---
 

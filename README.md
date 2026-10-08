@@ -106,6 +106,14 @@ trong ngày thì ghi đè. Thiếu `JOB_SECRET` thì endpoint trả 503. Quên c
 nào nổ ra, nên hãy kiểm `GET /api/jobs/status` (Owner/Admin): job chưa từng chạy, hoặc quá hạn, có
 `stale: true`.
 
+## Tệp đính kèm
+
+Tệp người dùng tải lên công việc nằm trên đĩa server, trong `UPLOAD_DIR` (mặc định `server/uploads`,
+đã có trong `.gitignore`). Khi triển khai, đặt `UPLOAD_DIR` vào một thư mục **được sao lưu** và
+**không bị xóa khi deploy lại** (volume riêng nếu chạy container). Database chỉ giữ siêu dữ liệu, nên
+sao lưu database mà thiếu thư mục này thì danh sách tệp còn nhưng tải về báo "Tệp không còn trên máy
+chủ". Muốn chuyển sang S3 thì chỉ thay `server/src/services/fileStorage.js`.
+
 ## Tài liệu
 
 - [Tổng quan dự án](./docs/README.md)

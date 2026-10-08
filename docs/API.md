@@ -555,6 +555,18 @@ Nhóm lớn nhất — **30 endpoint**. Mọi endpoint đều 🔒; cột Auth d
 | DELETE | `/:id/followers/:userId` | Gỡ người theo dõi | — |
 | GET | `/:id/subtasks` | Danh sách việc con | — |
 | POST | `/:id/subtasks` | Tạo việc con | — |
+| GET | `/:id/attachments` | Danh sách tệp, mới nhất trước | — |
+| POST | `/:id/attachments` | Tải một tệp lên (multipart, trường `file`) → 201 | — |
+| GET | `/:id/attachments/:attachmentId/download` | Nội dung tệp | — |
+| DELETE | `/:id/attachments/:attachmentId` | Xóa tệp | người tải lên, quản lý dự án hoặc 👑 |
+
+**Tệp đính kèm.** Quyền như bình luận: cùng công ty là xem và tải về được; tải lên cần quyền sửa ở
+phân hệ Công việc; dự án lưu trữ chỉ đọc (409). Mỗi tệp tối đa **10 MB** (413), mỗi việc tối đa
+**20 tệp** (400). Chỉ nhận tài liệu văn phòng, PDF, văn bản (`.txt`, `.csv`, `.md`, `.rtf`), ảnh
+(`.png`, `.jpg`, `.gif`, `.webp`, `.bmp`) và tệp nén (`.zip`, `.rar`, `.7z`); đuôi khác → 400. Chỉ
+xét đuôi cuối, nên `a.pdf.exe` bị từ chối. Tải về luôn có `Content-Disposition: attachment` (tên gốc,
+dạng `filename*=UTF-8''…`) và `X-Content-Type-Options: nosniff`. `attachmentId` của việc khác → 404.
+Phản hồi không bao giờ có `storageKey`.
 
 ### 3.4. Excel và bàn giao hàng loạt
 

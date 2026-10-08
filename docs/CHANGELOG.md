@@ -6,9 +6,16 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
-## [Chưa phát hành] - 2026-10-08 (báo cáo kết quả theo người, xuất công việc, thông báo, vòng đời dự án)
+## [Chưa phát hành] - 2026-10-09 (báo cáo kết quả theo người, xuất công việc, thông báo, vòng đời dự án, đính kèm tệp)
 
 ### Added
+
+- **Đính kèm tệp thật trên công việc** (web). Tab "Tệp" trong chi tiết công việc: tải lên, tải về đúng
+  tên gốc, xóa. Lưu trên đĩa server (`UPLOAD_DIR`, mặc định `server/uploads`) qua một lớp `fileStorage`
+  để sau đổi sang S3. 10 MB mỗi tệp, 20 tệp mỗi việc, chỉ nhận tài liệu/PDF/văn bản/ảnh/tệp nén. Quyền
+  như bình luận; xóa là người tải lên, quản lý dự án hoặc admin; dự án lưu trữ chỉ đọc. Xóa việc hoặc
+  dự án thì xóa cả tệp. Trước đây `resultReport.attachments` chỉ là trường trong DB, không có đường
+  tải lên. Mobile chưa có.
 
 - **Mobile: PM vào được Tối ưu hóa**, giống web: ô chọn dự án chỉ có dự án họ quản lý, không có "Tất cả
   dự án"; Benchmark ẩn "Dữ liệu Thật". Owner/Admin có thêm ô chọn dự án (mặc định "Tất cả dự án").
