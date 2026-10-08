@@ -19,7 +19,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Typography, Space, Segmented, Button, Form, Tabs, Tag, Modal, Input, message } from 'antd';
+import { Typography, Space, Segmented, Button, Form, Tabs, Tag, Modal, Input, Alert, message } from 'antd';
 import {
   AppstoreOutlined,
   UnorderedListOutlined,
@@ -35,7 +35,7 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import taskService from '../../services/taskService';
+import taskService, { SCREEN_MAX_PAGES } from '../../services/taskService';
 import projectService from '../../services/projectService';
 import resourceService from '../../services/resourceService';
 import taskGroupService from '../../services/taskGroupService';
@@ -61,6 +61,7 @@ import './Tasks.css';
 
 const { Title, Text } = Typography;
 
+
 export default function Tasks() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -71,6 +72,8 @@ export default function Tasks() {
 
   // --- TRẠNG THÁI DỮ LIỆU ---
   const [tasks, setTasks] = useState([]);
+  // Tổng số việc khớp bộ lọc theo server — có thể lớn hơn `tasks.length` khi chạm trần.
+  const [taskTotal, setTaskTotal] = useState(0);
   const [projects, setProjects] = useState([]);
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -153,8 +156,9 @@ export default function Tasks() {
   const loadTasks = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await taskService.getAll(taskQueryParams());
-      setTasks(res.data.data.tasks || []);
+      const { tasks: loaded, total } = await taskService.getAllPages(taskQueryParams(), SCREEN_MAX_PAGES);
+      setTasks(loaded);
+      setTaskTotal(total);
     } catch {
       message.error(t('tasks.loadFailed') || 'Không thể tải danh sách công việc');
     } finally {
@@ -170,13 +174,7 @@ export default function Tasks() {
   const exportTasks = async () => {
     setExporting(true);
     try {
-      const params = { ...taskQueryParams(), limit: 100 };
-      const all = [];
-      for (let page = 1, pages = 1; page <= pages; page += 1) {
-        const res = await taskService.getAll({ ...params, page });
-        all.push(...(res.data.data.tasks || []));
-        pages = res.data.pagination?.pages || 1;
-      }
+      const { tasks: all } = await taskService.getAllPages(taskQueryParams());
       const day = (d) => (d ? dayjs(d).format('YYYY-MM-DD') : '');
       const rows = [
         ['title', 'project', 'group', 'status', 'priority', 'assignee', 'startDate', 'endDate', 'estimatedHours', 'progress', 'completedAt']
@@ -302,12 +300,12 @@ export default function Tasks() {
 
   // Thống kê nhanh cho KPI chips
   const stats = useMemo(() => {
-    const total = tasks.length;
+    const total = Math.max(taskTotal, tasks.length);
     const inProgress = tasks.filter((tItem) => tItem.status === 'in_progress').length;
     const done = tasks.filter((tItem) => tItem.status === 'done').length;
-    const blocked = tasks.filter((tItem) => tItem.status === 'cancelled').length;
+    const blocked = tasks.filter((tItem) => tItem.status === 'blocked').length;
     return { total, inProgress, done, blocked };
-  }, [tasks]);
+  }, [tasks, taskTotal]);
 
   /**
    * Kéo thả công việc giữa các cột Kanban
@@ -729,6 +727,9 @@ export default function Tasks() {
       {(attentionStatus || unassignedOnly) && <div className="task-active-filter"><span>{t(attentionStatus ? 'workspace.blocked' : 'workspace.unassigned')}</span><Button size="small" onClick={() => setSearchParams({})}>{t('workspace.clearFilter')}</Button></div>}
       {/* 1. Khối KPI Chips */}
       <TaskKpiChips stats={stats} isDark={isDark} t={t} />
+      {taskTotal > tasks.length && (
+        <Alert type="warning" showIcon style={{ marginBottom: 12 }} title={t('tasks.truncated', { shown: tasks.length, total: taskTotal })} />
+      )}
 
       {/* 2. Thanh lọc & tìm kiếm */}
       <TaskFilterBar

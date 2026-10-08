@@ -739,7 +739,8 @@
       "estimatedHours": "Giờ ước tính",
       "progress": "Tiến độ (%)",
       "completedAt": "Hoàn thành lúc"
-    }
+    },
+    "truncated": "Đang hiện {{shown}} / {{total}} công việc — hãy lọc theo dự án, phạm vi hoặc thời gian để xem phần còn lại. Nút Xuất CSV vẫn lấy đủ."
   },
   "projectDetail": {
     "loadFailed": "Không thể tải dự án",

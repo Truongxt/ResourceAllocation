@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import dayjs from 'dayjs';
 import { useAuth } from '../../context/AuthContext';
-import taskService from '../../services/taskService';
+import taskService, { SCREEN_MAX_PAGES } from '../../services/taskService';
 import resourceService from '../../services/resourceService';
 import CalendarHeader from './CalendarHeader';
 import MonthView from './views/MonthView';
@@ -45,12 +45,13 @@ export default function CalendarPage() {
         setLoading(true);
         try {
             const { from, to } = getDateRange();
-            const params = { from, to, limit: 200 }; // Lấy đủ task hiển thị trên lịch
+            const params = { from, to };
             if (selectedAssignee) {
                 params.assignee = selectedAssignee;
             }
-            const res = await taskService.getCalendarTasks(params);
-            setTasks(res.data?.data?.tasks || []);
+            // Server cắt `limit` về 100 — đi hết các trang để tháng nhiều việc không bị thiếu.
+            const { tasks: loaded } = await taskService.getAllPages(params, SCREEN_MAX_PAGES);
+            setTasks(loaded);
         } catch {
             message.error('Không thể tải công việc trên lịch');
         } finally {

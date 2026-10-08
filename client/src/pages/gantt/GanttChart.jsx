@@ -24,7 +24,7 @@ import {
   CaretDownOutlined,
   CaretRightOutlined,
 } from '@ant-design/icons';
-import taskService from '../../services/taskService';
+import taskService, { SCREEN_MAX_PAGES } from '../../services/taskService';
 import projectService from '../../services/projectService';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -111,10 +111,10 @@ export default function GanttChart() {
       if (filters.search) params.search = filters.search;
 
       const [taskRes, projRes] = await Promise.all([
-        taskService.getAll({ ...params, limit: 100 }),
+        taskService.getAllPages(params, SCREEN_MAX_PAGES),
         projectService.getAll({ limit: 100 }),
       ]);
-      setTasks(taskRes.data.data.tasks || []);
+      setTasks(taskRes.tasks);
       setProjects(projRes.data.data.projects || []);
     } catch {
       /* ignore */

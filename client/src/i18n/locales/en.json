@@ -739,7 +739,8 @@
       "estimatedHours": "Estimated hours",
       "progress": "Progress (%)",
       "completedAt": "Completed at"
-    }
+    },
+    "truncated": "Showing {{shown}} of {{total}} tasks — filter by project, scope or time to see the rest. Export CSV still includes all of them."
   },
   "projectDetail": {
     "loadFailed": "Could not load the project",
