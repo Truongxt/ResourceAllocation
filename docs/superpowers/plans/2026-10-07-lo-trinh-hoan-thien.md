@@ -10,42 +10,70 @@ phụ thuộc vào những gì giai đoạn trước để lại, nên viết ch
 
 ## Trạng thái (cập nhật 2026-10-08)
 
-| # | Giai đoạn | Trạng thái |
-|---|-----------|------------|
-| 1 | Dự án loại "team" | ✅ **Xong** — `57a8e9a`. Server 27/27 bộ, client 37/37, e2e `03-projects` 10/10 |
-| 2 | Báo cáo kết quả theo người | ✅ **Xong** — [plan](./2026-10-08-bao-cao-ket-qua-theo-nguoi.md). Server 29/29 bộ, client 40/40 |
-| 3 | Xuất công việc + thông báo Thất bại/đổi deadline | ✅ **Xong** — [plan](./2026-10-08-xuat-cong-viec-va-thong-bao.md). Server 29/29 bộ, client 41/41, e2e 87/87 |
-| 4 | Vòng đời dự án | ✅ **Xong** — [plan](./2026-10-08-vong-doi-du-an.md). Server 31/31 bộ, client 46/46, e2e 88/88 |
-| 5 | Thuật toán phần 1 (S1/S3, hội tụ) | ✅ **Xong** — [plan](./2026-10-08-thuat-toan-phan-1.md). Số đo trước/sau ở ALGORITHMS.md mục 2.3 và 3.3 |
-| 6 | Thuật toán phần 2 (snapshot, Régin) | ✅ **Xong** — [plan](./2026-10-08-job-dinh-ky-va-thuat-toan-phan-2.md). Job định kỳ qua endpoint nội bộ + cron ngoài; snapshot workload; Régin đo rồi bỏ (clique lớn nhất = 2). Sửa kèm: "Việc lặp lại" chưa từng tự chạy |
-| 7 | Trường dữ liệu tùy chỉnh | ⏳ Chưa làm — cần spec riêng |
-| 8 | Đính kèm tệp thật | ⏳ Chưa làm — cần chọn đĩa hay S3 |
-| 9 | Mobile Gantt + test giao diện | ⏳ Chưa làm |
-| 10 | react-router v7 | ⏳ Chưa làm |
+**Ưu tiên hiện tại (chốt với người dùng ngày 2026-10-08): hoàn thành chương trình trước, sửa luận văn sau.**
 
-Làm ngoài lộ trình, cùng ngày: **chặn id của công ty khác trong body/query** (`3d93981`). Đây là
-phần đang dở trước khi lập lộ trình; nay đã commit, và `cross-company-refs` đạt 62/62.
+Số test ở lần chạy gần nhất: server **32/32 bộ**, client **48/48** (cộng 4 bộ logic thuần), e2e **88/88**
+khi chạy trọn bộ sau GĐ4. Sau đó có thêm 1 bài e2e (Benchmark Studio), đã chạy riêng theo file và đạt.
 
-### Phát hiện trong lúc làm, đã xử lý ngày 2026-10-08
+### Đã làm
 
-- **`runBenchmark` đọc được dữ liệu của công ty khác** khi chạy trên "dữ liệu thật". Nay hàm
-  truyền `req.user`, và `loadOptimizationData` luôn lọc theo công ty. Có test trong
-  `cross-company-refs` (64/64).
-- **Nhánh "người không phải admin" trong `loadOptimizationData`** là code chết, nay đã xóa.
-  Nếu muốn PM chạy được tối ưu thì phải nới `authorizeApp('optimize')`, và khi đó cần viết lại
-  phần thu hẹp phạm vi theo dự án của người gọi.
+| # | Giai đoạn | Commit | Ghi chú |
+|---|-----------|--------|---------|
+| 1 | Dự án loại "team" | `57a8e9a` | [plan](./2026-10-07-du-an-loai-team.md) |
+| 2 | Báo cáo kết quả theo người | `d7f9eab`, `713c23c` | [plan](./2026-10-08-bao-cao-ket-qua-theo-nguoi.md). `GET /analytics/performance` + tab "Kết quả theo người" |
+| 3 | Xuất công việc + thông báo Thất bại/đổi deadline | `f6dfd79`, `e8d265b`, `755097c`, `fda1c39` | [plan](./2026-10-08-xuat-cong-viec-va-thong-bao.md). CSV theo bộ lọc, in Gantt trọn trục thời gian, `task_failed` / `task_deadline_changed` |
+| 4 | Vòng đời dự án | `7faaadd`, `d3cf283`, `c8055f9` | [plan](./2026-10-08-vong-doi-du-an.md). Lưu trữ (chỉ đọc), nhân bản, dự án mẫu |
+| 5 | Thuật toán phần 1 (S1/S3, hội tụ) | `1c73ee0`, `b13e3c0` | [plan](./2026-10-08-thuat-toan-phan-1.md). Số đo trước/sau ở ALGORITHMS.md mục 2.3 và 3.3 |
+| 6 | Thuật toán phần 2 (job, snapshot, Régin) | `0bae0f4`, `9e946f9` | [plan](./2026-10-08-job-dinh-ky-va-thuat-toan-phan-2.md). Job qua endpoint nội bộ + cron ngoài; ảnh chụp workload; Régin đo rồi bỏ (clique lớn nhất = 2) |
 
-### Phát hiện trong giai đoạn 3
+**Lỗi phát hiện trong lúc làm và đã sửa** (mỗi lỗi đều được tái hiện trước khi sửa và có test giữ lại):
 
-- ✅ **`PUT /tasks/:id` đổi được `status` mà không qua chốt nào** — đã vá ngày 2026-10-08 (bộ
-  `task-status-paths`). Tái hiện bằng request thật: người thực hiện tự kết luận xong khi dự án bật
-  đánh giá, và tự đánh Thất bại không lý do dù không được phép. Cùng đợt vá thêm: kéo thẻ Kanban
-  sang Hoàn thành không ghi `completedAt`, và `PUT` ghi được `completedAt` từ body. Việc đã xong
-  trước bản vá vẫn không có mốc. Nếu cần, có thể khôi phục mốc từ nhật ký hoạt động
-  (`UPDATE_TASK_STATUS` sang `done` có thời điểm), nhưng chưa làm.
-- ✅ **Màn Công việc chỉ hiện 50 việc đầu mà không báo** — đã sửa ngày 2026-10-08. Rà ra thì Lịch
-  (100), Gantt (100) và tìm kiếm toàn cục (50) cũng mắc cùng lỗi. Cả bốn nay dùng
-  `taskService.getAllPages` (trần 1000 việc), và màn Công việc báo khi chạm trần.
+| Lỗi | Commit |
+|-----|--------|
+| Id của công ty khác lọt qua body/query (làm trước khi lập lộ trình) | `3d93981` |
+| `runBenchmark` trên "dữ liệu thật" đọc được dữ liệu của mọi công ty | `a8e1c2d` |
+| `PUT /tasks/:id` đổi trạng thái không qua chốt nào: tự kết luận xong khi dự án bật đánh giá, tự đánh Thất bại không lý do; ghi được `completedAt` từ body | `152df0e` |
+| Kéo thẻ Kanban sang Hoàn thành không ghi `completedAt`, làm sai báo cáo kết quả | `152df0e` |
+| Công việc / Lịch / Gantt / tìm kiếm chỉ thấy trang đầu (50–100 việc); chip "Bị chặn" luôn ra 0 | `51f0d5f` |
+| Bản in Gantt bị cắt ngang và mất màu thanh; mọi trang in mất ~265px mép trái | `755097c` |
+| CSV của Reports lệch cột khi tên có dấu `"` | `e8d265b` |
+| Cột Hybrid của Benchmark Studio không chạy Hybrid (miền CSP truyền nhầm chỗ) | `1c73ee0` |
+| GA báo số thế hệ theo mốc ghi lịch sử (bội số của 10), không phải thế hệ dừng thật | `1c73ee0` |
+| "Việc lặp lại" chưa từng tự sinh việc (không ai gọi bộ sinh), và sinh trùng khi gọi song song | `0bae0f4` |
+
+### Chưa làm
+
+**Các giai đoạn còn lại** — mỗi giai đoạn cần người dùng quyết trước khi làm (trừ GĐ9):
+
+| # | Giai đoạn | Cần quyết |
+|---|-----------|-----------|
+| 7 | Trường dữ liệu tùy chỉnh (lớn: lan sang form, Excel, bộ lọc, CSV) | Danh sách kiểu trường cho bản đầu |
+| 8 | Đính kèm tệp thật | Lưu đĩa hay S3; trần dung lượng |
+| 9 | Mobile: màn Gantt, test giao diện | — (làm được ngay) |
+| 10 | react-router v7 | Có chấp nhận đổi API router không |
+
+**Tồn đọng nhỏ, đã biết nhưng chưa xử lý:**
+
+- **Báo cáo luận văn dùng số đo cũ** — để sau theo quyết định ngày 2026-10-08. `docs/build_thesis_report.py`
+  dòng 503–509 và 527 (kéo theo file `.docx`/`.pdf`) ghi "GA dừng sau 119 thế hệ, Hybrid 90, giảm ~24%".
+  Số đúng: 76.3 / 51.8 thế hệ dừng (Hybrid ít hơn ~32%), hội tụ 90% ở thế hệ 13.9 / 1.8. Fitness 0.8530 cả
+  hai. Báo cáo cũng chưa có S1/S3, `contextSwitches` và các bản sửa ở bảng trên.
+- **Khi triển khai phải cấu hình cron và `JOB_SECRET`** (README mục "Job định kỳ"). Thiếu thì hai job không
+  bao giờ chạy. **Giao diện chưa hiện trạng thái job**: chỉ thấy qua `GET /api/jobs/status`. Nên có cảnh báo
+  cho Owner/Admin khi `stale`.
+- **Việc đã xong trước `152df0e` không có `completedAt`**, nên báo cáo kết quả các kỳ cũ xếp chúng vào "xong
+  nhưng không có mốc". Có thể khôi phục từ nhật ký hoạt động (`UPDATE_TASK_STATUS` sang `done`). Cần người dùng
+  quyết có làm không.
+- **Dạng thẻ (grid) ở màn Dự án**: dự án lưu trữ vẫn hiện nút sửa. Dạng bảng đã ẩn; server vẫn chặn bằng 409.
+- **Dữ liệu tổng hợp của Benchmark làm CSP rất hay vô nghiệm**: việc đòi kỹ năng mà không ai có. Ở ngưỡng mặc
+  định 0.5, CSP giải được 0/30 bộ small. Nên sửa bộ sinh cho thực tế hơn trước khi lấy số cho luận văn.
+- **S1/S3 làm tải kém cân hơn** (σ medium 15.3 → 16.2). Nếu cần, chỉnh trọng số `SOFT_WEIGHTS` trong
+  `CSPSolver.js` và đo lại bằng cách ở ALGORITHMS.md mục 2.3.
+- **Job việc lặp lại sinh một lượt mỗi cấu hình mỗi lần gọi**: lỡ nhiều lượt thì các lần gọi sau đuổi kịp dần,
+  không sinh bù một lần.
+- **PM không chạy được tối ưu** (`authorizeApp('optimize')` chỉ cho Owner/Admin/App Admin). Muốn mở cho PM thì
+  phải viết lại phần thu hẹp phạm vi theo dự án.
+- Cảnh báo có sẵn từ trước: Mongoose báo trùng index `companyName` khi khởi động (không ảnh hưởng chạy).
 
 ## Lộ trình
 
