@@ -24,6 +24,7 @@ const SUITES = [
   { name: 'scoring', file: 'scoring.test.mjs', label: 'Thang điểm dùng chung' },
   { name: 'csp', file: 'csp.test.mjs', label: 'CSP — ràng buộc H3/H4' },
   { name: 'hybrid', file: 'hybrid.test.mjs', label: 'Hybrid — bàn giao CSP → GA' },
+  { name: 'benchmark-dataset', file: 'benchmark-dataset.test.mjs', label: 'Bộ sinh dữ liệu Benchmark' },
   { name: 'workload-trend', file: 'workload-trend.test.mjs', label: 'Chuỗi thời gian khối lượng' },
   { name: 'performance-summary', file: 'performance-summary.test.mjs', label: 'Báo cáo kết quả theo người — phép tính' },
   { name: 'email', file: 'email.test.mjs', label: 'Email — bật/tắt và nội dung thư' },

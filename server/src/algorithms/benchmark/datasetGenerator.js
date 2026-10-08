@@ -1,26 +1,66 @@
 /**
  * Bộ sinh dữ liệu thử nghiệm phân bổ nguồn lực (Synthetic Dataset Generator)
  * Phục vụ chạy Benchmark và viết Báo cáo Thực nghiệm Luận văn.
+ *
+ * Kỹ năng của người và của việc đều xoay quanh **vai trò**. Mỗi vai trò có một cụm kỹ năng
+ * chính. Mỗi người nắm trọn cụm của vai trò mình (cấp 2–4) cộng 0–2 kỹ năng ngoài cụm (cấp
+ * 1–2). Mỗi việc thuộc vai trò của một người có thật trong đội và đòi 1–3 kỹ năng (cấp 1–3)
+ * từ cụm đó. Nhờ vậy việc nào cũng có ít nhất một người đạt ≥ 2/3 điểm khớp.
+ *
+ * Trước đây hai bên bốc độc lập từ 15 kỹ năng: 26% việc ở bộ small không ai đạt ngưỡng H2
+ * mặc định (0.5), nên CSP giải được 0/30 bộ small. Số đo khi đó nói về bộ sinh, không nói về
+ * thuật toán.
  */
 
-const SKILL_POOL = [
-  'React', 'Node.js', 'Python', 'PostgreSQL', 'Docker',
-  'AWS', 'UI/UX Design', 'QA Testing', 'Machine Learning', 'Java Spring',
-  'Kubernetes', 'TypeScript', 'Golang', 'GraphQL', 'Security Audit',
+const ROLES = [
+  {
+    position: 'Senior Fullstack Engineer',
+    skills: ['React', 'Node.js', 'TypeScript', 'PostgreSQL'],
+    titles: ['Phát triển tính năng', 'Refactor module dịch vụ'],
+  },
+  {
+    position: 'Frontend Specialist',
+    skills: ['React', 'TypeScript', 'GraphQL', 'UI/UX Design'],
+    titles: ['Xây dựng giao diện cho', 'Xây dựng realtime websocket'],
+  },
+  {
+    position: 'Backend Architect',
+    skills: ['Node.js', 'Java Spring', 'Golang', 'PostgreSQL'],
+    titles: ['Thiết kế kiến trúc', 'Phát triển API cho', 'Tích hợp cổng thanh toán'],
+  },
+  {
+    position: 'DevOps Engineer',
+    skills: ['Docker', 'Kubernetes', 'AWS', 'Golang'],
+    titles: ['Triển khai hạ tầng CI/CD', 'Nâng cấp caching layer'],
+  },
+  {
+    position: 'AI/ML Researcher',
+    skills: ['Python', 'Machine Learning', 'Docker'],
+    titles: ['Huấn luyện mô hình phân loại', 'Đánh giá mô hình gợi ý'],
+  },
+  {
+    position: 'QA Automation Lead',
+    skills: ['QA Testing', 'TypeScript', 'Python', 'Security Audit'],
+    titles: ['Viết bộ kiểm thử tự động', 'Kiểm thử hồi quy'],
+  },
+  {
+    position: 'UI/UX Designer',
+    skills: ['UI/UX Design', 'React'],
+    titles: ['Thiết kế màn hình', 'Nghiên cứu trải nghiệm người dùng'],
+  },
+  {
+    position: 'Cloud Infrastructure Engineer',
+    skills: ['AWS', 'Kubernetes', 'Docker', 'Security Audit'],
+    titles: ['Đánh giá an toàn thông tin', 'Di chuyển hạ tầng lên cloud'],
+  },
+  {
+    position: 'Database Administrator',
+    skills: ['PostgreSQL', 'AWS', 'Security Audit'],
+    titles: ['Tối ưu hóa cơ sở dữ liệu', 'Sao lưu và phục hồi dữ liệu'],
+  },
 ];
 
-const POSITIONS = [
-  'Senior Fullstack Engineer', 'Frontend Specialist', 'Backend Architect',
-  'DevOps Engineer', 'AI/ML Researcher', 'QA Automation Lead',
-  'UI/UX Designer', 'Cloud Infrastructure Engineer', 'Database Administrator',
-];
-
-const TASK_PREFIXES = [
-  'Thiết kế kiến trúc', 'Phát triển API cho', 'Tối ưu hóa cơ sở dữ liệu',
-  'Xây dựng giao diện cho', 'Viết bộ kiểm thử tự động', 'Triển khai hạ tầng CI/CD',
-  'Huấn luyện mô hình phân loại', 'Đánh giá an toàn thông tin', 'Tích hợp cổng thanh toán',
-  'Refactor module dịch vụ', 'Nâng cấp caching layer', 'Xây dựng realtime websocket',
-];
+const SKILL_POOL = [...new Set(ROLES.flatMap((role) => role.skills))];
 
 function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -61,22 +101,29 @@ function generateBenchmarkDataset(scaleOrConfig = 'medium') {
     label = `Tùy chỉnh (${numTasks} tasks, ${numResources} resources)`;
   }
 
-  // 1. Generate Resources
+  // 1. Generate Resources — vai trò chia vòng tròn từ một điểm ngẫu nhiên, nên đội nhỏ
+  // vẫn đa dạng vai trò mà mỗi lần sinh lại là một tổ hợp khác.
   const resources = [];
+  const roleOfResource = [];
+  const roleOffset = getRandomInt(0, ROLES.length - 1);
   for (let i = 1; i <= numResources; i++) {
-    const numSkills = getRandomInt(3, 6);
-    const chosenSkills = getRandomSubset(SKILL_POOL, numSkills);
+    const role = ROLES[(roleOffset + i) % ROLES.length];
+    const extras = getRandomSubset(
+      SKILL_POOL.filter((name) => !role.skills.includes(name)),
+      getRandomInt(0, 2)
+    );
 
-    const skills = chosenSkills.map((skName) => ({
-      name: skName,
-      level: getRandomInt(1, 4),
-    }));
+    const skills = [
+      ...role.skills.map((name) => ({ name, level: getRandomInt(2, 4) })),
+      ...extras.map((name) => ({ name, level: getRandomInt(1, 2) })),
+    ];
 
+    roleOfResource.push(role);
     resources.push({
       _id: `synth-res-${i}`,
       userId: `user-res-${i}`,
       userName: `Nhân sự ${i.toString().padStart(2, '0')}`,
-      position: POSITIONS[i % POSITIONS.length],
+      position: role.position,
       department: `Phòng Ban ${String.fromCharCode(65 + (i % 5))}`,
       skills,
       maxCapacity: 40,
@@ -95,8 +142,10 @@ function generateBenchmarkDataset(scaleOrConfig = 'medium') {
   const numProjects = Math.max(1, Math.ceil(numTasks / 10));
 
   for (let i = 1; i <= numTasks; i++) {
-    const numReqSkills = getRandomInt(1, 3);
-    const chosenSkills = getRandomSubset(SKILL_POOL, numReqSkills);
+    // Vai trò của việc lấy theo một người ngẫu nhiên trong đội: đội có nhiều người vai trò
+    // nào thì nhận nhiều việc vai trò đó, và không có việc nào đòi vai trò đội không có.
+    const role = roleOfResource[getRandomInt(0, numResources - 1)];
+    const chosenSkills = getRandomSubset(role.skills, getRandomInt(1, Math.min(3, role.skills.length)));
 
     const requiredSkills = chosenSkills.map((skName) => ({
       name: skName,
@@ -111,7 +160,7 @@ function generateBenchmarkDataset(scaleOrConfig = 'medium') {
 
     tasks.push({
       _id: `synth-task-${i}`,
-      title: `${TASK_PREFIXES[i % TASK_PREFIXES.length]} #${i}`,
+      title: `${role.titles[getRandomInt(0, role.titles.length - 1)]} #${i}`,
       estimatedHours: getRandomInt(4, 24),
       requiredSkills,
       priority: ['low', 'medium', 'high', 'critical'][getRandomInt(0, 3)],
@@ -133,5 +182,6 @@ function generateBenchmarkDataset(scaleOrConfig = 'medium') {
 
 module.exports = {
   generateBenchmarkDataset,
+  ROLES,
   SKILL_POOL,
 };
