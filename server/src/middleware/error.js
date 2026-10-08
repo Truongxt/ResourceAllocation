@@ -11,7 +11,8 @@ const notFound = (req, res, next) => {
  * Middleware: Global error handler
  */
 const errorHandler = (err, req, res, next) => {
-  let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  // `err.statusCode` cho phép tầng dưới (service, helper) ném lỗi nghiệp vụ kèm mã 4xx.
+  let statusCode = err.statusCode || (res.statusCode === 200 ? 500 : res.statusCode);
   // Không phải thứ ném ra cũng là `Error` có `message` — có chỗ ném chuỗi, có
   // chỗ ném object rỗng. Thiếu bước này thì `res.json` bỏ luôn khóa `message`,
   // client nhận `{success:false}` trống trơn và không biết nói gì với người dùng.

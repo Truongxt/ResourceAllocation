@@ -154,7 +154,7 @@ function parseTaskExcelBuffer(buffer) {
 /**
  * Thực hiện Import hàng loạt vào Database
  */
-async function importTasksFromExcel({ buffer, projectId, companyName, createdBy }) {
+async function importTasksFromExcel({ buffer, projectId, companyName, createdBy, withoutPeople = false }) {
   const parsedItems = parseTaskExcelBuffer(buffer);
   if (parsedItems.length === 0) {
     throw new Error('Không tìm thấy dòng công việc hợp lệ nào trong file');
@@ -190,8 +190,8 @@ async function importTasksFromExcel({ buffer, projectId, companyName, createdBy 
   const createdTasks = [];
 
   for (const item of parsedItems) {
-    const assigneeId = item.assigneeEmail ? userMap.get(item.assigneeEmail.toLowerCase()) || null : null;
-    const followerIds = item.followersRaw
+    const assigneeId = !withoutPeople && item.assigneeEmail ? userMap.get(item.assigneeEmail.toLowerCase()) || null : null;
+    const followerIds = !withoutPeople && item.followersRaw
       ? item.followersRaw
           .split(/[,;]/)
           .map((f) => userMap.get(f.trim().toLowerCase()))

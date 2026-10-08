@@ -45,7 +45,11 @@ const loadOptimizationData = async (projectId, user) => {
     // `projectId` đến từ body/query: thiếu dòng này thì chạy tối ưu (và Áp dụng) được
     // trên công việc của công ty khác, chỉ cần biết id dự án.
     taskFilter.companyName = companyScope;
-    const project = await Project.findById(projectId).select('members manager companyName');
+    const project = await Project.findById(projectId).select('members manager companyName isTemplate');
+    if (project?.isTemplate) {
+      // Mẫu nằm ngoài mọi tính toán: việc của nó không có người và không có thật.
+      throw Object.assign(new Error('Dự án mẫu không chạy tối ưu được — hãy tạo dự án từ mẫu trước'), { statusCode: 400 });
+    }
     if (project) {
       const memberUserIds = new Set();
       if (project.manager) memberUserIds.add(project.manager.toString());
@@ -78,10 +82,14 @@ const loadOptimizationData = async (projectId, user) => {
   // họp định kỳ gắn với đúng người đó, phân công lại không có nghĩa. Bỏ khỏi biến khi
   // chạy "Tất cả dự án", nhưng KHÔNG bỏ khỏi tải — chúng rơi vào `committedTasks` bên
   // dưới vì không nằm trong `optimizedIds`. Chọn đích danh một team thì vẫn chạy được.
+  // Mẫu (và dự án lưu trữ — vốn không còn việc mở) cũng không phải biến của bài toán.
   if (!projectId) {
-    const teamIds = await Project.find({ companyName: companyScope, kind: 'team' }).distinct('_id');
-    if (teamIds.length) {
-      taskFilter.project = { ...(taskFilter.project || {}), $nin: teamIds };
+    const excluded = await Project.find({
+      companyName: companyScope,
+      $or: [{ kind: 'team' }, { isTemplate: true }, { isArchived: true }],
+    }).distinct('_id');
+    if (excluded.length) {
+      taskFilter.project = { ...(taskFilter.project || {}), $nin: excluded };
     }
   }
 

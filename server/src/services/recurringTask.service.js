@@ -1,5 +1,6 @@
 const RecurringTask = require('../models/RecurringTask');
 const Task = require('../models/Task');
+const Project = require('../models/Project');
 
 /**
  * Tính toán thời điểm sinh tiếp theo dựa trên cấu hình chu kỳ
@@ -95,7 +96,15 @@ async function generatePendingRecurringTasks() {
 
   const generatedTasks = [];
 
+  // Dự án lưu trữ là chỉ đọc, mẫu nằm ngoài mọi tính toán: không sinh việc vào đó.
+  // Lưu trữ vốn bị chặn khi còn cấu hình đang bật — đây là lớp chặn thứ hai cho dữ liệu cũ.
+  const inactive = new Set((await Project.find({
+    _id: { $in: pendingRecurring.map((item) => item.project) },
+    $or: [{ isArchived: true }, { isTemplate: true }],
+  }).distinct('_id')).map(String));
+
   for (const item of pendingRecurring) {
+    if (inactive.has(String(item.project))) continue;
     try {
       const taskStart = item.nextRunDate || now;
       const taskEnd = new Date(taskStart.getTime() + (item.durationHours || 8) * 3600 * 1000);

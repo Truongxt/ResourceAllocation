@@ -2,6 +2,9 @@ const express = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const { protect, authorize, requireAppPermission } = require('../middleware/auth');
+const mongoose = require('mongoose');
+const Project = require('../models/Project');
+const { ARCHIVED_MESSAGE } = require('../services/projectLifecycle.service');
 const {
   getProjects,
   getProjectById,
@@ -14,6 +17,9 @@ const {
   getProjectSummary,
   updateProjectPermissions,
   quickEditProject,
+  archiveProject,
+  unarchiveProject,
+  duplicateProject,
 } = require('../controllers/project.controller');
 
 const router = express.Router();
@@ -151,6 +157,27 @@ const updateMemberValidation = [
 
 router.use(protect);
 router.use(requireAppPermission('projects'));
+
+// Dự án lưu trữ là CHỈ ĐỌC. Đặt ở `router.param` để route ghi thêm sau này tự được che;
+// chỉ `unarchive` và `duplicate` (chỉ đọc dự án nguồn) đi qua được. Dự án công ty khác
+// thì để controller trả 403 như cũ, không lộ trạng thái lưu trữ ra ngoài.
+router.param('id', async (req, res, next, id) => {
+  try {
+    if (req.method === 'GET' || req.path.endsWith('/unarchive') || req.path.endsWith('/duplicate') || !mongoose.isValidObjectId(id)) return next();
+    const project = await Project.findById(id).select('companyName isArchived');
+    const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
+    if (project?.isArchived && (project.companyName || 'Công ty Công nghệ RAO') === userCompany) {
+      return res.status(409).json({ success: false, message: ARCHIVED_MESSAGE });
+    }
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/:id/archive', authorize('admin', 'project_manager'), projectIdValidation, validate, archiveProject);
+router.post('/:id/unarchive', authorize('admin', 'project_manager'), projectIdValidation, validate, unarchiveProject);
+router.post('/:id/duplicate', authorize('admin', 'project_manager'), projectIdValidation, validate, duplicateProject);
 
 router.get('/stats/summary', getProjectSummary);
 router.get('/', listValidation, validate, getProjects);

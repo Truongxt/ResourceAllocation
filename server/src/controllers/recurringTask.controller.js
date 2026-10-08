@@ -6,6 +6,7 @@ const {
   getPreviewDates,
 } = require('../services/recurringTask.service');
 const { logActivity } = require('../services/activityLog.service');
+const { ARCHIVED_MESSAGE } = require('../services/projectLifecycle.service');
 const {
   companyOf,
   stripProtected,
@@ -21,8 +22,11 @@ const {
  */
 const recurringRefsError = async ({ project, taskGroup, assignee, followers }, company) => {
   if (project) {
-    const { error } = await projectRef(project, company);
+    const { error, project: target } = await projectRef(project, company);
     if (error) return error;
+    // Việc lặp lại tự sinh việc mở mới — không được trỏ vào dự án đã đóng hay mẫu.
+    if (target.isArchived) return ARCHIVED_MESSAGE;
+    if (target.isTemplate) return 'Dự án mẫu không chạy việc lặp lại';
   }
   return (
     (await taskGroupError(taskGroup, project)) ||
@@ -288,6 +292,11 @@ const triggerRunNow = async (req, res, next) => {
     }
     if (!item) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy cấu hình công việc lặp lại' });
+    }
+
+    const target = await Project.findById(item.project).select('isArchived isTemplate');
+    if (target?.isArchived || target?.isTemplate) {
+      return res.status(409).json({ success: false, message: target.isArchived ? ARCHIVED_MESSAGE : 'Dự án mẫu không chạy việc lặp lại' });
     }
 
     const now = new Date();

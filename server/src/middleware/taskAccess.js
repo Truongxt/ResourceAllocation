@@ -15,6 +15,7 @@
 
 const Task = require('../models/Task');
 const Project = require('../models/Project');
+const { ARCHIVED_MESSAGE } = require('../services/projectLifecycle.service');
 
 const PRIVILEGED_ROLES = ['admin', 'project_manager'];
 
@@ -119,7 +120,7 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
  */
 const guardTaskCompany = async (req, res, next, id) => {
   try {
-    const task = await Task.findById(id).select('project').populate('project', 'companyName');
+    const task = await Task.findById(id).select('project').populate('project', 'companyName isArchived');
     if (!task) return next();
 
     const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
@@ -130,6 +131,12 @@ const guardTaskCompany = async (req, res, next, id) => {
         success: false,
         message: 'Không có quyền thao tác trên công việc của công ty khác',
       });
+    }
+
+    // Dự án lưu trữ là chỉ đọc: mọi thao tác ghi lên việc của nó (sửa, đổi trạng thái,
+    // bình luận, xóa…) dừng ở đây, kể cả với admin/PM.
+    if (req.method !== 'GET' && task.project?.isArchived) {
+      return res.status(409).json({ success: false, message: ARCHIVED_MESSAGE });
     }
 
     return next();

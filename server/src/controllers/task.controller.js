@@ -8,7 +8,9 @@ const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
 const { createDeniedReason } = require('../middleware/taskAccess');
+const { placementError, inactiveProjectIds } = require('../services/projectLifecycle.service');
 const {
+  DEFAULT_COMPANY,
   companyOf,
   stripProtected,
   usersError,
@@ -41,6 +43,10 @@ const STATUS_TRAIL_FIELDS = [
   'completedAt', 'failedAt', 'failedBy',
   'reviewRequestedAt', 'reviewedAt', 'reviewedBy', 'reviewDecision', 'reviewComment',
 ];
+
+/** Điều kiện `companyName` của một công ty — công ty mặc định gồm cả bản ghi cũ thiếu trường. */
+const companyProjectScope = (company) =>
+  company === DEFAULT_COMPANY ? { $in: [company, null, undefined] } : company;
 
 /**
  * Helper: Tính lại progress dự án dựa trên tasks
@@ -278,6 +284,15 @@ const getTasks = async (req, res, next) => {
       filter.parentTask = { $in: [null, undefined] };
     }
 
+    // Mẫu và dự án lưu trữ rút khỏi danh sách mặc định. Lọc đích danh `?project=` thì
+    // vẫn xem được — trang chi tiết dự án lưu trữ, Gantt của một mẫu.
+    if (!req.query.project) {
+      const inactive = await inactiveProjectIds(companyProjectScope(userCompany));
+      if (inactive.length) {
+        filter.$and = [...(filter.$and || []), { project: { $nin: inactive } }];
+      }
+    }
+
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
     const skip = (page - 1) * limit;
@@ -442,6 +457,9 @@ const createTask = async (req, res, next) => {
       });
     }
 
+    const placement = placementError(project, { assignee: req.body.assignee });
+    if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
+
     // assignee/followers/reviewers phải cùng công ty, taskGroup/parentTask phải cùng dự án
     const refError = await taskRefsError(req.body, { projectId: project._id, company: companyOf(project) });
     if (refError) {
@@ -562,6 +580,9 @@ const updateTask = async (req, res, next) => {
         message: 'Không có quyền thao tác trên công việc của công ty khác',
       });
     }
+
+    const placement = placementError(project, { assignee: req.body.assignee });
+    if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
 
     // Không cho đổi công ty qua body, và mọi tham chiếu mới phải cùng công ty/dự án
     stripProtected(req.body);
@@ -916,6 +937,10 @@ const getTaskSummary = async (req, res, next) => {
       } else {
         filter.project = req.query.project;
       }
+    } else {
+      // Cùng luật với `getTasks`: mẫu và dự án lưu trữ không nằm trong số liệu mặc định.
+      const inactive = await inactiveProjectIds(companyProjectScope(userCompany));
+      if (inactive.length) filter.$and = [...(filter.$and || []), { project: { $nin: inactive } }];
     }
 
     if (!req.query.includeSubtasks) {
@@ -1324,6 +1349,8 @@ const createSubtask = async (req, res, next) => {
     if (refError) {
       return res.status(400).json({ success: false, message: refError });
     }
+    const placement = placementError(await Project.findById(parent.project).select('isArchived isTemplate'), { assignee });
+    if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
 
     const subtask = await Task.create({
       title: title.trim(),
@@ -1492,6 +1519,8 @@ const duplicateTask = async (req, res, next) => {
     // Cùng luật với `moveTask`: dự án đích đi trong body nên phải tự kiểm — nhân bản
     // sang dự án công ty khác là chép nguyên nội dung công việc cho công ty đó đọc.
     let targetCompany = original.companyName;
+    // Nhân bản vào mẫu thì bỏ người: việc trong mẫu không bao giờ có người thực hiện.
+    let intoTemplate = false;
     if (changesProject) {
       const { error, status, project } = await projectRef(targetProjectId, companyOf(req.user));
       if (error) return res.status(status || 400).json({ success: false, message: error });
@@ -1499,6 +1528,9 @@ const duplicateTask = async (req, res, next) => {
       if (denied) {
         return res.status(403).json({ success: false, message: `Không thể nhân bản sang dự án này: ${denied}` });
       }
+      const placement = placementError(project);
+      if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
+      intoTemplate = Boolean(project.isTemplate);
       targetCompany = companyOf(project);
     }
     const groupError = await taskGroupError(targetGroup, targetProject);
@@ -1509,8 +1541,8 @@ const duplicateTask = async (req, res, next) => {
       description: original.description,
       project: targetProject,
       taskGroup: targetGroup || null,
-      assignee: original.assignee,
-      followers: original.followers,
+      assignee: intoTemplate ? null : original.assignee,
+      followers: intoTemplate ? [] : original.followers,
       priority: original.priority,
       status: 'todo',
       progress: 0,
@@ -1538,7 +1570,7 @@ const duplicateTask = async (req, res, next) => {
           project: targetProject,
           taskGroup: targetGroup || null,
           parentTask: duplicated._id,
-          assignee: sub.assignee,
+          assignee: intoTemplate ? null : sub.assignee,
           priority: sub.priority,
           status: 'todo',
           progress: 0,
@@ -1602,6 +1634,8 @@ const moveTask = async (req, res, next) => {
       if (denied) {
         return res.status(403).json({ success: false, message: `Không thể chuyển sang dự án này: ${denied}` });
       }
+      const placement = placementError(targetProject, { assignee: task.assignee });
+      if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
 
       // Tiền nhiệm của task giữ nguyên tham chiếu tới dự án cũ khi chuyển dự án
       // — cùng lỗi mà POST /tasks đã chặn bằng 400, nên chuyển dự án cũng phải
@@ -1789,7 +1823,7 @@ const importExcelTasks = async (req, res, next) => {
     // Cùng hai chốt như `createTask`. `projectId` đi trong form multipart nên
     // `router.param('id')` không che được — thiếu đoạn này thì công ty khác ghi
     // được hàng loạt công việc vào dự án chỉ bằng id.
-    const project = await Project.findById(projectId).select('companyName');
+    const project = await Project.findById(projectId).select('companyName isArchived isTemplate');
     if (!project) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
     }
@@ -1801,6 +1835,9 @@ const importExcelTasks = async (req, res, next) => {
       });
     }
 
+    const placement = placementError(project);
+    if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
+
     // Gắn công ty theo dự án chứa công việc, như `createTask`
     const companyName = project.companyName || userCompany;
     const result = await importTasksFromExcel({
@@ -1808,6 +1845,8 @@ const importExcelTasks = async (req, res, next) => {
       projectId,
       companyName,
       createdBy: req.user._id,
+      // Nhập vào mẫu thì bỏ cột người thực hiện và người theo dõi.
+      withoutPeople: Boolean(project.isTemplate),
     });
 
     logActivity({

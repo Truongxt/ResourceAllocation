@@ -132,12 +132,22 @@ const projectSchema = new mongoose.Schema(
       trim: true,
       default: '#6366f1',
     },
-    // Base Wework: Mẫu dự án (Template)
+    // Base Wework: bộ nhóm việc dựng sẵn lúc tạo dự án ('agile_scrum' | 'marketing' |
+    // 'standard'). KHÔNG phải dự án mẫu — dự án mẫu là `isTemplate` bên dưới.
     template: {
       type: String,
       trim: true,
       default: null,
     },
+    // Vòng đời: dự án lưu trữ bị ẩn khỏi danh sách mặc định và chỉ đọc. Chỉ lưu trữ
+    // được khi không còn việc mở, nên tải nhân sự không đổi ngầm. Truy vấn loại trừ
+    // dùng `{ $ne: true }` để bản ghi cũ thiếu trường vẫn tính là đang hoạt động.
+    isArchived: { type: Boolean, default: false, index: true },
+    archivedAt: { type: Date, default: null },
+    archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    // Dự án mẫu: chỉ để nhân bản ra dự án thật. Nằm ngoài mọi tính toán (danh sách,
+    // tải, tối ưu, báo cáo), và việc trong mẫu không bao giờ có người thực hiện.
+    isTemplate: { type: Boolean, default: false, index: true },
     // Base Wework: Cấu hình phân quyền thao tác trong dự án
     permissions: {
       allowAssigneeEditDeadline: { type: Boolean, default: false },
