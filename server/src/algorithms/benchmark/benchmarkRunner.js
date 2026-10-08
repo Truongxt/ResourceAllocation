@@ -35,10 +35,9 @@ async function runComparativeBenchmark(tasks, resources, options = {}) {
 
   // 2. Run CSP Solver
   try {
-    const csp = new CSPSolver({
-      timeout: 10000,
-      minSkillMatchThreshold: 0.1,
-    });
+    // Ngưỡng kỹ năng để mặc định (0.5), đúng như hệ thống thật. Studio từng ép 0.1 để chữa bộ
+    // sinh dữ liệu cũ — nơi 26% việc không ai đạt 0.5 — nên số đo không phản ánh hệ thống thật.
+    const csp = new CSPSolver({ timeout: 10000 });
     const cspRes = await csp.solve(tasks, resources);
     results.csp = {
       name: 'CSP Solver',
@@ -90,7 +89,7 @@ async function runComparativeBenchmark(tasks, resources, options = {}) {
 
   // 4. Run Hybrid (CSP Domain Filter -> GA)
   try {
-    const hybridCsp = new CSPSolver({ minSkillMatchThreshold: 0.1 });
+    const hybridCsp = new CSPSolver();
     const feasibleDomains = hybridCsp.buildFeasibleDomains(tasks, resources);
 
     // Miền đi qua `optimize`, không qua constructor: trước đây truyền `feasibleDomains`

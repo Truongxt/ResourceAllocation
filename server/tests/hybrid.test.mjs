@@ -175,6 +175,16 @@ S('Benchmark Studio: cột Hybrid thật sự chạy trên miền của CSP');
   ok(Number.isInteger(report.results.genetic.convergenceGeneration) && Number.isInteger(h.convergenceGeneration),
     'GA và Hybrid báo tốc độ hội tụ');
   ok(Number.isInteger(report.results.csp.contextSwitches), 'Mỗi cột báo số lần chuyển ngữ cảnh');
+
+  // Studio từng chạy CSP/Hybrid ở ngưỡng 0.1 để chữa bộ sinh dữ liệu cũ. Nay đo đúng ngưỡng
+  // mặc định của hệ thống thật: người chỉ khớp 1/3 (React 1 so với yêu cầu 3) không lọt miền.
+  const weak = await runComparativeBenchmark(
+    [task('t1', [{ name: 'React', level: 3 }])],
+    [resource('giỏi', [{ name: 'React', level: 4 }]), resource('yếu', [{ name: 'React', level: 1 }])],
+    { populationSize: 10, maxGenerations: 5 }
+  );
+  ok(weak.results.hybrid.domainReduction?.feasiblePairs === 1,
+    'Hybrid lọc miền ở ngưỡng mặc định 0.5, không phải 0.1', `feasiblePairs=${weak.results.hybrid.domainReduction?.feasiblePairs}`);
 }
 
 S('GA: số thế hệ và tốc độ hội tụ');
