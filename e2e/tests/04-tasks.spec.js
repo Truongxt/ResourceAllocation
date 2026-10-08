@@ -84,7 +84,7 @@ test.describe('Quản lý công việc', () => {
     // theo chữ hiện trên màn hình.
     const tablist = drawer.getByRole('tablist', { name: 'Các mục của công việc' });
     await expect(tablist).toBeVisible();
-    for (const section of ['Thông tin', 'Checklist', 'Bình luận', 'Công việc con', 'Lịch sử hạn']) {
+    for (const section of ['Thông tin', 'Checklist', 'Bình luận', 'Tệp', 'Công việc con', 'Lịch sử hạn']) {
       await expect(tablist.getByRole('tab', { name: new RegExp(section) }).first()).toBeVisible();
     }
 
@@ -102,6 +102,38 @@ test.describe('Quản lý công việc', () => {
     await expect(drawer.getByRole('tab', { selected: true })).toHaveCount(1);
 
     await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    expect(problems).toEqual([]);
+  });
+
+  test('đính kèm tệp: tải lên, tải về đúng tên, xóa', async ({ page }) => {
+    const problems = watchForProblems(page);
+    const row = page.locator('.ant-table-row').filter({ hasText: SEED_TASK });
+    await expect(row).toHaveCount(1, { timeout: 20_000 });
+    await row.locator('.task-title-link').click();
+    const drawer = page.locator('.ant-drawer');
+    await expect(drawer).toContainText(SEED_TASK, { timeout: 20_000 });
+    await drawer.getByRole('tab', { name: /Tệp/ }).click();
+
+    // Tên có dấu và khoảng trắng: đi qua multipart, lưu, rồi trả lại đúng như cũ.
+    const name = `${uniqueName('Biên bản họp')}.txt`;
+    await drawer.getByTestId('attachment-input').setInputFiles({
+      name,
+      mimeType: 'text/plain',
+      buffer: Buffer.from('Nội dung biên bản'),
+    });
+    const item = drawer.getByTestId('attachment-item').filter({ hasText: name });
+    await expect(item).toHaveCount(1);
+    await expect(item).toContainText('System Admin');
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      item.getByRole('button', { name, exact: true }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe(name);
+
+    await item.getByRole('button', { name: `Xóa ${name}` }).click();
+    await page.getByRole('button', { name: 'Xóa tệp' }).click();
+    await expect(item).toHaveCount(0);
     expect(problems).toEqual([]);
   });
 

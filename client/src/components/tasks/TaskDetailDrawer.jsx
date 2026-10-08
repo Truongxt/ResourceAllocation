@@ -21,13 +21,14 @@ import {
   SendOutlined, UnorderedListOutlined,
   TeamOutlined, CalendarOutlined, FlagOutlined, ApartmentOutlined,
   CloseOutlined, EyeOutlined, CopyOutlined, HistoryOutlined, FileDoneOutlined,
-  LinkOutlined, LeftOutlined, RightOutlined,
+  LinkOutlined, LeftOutlined, RightOutlined, PaperClipOutlined,
 } from '@ant-design/icons';
 import { useTheme } from '../../context/ThemeContext';
 import taskService from '../../services/taskService';
 import SubtaskFormModal from './SubtaskFormModal';
 import TaskResultModal from './TaskResultModal';
 import TaskWorkflowActions from './TaskWorkflowActions';
+import TaskAttachments from './TaskAttachments';
 import { getTaskPermissions } from '../../utils/taskPermissions';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -1230,6 +1231,18 @@ export default function TaskDetailDrawer({
         </span>
       ),
       children: commentsTabContent,
+    },
+    {
+      key: 'attachments',
+      label: (
+        <span>
+          <PaperClipOutlined style={{ marginRight: 4 }} />
+          Tệp
+        </span>
+      ),
+      // Chỉ tab đang mở được dựng (xem tabpanel bên dưới), nên danh sách tệp chỉ được tải
+      // khi người dùng mở tab này.
+      children: task ? <TaskAttachments task={task} /> : null,
     },
     {
       key: 'subtasks',
