@@ -209,6 +209,11 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
   dự án lặp đi lặp lại phải gõ tay 40 công việc mỗi lần.
 - **Phác thảo**: `Project.isArchived` + `isTemplate`; nhân bản dự án chủ yếu là ghép lại thứ đã
   có — `duplicateTask` và `TaskGroup` — nên chi phí thấp hơn vẻ ngoài của nó.
+- **Đã làm (08/10)**: `isArchived` (chỉ đọc, chỉ lưu trữ được khi mọi việc đã đóng), `isTemplate` (ngoài
+  mọi tính toán, việc không có người) và `POST /projects/:id/duplicate` — một endpoint cho nhân bản, lưu
+  thành mẫu và tạo từ mẫu. Mọi ngày dời theo ngày bắt đầu mới, người thực hiện để trống cho thuật toán
+  tối ưu phân công. Hóa ra không ghép được từ `duplicateTask`: hàm đó chép từng việc một và không biết
+  trỏ lại phụ thuộc giữa các bản sao, nên nhân bản dự án cấp id trước rồi ghi một lần.
 
 ### 4.5. Đính kèm tệp thật
 
@@ -282,7 +287,7 @@ Nếu vẫn cần, đường vòng rẻ hơn: thêm `collaborators[]` **không**
 | 2 | ~~[4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) Công việc cấp phòng ban~~ | **Xong 07/10** |
 | 3 | [4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) Trường tùy chỉnh | Càng làm muộn càng đắt: lan sang form, Excel, bộ lọc, CSV |
 | 4 | ~~[4.6](#46-xuất-dữ-liệu-công-việc) Xuất dữ liệu~~ + [4.7](#47-đánh-giá-theo-nhóm-công-việc) Đánh giá theo nhóm + [4.8](#48-hai-việc-nhỏ-nhưng-lộ-ra-ngay-khi-dùng) | 4.6 và phần thông báo của 4.8 **xong 08/10**. Còn 4.7 và phần email của 4.8 |
-| 5 | [4.4](#44-vòng-đời-dự-án-đóngmở-nhân-bản-mẫu-thật) Vòng đời dự án + [4.5](#45-đính-kèm-tệp-thật) Đính kèm | Cần quyết định hạ tầng lưu trữ trước khi code |
+| 5 | ~~[4.4](#44-vòng-đời-dự-án-đóngmở-nhân-bản-mẫu-thật) Vòng đời dự án~~ + [4.5](#45-đính-kèm-tệp-thật) Đính kèm | 4.4 **xong 08/10**. 4.5 cần quyết định hạ tầng lưu trữ trước khi code |
 
 Trạng thái từng hạng mục, cộng các mục thuật toán và mobile không có trong tài liệu này, được
 theo dõi ở [superpowers/plans/2026-10-07-lo-trinh-hoan-thien.md](./superpowers/plans/2026-10-07-lo-trinh-hoan-thien.md).

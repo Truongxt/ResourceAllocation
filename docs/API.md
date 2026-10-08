@@ -439,9 +439,30 @@ cả — kể cả công ty vừa tạo ra nó cũng không thấy nó trong `GE
 | POST | `/:id/members` | Thêm thành viên | 📋 PM+ |
 | PUT | `/:id/members/:userId` | Cập nhật vai trò / allocation của thành viên | 📋 PM+ |
 | DELETE | `/:id/members/:userId` | Xóa thành viên | 📋 PM+ |
+| POST | `/:id/archive` | Lưu trữ (409 nếu còn việc mở hoặc việc lặp lại đang bật) | 📋 PM+ |
+| POST | `/:id/unarchive` | Mở lại dự án đã lưu trữ | 📋 PM+ |
+| POST | `/:id/duplicate` | Nhân bản / lưu thành mẫu / tạo từ mẫu | 📋 PM+ |
 
 **Query filter cho `GET /`**: `status`, `priority`, `manager`, `search` (tìm trong name/code/description),
-`startDate`, `endDate` (lọc theo `startDate` của dự án), `page`, `limit`, `sort`.
+`startDate`, `endDate` (lọc theo `startDate` của dự án), `page`, `limit`, `sort`. Mặc định chỉ trả dự án
+**đang chạy**; `archived=true` trả kho lưu trữ, `templates=true` trả danh sách mẫu. `/stats/summary` cũng chỉ đếm
+dự án đang chạy.
+
+### Vòng đời: lưu trữ, nhân bản, mẫu
+
+- **Lưu trữ là chỉ đọc.** Mọi thao tác ghi lên dự án lưu trữ và lên việc của nó (sửa, đổi trạng thái,
+  bình luận, xóa…) trả **409** "Dự án đã lưu trữ — mở lại để chỉnh sửa", kể cả với admin/PM. Thêm việc
+  vào (tạo, nhập Excel, chuyển, nhân bản việc sang, việc lặp lại) cũng 409/400. Đọc vẫn được. Chỉ
+  `unarchive` và `duplicate` đi qua.
+- **`POST /:id/duplicate`** nhận `{ name, code?, startDate?, asTemplate? }`. Mọi ngày dời theo `startDate` mới
+  (giữ khoảng cách; không gửi thì giữ nguyên). Giữ nhóm việc, việc con, checklist (bỏ dấu đã xong), phụ
+  thuộc (trỏ sang bản sao), giờ ước tính, kỹ năng, ưu tiên. Trạng thái về `todo`, tiến độ 0, **không
+  người thực hiện, không người theo dõi**. Thành viên dự án chỉ giữ khi nhân bản dự án thường thành dự
+  án thường. Gọi trên một mẫu với `asTemplate: false` là "Tạo từ mẫu".
+- **Mẫu** nằm ngoài `GET /tasks`, `/tasks/stats/summary`, analytics và tối ưu "Tất cả dự án"; chạy tối ưu
+  đích danh một mẫu trả **400**. Tạo hoặc sửa việc trong mẫu với `assignee` trả **400**. Mẫu không lưu
+  trữ được.
+- `GET /tasks` mặc định không có việc của mẫu và dự án lưu trữ; lọc đích danh `?project=` thì vẫn có.
 
 **Vai trò thành viên** (`role` của `POST`/`PUT /:id/members`): `lead`, `developer`,
 `designer`, `tester`, `devops`, `guest` — mặc định `developer`, giá trị khác trả **400**.

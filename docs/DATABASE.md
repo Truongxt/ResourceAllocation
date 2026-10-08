@@ -121,6 +121,11 @@ Ba điểm thiết kế:
     }
   ],
   tags: [String],
+  template: String,          // bộ nhóm việc dựng sẵn lúc tạo ('agile_scrum' | 'marketing' | 'standard') — KHÔNG phải dự án mẫu
+  isArchived: Boolean,       // default false — lưu trữ: ẩn khỏi danh sách mặc định, CHỈ ĐỌC
+  archivedAt: Date,
+  archivedBy: ObjectId → Users,
+  isTemplate: Boolean,       // default false — dự án mẫu: ngoài mọi tính toán, việc không có người thực hiện
   createdBy: ObjectId → Users,
   createdAt: Date,
   updatedAt: Date
@@ -128,7 +133,13 @@ Ba điểm thiết kế:
 ```
 
 **Virtuals**: `tasks` (populate ngược từ `Task.project`)
-**Indexes**: `status`, `manager`, `(startDate, endDate)`
+**Indexes**: `status`, `manager`, `(startDate, endDate)`, `isArchived`, `isTemplate`
+
+**Vòng đời** (`services/projectLifecycle.service.js`): chỉ lưu trữ được khi không còn việc mở
+(`todo`/`in_progress`/`review`/`blocked`) và không còn việc lặp lại đang bật. Truy vấn loại trừ dùng
+`{ $ne: true }` để bản ghi cũ thiếu trường vẫn tính là đang hoạt động. Mẫu bị loại khỏi danh sách
+việc, thống kê, analytics và tối ưu; dự án lưu trữ chỉ bị loại khỏi danh sách mặc định — việc đã
+đóng của nó vẫn được tính trong báo cáo, vì đó là lịch sử.
 
 ---
 

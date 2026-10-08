@@ -34,6 +34,7 @@ npm run test:watch    # component, chế độ theo dõi
 | Làm mới token | `api-refresh.test.jsx` | Interceptor 401 tự làm mới rồi chạy lại request. Ca quan trọng nhất: nhiều request cùng hết hạn chỉ được kích hoạt **một** lượt làm mới — nhiều hơn thì server hiểu là token bị đánh cắp và thu hồi cả chuỗi |
 | Báo cáo kết quả | `performance-report.test.jsx` | Tab Kết quả theo người: Admin mở thẳng phạm vi toàn công ty, member không thấy lựa chọn đó (server trả 403), đổi phạm vi thì gọi lại API, tỉ lệ `null` hiện `—`, và các việc bị loại khỏi báo cáo được báo ra |
 | Xuất công việc | `task-export.test.jsx` | Nút Xuất CSV ở màn Công việc đi hết **mọi trang** (server trả tối đa 100 việc/trang, màn hình chỉ giữ trang đầu) và mang đúng bộ lọc đang áp dụng. Mock tầng `api` theo URL, và mock `downloadCsv` để đọc thẳng các dòng sẽ ghi ra file |
+| Vòng đời dự án | `project-lifecycle.test.jsx` | Menu "…" trên dự án đúng với chỗ dự án đang ở (đang chạy / lưu trữ / mẫu); lý do server từ chối lưu trữ (còn bao nhiêu việc mở) hiện nguyên văn; modal nhân bản gửi đúng tham số cho "Tạo từ mẫu" (có ngày) và "Lưu thành mẫu" (không hỏi ngày, `asTemplate: true`) |
 
 Đuôi `.jsx` đánh dấu **trình chạy** (vitest + jsdom), không có nghĩa là file phải chứa JSX:
 `api-refresh.test.jsx` không render component nào nhưng vẫn cần `localStorage` của jsdom.

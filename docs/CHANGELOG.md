@@ -6,9 +6,21 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
-## [Chưa phát hành] - 2026-10-08 (báo cáo kết quả theo người, xuất công việc, thông báo, benchmark)
+## [Chưa phát hành] - 2026-10-08 (báo cáo kết quả theo người, xuất công việc, thông báo, vòng đời dự án)
 
 ### Added
+
+- **Vòng đời dự án: lưu trữ, nhân bản, mẫu.**
+  - **Lưu trữ** (`POST /projects/:id/archive`, `/unarchive`): dự án rời khỏi danh sách mặc định và
+    thành chỉ đọc. Mọi thao tác ghi lên nó và lên việc của nó trả 409, kể cả với admin/PM. Chỉ lưu trữ
+    được khi không còn việc mở và không còn việc lặp lại đang bật, nên tải nhân sự không đổi ngầm.
+  - **Nhân bản** (`POST /projects/:id/duplicate`): mọi ngày dời theo ngày bắt đầu mới. Giữ nhóm việc,
+    việc con, checklist, phụ thuộc (trỏ sang bản sao) và giờ ước tính. Bỏ người thực hiện để thuật
+    toán tối ưu phân công lại.
+  - **Mẫu** (`isTemplate`): tạo bằng "Lưu thành mẫu", dùng bằng "Tạo dự án từ mẫu". Mẫu nằm ngoài
+    danh sách việc, thống kê, analytics và tối ưu; việc trong mẫu không có người thực hiện.
+  - Giao diện: bộ lọc Đang chạy / Lưu trữ / Mẫu, menu "…" trên từng dự án, dải báo chỉ đọc ở trang
+    chi tiết dự án.
 
 - **Xuất CSV ở màn Công việc.** File xuất theo đúng bộ lọc đang áp dụng và đi hết mọi trang.
   Server trả tối đa 100 việc mỗi trang, nên lấy danh sách đang hiện trên màn hình là thiếu.
@@ -88,6 +100,9 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   nội dung có lý do và ngày mới, `PUT` lại cùng `endDate` thì không sinh thông báo.
 - Client: `csv.test.mjs` (8, logic thuần) và `task-export.test.jsx`. Bài xuất CSV đã được thử
   ngược: làm hỏng vòng lặp phân trang thì test đỏ.
+- Bộ `project-lifecycle` (58 assertion), `project-lifecycle.test.jsx` (5 test) và một bài e2e ở
+  `03-projects` chạy trọn vòng lưu trữ → mở lại → nhân bản → lưu thành mẫu trên trình duyệt thật.
+  Bộ bắt lỗi chung nay đọc `err.statusCode`, để tầng dưới ném được lỗi nghiệp vụ 4xx.
 - Bộ `task-status-paths` (20 assertion) giữ cả hai đường đổi trạng thái: ba lớp chặn trên `PUT`,
   người được phép vẫn làm được, lưu lại form không bị chặn, `completedAt` trên mọi đường sang
   `done`, và vết trạng thái không ghi được từ body. Đã thử ngược: bỏ dòng gỡ trường thì
