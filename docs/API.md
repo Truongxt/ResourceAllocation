@@ -1566,9 +1566,9 @@ Server không tự hẹn giờ; cron bên ngoài gọi endpoint nội bộ. Cấ
   server không đặt `JOB_SECRET` → **503**; tên lạ → **404**. Response `{ data: { job, result } }`, ví dụ
   `{ generated: 3 }` hay `{ date, snapshots: 12 }`.
 - Cả hai job chạy lại an toàn. `recurring-tasks`: mỗi cấu hình được nhận bằng `findOneAndUpdate` có điều kiện
-  trên `nextRunDate` cũ trước khi sinh việc, nên gọi trùng không sinh trùng. Mỗi lần gọi sinh **một** lượt
-  cho mỗi cấu hình đến hạn; lỡ nhiều lượt thì các lần gọi sau đuổi kịp dần. `workload-snapshot`: upsert theo
-  `(resource, ngày)`.
+  trên `nextRunDate` cũ trước khi sinh việc, nên gọi trùng không sinh trùng. Lỡ nhiều lượt (cron ngừng) thì
+  một lần gọi sinh bù **mọi** lượt đã đến hạn, mỗi việc mang đúng ngày của lượt đó, tối đa 31 lượt mỗi cấu
+  hình; phần vượt trần được sinh nốt ở lần gọi sau. `workload-snapshot`: upsert theo `(resource, ngày)`.
 - `/api/jobs/status` → `{ jobs: [{ name, schedule, staleAfterHours, lastRunAt, lastStatus, lastError, lastSuccessAt, stale }] }`.
   `stale` = chưa từng chạy thành công, hoặc lần thành công gần nhất cũ hơn `staleAfterHours` (3 giờ cho
   `recurring-tasks`, 30 giờ cho `workload-snapshot`).

@@ -57,7 +57,20 @@ S('Trước lần chạy đầu: trạng thái báo chưa chạy');
 }
 
 // ══════════════════════════════════════════════
-S('Job việc lặp lại: sinh đúng một việc, chạy song song không sinh trùng');
+/** Số lượt hằng ngày đến hạn tính tới bây giờ: lượt đầu là ngày sau startDate, mỗi lượt lúc 07:00. */
+const dueDailyRuns = (startDate) => {
+  const d = new Date(startDate);
+  d.setDate(d.getDate() + 1);
+  d.setHours(7, 0, 0, 0);
+  let count = 0;
+  for (const now = new Date(); d <= now; d.setDate(d.getDate() + 1)) count++;
+  return count;
+};
+const tasksTitled = async (title) =>
+  ((await call('GET', `/tasks?limit=100&search=${encodeURIComponent(title)}`, { token: admin })).data?.tasks || [])
+    .filter((t) => t.title === title);
+
+S('Job việc lặp lại: sinh bù đủ lượt lỡ trong một lần, chạy song song không sinh trùng');
 {
   const project = (await call('GET', '/projects', { token: admin })).data.projects[0]._id;
   const start = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
@@ -66,15 +79,37 @@ S('Job việc lặp lại: sinh đúng một việc, chạy song song không sin
     token: admin, body: { title, project, frequency: 'daily', startDate: start, durationHours: 2 },
   });
   ok(rec.status === 201, 'Tạo cấu hình lặp hằng ngày, đã đến hạn', `status=${rec.status} ${rec.message || ''}`);
+  const due = dueDailyRuns(start);
 
   // Cron gọi lại khi timeout, hoặc hai instance cùng được gọi.
   const [a, b] = await Promise.all([runJob('recurring-tasks'), runJob('recurring-tasks')]);
   ok(a.status === 200 && b.status === 200, 'Hai lần gọi song song đều 200', `${a.status}/${b.status} ${a.message || ''}`);
-  const made = ((await call('GET', `/tasks?limit=100&search=${encodeURIComponent(title)}`, { token: admin })).data?.tasks || [])
-    .filter((t) => t.title === title);
-  ok(made.length === 1, 'Chỉ đúng một việc được sinh', `${made.length} việc`);
+  const made = await tasksTitled(title);
+  // Trước đây mỗi lần gọi chỉ sinh một lượt: lỡ 3 ngày thì phải đợi 3 lần cron mới đuổi kịp.
+  ok(made.length === due, 'Sinh đủ mọi lượt đến hạn ngay trong lần gọi này', `${made.length}/${due} việc`);
+  const days = new Set(made.map((t) => String(t.startDate).slice(0, 10)));
+  ok(days.size === made.length, 'Mỗi lượt đúng một việc — không ngày nào trùng', [...days].join(','));
   const generated = (a.data?.result?.generated || 0) + (b.data?.result?.generated || 0);
-  ok(generated >= 1, 'Kết quả job báo số việc đã sinh', `generated=${generated}`);
+  ok(generated >= due, 'Kết quả job báo số việc đã sinh', `generated=${generated}`);
+
+  await runJob('recurring-tasks');
+  ok((await tasksTitled(title)).length === due, 'Gọi lại khi không còn lượt đến hạn thì không sinh thêm');
+}
+
+S('Job việc lặp lại: lỡ quá nhiều lượt thì mỗi lần gọi sinh tối đa 31');
+{
+  const project = (await call('GET', '/projects', { token: admin })).data.projects[0]._id;
+  const start = new Date(Date.now() - 40 * 86400000).toISOString().slice(0, 10);
+  const title = `Lặp lỡ lâu ${stamp}`;
+  await call('POST', '/recurring-tasks', {
+    token: admin, body: { title, project, frequency: 'daily', startDate: start, durationHours: 2 },
+  });
+  const due = dueDailyRuns(start);
+
+  await runJob('recurring-tasks');
+  ok((await tasksTitled(title)).length === 31, 'Lần gọi đầu dừng ở trần 31 lượt', `${(await tasksTitled(title)).length}/${due}`);
+  await runJob('recurring-tasks');
+  ok((await tasksTitled(title)).length === due, 'Lần gọi sau sinh nốt phần còn lại', `${(await tasksTitled(title)).length}/${due}`);
 }
 
 S('Job chụp workload: khớp trang Utilization, chạy lại trong ngày không trùng');

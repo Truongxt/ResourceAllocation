@@ -85,7 +85,18 @@ function getPreviewDates(config, count = 10) {
 }
 
 /**
- * Tự động quét và sinh các công việc đã đến hạn
+ * Trần số lượt sinh bù cho một cấu hình trong MỘT lần gọi. Cron ngừng lâu (ví dụ lỡ 3 tháng
+ * của một việc hằng ngày) mà sinh hết một lượt thì đổ cả trăm việc quá hạn vào cùng lúc;
+ * phần vượt trần được sinh nốt ở các lần gọi sau.
+ */
+const MAX_CATCH_UP_PER_RUN = 31;
+
+/**
+ * Tự động quét và sinh các công việc đã đến hạn.
+ *
+ * Mỗi cấu hình được sinh bù **mọi** lượt đã đến hạn (tối đa `MAX_CATCH_UP_PER_RUN`), mỗi việc
+ * mang đúng ngày của lượt đó. Trước đây mỗi lần gọi chỉ sinh một lượt, nên cron lỡ nhiều lượt
+ * thì phải đợi chừng ấy lần gọi mới đuổi kịp.
  */
 async function generatePendingRecurringTasks() {
   const now = new Date();
@@ -105,76 +116,92 @@ async function generatePendingRecurringTasks() {
 
   for (const item of pendingRecurring) {
     if (inactive.has(String(item.project))) continue;
-    try {
-      const taskStart = item.nextRunDate || now;
-      const taskEnd = new Date(taskStart.getTime() + (item.durationHours || 8) * 3600 * 1000);
-
-      // 0. NHẬN lượt này trước khi tạo gì. Job được cron bên ngoài gọi, có thể gọi trùng
-      // (gọi lại khi timeout, hai instance): hai lần chạy cùng đọc thấy cấu hình đến hạn.
-      // Chỉ lần nào đổi được `nextRunDate` từ đúng giá trị cũ mới được sinh việc. Lỡ tạo
-      // việc lỗi sau khi đã nhận thì mất một lượt — vẫn hơn sinh trùng.
-      const nextDate = calculateNextRunDate(item, taskStart);
-      const claimed = await RecurringTask.findOneAndUpdate(
-        { _id: item._id, isActive: true, nextRunDate: item.nextRunDate ?? null },
-        { $set: { nextRunDate: nextDate, lastGeneratedAt: now, ...(nextDate ? {} : { isActive: false }) } },
-      );
-      if (!claimed) continue;
-
-      // 1. Tạo công việc cha
-      const newTask = await Task.create({
-        title: item.title,
-        description: item.description,
-        project: item.project,
-        taskGroup: item.taskGroup,
-        assignee: item.assignee,
-        followers: item.followers,
-        priority: item.priority,
-        estimatedHours: item.estimatedHours,
-        startDate: taskStart,
-        endDate: taskEnd,
-        status: 'todo',
-        progress: 0,
-        checklist: (item.checklist || []).map((c, idx) => ({
-          title: c.title,
-          assignee: c.assignee || item.assignee,
-          isCompleted: false,
-          order: idx,
-        })),
-        companyName: item.companyName,
-        createdBy: item.createdBy,
-        recurringTaskId: item._id,
-      });
-
-      // 2. Tạo các công việc con (nếu có)
-      if (item.subtasks && item.subtasks.length > 0) {
-        for (const sub of item.subtasks) {
-          await Task.create({
-            title: sub.title,
-            project: item.project,
-            taskGroup: item.taskGroup,
-            parentTask: newTask._id,
-            assignee: sub.assignee || item.assignee,
-            priority: item.priority,
-            estimatedHours: sub.estimatedHours || 2,
-            startDate: taskStart,
-            endDate: taskEnd,
-            status: 'todo',
-            progress: 0,
-            companyName: item.companyName,
-            createdBy: item.createdBy,
-            recurringTaskId: item._id,
-          });
-        }
-      }
-
-      // Mốc sinh tiếp theo đã được ghi lúc nhận lượt (bước 0); hết chu kỳ thì đã tắt.
-      generatedTasks.push(newTask);
-    } catch (err) {
-      console.error(`[RecurringTask] Error generating task for ${item._id}:`, err);
+    let current = item.nextRunDate ?? null;
+    for (let n = 0; n < MAX_CATCH_UP_PER_RUN; n++) {
+      const done = await generateOccurrence(item, current, now);
+      if (!done) break; // lượt này đã bị lần chạy khác nhận, hoặc lỗi
+      generatedTasks.push(done.task);
+      if (!done.nextDate || done.nextDate > now) break;
+      current = done.nextDate;
     }
   }
 
   return generatedTasks;
+}
+
+/**
+ * Nhận rồi sinh đúng một lượt, bắt đầu lúc `current` (null: cấu hình chưa có mốc, sinh ngay).
+ * @returns {Promise<null | { task, nextDate: Date | null }>} null nếu không nhận được hoặc lỗi
+ */
+async function generateOccurrence(item, current, now) {
+  try {
+    const taskStart = current || now;
+    const taskEnd = new Date(taskStart.getTime() + (item.durationHours || 8) * 3600 * 1000);
+
+    // 0. NHẬN lượt này trước khi tạo gì. Job được cron bên ngoài gọi, có thể gọi trùng
+    // (gọi lại khi timeout, hai instance): hai lần chạy cùng đọc thấy cấu hình đến hạn.
+    // Chỉ lần nào đổi được `nextRunDate` từ đúng giá trị cũ mới được sinh việc. Lỡ tạo
+    // việc lỗi sau khi đã nhận thì mất một lượt — vẫn hơn sinh trùng.
+    const nextDate = calculateNextRunDate(item, taskStart);
+    const claimed = await RecurringTask.findOneAndUpdate(
+      { _id: item._id, isActive: true, nextRunDate: current },
+      { $set: { nextRunDate: nextDate, lastGeneratedAt: now, ...(nextDate ? {} : { isActive: false }) } },
+    );
+    if (!claimed) return null;
+
+    // 1. Tạo công việc cha
+    const newTask = await Task.create({
+      title: item.title,
+      description: item.description,
+      project: item.project,
+      taskGroup: item.taskGroup,
+      assignee: item.assignee,
+      followers: item.followers,
+      priority: item.priority,
+      estimatedHours: item.estimatedHours,
+      startDate: taskStart,
+      endDate: taskEnd,
+      status: 'todo',
+      progress: 0,
+      checklist: (item.checklist || []).map((c, idx) => ({
+        title: c.title,
+        assignee: c.assignee || item.assignee,
+        isCompleted: false,
+        order: idx,
+      })),
+      companyName: item.companyName,
+      createdBy: item.createdBy,
+      recurringTaskId: item._id,
+    });
+
+    // 2. Tạo các công việc con (nếu có)
+    if (item.subtasks && item.subtasks.length > 0) {
+      for (const sub of item.subtasks) {
+        await Task.create({
+          title: sub.title,
+          project: item.project,
+          taskGroup: item.taskGroup,
+          parentTask: newTask._id,
+          assignee: sub.assignee || item.assignee,
+          priority: item.priority,
+          estimatedHours: sub.estimatedHours || 2,
+          startDate: taskStart,
+          endDate: taskEnd,
+          status: 'todo',
+          progress: 0,
+          companyName: item.companyName,
+          createdBy: item.createdBy,
+          recurringTaskId: item._id,
+        });
+      }
+    }
+
+    // Mốc sinh tiếp theo đã được ghi lúc nhận lượt (bước 0); hết chu kỳ thì đã tắt.
+    return { task: newTask, nextDate };
+  } catch (err) {
+    console.error(`[RecurringTask] Error generating task for ${item._id}:`, err);
+    return null;
+  }
 }
 
 module.exports = {
