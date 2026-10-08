@@ -686,6 +686,22 @@
       "confirm": "Hand over",
       "done": "Handed over {{count}} tasks",
       "checkWorkload": "Check the new assignee workload afterwards"
+    },
+    "exportCsv": "Export CSV",
+    "exported": "Exported {{count}} tasks",
+    "exportFailed": "Could not export the task list",
+    "csv": {
+      "title": "Task",
+      "project": "Project",
+      "group": "Task group",
+      "status": "Status",
+      "priority": "Priority",
+      "assignee": "Assignee",
+      "startDate": "Start date",
+      "endDate": "Due date",
+      "estimatedHours": "Estimated hours",
+      "progress": "Progress (%)",
+      "completedAt": "Completed at"
     }
   },
   "projectDetail": {

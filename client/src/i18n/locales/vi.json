@@ -686,6 +686,22 @@
       "confirm": "Bàn giao",
       "done": "Đã bàn giao {{count}} công việc",
       "checkWorkload": "Nên kiểm tra tải của người nhận sau khi bàn giao"
+    },
+    "exportCsv": "Xuất CSV",
+    "exported": "Đã xuất {{count}} công việc",
+    "exportFailed": "Không xuất được danh sách công việc",
+    "csv": {
+      "title": "Tên công việc",
+      "project": "Dự án",
+      "group": "Nhóm công việc",
+      "status": "Trạng thái",
+      "priority": "Độ ưu tiên",
+      "assignee": "Người thực hiện",
+      "startDate": "Ngày bắt đầu",
+      "endDate": "Hạn chót",
+      "estimatedHours": "Giờ ước tính",
+      "progress": "Tiến độ (%)",
+      "completedAt": "Hoàn thành lúc"
     }
   },
   "projectDetail": {

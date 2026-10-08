@@ -25,6 +25,7 @@ import {
   UnorderedListOutlined,
   PlusOutlined,
   FileExcelOutlined,
+  DownloadOutlined,
   SyncOutlined,
   UserOutlined,
   SendOutlined,
@@ -41,6 +42,8 @@ import taskGroupService from '../../services/taskGroupService';
 import { TASK_STATUSES as STATUS_COLS, ROLES } from '../../constants';
 import { depId, invalidPredecessors } from '../../utils/gantt';
 import { getTaskPermissions } from '../../utils/taskPermissions';
+import { downloadCsv } from '../../utils/csv';
+import { taskStatusLabel, priorityLabel } from '../../i18n/enums';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import TaskKpiChips from './components/TaskKpiChips';
@@ -135,23 +138,71 @@ export default function Tasks() {
   /**
    * Tải danh sách công việc theo bộ lọc
    */
+  // Bộ lọc đang áp dụng — dùng chung cho màn hình và cho file xuất, để file khớp đúng
+  // những gì người dùng đang lọc.
+  const taskQueryParams = useCallback(() => {
+    const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
+    if (attentionStatus) params.status = attentionStatus;
+    if (unassignedOnly) params.unassigned = 'true';
+    if (attentionStatus || unassignedOnly || timeFilter === 'overdue') params.includeSubtasks = 'true';
+    if (scope !== 'all') params.scope = scope;
+    if (timeFilter !== 'all') params.timeFilter = timeFilter;
+    return params;
+  }, [filters, scope, timeFilter, attentionStatus, unassignedOnly]);
+
   const loadTasks = useCallback(async () => {
     setLoading(true);
     try {
-      const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
-      if (attentionStatus) params.status = attentionStatus;
-      if (unassignedOnly) params.unassigned = 'true';
-      if (attentionStatus || unassignedOnly || timeFilter === 'overdue') params.includeSubtasks = 'true';
-      if (scope !== 'all') params.scope = scope;
-      if (timeFilter !== 'all') params.timeFilter = timeFilter;
-      const res = await taskService.getAll(params);
+      const res = await taskService.getAll(taskQueryParams());
       setTasks(res.data.data.tasks || []);
     } catch {
       message.error(t('tasks.loadFailed') || 'Không thể tải danh sách công việc');
     } finally {
       setLoading(false);
     }
-  }, [filters, scope, timeFilter, attentionStatus, unassignedOnly, t]);
+  }, [taskQueryParams, t]);
+
+  /**
+   * Xuất CSV theo bộ lọc đang áp dụng. Server trả tối đa 100 việc mỗi trang (mặc định
+   * 50), nên phải đi hết các trang — lấy `tasks` đang hiện trên màn hình là thiếu việc.
+   */
+  const [exporting, setExporting] = useState(false);
+  const exportTasks = async () => {
+    setExporting(true);
+    try {
+      const params = { ...taskQueryParams(), limit: 100 };
+      const all = [];
+      for (let page = 1, pages = 1; page <= pages; page += 1) {
+        const res = await taskService.getAll({ ...params, page });
+        all.push(...(res.data.data.tasks || []));
+        pages = res.data.pagination?.pages || 1;
+      }
+      const day = (d) => (d ? dayjs(d).format('YYYY-MM-DD') : '');
+      const rows = [
+        ['title', 'project', 'group', 'status', 'priority', 'assignee', 'startDate', 'endDate', 'estimatedHours', 'progress', 'completedAt']
+          .map((key) => t(`tasks.csv.${key}`)),
+        ...all.map((task) => [
+          task.title,
+          task.project?.name || '',
+          task.taskGroup?.name || '',
+          taskStatusLabel(task.status),
+          priorityLabel(task.priority),
+          task.assignee?.name || '',
+          day(task.startDate),
+          day(task.endDate),
+          task.estimatedHours ?? '',
+          task.progress ?? '',
+          task.completedAt ? dayjs(task.completedAt).format('YYYY-MM-DD HH:mm') : '',
+        ]),
+      ];
+      downloadCsv(`cong_viec_${dayjs().format('YYYY-MM-DD')}.csv`, rows);
+      message.success(t('tasks.exported', { count: all.length }));
+    } catch {
+      message.error(t('tasks.exportFailed'));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   /**
    * Tải danh sách dự án
@@ -538,6 +589,10 @@ export default function Tasks() {
             onClick={() => setExcelModalOpen(true)}
           >
             Nhập Excel
+          </Button>
+
+          <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportTasks}>
+            {t('tasks.exportCsv')}
           </Button>
 
           {/* Base Wework: Nút Việc lặp lại */}
