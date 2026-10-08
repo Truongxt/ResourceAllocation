@@ -254,7 +254,9 @@ const canModifyTask = ({ restrictFields = false } = {}) => async (req, res, next
     // Nếu là Người thực hiện (Assignee):
     // Trường hợp restrictFields: Chỉ cho phép các trường tiến độ hợp lệ
     // trừ khi dự án đã bật quyền tương ứng
-    const allowed = [...ASSIGNEE_EDITABLE_FIELDS];
+    // `failureReason` chỉ có tác dụng khi `status` đổi sang Thất bại, mà bước đó đã có
+    // `canChangeStatusOnUpdate` chốt quyền theo `failureConfig.allowedRoles`.
+    const allowed = [...ASSIGNEE_EDITABLE_FIELDS, 'failureReason'];
     if (permissions.allowAssigneeEditTitleDesc) {
       allowed.push('title', 'description');
     }
@@ -666,8 +668,29 @@ const canCreateSubtask = () => async (req, res, next) => {
   }
 };
 
+/**
+ * `PUT /:id` mang theo `status` — form sửa công việc luôn gửi trường này. Khi nó thật sự
+ * đổi trạng thái thì phải qua cùng chốt quyền với `PATCH /:id/status`; thiếu chốt này,
+ * người thực hiện tự đánh Thất bại được dù dự án không cho vai đó. Lưu lại form mà giữ
+ * nguyên trạng thái thì không cần.
+ */
+const canChangeStatusOnUpdate = () => {
+  const statusGuard = canUpdateTaskStatus();
+  return async (req, res, next) => {
+    try {
+      if (req.body?.status === undefined) return next();
+      const task = await Task.findById(req.params.id).select('status');
+      if (!task || task.status === req.body.status) return next();
+      return statusGuard(req, res, next);
+    } catch (error) {
+      next(error);
+    }
+  };
+};
+
 module.exports = {
   getTaskUserContext,
+  canChangeStatusOnUpdate,
   guardTaskCompany,
   canCreateTask,
   createDeniedReason,

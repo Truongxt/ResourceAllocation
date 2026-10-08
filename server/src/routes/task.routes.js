@@ -8,6 +8,7 @@ const {
   canCreateTask,
   canModifyTask,
   canUpdateTaskStatus,
+  canChangeStatusOnUpdate,
   canCompleteTask,
   canUpdateDeadline,
   canDeleteTask,
@@ -199,6 +200,7 @@ router.put(
   updateValidation,
   validate,
   canModifyTask({ restrictFields: true }),
+  canChangeStatusOnUpdate(),
   updateTask
 );
 router.patch('/:id/status', taskIdValidation, statusValidation, validate, canUpdateTaskStatus(), updateTaskStatus);

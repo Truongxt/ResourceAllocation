@@ -18,6 +18,7 @@ const {
 } = require('../services/companyRefs.service');
 const {
   validateStatusTransition,
+  statusChangeFields,
   resolveReviewers,
   isReviewOverdue,
   CLOSED_STATUSES,
@@ -31,6 +32,15 @@ const {
   parseTaskExcelBuffer,
   importTasksFromExcel,
 } = require('../services/excelTaskImport.service');
+
+/**
+ * Vết của luồng trạng thái — chỉ server ghi, qua `statusChangeFields`, `completeTask` và
+ * `reviewTask`. `PUT /:id` gỡ chúng khỏi body.
+ */
+const STATUS_TRAIL_FIELDS = [
+  'completedAt', 'failedAt', 'failedBy',
+  'reviewRequestedAt', 'reviewedAt', 'reviewedBy', 'reviewDecision', 'reviewComment',
+];
 
 /**
  * Helper: Tính lại progress dự án dựa trên tasks
@@ -81,7 +91,15 @@ const notifyTaskPeople = (task, actor, { type, title, message }) => {
   });
 };
 
-const notifyDeadlineChanged = (task, actor, oldEndDate, newEndDate, reason) =>
+// Việc đóng lại với kết quả xấu: người theo dõi cũng cần biết, và cần biết vì sao.
+const notifyTaskFailed = (task, actor) =>
+  notifyTaskPeople(task, actor, {
+    type: 'task_failed',
+    title: 'Công việc thất bại',
+    message: `${actor.name} đánh dấu "${task.title}" là Thất bại. Lý do: ${task.failureReason}`,
+  });
+
+const notifyDeadlineChanged =(task, actor, oldEndDate, newEndDate, reason) =>
   notifyTaskPeople(task, actor, {
     type: 'task_deadline_changed',
     title: 'Đổi hạn công việc',
@@ -567,9 +585,28 @@ const updateTask = async (req, res, next) => {
       req.body.dependencies = normalized.value;
     }
 
-    // Auto-set progress to 100 when status changed to done
-    if (req.body.status === 'done' && task.status !== 'done') {
-      req.body.progress = 100;
+    // Vết của luồng trạng thái chỉ do server ghi. Nhận từ body thì gửi `completedAt` sớm
+    // hơn deadline là biến việc trễ thành đúng hạn trong báo cáo kết quả.
+    STATUS_TRAIL_FIELDS.forEach((field) => delete req.body[field]);
+    const failureReason = req.body.failureReason;
+    delete req.body.failureReason;
+
+    // Form sửa công việc luôn gửi kèm `status`. Khi nó thật sự đổi trạng thái thì phải
+    // qua đúng chốt của PATCH /:id/status — thiếu đoạn này, PUT là đường vòng qua cả ba
+    // lớp chặn (đánh giá, lý do Thất bại, dự án bật Thất bại) và không ghi vết nào.
+    const statusChanging = req.body.status !== undefined && req.body.status !== task.status;
+    if (statusChanging) {
+      const check = validateStatusTransition({
+        currentStatus: task.status,
+        nextStatus: req.body.status,
+        project,
+        failureReason,
+        isReviewer: canApproveReview(task, project, req.user),
+      });
+      if (!check.valid) {
+        return res.status(400).json({ success: false, message: check.message });
+      }
+      Object.assign(req.body, statusChangeFields({ task, nextStatus: req.body.status, failureReason, userId: req.user._id }));
     }
 
     const updateData = { ...req.body };
@@ -650,6 +687,9 @@ const updateTask = async (req, res, next) => {
     if (deadlineEntry) {
       notifyDeadlineChanged(updatedTask, req.user, deadlineEntry.oldEndDate, deadlineEntry.newEndDate, req.body.deadlineReason);
     }
+    if (statusChanging && updatedTask.status === 'failed') {
+      notifyTaskFailed(updatedTask, req.user);
+    }
 
     logActivity({
       req,
@@ -714,21 +754,7 @@ const updateTaskStatus = async (req, res, next) => {
       return res.status(400).json({ success: false, message: check.message });
     }
 
-    const updateData = { status };
-    if (status === 'done') updateData.progress = 100;
-    if (status === 'todo') updateData.progress = 0;
-
-    if (status === 'failed') {
-      updateData.failureReason = String(failureReason).trim();
-      updateData.failedAt = new Date();
-      updateData.failedBy = req.user._id;
-    } else if (task.status === 'failed') {
-      // Mở lại việc đã đóng: xóa vết thất bại cũ, nếu không báo cáo sẽ đọc được một
-      // công việc 'đang làm' mà vẫn kèm lý do thất bại từ lần trước.
-      updateData.failureReason = '';
-      updateData.failedAt = null;
-      updateData.failedBy = null;
-    }
+    const updateData = statusChangeFields({ task, nextStatus: status, failureReason, userId: req.user._id });
 
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
@@ -745,13 +771,8 @@ const updateTaskStatus = async (req, res, next) => {
     }
 
     if (status === 'failed') {
-      // Việc đóng lại với kết quả xấu: người theo dõi cũng cần biết, và cần biết vì sao.
       // Thay hẳn thông báo đổi trạng thái chung bên dưới, để không ai nhận hai lần.
-      notifyTaskPeople(updatedTask, req.user, {
-        type: 'task_failed',
-        title: 'Công việc thất bại',
-        message: `${req.user.name} đánh dấu "${updatedTask.title}" là Thất bại. Lý do: ${updateData.failureReason}`,
-      });
+      notifyTaskFailed(updatedTask, req.user);
     } else if (
       updatedTask.assignee &&
       updatedTask.assignee._id.toString() !== req.user._id.toString()

@@ -67,6 +67,7 @@ thường vì MongoDB chưa chạy, hoặc máy đang quá tải (chạy ngay sa
 | `followers` | `followers.test.mjs` | Người theo dõi: trần số lượng, ai được gỡ ai, và người theo dõi **không** sinh ra khối lượng công việc |
 | `task-failed` | `task-failed.test.mjs` | Trạng thái Thất bại: dự án phải bật, bắt buộc có lý do, không nhảy thẳng từ "Chờ đánh giá", và vết để lại trong DB |
 | `task-review` | `task-review.test.mjs` | Luồng Chờ đánh giá có SLA: các bước chuyển, và đúng/trễ hạn tính theo lúc **người làm** bấm hoàn thành |
+| `task-status-paths` | `task-status-paths.test.mjs` | Hai đường đổi trạng thái (`PATCH /:id/status` và `PUT /:id` của form sửa) qua **cùng** chốt: tự kết luận xong khi dự án bật đánh giá, Thất bại khi dự án tắt / thiếu lý do / sai vai đều bị chặn trên `PUT`; người được phép vẫn làm được; lưu lại form giữ nguyên trạng thái không bị chặn. `completedAt` được ghi trên mọi đường sang `done` (giữ mốc lúc nộp nếu đi từ Chờ đánh giá), và không ghi được từ body |
 | `bulk-reassign` | `bulk-reassign.test.mjs` | Bàn giao hàng loạt: đúng phạm vi — không cuốn theo việc ở dự án khác, không viết lại việc đã đóng |
 | `dependency-types` | `dependency-types.test.mjs` | Loại quan hệ phụ thuộc: dạng mới `{ task, type }` và mảng id phẳng cũ cùng đi qua một đường |
 | `department-wework` | `department-wework.test.mjs` | Quản lý phòng ban theo tài liệu Base Wework |
