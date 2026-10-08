@@ -350,7 +350,44 @@
     "noProjects": "No projects yet",
     "createProject": "Create Project",
     "editProject": "Edit Project",
-    "projectDetails": "Project Details"
+    "projectDetails": "Project Details",
+    "lifecycle": {
+      "active": "Active",
+      "archivedTab": "Archived",
+      "templates": "Templates",
+      "more": "More actions",
+      "duplicate": "Duplicate",
+      "saveAsTemplate": "Save as template",
+      "archive": "Archive",
+      "unarchive": "Reopen",
+      "createFromTemplate": "Create project from template",
+      "archiveConfirm": "Archive project \"{{name}}\"?",
+      "archiveHint": "The project will be hidden from lists and become read-only. It can only be archived once every task is closed. You can reopen it at any time.",
+      "archived": "Project archived",
+      "unarchived": "Project reopened",
+      "archiveFailed": "The action could not be completed",
+      "duplicated": "Project created",
+      "duplicateFailed": "Could not duplicate the project",
+      "copyName": "{{name}} (copy)",
+      "templateName": "Template — {{name}}",
+      "name": "Name",
+      "nameRequired": "Enter a name",
+      "startDate": "Start date",
+      "startHint": "Every task date shifts to this start, keeping the gaps between them.",
+      "copyHint": "Keeps task groups, subtasks, checklists, dependencies and estimates. Assignees are cleared and every task goes back to To do.",
+      "title": {
+        "duplicate": "Duplicate project",
+        "saveTemplate": "Save as template",
+        "fromTemplate": "Create project from template"
+      },
+      "ok": {
+        "duplicate": "Duplicate",
+        "saveTemplate": "Save template",
+        "fromTemplate": "Create project"
+      },
+      "archivedBanner": "This project is archived and read-only. Reopen it to make changes.",
+      "templateBanner": "This is a template: it is left out of workload, optimization and reports. Tasks in a template have no assignee."
+    }
   },
   "optimization": {
     "title": "Resource allocation optimization",

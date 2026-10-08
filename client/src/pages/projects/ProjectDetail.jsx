@@ -677,6 +677,34 @@ export default function ProjectDetail() {
         >
           {t('projectDetail.projectList') || 'Quay lại danh sách dự án'}
         </Button>
+        {/* Dự án lưu trữ là chỉ đọc: server trả 409 cho mọi thao tác ghi, nên nói trước. */}
+        {project.isArchived && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12 }}
+            title={t('projects.lifecycle.archivedBanner')}
+            action={
+              <Button
+                size="small"
+                onClick={async () => {
+                  try {
+                    await projectService.unarchive(project._id);
+                    message.success(t('projects.lifecycle.unarchived'));
+                    load();
+                  } catch (error) {
+                    message.error(error.response?.data?.message || t('projects.lifecycle.archiveFailed'));
+                  }
+                }}
+              >
+                {t('projects.lifecycle.unarchive')}
+              </Button>
+            }
+          />
+        )}
+        {project.isTemplate && (
+          <Alert type="info" showIcon style={{ marginBottom: 12 }} title={t('projects.lifecycle.templateBanner')} />
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

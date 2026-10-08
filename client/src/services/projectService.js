@@ -27,6 +27,20 @@ const projectService = {
     });
   },
 
+  // Vòng đời: lưu trữ là chỉ đọc; nhân bản cũng là đường tạo mẫu và tạo từ mẫu.
+  archive(id) {
+    return api.post(`/projects/${id}/archive`);
+  },
+
+  unarchive(id) {
+    return api.post(`/projects/${id}/unarchive`);
+  },
+
+  // data: { name, startDate?: 'YYYY-MM-DD', asTemplate?: boolean }
+  duplicate(id, data) {
+    return api.post(`/projects/${id}/duplicate`, data);
+  },
+
   addMember(id, data) {
     return api.post(`/projects/${id}/members`, data);
   },

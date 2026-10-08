@@ -350,7 +350,44 @@
     "noProjects": "Chưa có dự án nào",
     "createProject": "Tạo dự án",
     "editProject": "Chỉnh sửa dự án",
-    "projectDetails": "Chi tiết dự án"
+    "projectDetails": "Chi tiết dự án",
+    "lifecycle": {
+      "active": "Đang chạy",
+      "archivedTab": "Lưu trữ",
+      "templates": "Mẫu",
+      "more": "Thao tác khác",
+      "duplicate": "Nhân bản",
+      "saveAsTemplate": "Lưu thành mẫu",
+      "archive": "Lưu trữ",
+      "unarchive": "Mở lại",
+      "createFromTemplate": "Tạo dự án từ mẫu",
+      "archiveConfirm": "Lưu trữ dự án \"{{name}}\"?",
+      "archiveHint": "Dự án sẽ ẩn khỏi danh sách và chỉ đọc. Chỉ lưu trữ được khi mọi công việc đã đóng. Có thể mở lại bất cứ lúc nào.",
+      "archived": "Đã lưu trữ dự án",
+      "unarchived": "Đã mở lại dự án",
+      "archiveFailed": "Không thực hiện được thao tác",
+      "duplicated": "Đã tạo dự án",
+      "duplicateFailed": "Không nhân bản được dự án",
+      "copyName": "{{name}} (bản sao)",
+      "templateName": "Mẫu — {{name}}",
+      "name": "Tên",
+      "nameRequired": "Nhập tên",
+      "startDate": "Ngày bắt đầu",
+      "startHint": "Mọi ngày của công việc dời theo ngày này, giữ nguyên khoảng cách giữa chúng.",
+      "copyHint": "Giữ nhóm việc, việc con, checklist, phụ thuộc và giờ ước tính. Người thực hiện để trống, trạng thái về Cần làm.",
+      "title": {
+        "duplicate": "Nhân bản dự án",
+        "saveTemplate": "Lưu thành mẫu",
+        "fromTemplate": "Tạo dự án từ mẫu"
+      },
+      "ok": {
+        "duplicate": "Nhân bản",
+        "saveTemplate": "Lưu mẫu",
+        "fromTemplate": "Tạo dự án"
+      },
+      "archivedBanner": "Dự án đã lưu trữ — chỉ đọc. Mở lại để chỉnh sửa.",
+      "templateBanner": "Đây là dự án mẫu: nằm ngoài tải, tối ưu và báo cáo. Công việc trong mẫu không có người thực hiện."
+    }
   },
   "optimization": {
     "title": "Tối ưu hóa Phân bổ Nguồn lực",

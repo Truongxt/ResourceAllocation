@@ -58,6 +58,8 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import projectService from '../../services/projectService';
+import ProjectLifecycleMenu from '../../components/projects/ProjectLifecycleMenu';
+import ProjectDuplicateModal from '../../components/projects/ProjectDuplicateModal';
 import departmentService from '../../services/departmentService';
 import companySettingService from '../../services/companySettingService';
 import authService from '../../services/authService';
@@ -105,6 +107,9 @@ export default function Projects() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState('table');
+  // Vòng đời: dự án đang chạy, kho lưu trữ, hay danh sách mẫu.
+  const [lifecycle, setLifecycle] = useState('active');
+  const [duplicateTarget, setDuplicateTarget] = useState({ mode: null, source: null });
   const [modalOpen, setModalOpen] = useState(false);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
@@ -173,6 +178,8 @@ export default function Projects() {
     setLoading(true);
     try {
       const params = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
+      if (lifecycle === 'archived') params.archived = 'true';
+      if (lifecycle === 'templates') params.templates = 'true';
       const response = await projectService.getAll(params);
       setProjects(response.data.data.projects || []);
     } catch (error) {
@@ -197,7 +204,7 @@ export default function Projects() {
   useEffect(() => {
     const timer = setTimeout(loadProjects, filters.search ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [filters.search, filters.status, filters.priority, filters.department]);
+  }, [filters.search, filters.status, filters.priority, filters.department, lifecycle]);
 
   useEffect(() => {
     loadDepartments();
@@ -318,6 +325,8 @@ export default function Projects() {
       setSubmitting(false);
     }
   };
+
+  const openDuplicate = (mode, source) => setDuplicateTarget({ mode, source });
 
   const handleDelete = async (id) => {
     try {
@@ -593,7 +602,10 @@ export default function Projects() {
       align: 'right',
       // Quyền phân hệ "Chỉ xem" thì không còn thao tác nào ghi được: server chặn
       // hết, nên hiện nút ra chỉ để người dùng bấm vào rồi nhận 403.
-      render: (_, record) => !canManageModule('projects') ? null : (
+      render: (_, record) => !canManageModule('projects') ? null : record.isArchived ? (
+        // Dự án lưu trữ là chỉ đọc: chỉ còn Mở lại và Nhân bản.
+        <ProjectLifecycleMenu project={record} onDuplicate={openDuplicate} onChanged={loadProjects} />
+      ) : (
         <Space size="small">
           <Tooltip title="Quản lý nhóm công việc">
             <Button
@@ -629,6 +641,7 @@ export default function Projects() {
               <Button type="text" size="small" danger icon={<DeleteOutlined />} />
             </Popconfirm>
           </Tooltip>
+          <ProjectLifecycleMenu project={record} onDuplicate={openDuplicate} onChanged={loadProjects} />
         </Space>
       ),
     },
@@ -802,6 +815,15 @@ export default function Projects() {
         <Space size="small" wrap>
           {activeTab === 'projects' && (
             <>
+              <Segmented
+                value={lifecycle}
+                onChange={setLifecycle}
+                options={[
+                  { value: 'active', label: t('projects.lifecycle.active') },
+                  { value: 'archived', label: t('projects.lifecycle.archivedTab') },
+                  { value: 'templates', label: t('projects.lifecycle.templates') },
+                ]}
+              />
               <Segmented
                 value={viewMode}
                 onChange={setViewMode}
@@ -1186,6 +1208,7 @@ export default function Projects() {
                             >
                               <Button type="text" size="small" danger icon={<DeleteOutlined />} />
                             </Popconfirm>
+                            <ProjectLifecycleMenu project={proj} onDuplicate={openDuplicate} onChanged={loadProjects} />
                           </Space>
                         </div>
                       </div>
@@ -1741,6 +1764,18 @@ export default function Projects() {
       />
 
       {/* Modal Quản lý Nhóm công việc */}
+      <ProjectDuplicateModal
+        mode={duplicateTarget.mode}
+        source={duplicateTarget.source}
+        onClose={() => setDuplicateTarget({ mode: null, source: null })}
+        onDone={(project) => {
+          setDuplicateTarget({ mode: null, source: null });
+          // Mẫu mới thì sang danh sách mẫu; dự án mới thì về danh sách đang chạy.
+          const next = project?.isTemplate ? 'templates' : 'active';
+          if (next !== lifecycle) setLifecycle(next);
+          else loadProjects();
+        }}
+      />
       <TaskGroupManagerModal
         open={taskGroupModalOpen}
         onClose={() => {
