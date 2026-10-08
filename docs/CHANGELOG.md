@@ -10,6 +10,13 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Added
 
+- **PM chạy được tối ưu hóa, thu hẹp theo dự án mình quản lý** (`Project.manager`). Trước đây
+  `authorizeApp('optimize')` chặn PM ngay cửa, nên cả hai route Áp dụng/Hoàn tác vốn đã khai cho PM
+  cũng không tới được. Mọi lối vào đều kiểm dự án: chạy, `/readiness`, benchmark dữ liệu thật, lịch sử,
+  xem, so sánh, áp dụng, hoàn tác. Web: PM thấy mục Tối ưu hóa và Benchmark Studio; ô chọn dự án chỉ có
+  dự án họ quản lý, không có "Tất cả dự án"; Studio ẩn lựa chọn dữ liệu thật của cả công ty.
+- **Script `npm run migrate:completed-at`** khôi phục `completedAt` cho việc đã xong trước `152df0e`,
+  từ `reviewRequestedAt` rồi nhật ký hoạt động. Không suy ra được thì liệt kê ra, không đoán.
 - **Mobile: màn Gantt (chỉ xem).** Thu phóng ngày/tuần, lọc dự án, đường găng, vạch hôm nay; việc
   thiếu ngày được liệt kê riêng là "chưa có lịch". Mở từ màn Công việc và chi tiết dự án. Logic CPM chép
   nguyên từ web, có test khóa hai bản giống nhau.
@@ -69,6 +76,11 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Fixed
 
+- **Việc lặp lại lỡ nhiều lượt** (cron ngừng) phải đợi chừng ấy lần gọi mới đuổi kịp. Nay một lần gọi sinh
+  bù mọi lượt đến hạn, mỗi việc mang đúng ngày của lượt đó, tối đa 31 lượt mỗi cấu hình.
+- **Seeder tạo việc Hoàn thành không có `completedAt`**, nên mọi database mới đều có một việc "xong nhưng
+  không có mốc" trong báo cáo kết quả.
+- **Cảnh báo Mongoose trùng index `companyName`** khi khởi động: `CompanySetting` khai unique hai lần.
 - **Mobile: Công việc và chi tiết dự án chỉ thấy 50 việc đầu, Lịch chỉ thấy 100.** Đúng lỗi web đã sửa ở
   `51f0d5f`. Nay đi hết mọi trang qua `taskApi.getAllPages` (trần 10 trang).
 - **Dữ liệu tổng hợp của Benchmark làm CSP vô nghiệm vì bộ sinh, không phải vì bài toán.** Kỹ năng

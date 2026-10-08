@@ -12,8 +12,9 @@ phụ thuộc vào những gì giai đoạn trước để lại, nên viết ch
 
 **Ưu tiên hiện tại (chốt với người dùng ngày 2026-10-08): hoàn thành chương trình trước, sửa luận văn sau.**
 
-Số test ở lần chạy gần nhất (2026-10-08, sau GĐ9): server **33/33 bộ**, client **58/58** (cộng 4 bộ logic thuần),
-mobile **35 + 14** (node thuần) **+ 10** (jest), e2e **89/89**.
+Số test ở lần chạy gần nhất (2026-10-08, sau đợt dọn tồn đọng thứ hai): server **35/35 bộ**, client **58/58**
+(cộng 5 bộ logic thuần), mobile **35 + 14** (node thuần) **+ 10** (jest). e2e **89/89** khi chạy trọn bộ sau GĐ9;
+sau đó thêm 2 bài (Tối ưu cho PM) và sửa 1 bài (sidebar PM), chỉ chạy lại hai file `06`, `08` (18/18).
 
 ### Đã làm
 
@@ -26,6 +27,7 @@ mobile **35 + 14** (node thuần) **+ 10** (jest), e2e **89/89**.
 | 5 | Thuật toán phần 1 (S1/S3, hội tụ) | `1c73ee0`, `b13e3c0` | [plan](./2026-10-08-thuat-toan-phan-1.md). Số đo trước/sau ở ALGORITHMS.md mục 2.3 và 3.3 |
 | 6 | Thuật toán phần 2 (job, snapshot, Régin) | `0bae0f4`, `9e946f9` | [plan](./2026-10-08-job-dinh-ky-va-thuat-toan-phan-2.md). Job qua endpoint nội bộ + cron ngoài; ảnh chụp workload; Régin đo rồi bỏ (clique lớn nhất = 2) |
 | — | Dọn tồn đọng nhỏ | `8b01b01`, `ca15897`, `edd9847`, `66c1660`, `72d31a4`, `f5b8b00` | Nút ở dạng thẻ màn Dự án; cảnh báo job `stale` trên Dashboard; bộ sinh dữ liệu Benchmark theo vai trò; CSP tách hết ngân sách khỏi vô nghiệm; Benchmark Studio về ngưỡng 0.5 (người dùng chốt 2026-10-08) |
+| — | Dọn tồn đọng, đợt hai | `fbbd5ab`, `178eb51`, `7f984e2`, `3662cdd`, `05acc0b` | Trùng index `companyName`; khôi phục `completedAt` (script + seeder); việc lặp lại sinh bù lượt lỡ (trần 31); PM chạy tối ưu theo dự án mình quản lý (server + web) |
 | 9 | Mobile: Gantt, test giao diện | `7be9ee8`, `2d486ab`, `a609ea5`, `172c062` | [plan](./2026-10-08-mobile-gantt.md). Gantt chỉ xem; jest-expo + RNTL; mobile tải đủ mọi trang |
 
 **Lỗi phát hiện trong lúc làm và đã sửa** (mỗi lỗi đều được tái hiện trước khi sửa và có test giữ lại):
@@ -57,26 +59,31 @@ mobile **35 + 14** (node thuần) **+ 10** (jest), e2e **89/89**.
 | 8 | Đính kèm tệp thật | Lưu đĩa hay S3; trần dung lượng |
 | 10 | react-router v7 | Có chấp nhận đổi API router không |
 
-**Tồn đọng nhỏ, đã biết nhưng chưa xử lý:**
+**Việc dở, chưa làm** (cập nhật 2026-10-08, theo thứ tự nên làm):
 
-- **Báo cáo luận văn dùng số đo cũ** — để sau theo quyết định ngày 2026-10-08. `docs/build_thesis_report.py`
-  dòng 503–509 và 527 (kéo theo file `.docx`/`.pdf`) ghi "GA dừng sau 119 thế hệ, Hybrid 90, giảm ~24%".
-  Số đúng: 76.3 / 51.8 thế hệ dừng (Hybrid ít hơn ~32%), hội tụ 90% ở thế hệ 13.9 / 1.8. Fitness 0.8530 cả
-  hai. Báo cáo cũng chưa có S1/S3, `contextSwitches` và các bản sửa ở bảng trên.
-- **Khi triển khai phải cấu hình cron và `JOB_SECRET`** (README mục "Job định kỳ"). Thiếu thì hai job không
-  bao giờ chạy. Dashboard đã cảnh báo Owner/Admin khi có job `stale` (`ca15897`).
-- **Việc đã xong trước `152df0e` không có `completedAt`**, nên báo cáo kết quả các kỳ cũ xếp chúng vào "xong
-  nhưng không có mốc". Có thể khôi phục từ nhật ký hoạt động (`UPDATE_TASK_STATUS` sang `done`). Cần người dùng
-  quyết có làm không.
-- **Các bảng trước/sau ở ALGORITHMS.md mục 2.3 đo bằng bộ sinh cũ.** Bộ sinh mới cho CSP giải được 16/30 small,
-  19/30 medium ở ngưỡng 0.5 (cũ: 0/30, 5/30). Cần đo lại trước khi lấy số cho luận văn.
-- **S1/S3 làm tải kém cân hơn** (σ medium 15.3 → 16.2). Nếu cần, chỉnh trọng số `SOFT_WEIGHTS` trong
-  `CSPSolver.js` và đo lại bằng cách ở ALGORITHMS.md mục 2.3.
-- **Job việc lặp lại sinh một lượt mỗi cấu hình mỗi lần gọi**: lỡ nhiều lượt thì các lần gọi sau đuổi kịp dần,
-  không sinh bù một lần.
-- **PM không chạy được tối ưu** (`authorizeApp('optimize')` chỉ cho Owner/Admin/App Admin). Muốn mở cho PM thì
-  phải viết lại phần thu hẹp phạm vi theo dự án.
-- Cảnh báo có sẵn từ trước: Mongoose báo trùng index `companyName` khi khởi động (không ảnh hưởng chạy).
+1. **Mobile chưa mở Tối ưu hóa cho PM.** Server và web đã cho PM chạy trên dự án mình quản lý (`3662cdd`,
+   `05acc0b`), nhưng `mobile/src/utils/appPermissions.js` (`hasAppAccess`) vẫn chỉ cho Owner/Admin/App Admin,
+   nên PM không thấy tab Tối ưu hóa. Khi mở phải làm như web: `OptimizationScreen` chỉ liệt kê dự án PM quản lý,
+   không có "Tất cả dự án"; màn Benchmark ẩn lựa chọn dữ liệu thật. Logic phạm vi nên chép nguyên
+   `client/src/utils/optimizeScope.js` kèm bài test so hai bản, như đã làm với `gantt.js`.
+2. **Chạy lại trọn bộ e2e.** Sau các commit tối ưu cho PM mới chạy lại hai file `06`, `08`.
+3. **Đo lại các bảng trước/sau ở ALGORITHMS.md mục 2.3** bằng bộ sinh dữ liệu mới (`edd9847`) và ngưỡng 0.5.
+   Bảng hiện tại đo bằng bộ sinh cũ ở ngưỡng 0.1 và 0. Bản "trước" là thứ tự LCV chỉ xét chỗ trống (trước
+   `1c73ee0`); đo trên cùng 30 bộ mỗi cỡ, so cặp các bộ cả hai bản cùng giải được.
+4. **Quyết định có chỉnh trọng số S1/S3 không** (`SOFT_WEIGHTS` trong `CSPSolver.js`). S1/S3 làm tải kém cân hơn
+   (σ medium 15.3 → 16.2, số đo cũ). Chờ số của mục 3 rồi mới quyết.
+5. **Database dev còn 1 việc Hoàn thành không có `completedAt`** ("Thiết kế Design System & Wireframes", do
+   seeder cũ tạo, không có nhật ký nên script để nguyên). Seed lại hoặc sửa tay. Môi trường khác thì chạy
+   `npm run migrate:completed-at` (chạy khô trước), rồi `-- --apply`.
+6. **Nhỏ, giao diện:** trang Tối ưu của PM chọn sẵn dự án đầu tiên theo thứ tự tạo mới nhất, có thể là dự án
+   không có việc mở (với dữ liệu mẫu là RAO-MOB) — bấm chạy thì nhận 400. Nên chọn sẵn dự án có việc mở.
+7. **Khi triển khai phải cấu hình cron và `JOB_SECRET`** (README mục "Job định kỳ"). Thiếu thì hai job không bao
+   giờ chạy; Dashboard cảnh báo Owner/Admin khi có job `stale` (`ca15897`).
+8. **Báo cáo luận văn dùng số đo cũ** — để sau cùng theo quyết định ngày 2026-10-08. `docs/build_thesis_report.py`
+   dòng 503–509 và 527 (kéo theo file `.docx`/`.pdf`) ghi "GA dừng sau 119 thế hệ, Hybrid 90, giảm ~24%". Số đúng:
+   76.3 / 51.8 thế hệ dừng (Hybrid ít hơn ~32%), hội tụ 90% ở thế hệ 13.9 / 1.8. Fitness 0.8530 cả hai. Báo cáo
+   cũng chưa có S1/S3, `contextSwitches`, bộ sinh dữ liệu mới, ngưỡng 0.5 của Benchmark và các bản sửa ở bảng trên.
+   Nên làm sau mục 3 để lấy số mới một lần.
 
 ## Lộ trình
 

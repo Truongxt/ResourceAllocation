@@ -366,9 +366,9 @@ Không set giá trị cho `moduleKey` (tài khoản tạo trước khi middlewar
 như `manage`, và `isOwner` luôn đi qua bất kể `appPermissions` của chính họ ghi gì.
 
 `calendar` và `optimization` **không** bị gắn middleware này: `calendar` không có route
-riêng (dùng chung dữ liệu `/api/tasks`); `optimization` đã bị `authorizeApp('optimize')`
-(dựa trên `User.appAdmins`, khác field) khóa toàn bộ cho non-admin từ trước — set
-`appPermissions.optimization` không có tác dụng gì thêm.
+riêng (dùng chung dữ liệu `/api/tasks`); `optimization` có cửa riêng theo phạm vi tối ưu
+(xem mục 6), dựa trên vai trò và `User.appAdmins` chứ không dựa trên field này — set
+`appPermissions.optimization` không có tác dụng gì thêm ở server.
 
 ### PUT `/api/auth/users/:id/status`
 ```json
@@ -1022,6 +1022,13 @@ Hai kỳ nghỉ liền kề nhưng không giao nhau là hợp lệ.
 | GET | `/:id` | Chi tiết một kết quả | 🔒 |
 | POST | `/:id/apply` | Áp dụng kết quả vào hệ thống | 📋 PM+ |
 
+> **Ai được dùng** (`services/optimizeScope.js`): Owner, Admin, App Admin của Base Optimize+ dùng trên
+> toàn công ty. **PM** (`role: project_manager`) chỉ trên dự án có `Project.manager` là chính họ: chạy
+> thuật toán, `/readiness` và benchmark dữ liệu thật phải gửi `projectId` của dự án đó (thiếu hoặc dự án
+> khác → 403); `/history` chỉ trả lượt chạy trên dự án họ quản lý (kể cả do admin chạy); `/:id`,
+> `/compare`, `/:id/apply`, `/:id/rollback` trả 403 với kết quả ngoài phạm vi, kể cả kết quả chạy trên
+> toàn công ty. Benchmark dữ liệu tổng hợp PM chạy tự do. Vai trò khác → 403.
+>
 > Không có endpoint `POST /run` gộp — mỗi thuật toán một đường dẫn riêng.
 > Chi tiết kết quả là `GET /:id`, **không phải** `GET /:id/result`.
 > `/compare` khai báo **trước** `/:id` trong router, nếu không Express khớp chuỗi
