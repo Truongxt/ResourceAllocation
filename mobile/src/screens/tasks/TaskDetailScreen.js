@@ -19,6 +19,7 @@ import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import TaskAttachments from '../../components/tasks/TaskAttachments';
+import { sortedFields, formatCustomValue } from '../../utils/customFields.js';
 import taskApi from '../../api/taskApi';
 import {
   formatDate,
@@ -367,6 +368,23 @@ export default function TaskDetailScreen({ route, navigation }) {
                     {task.description || 'Không có mô tả chi tiết.'}
                   </Text>
                 </Card>
+
+                {/* Trường tùy chỉnh của dự án — chỉ xem; sửa trên web */}
+                {sortedFields(task.project).length > 0 && (
+                  <Card style={styles.metaCard} testID="task-custom-values">
+                    {sortedFields(task.project).map((field) => (
+                      <View key={field.key} style={styles.metaRow}>
+                        <Ionicons name="pricetag-outline" size={18} color={theme.colors.textMuted} />
+                        <Text style={[styles.metaKey, { color: theme.colors.textSecondary }]}>
+                          {field.name}:
+                        </Text>
+                        <Text style={[styles.metaVal, { color: theme.colors.text }]}>
+                          {formatCustomValue(field, task.customValues?.[field.key]) || '—'}
+                        </Text>
+                      </View>
+                    ))}
+                  </Card>
+                )}
 
                 {/* Key metadata grid */}
                 <Card style={styles.metaCard}>

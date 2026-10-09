@@ -1,9 +1,9 @@
 /**
- * Màn chi tiết công việc: tab "Tệp" có mặt và nối đúng vào danh sách tệp của việc đang mở.
- * Phần bên trong tab được khóa ở TaskAttachments.test.js.
+ * Màn chi tiết công việc: tab "Tệp" có mặt và nối đúng vào danh sách tệp của việc đang mở (phần
+ * bên trong tab được khóa ở TaskAttachments.test.js); tab Thông tin hiện giá trị trường tùy chỉnh.
  */
 import React from 'react';
-import { fireEvent, screen } from '@testing-library/react-native';
+import { fireEvent, screen, within } from '@testing-library/react-native';
 import { renderWithTheme } from './helpers';
 
 jest.mock('../src/api/taskApi', () => ({ __esModule: true, default: { getById: jest.fn() } }));
@@ -49,4 +49,35 @@ test('chưa mở tab thì chưa gọi danh sách tệp', async () => {
   renderWithTheme(<TaskDetailScreen route={{ params: { taskId: 't1', title: 'Xây dựng API' } }} navigation={{ goBack: jest.fn(), navigate: jest.fn() }} />);
   await screen.findByText(/^Tệp/);
   expect(attachmentApi.list).not.toHaveBeenCalled();
+});
+
+test('tab Thông tin hiện giá trị trường tùy chỉnh của dự án, theo thứ tự', async () => {
+  taskApi.getById.mockResolvedValue({
+    data: {
+      data: {
+        task: {
+          ...TASK,
+          project: {
+            ...TASK.project,
+            customFields: [
+              { key: 'f_bbbbbbbb', name: 'Ngân sách', type: 'number', order: 1 },
+              { key: 'f_aaaaaaaa', name: 'Kênh', type: 'select', options: ['TikTok'], order: 0 },
+              { key: 'f_cccccccc', name: 'Ngày phát hành', type: 'date', order: 2 },
+            ],
+          },
+          customValues: { f_aaaaaaaa: 'TikTok', f_bbbbbbbb: 15000000 },
+        },
+      },
+    },
+  });
+  renderWithTheme(<TaskDetailScreen route={{ params: { taskId: 't1', title: 'Xây dựng API' } }} navigation={{ goBack: jest.fn(), navigate: jest.fn() }} />);
+  const card = await screen.findByTestId('task-custom-values');
+  const texts = within(card).getAllByText(/.+/).map((n) => n.props.children).flat().join('|');
+  expect(texts).toBe('Kênh|:|TikTok|Ngân sách|:|15.000.000|Ngày phát hành|:|—');
+});
+
+test('dự án không có trường tùy chỉnh thì không có thẻ đó', async () => {
+  renderWithTheme(<TaskDetailScreen route={{ params: { taskId: 't1', title: 'Xây dựng API' } }} navigation={{ goBack: jest.fn(), navigate: jest.fn() }} />);
+  await screen.findByText(/^Tệp/);
+  expect(screen.queryByTestId('task-custom-values')).toBeNull();
 });

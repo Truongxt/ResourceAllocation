@@ -15,7 +15,7 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 const normalize = (s) => s.replace(/\r\n/g, '\n');
 const read = (...parts) => normalize(readFileSync(path.join(dir, ...parts), 'utf8'));
 
-const COPIES = ['optimizeScope.js', 'attachmentRules.js'];
+const COPIES = ['optimizeScope.js', 'attachmentRules.js', 'customFields.js'];
 
 let failed = 0;
 console.log('\nBản chép từ web giống hệt bản gốc');
