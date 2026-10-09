@@ -143,11 +143,11 @@ export default function TasksScreen({ navigation }) {
       if (scopeFilter !== 'all') params.scope = scopeFilter;
       if (timeFilter !== 'all') params.timeFilter = timeFilter;
 
-      const [tRes, pRes] = await Promise.all([
-        taskApi.getAll(params),
+      // Đi hết mọi trang: trước đây chỉ thấy 50 việc đầu (trang mặc định của server).
+      const [{ tasks: rawTasks }, pRes] = await Promise.all([
+        taskApi.getAllPages(params),
         projectApi.getAll({ limit: 50 }),
       ]);
-      const rawTasks = tRes.data?.data?.tasks || tRes.data?.tasks || (Array.isArray(tRes.data?.data) ? tRes.data.data : []);
       const rawProjects = pRes.data?.data?.projects || pRes.data?.projects || (Array.isArray(pRes.data?.data) ? pRes.data.data : []);
       setTasks(Array.isArray(rawTasks) ? rawTasks : []);
       setProjects(Array.isArray(rawProjects) ? rawProjects : []);
@@ -575,6 +575,26 @@ export default function TasksScreen({ navigation }) {
           >
             <Ionicons
               name="calendar-outline"
+              size={18}
+              color={theme.colors.text}
+            />
+          </TouchableOpacity>
+
+          {/* Gantt View Button */}
+          <TouchableOpacity
+            accessibilityLabel="Xem tiến độ (Gantt)"
+            onPress={() => navigation.navigate('GanttScreen')}
+            style={[
+              styles.calendarNavBtn,
+              {
+                backgroundColor: theme.isDark
+                  ? 'rgba(255,255,255,0.08)'
+                  : '#e2e8f0',
+              },
+            ]}
+          >
+            <Ionicons
+              name="bar-chart-outline"
               size={18}
               color={theme.colors.text}
             />

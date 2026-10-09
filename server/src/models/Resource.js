@@ -153,8 +153,10 @@ const resourceSchema = new mongoose.Schema(
 
 // Virtual: utilization rate
 resourceSchema.virtual('utilizationRate').get(function () {
-  if (this.maxCapacity === 0) return 0;
-  return Math.round((this.currentWorkload / (this.maxCapacity * this.fte)) * 100);
+  // fte cũng được phép bằng 0 (min: 0), không riêng maxCapacity
+  const capacity = this.maxCapacity * this.fte;
+  if (!(capacity > 0)) return 0;
+  return Math.round((this.currentWorkload / capacity) * 100);
 });
 
 // Virtual: is overloaded

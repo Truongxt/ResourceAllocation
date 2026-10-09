@@ -350,7 +350,44 @@
     "noProjects": "Chưa có dự án nào",
     "createProject": "Tạo dự án",
     "editProject": "Chỉnh sửa dự án",
-    "projectDetails": "Chi tiết dự án"
+    "projectDetails": "Chi tiết dự án",
+    "lifecycle": {
+      "active": "Đang chạy",
+      "archivedTab": "Lưu trữ",
+      "templates": "Mẫu",
+      "more": "Thao tác khác",
+      "duplicate": "Nhân bản",
+      "saveAsTemplate": "Lưu thành mẫu",
+      "archive": "Lưu trữ",
+      "unarchive": "Mở lại",
+      "createFromTemplate": "Tạo dự án từ mẫu",
+      "archiveConfirm": "Lưu trữ dự án \"{{name}}\"?",
+      "archiveHint": "Dự án sẽ ẩn khỏi danh sách và chỉ đọc. Chỉ lưu trữ được khi mọi công việc đã đóng. Có thể mở lại bất cứ lúc nào.",
+      "archived": "Đã lưu trữ dự án",
+      "unarchived": "Đã mở lại dự án",
+      "archiveFailed": "Không thực hiện được thao tác",
+      "duplicated": "Đã tạo dự án",
+      "duplicateFailed": "Không nhân bản được dự án",
+      "copyName": "{{name}} (bản sao)",
+      "templateName": "Mẫu — {{name}}",
+      "name": "Tên",
+      "nameRequired": "Nhập tên",
+      "startDate": "Ngày bắt đầu",
+      "startHint": "Mọi ngày của công việc dời theo ngày này, giữ nguyên khoảng cách giữa chúng.",
+      "copyHint": "Giữ nhóm việc, việc con, checklist, phụ thuộc và giờ ước tính. Người thực hiện để trống, trạng thái về Cần làm.",
+      "title": {
+        "duplicate": "Nhân bản dự án",
+        "saveTemplate": "Lưu thành mẫu",
+        "fromTemplate": "Tạo dự án từ mẫu"
+      },
+      "ok": {
+        "duplicate": "Nhân bản",
+        "saveTemplate": "Lưu mẫu",
+        "fromTemplate": "Tạo dự án"
+      },
+      "archivedBanner": "Dự án đã lưu trữ — chỉ đọc. Mở lại để chỉnh sửa.",
+      "templateBanner": "Đây là dự án mẫu: nằm ngoài tải, tối ưu và báo cáo. Công việc trong mẫu không có người thực hiện."
+    }
   },
   "optimization": {
     "title": "Tối ưu hóa Phân bổ Nguồn lực",
@@ -361,6 +398,7 @@
     "allProjects": "Tất cả dự án",
     "pickAlgorithm": "Chọn thuật toán tối ưu",
     "filterByProject": "Lọc theo dự án (Tùy chọn)",
+    "pickManagedProject": "Chọn một dự án bạn quản lý",
     "gaParams": "Tham số thuật toán GA",
     "fitnessWeights": "Trọng số Fitness",
     "weightWorkload": "Cân bằng tải (Workload)",
@@ -451,7 +489,9 @@
       "totalCost": "Tổng chi phí ước tính",
       "averageUtilization": "Tỉ lệ sử dụng trung bình",
       "violatedConstraints": "Ràng buộc bị vi phạm",
-      "executionTime": "Thời gian chạy"
+      "executionTime": "Thời gian chạy",
+      "contextSwitches": "Chuyển ngữ cảnh (số dự án thừa)",
+      "convergenceGeneration": "Hội tụ 90% (thế hệ)"
     },
     "unit": {
       "percent": "%",
@@ -686,7 +726,24 @@
       "confirm": "Bàn giao",
       "done": "Đã bàn giao {{count}} công việc",
       "checkWorkload": "Nên kiểm tra tải của người nhận sau khi bàn giao"
-    }
+    },
+    "exportCsv": "Xuất CSV",
+    "exported": "Đã xuất {{count}} công việc",
+    "exportFailed": "Không xuất được danh sách công việc",
+    "csv": {
+      "title": "Tên công việc",
+      "project": "Dự án",
+      "group": "Nhóm công việc",
+      "status": "Trạng thái",
+      "priority": "Độ ưu tiên",
+      "assignee": "Người thực hiện",
+      "startDate": "Ngày bắt đầu",
+      "endDate": "Hạn chót",
+      "estimatedHours": "Giờ ước tính",
+      "progress": "Tiến độ (%)",
+      "completedAt": "Hoàn thành lúc"
+    },
+    "truncated": "Đang hiện {{shown}} / {{total}} công việc — hãy lọc theo dự án, phạm vi hoặc thời gian để xem phần còn lại. Nút Xuất CSV vẫn lấy đủ."
   },
   "projectDetail": {
     "loadFailed": "Không thể tải dự án",
@@ -765,7 +822,8 @@
       "utilization": "Resource Histogram",
       "departments": "Phân bổ theo Phòng ban",
       "projects": "Báo cáo Dự án",
-      "trend": "Xu hướng theo thời gian"
+      "trend": "Xu hướng theo thời gian",
+      "performance": "Kết quả theo người"
     },
     "stats": {
       "totalResources": "Tổng nhân sự",
@@ -811,6 +869,28 @@
       "loadRow": "Tải (giờ)",
       "capacityRow": "Năng lực (giờ)",
       "totalRow": "TỔNG"
+    },
+    "performance": {
+      "scopeMe": "Của tôi",
+      "scopeSubordinates": "Cấp dưới trực tiếp",
+      "scopeAll": "Toàn công ty",
+      "periodHint": "Tính các việc có deadline trong kỳ",
+      "loadError": "Không tải được báo cáo kết quả",
+      "empty": "Không có ai trong phạm vi này",
+      "emptySubordinates": "Bạn chưa là quản lý trực tiếp của ai",
+      "noTimestamp": "{{count}} việc đã xong nhưng không có mốc hoàn thành (từ trước khi có luồng đánh giá), nên không tính vào tỉ lệ đúng hạn.",
+      "noDeadline": "{{count}} việc đang mở không có deadline nên không thuộc kỳ nào.",
+      "columns": {
+        "person": "Nhân sự",
+        "total": "Số việc",
+        "onTime": "Đúng hạn",
+        "late": "Trễ hạn",
+        "failed": "Thất bại",
+        "overdue": "Quá hạn",
+        "pendingReview": "Chờ duyệt",
+        "extensions": "Lần gia hạn",
+        "onTimeRate": "Tỉ lệ đúng hạn"
+      }
     }
   },
   "gantt": {
@@ -910,6 +990,17 @@
     "overview": "Tổng quan",
     "overviewHint": "Theo dõi tiến độ và những việc cần điều chỉnh trong nhóm.",
     "planAllocation": "Lập phương án phân bổ",
+    "jobs": {
+      "staleTitle": "Job định kỳ không chạy đúng hạn",
+      "staleHint": "Nếu chưa từng chạy, nhiều khả năng cron chưa được cấu hình hoặc thiếu JOB_SECRET (xem README, mục \"Job định kỳ\").",
+      "neverRan": "chưa từng chạy",
+      "lastSuccess": "lần chạy thành công gần nhất lúc {{time}}",
+      "lastFailed": "lần gần nhất thất bại: {{error}}",
+      "names": {
+        "recurring-tasks": "Sinh việc lặp lại",
+        "workload-snapshot": "Chụp tải hằng ngày"
+      }
+    },
     "loadError": "Không tải được dữ liệu. Vui lòng thử lại.",
     "projectTotal": "{{count}} dự án trong phạm vi của bạn",
     "taskDone": "{{count}} việc đã hoàn thành",

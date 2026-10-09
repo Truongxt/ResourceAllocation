@@ -1,10 +1,14 @@
 const Project = require('../models/Project');
 const Task = require('../models/Task');
 const Resource = require('../models/Resource');
+const User = require('../models/User');
+const WorkloadSnapshot = require('../models/WorkloadSnapshot');
 const OptimizationResult = require('../models/OptimizationResult');
 const mongoose = require('mongoose');
 const { buildWorkloadTrend, weeklyLoadOf } = require('../analytics/workloadTrend');
 const { getUserAnalyticsScope } = require('../services/analyticsScope.service');
+const { summarizePerformance } = require('../analytics/performanceSummary');
+const { DEFAULT_COMPANY, companyOf } = require('../services/companyRefs.service');
 
 /**
  * @desc    Dashboard overview — tổng hợp real data
@@ -459,11 +463,11 @@ const getWorkloadTrend = async (req, res, next) => {
 
     const { taskMatch, resourceMatch } = await getUserAnalyticsScope(req.user);
 
-    const taskFilter = {};
+    // Phạm vi của người gọi luôn áp dụng; `projectId` chỉ thu hẹp thêm. Trước đây có
+    // `projectId` là bỏ hẳn phạm vi, nên đọc được giờ công của dự án công ty khác.
+    const taskFilter = { ...taskMatch };
     if (projectId) {
       taskFilter.project = projectId;
-    } else if (Object.keys(taskMatch).length > 0) {
-      Object.assign(taskFilter, taskMatch);
     }
 
     const [tasks, resources] = await Promise.all([
@@ -516,7 +520,14 @@ const getOptimizationComparison = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Kết quả không tìm thấy' });
     }
 
-    const resources = await Resource.find({ isActive: true })
+    // Cùng quy ước với `resultBelongsTo` bên optimization.controller: bản ghi cũ
+    // thiếu `companyName` thuộc công ty mặc định.
+    const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
+    if ((result.companyName || 'Công ty Công nghệ RAO') !== userCompany && req.user?.role !== 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Không có quyền xem kết quả tối ưu của công ty khác' });
+    }
+
+    const resources = await Resource.find({ isActive: true, companyName: userCompany })
       .populate('user', 'name')
       .select('user position maxCapacity fte currentWorkload');
 
@@ -524,7 +535,7 @@ const getOptimizationComparison = async (req, res, next) => {
     // currentWorkload — field đó chỉ được làm mới khi admin gọi recalculate-workload
     // nên thường đã cũ, khiến cột "Trước" không so sánh được với cột "Sau".
     const openTasks = await Task.aggregate([
-      { $match: { status: { $in: ['todo', 'in_progress', 'review'] } } },
+      { $match: { status: { $in: ['todo', 'in_progress', 'review'] }, companyName: userCompany } },
       { $group: { _id: '$assignee', totalHours: { $sum: '$estimatedHours' } } },
     ]);
     const hoursByUser = {};
@@ -604,10 +615,140 @@ const getOptimizationComparison = async (req, res, next) => {
   }
 };
 
+const PERFORMANCE_SCOPES = ['me', 'subordinates', 'all'];
+
+// `YYYY-MM-DD` hiểu theo ngày địa phương, và `to` lấy tới cuối ngày: `new Date('2026-10-31')`
+// là nửa đêm UTC, sẽ đánh rơi việc có hạn chiều ngày 31.
+const parseBound = (value, endOfDay) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = m
+    ? new Date(+m[1], +m[2] - 1, +m[3], ...(endOfDay ? [23, 59, 59, 999] : [0, 0, 0, 0]))
+    : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+/**
+ * @desc    Báo cáo kết quả theo người: đúng hạn, trễ, thất bại, quá hạn, chờ duyệt, gia hạn
+ * @route   GET /api/analytics/performance?scope=me|subordinates|all&from&to
+ * @access  Private — scope=all chỉ dành cho Owner/Admin
+ *
+ * Một việc thuộc kỳ báo cáo khi deadline (`endDate`) nằm trong [from, to]. Mặc định là
+ * tháng hiện tại. Phép tính nằm ở `analytics/performanceSummary.js`.
+ */
+const getPerformanceReport = async (req, res, next) => {
+  try {
+    const scope = req.query.scope || 'me';
+    if (!PERFORMANCE_SCOPES.includes(scope)) {
+      return res.status(400).json({ success: false, message: 'Phạm vi không hợp lệ (me, subordinates, all)' });
+    }
+    // Đây là dữ liệu đánh giá nhân sự: xem cả công ty chỉ dành cho Owner/Admin. Không
+    // lặng lẽ rơi về "me", để client biết mình đang không được xem.
+    if (scope === 'all' && !req.user.isOwner && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Chỉ Owner hoặc Admin được xem báo cáo của toàn công ty' });
+    }
+
+    const now = new Date();
+    const from = req.query.from ? parseBound(req.query.from, false) : new Date(now.getFullYear(), now.getMonth(), 1);
+    const to = req.query.to ? parseBound(req.query.to, true) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    if (!from || !to || from > to) {
+      return res.status(400).json({ success: false, message: 'Khoảng thời gian không hợp lệ' });
+    }
+
+    const company = companyOf(req.user);
+    const companyName = company === DEFAULT_COMPANY ? { $in: [company, null] } : company;
+
+    const peopleFilter = { companyName, isActive: true };
+    if (scope === 'me') peopleFilter._id = req.user._id;
+    else if (scope === 'subordinates') peopleFilter.manager = req.user._id;
+    else peopleFilter.isGuest = { $ne: true };
+
+    const people = await User.find(peopleFilter).select('name email avatar department').lean();
+    const ids = people.map((p) => p._id);
+
+    const [tasks, noDeadline] = await Promise.all([
+      Task.find({ companyName, assignee: { $in: ids }, endDate: { $gte: from, $lte: to } })
+        .select('assignee status endDate completedAt deadlineHistory')
+        .lean(),
+      // Việc không có deadline không xếp được vào kỳ nào. Đếm phần còn mở để người xem
+      // biết báo cáo đang bỏ sót bao nhiêu, thay vì im lặng.
+      Task.countDocuments({
+        companyName,
+        assignee: { $in: ids },
+        endDate: null,
+        status: { $in: ['todo', 'in_progress', 'blocked', 'review'] },
+      }),
+    ]);
+
+    const report = summarizePerformance(tasks, people, now);
+
+    res.json({
+      success: true,
+      data: { scope, from, to, ...report, excluded: { noDeadline } },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Lịch sử tải ĐÃ GHI NHẬN theo ngày (từ job `workload-snapshot`)
+ * @route   GET /api/analytics/workload-history?from&to
+ * @access  Private — cùng phạm vi nhân sự với các báo cáo analytics khác
+ *
+ * Khác `workload-trend`: endpoint đó suy tải từ lịch hiện tại, còn đây là con số đã được
+ * chụp tại từng ngày. Ngày chưa có ảnh chụp (job chưa chạy) thì không có điểm — không nội
+ * suy, để chỗ trống lộ ra là job đã không chạy. Mặc định 30 ngày gần nhất.
+ */
+const getWorkloadHistory = async (req, res, next) => {
+  try {
+    const now = new Date();
+    const from = req.query.from ? parseBound(req.query.from, false) : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+    const to = req.query.to ? parseBound(req.query.to, true) : now;
+    if (!from || !to || from > to) {
+      return res.status(400).json({ success: false, message: 'Khoảng thời gian không hợp lệ' });
+    }
+
+    const { resourceMatch } = await getUserAnalyticsScope(req.user);
+    const resources = await Resource.find(resourceMatch).populate('user', 'name').select('user position').lean();
+    const snapshots = await WorkloadSnapshot.find({
+      resource: { $in: resources.map((r) => r._id) },
+      date: { $gte: from, $lte: to },
+    }).sort('date').lean();
+
+    const byResource = new Map(resources.map((r) => [String(r._id), { _id: r._id, name: r.user?.name || r.position, points: [] }]));
+    const totals = new Map();
+    snapshots.forEach((s) => {
+      const point = { date: s.date, workload: s.workload, capacity: s.capacity, utilization: s.utilization, openTasks: s.openTasks };
+      byResource.get(String(s.resource))?.points.push(point);
+      const key = s.date.toISOString();
+      const total = totals.get(key) || { date: s.date, workload: 0, capacity: 0 };
+      total.workload = Math.round((total.workload + s.workload) * 10) / 10;
+      total.capacity += s.capacity;
+      totals.set(key, total);
+    });
+
+    res.json({
+      success: true,
+      data: {
+        history: {
+          from,
+          to,
+          resources: [...byResource.values()].filter((r) => r.points.length),
+          totals: [...totals.values()],
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
+  getWorkloadHistory,
   getDashboardOverview,
   getUtilizationBreakdown,
   getTaskAnalytics,
   getWorkloadTrend,
   getOptimizationComparison,
+  getPerformanceReport,
 };

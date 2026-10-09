@@ -2,11 +2,19 @@ const XLSX = require('xlsx');
 const Task = require('../models/Task');
 const TaskGroup = require('../models/TaskGroup');
 const User = require('../models/User');
+const { mergeCustomValues } = require('./customFields.service');
+
+// Tám cột cố định của mẫu. Cột thứ 9 trở đi là trường tùy chỉnh của dự án, khớp theo tiêu đề.
+const FIXED_COLUMNS = 8;
+const REQUIRED_MARK = ' (*)';
+const headerOf = (field) => `${field.name}${field.required ? REQUIRED_MARK : ''}`;
+const normalizeHeader = (header) => String(header || '').trim().replace(/\s*\(\*\)$/, '').toLowerCase();
 
 /**
  * Sinh file Excel mẫu (.xlsx) theo chuẩn Base Wework
  */
-function generateTaskTemplateWorkbook() {
+function generateTaskTemplateWorkbook(customFields = []) {
+  const fields = [...customFields].sort((a, b) => (a.order || 0) - (b.order || 0));
   const data = [
     [
       'Tên công việc / Nhóm công việc (*)',
@@ -17,6 +25,8 @@ function generateTaskTemplateWorkbook() {
       'Hạn chót (dd/mm/yyyy)',
       'Giờ ước tính (h)',
       'Mô tả công việc',
+      // Trường tùy chỉnh của dự án (nếu tải mẫu theo dự án). "(*)" là bắt buộc.
+      ...fields.map(headerOf),
     ],
     // Hướng dẫn dòng nhóm công việc
     ['1. Giai đoạn Phân tích & Thiết kế:', '', '', '', '', '', '', 'Nhóm công việc phân tích'],
@@ -41,6 +51,7 @@ function generateTaskTemplateWorkbook() {
     { wch: 18 }, // EndDate
     { wch: 16 }, // Hours
     { wch: 45 }, // Description
+    ...fields.map(() => ({ wch: 22 })),
   ];
 
   const wb = XLSX.utils.book_new();
@@ -97,6 +108,8 @@ function parseTaskExcelBuffer(buffer) {
     throw new Error('File Excel rỗng hoặc không đúng định dạng');
   }
 
+  // Tiêu đề các cột sau tám cột cố định — để `importTasksFromExcel` khớp với trường tùy chỉnh.
+  const extraHeaders = rows[0].slice(FIXED_COLUMNS).map((h) => String(h || '').trim());
   const items = [];
   let currentGroup = '';
   let currentParentTitle = '';
@@ -126,6 +139,11 @@ function parseTaskExcelBuffer(buffer) {
     const endDate = parseDateString(row[5]);
     const estimatedHours = parseFloat(row[6]) || 8;
     const description = String(row[7] || '').trim();
+    const extra = {};
+    extraHeaders.forEach((header, offset) => {
+      const value = row[FIXED_COLUMNS + offset];
+      if (header && value !== '' && value !== undefined && value !== null) extra[header] = value;
+    });
 
     if (!isSubtask1 && !isSubtask2) {
       currentParentTitle = title;
@@ -145,6 +163,7 @@ function parseTaskExcelBuffer(buffer) {
       endDate,
       estimatedHours,
       description,
+      extra,
     });
   }
 
@@ -154,11 +173,48 @@ function parseTaskExcelBuffer(buffer) {
 /**
  * Thực hiện Import hàng loạt vào Database
  */
-async function importTasksFromExcel({ buffer, projectId, companyName, createdBy }) {
+/**
+ * Ô ngày của Excel → `YYYY-MM-DD`. Excel lưu ngày là số serial (số ngày kể từ 1899-12-30), còn
+ * người gõ tay thường viết dd/mm/yyyy. Không nhận dạng được thì trả nguyên để bộ kiểm báo lỗi.
+ */
+function excelDateToIso(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return new Date(Math.round((value - 25569) * 86400000)).toISOString().slice(0, 10);
+  }
+  const text = String(value).trim();
+  const dmy = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  return text;
+}
+
+/**
+ * Giá trị trường tùy chỉnh của từng dòng, kiểm hết **trước** khi tạo việc nào: sai một dòng thì
+ * báo đúng dòng đó và không nhập gì, thay vì để lại nửa file trong dự án.
+ */
+function customValuesOfRows(items, customFields = []) {
+  const byHeader = new Map(customFields.map((f) => [normalizeHeader(f.name), f]));
+  return items.map((item) => {
+    const input = {};
+    Object.entries(item.extra || {}).forEach(([header, raw]) => {
+      const field = byHeader.get(normalizeHeader(header));
+      if (!field) return; // cột không phải trường của dự án: bỏ qua
+      input[field.key] = field.type === 'date' ? excelDateToIso(raw)
+        : field.type === 'number' || typeof raw !== 'number' ? raw : String(raw);
+    });
+    const result = mergeCustomValues(customFields, input, {});
+    if (result.error) {
+      throw Object.assign(new Error(`Dòng ${item.rowIndex}: ${result.error}`), { statusCode: 400 });
+    }
+    return Object.keys(result.values).length ? result.values : undefined;
+  });
+}
+
+async function importTasksFromExcel({ buffer, projectId, companyName, createdBy, withoutPeople = false, customFields = [] }) {
   const parsedItems = parseTaskExcelBuffer(buffer);
   if (parsedItems.length === 0) {
     throw new Error('Không tìm thấy dòng công việc hợp lệ nào trong file');
   }
+  const customValues = customValuesOfRows(parsedItems, customFields);
 
   // 1. Tải danh sách user trong công ty để map email/username
   const users = await User.find({ companyName }).select('_id email name');
@@ -189,9 +245,9 @@ async function importTasksFromExcel({ buffer, projectId, companyName, createdBy 
   const createdTasksMap = new Map(); // Map parentTitle -> taskId
   const createdTasks = [];
 
-  for (const item of parsedItems) {
-    const assigneeId = item.assigneeEmail ? userMap.get(item.assigneeEmail.toLowerCase()) || null : null;
-    const followerIds = item.followersRaw
+  for (const [index, item] of parsedItems.entries()) {
+    const assigneeId = !withoutPeople && item.assigneeEmail ? userMap.get(item.assigneeEmail.toLowerCase()) || null : null;
+    const followerIds = !withoutPeople && item.followersRaw
       ? item.followersRaw
           .split(/[,;]/)
           .map((f) => userMap.get(f.trim().toLowerCase()))
@@ -217,6 +273,7 @@ async function importTasksFromExcel({ buffer, projectId, companyName, createdBy 
       startDate: item.startDate || new Date(),
       endDate: item.endDate || new Date(Date.now() + 7 * 24 * 3600 * 1000),
       estimatedHours: item.estimatedHours,
+      customValues: customValues[index],
       status: 'todo',
       progress: 0,
       companyName,

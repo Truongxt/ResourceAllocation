@@ -12,12 +12,16 @@
  */
 
 const { spawn } = require('child_process');
+const { rmSync } = require('fs');
 const path = require('path');
 const { MONGODB_URI, serverEnv } = require('./env');
 
 const SERVER_DIR = path.join(__dirname, '..', '..', 'server');
 
 module.exports = async function globalSetup() {
+  // Tệp đính kèm đi cùng database: seed lại mà giữ thư mục thì tệp của lượt trước thành mồ côi.
+  rmSync(serverEnv.UPLOAD_DIR, { recursive: true, force: true });
+
   await new Promise((resolve, reject) => {
     // Không dùng shell: trên Windows shell tạo tiến trình bọc ngoài và mã thoát
     // của seeder không dội ngược lại được.

@@ -58,6 +58,8 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import projectService from '../../services/projectService';
+import ProjectRowActions from '../../components/projects/ProjectRowActions';
+import ProjectDuplicateModal from '../../components/projects/ProjectDuplicateModal';
 import departmentService from '../../services/departmentService';
 import companySettingService from '../../services/companySettingService';
 import authService from '../../services/authService';
@@ -105,11 +107,16 @@ export default function Projects() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState('table');
+  // Vòng đời: dự án đang chạy, kho lưu trữ, hay danh sách mẫu.
+  const [lifecycle, setLifecycle] = useState('active');
+  const [duplicateTarget, setDuplicateTarget] = useState({ mode: null, source: null });
   const [modalOpen, setModalOpen] = useState(false);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [csvContent, setCsvContent] = useState('');
   const [form] = Form.useForm();
+  // Phòng ban vận hành (`kind: 'team'`) chạy vô thời hạn: không có ngày kết thúc.
+  const formKind = Form.useWatch('kind', form);
 
   // Quick Edit Modal State
   const [quickEditOpen, setQuickEditOpen] = useState(false);
@@ -171,6 +178,8 @@ export default function Projects() {
     setLoading(true);
     try {
       const params = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
+      if (lifecycle === 'archived') params.archived = 'true';
+      if (lifecycle === 'templates') params.templates = 'true';
       const response = await projectService.getAll(params);
       setProjects(response.data.data.projects || []);
     } catch (error) {
@@ -195,7 +204,7 @@ export default function Projects() {
   useEffect(() => {
     const timer = setTimeout(loadProjects, filters.search ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [filters.search, filters.status, filters.priority, filters.department]);
+  }, [filters.search, filters.status, filters.priority, filters.department, lifecycle]);
 
   useEffect(() => {
     loadDepartments();
@@ -228,6 +237,7 @@ export default function Projects() {
       department: filters.department && filters.department !== 'unassigned' ? filters.department : null,
       manager: user?._id || undefined,
       members: user?._id ? [user._id] : [],
+      kind: 'project',
       projectType: 'internal',
       template: 'blank',
       color: '#6366f1',
@@ -251,12 +261,14 @@ export default function Projects() {
       members: Array.isArray(project.members)
         ? project.members.map((m) => m.user?._id || m.user || m).filter(Boolean)
         : [],
+      kind: project.kind || 'project',
       projectType: project.projectType || 'internal',
       template: project.template || 'blank',
       color: project.color || '#6366f1',
       status: project.status || 'planning',
       priority: project.priority || 'medium',
       dateRange: project.startDate && project.endDate ? [dayjs(project.startDate), dayjs(project.endDate)] : undefined,
+      teamStartDate: project.startDate ? dayjs(project.startDate) : undefined,
       budget: project.budget || 0,
       tags: Array.isArray(project.tags) ? project.tags.join(', ') : '',
     });
@@ -278,6 +290,7 @@ export default function Projects() {
         department: values.department || null,
         manager: values.manager || undefined,
         members: Array.isArray(values.members) ? values.members : [],
+        kind: values.kind || 'project',
         projectType: values.projectType || 'internal',
         template: values.template === 'blank' ? null : values.template,
         color: values.color || '#6366f1',
@@ -289,7 +302,9 @@ export default function Projects() {
           : [],
       };
 
-      if (values.dateRange && values.dateRange.length === 2) {
+      if (payload.kind === 'team') {
+        if (values.teamStartDate) payload.startDate = values.teamStartDate.toISOString();
+      } else if (values.dateRange && values.dateRange.length === 2) {
         payload.startDate = values.dateRange[0].toISOString();
         payload.endDate = values.dateRange[1].toISOString();
       }
@@ -311,6 +326,8 @@ export default function Projects() {
     }
   };
 
+  const openDuplicate = (mode, source) => setDuplicateTarget({ mode, source });
+
   const handleDelete = async (id) => {
     try {
       await projectService.remove(id, true);
@@ -321,6 +338,24 @@ export default function Projects() {
       message.error(error.response?.data?.message || t('projects.deleteFailed') || 'Lỗi khi xóa dự án');
     }
   };
+
+  // Dạng bảng và dạng thẻ phải dùng chung một cụm nút: trước đây thẻ tự vẽ nút riêng nên
+  // dự án lưu trữ vẫn có nút sửa, và quyền "Chỉ xem" vẫn thấy nút sửa/xóa.
+  const renderProjectActions = (project) => (
+    <ProjectRowActions
+      project={project}
+      canManage={canManageModule('projects')}
+      onTaskGroups={(p) => {
+        setGroupProjectTarget(p);
+        setTaskGroupModalOpen(true);
+      }}
+      onQuickEdit={openQuickEdit}
+      onEdit={openEdit}
+      onDelete={handleDelete}
+      onDuplicate={openDuplicate}
+      onChanged={loadProjects}
+    />
+  );
 
   const handleDeleteDepartment = async (id) => {
     try {
@@ -411,6 +446,11 @@ export default function Projects() {
             ) : (
               <Tag color="blue" style={{ borderRadius: 10, fontSize: 10, fontWeight: 600, margin: 0 }}>
                 <TeamOutlined style={{ marginRight: 3 }} /> Nội bộ
+              </Tag>
+            )}
+            {record.kind === 'team' && (
+              <Tag color="purple" style={{ borderRadius: 10, fontSize: 10, fontWeight: 600, margin: 0 }}>
+                <SyncOutlined style={{ marginRight: 3 }} /> Vận hành
               </Tag>
             )}
             {record.code && (
@@ -561,9 +601,15 @@ export default function Projects() {
       width: 190,
       render: (_, record) => (
         <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }} className="tabular-nums">
-          {record.startDate ? dayjs(record.startDate).format('DD/MM/YYYY') : '—'}
-          {' → '}
-          {record.endDate ? dayjs(record.endDate).format('DD/MM/YYYY') : '—'}
+          {record.kind === 'team' ? (
+            record.startDate ? `Từ ${dayjs(record.startDate).format('DD/MM/YYYY')} · Thường xuyên` : 'Thường xuyên'
+          ) : (
+            <>
+              {record.startDate ? dayjs(record.startDate).format('DD/MM/YYYY') : '—'}
+              {' → '}
+              {record.endDate ? dayjs(record.endDate).format('DD/MM/YYYY') : '—'}
+            </>
+          )}
         </Text>
       ),
     },
@@ -572,46 +618,7 @@ export default function Projects() {
       key: 'actions',
       width: 120,
       align: 'right',
-      // Quyền phân hệ "Chỉ xem" thì không còn thao tác nào ghi được: server chặn
-      // hết, nên hiện nút ra chỉ để người dùng bấm vào rồi nhận 403.
-      render: (_, record) => !canManageModule('projects') ? null : (
-        <Space size="small">
-          <Tooltip title="Quản lý nhóm công việc">
-            <Button
-              type="text"
-              size="small"
-              icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
-              onClick={() => {
-                setGroupProjectTarget(record);
-                setTaskGroupModalOpen(true);
-              }}
-            />
-          </Tooltip>
-          <Tooltip title="Chỉnh sửa nhanh (Base Wework)">
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined style={{ color: '#6366f1' }} />}
-              onClick={() => openQuickEdit(record)}
-            />
-          </Tooltip>
-          <Tooltip title={t('common.edit') || 'Chỉnh sửa toàn bộ'}>
-            <Button type="text" size="small" icon={<SettingOutlined />} onClick={() => openEdit(record)} />
-          </Tooltip>
-          <Tooltip title={t('common.delete') || 'Xóa'}>
-            <Popconfirm
-              title={t('projects.deleteConfirm') || 'Xác nhận xóa dự án?'}
-              description={t('projects.deleteWarning') || 'Hành động này sẽ xóa toàn bộ công việc liên quan.'}
-              onConfirm={() => handleDelete(record._id)}
-              okText={t('common.delete') || 'Xóa'}
-              cancelText={t('common.cancel') || 'Hủy'}
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-            </Popconfirm>
-          </Tooltip>
-        </Space>
-      ),
+      render: (_, record) => renderProjectActions(record),
     },
   ];
 
@@ -783,6 +790,15 @@ export default function Projects() {
         <Space size="small" wrap>
           {activeTab === 'projects' && (
             <>
+              <Segmented
+                value={lifecycle}
+                onChange={setLifecycle}
+                options={[
+                  { value: 'active', label: t('projects.lifecycle.active') },
+                  { value: 'archived', label: t('projects.lifecycle.archivedTab') },
+                  { value: 'templates', label: t('projects.lifecycle.templates') },
+                ]}
+              />
               <Segmented
                 value={viewMode}
                 onChange={setViewMode}
@@ -978,6 +994,12 @@ export default function Projects() {
                                   Nội bộ
                                 </Tag>
                               )}
+                              {proj.kind === 'team' && (
+                                <Tag color="purple" style={{ borderRadius: 10, margin: 0, fontSize: 11, fontWeight: 600 }}>
+                                  <SyncOutlined style={{ marginRight: 4 }} />
+                                  Vận hành
+                                </Tag>
+                              )}
                               {proj.department && (
                                 <Tag
                                   style={{
@@ -1092,7 +1114,14 @@ export default function Projects() {
                                 <span>Ngân sách: <strong>{formatCurrency(proj.budget)}</strong></span>
                               </div>
                             )}
-                            {(proj.startDate || proj.endDate) && (
+                            {proj.kind === 'team' ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>
+                                <SyncOutlined />
+                                <span>
+                                  {proj.startDate ? `Từ ${dayjs(proj.startDate).format('DD/MM/YYYY')} · ` : ''}Thường xuyên
+                                </span>
+                              </div>
+                            ) : (proj.startDate || proj.endDate) && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>
                                 <CalendarOutlined />
                                 <span>
@@ -1124,37 +1153,7 @@ export default function Projects() {
                             {t('common.viewDetails') || 'Chi tiết dự án'} →
                           </Button>
 
-                          <Space size="small">
-                            <Tooltip title="Quản lý nhóm công việc">
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
-                                onClick={() => {
-                                  setGroupProjectTarget(proj);
-                                  setTaskGroupModalOpen(true);
-                                }}
-                              />
-                            </Tooltip>
-                            <Tooltip title="Chỉnh sửa nhanh (Base Wework)">
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<EditOutlined style={{ color: '#6366f1' }} />}
-                                onClick={() => openQuickEdit(proj)}
-                              />
-                            </Tooltip>
-                            <Tooltip title={t('common.edit') || 'Chỉnh sửa toàn bộ'}>
-                              <Button type="text" size="small" icon={<SettingOutlined />} onClick={() => openEdit(proj)} />
-                            </Tooltip>
-                            <Popconfirm
-                              title={t('projects.deleteConfirm') || 'Xác nhận xóa dự án?'}
-                              onConfirm={() => handleDelete(proj._id)}
-                              okButtonProps={{ danger: true }}
-                            >
-                              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-                            </Popconfirm>
-                          </Space>
+                          {renderProjectActions(proj)}
                         </div>
                       </div>
                     </Col>
@@ -1380,6 +1379,28 @@ export default function Projects() {
             />
           </Form.Item>
 
+          {/* 4b. Dự án có hạn hay phòng ban vận hành. Việc thường ngày (trực hệ
+              thống, hỗ trợ khách, họp định kỳ) cần chỗ để nhập thì mới vào được
+              tải của nhân sự — thiếu nó, tối ưu hóa tưởng mọi người rảnh hơn thực tế. */}
+          <Form.Item
+            name="kind"
+            label={<span style={{ fontWeight: 600 }}>Loại hình</span>}
+            extra={
+              formKind === 'team'
+                ? 'Phòng ban vận hành chạy vô thời hạn, chứa việc thường ngày. Việc ở đây vẫn tính vào tải, nhưng tối ưu hóa "Tất cả dự án" không phân công lại chúng.'
+                : 'Dự án có ngày bắt đầu và hạn hoàn thành.'
+            }
+          >
+            <Radio.Group optionType="button" buttonStyle="solid">
+              <Radio.Button value="project">
+                <ProjectOutlined /> Dự án có thời hạn
+              </Radio.Button>
+              <Radio.Button value="team">
+                <SyncOutlined /> Phòng ban vận hành
+              </Radio.Button>
+            </Radio.Group>
+          </Form.Item>
+
           {/* 5. Phân loại dự án */}
           <Form.Item
             name="projectType"
@@ -1514,15 +1535,26 @@ export default function Projects() {
               (server/src/routes/project.routes.js), nên ô này phải nằm ngoài
               panel "Cài đặt nâng cao". Để trong đó thì người dùng điền hết các
               trường thấy được rồi bấm Tạo sẽ nhận 400, mà ô còn thiếu thì đang
-              bị gấp lại nên không nhìn thấy để mà sửa. */}
-          <Form.Item
-            name="dateRange"
-            label={<span style={{ fontWeight: 600 }}>{t('projects.form.dateRange') || 'Thời gian thực hiện'}</span>}
-            rules={[{ required: true, message: t('projects.form.dateRangeRequired') || 'Vui lòng chọn thời gian thực hiện' }]}
-            extra="Ngày bắt đầu và hạn hoàn thành dự kiến của dự án"
-          >
-            <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-          </Form.Item>
+              bị gấp lại nên không nhìn thấy để mà sửa. Phòng ban vận hành thì
+              không có hạn, chỉ có ngày bắt đầu và không bắt buộc. */}
+          {formKind === 'team' ? (
+            <Form.Item
+              name="teamStartDate"
+              label={<span style={{ fontWeight: 600 }}>Hoạt động từ</span>}
+              extra="Không bắt buộc. Phòng ban vận hành không có ngày kết thúc."
+            >
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+          ) : (
+            <Form.Item
+              name="dateRange"
+              label={<span style={{ fontWeight: 600 }}>{t('projects.form.dateRange') || 'Thời gian thực hiện'}</span>}
+              rules={[{ required: true, message: t('projects.form.dateRangeRequired') || 'Vui lòng chọn thời gian thực hiện' }]}
+              extra="Ngày bắt đầu và hạn hoàn thành dự kiến của dự án"
+            >
+              <DatePicker.RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+          )}
 
           {/* 7. Cài đặt nâng cao (Collapse Panel) */}
           <Collapse
@@ -1676,6 +1708,18 @@ export default function Projects() {
       />
 
       {/* Modal Quản lý Nhóm công việc */}
+      <ProjectDuplicateModal
+        mode={duplicateTarget.mode}
+        source={duplicateTarget.source}
+        onClose={() => setDuplicateTarget({ mode: null, source: null })}
+        onDone={(project) => {
+          setDuplicateTarget({ mode: null, source: null });
+          // Mẫu mới thì sang danh sách mẫu; dự án mới thì về danh sách đang chạy.
+          const next = project?.isTemplate ? 'templates' : 'active';
+          if (next !== lifecycle) setLifecycle(next);
+          else loadProjects();
+        }}
+      />
       <TaskGroupManagerModal
         open={taskGroupModalOpen}
         onClose={() => {

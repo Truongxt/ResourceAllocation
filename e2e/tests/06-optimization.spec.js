@@ -121,3 +121,55 @@ test.describe('Tối ưu hóa phân bổ', () => {
     expect(Number(kpi.replace('%', '').trim())).toBeLessThanOrEqual(100);
   });
 });
+
+test.describe('Tối ưu hóa cho PM', () => {
+  // PM chạy được tối ưu nhưng chỉ trên dự án mình quản lý: không có "Tất cả dự án", trang
+  // chọn sẵn một dự án của họ, và bấm chạy thì ra kết quả chứ không phải 403.
+  test('PM vào được, dự án của mình được chọn sẵn, chạy ra phương án', async ({ page }) => {
+    const problems = watchForProblems(page);
+    await login(page, 'pm');
+    await page.goto('/optimization');
+    await expect(page.getByRole('heading', { name: 'Tối ưu hóa Phân bổ Nguồn lực' })).toBeVisible();
+
+    // Dự án mẫu của PM: RAO-MOB (mới nhất, không có việc mở) và ECOM-01 (có việc mở). Trang
+    // chọn sẵn dự án còn việc mở, không phải dự án đứng đầu danh sách.
+    const projectSelect = page.locator('.ant-select').filter({ hasText: 'ECOM-01' }).first();
+    await expect(projectSelect).toBeVisible();
+    await expect(page.getByText('Tất cả dự án')).toHaveCount(0);
+
+    // Danh sách chỉ gồm dự án PM quản lý.
+    await projectSelect.click();
+    const options = page.locator('.ant-select-dropdown:visible .ant-select-item-option');
+    await expect(options).toHaveCount(2);
+    await options.filter({ hasText: 'ECOM-01' }).click();
+
+    await runOptimization(page);
+    await expect(page.getByText(/Đã tìm thấy gán việc cho \d+ công việc/)).toBeVisible();
+    expect(problems).toEqual([]);
+  });
+
+  test('Benchmark Studio của PM không có lựa chọn dữ liệu thật của cả công ty', async ({ page }) => {
+    await login(page, 'pm');
+    await page.goto('/benchmark');
+    await expect(page.getByText('Tập Nhỏ (Small)')).toBeVisible();
+    await expect(page.getByText(/Dữ liệu Thực tế/i)).toHaveCount(0);
+  });
+});
+
+test.describe('Benchmark Studio', () => {
+  test('chạy tập nhỏ: bảng có chuyển ngữ cảnh và tốc độ hội tụ của GA/Hybrid', async ({ page }) => {
+    const problems = watchForProblems(page);
+    await login(page, 'admin');
+    await page.goto('/benchmark');
+    await page.getByText('Tập Nhỏ (Small)').click();
+    await page.getByRole('button', { name: 'Chạy Thực Nghiệm' }).click();
+
+    const contextRow = page.locator('.ant-table-row').filter({ hasText: 'Chuyển ngữ cảnh (S3)' });
+    await expect(contextRow).toBeVisible({ timeout: 60_000 });
+    const convergenceRow = page.locator('.ant-table-row').filter({ hasText: 'Hội tụ 90% (thế hệ)' });
+    // GA và Hybrid hiện "x / y" (thế hệ hội tụ / thế hệ dừng); Greedy và CSP không áp dụng.
+    await expect(convergenceRow).toContainText(/\d+ \/ \d+/);
+    await expect(convergenceRow).toContainText('—');
+    expect(problems).toEqual([]);
+  });
+});

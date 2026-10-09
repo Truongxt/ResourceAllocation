@@ -25,6 +25,4 @@ const companySettingSchema = new mongoose.Schema(
   }
 );
 
-companySettingSchema.index({ companyName: 1 }, { unique: true });
-
 module.exports = mongoose.model('CompanySetting', companySettingSchema);

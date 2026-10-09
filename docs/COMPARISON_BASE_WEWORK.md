@@ -70,15 +70,15 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
 | Tính năng Base | RAO | Ghi chú |
 |----------------|-----|---------|
 | Tạo dự án, thêm thành viên & quản lý | **Đầy đủ** | `POST /projects`, `/members` |
-| Phân biệt **Phòng ban (team)** và **Dự án (project)** | **Không có** | `startDate`/`endDate` là `required` trên Project; phòng ban không chứa công việc — xem [4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) |
+| Phân biệt **Phòng ban (team)** và **Dự án (project)** | **Đầy đủ** (07/10) | `Project.kind: 'team'` không có ngày kết thúc — xem [4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) |
 | Cấu hình phân quyền trong dự án | **Đầy đủ** | `PATCH /projects/:id/permissions` |
-| **Trường dữ liệu tùy chỉnh** | **Không có** | Xem [4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) |
+| **Trường dữ liệu tùy chỉnh** | **Một phần, từ 09/10** | Văn bản, số, ngày, chọn một theo dự án; chưa có công thức, nhiều lựa chọn, tệp, bảng, và bộ trường cho Kết quả — xem [4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) |
 | Thiết lập **mục tiêu** | **Không có** | RAO chỉ có `progress` % suy ra từ task |
 | Cấu hình email theo dự án | **Không có** | Email bật/tắt toàn hệ thống, và chỉ gửi đúng một loại — [email.service.js:15](../server/src/services/email.service.js#L15) |
 | **Nhân bản** dự án | **Không có** | Có `duplicateTask` nhưng không có `duplicateProject` |
 | **Đóng / mở** dự án | **Không có** | `status` có `completed`/`cancelled` nhưng không có khái niệm đóng để rút khỏi bộ lọc |
 | Dự án **mẫu** (template) | **Không có** | `Project.template` hiện chỉ là một `String`, không trỏ tới dự án mẫu nào |
-| Chuyển đổi loại dự án ↔ phòng ban | **Không có** | Hệ quả của việc chưa tách hai loại |
+| Chuyển đổi loại dự án ↔ phòng ban | **Đầy đủ** (07/10) | `PUT /projects/:id` với `kind`; chuyển về dự án thì bắt buộc có ngày kết thúc |
 | Xóa dự án | **Đầy đủ** | Chặn khi còn task, cần `?force=true` |
 
 ### IV. Nhóm công việc
@@ -111,8 +111,8 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
 | Điều chỉnh deadline có vết | **Đầy đủ, hơn Base** | `deadlineHistory` lưu ngày cũ/mới, người sửa, lý do |
 | Thao tác hàng loạt | **Một phần** | Chỉ có bàn giao hàng loạt; Base còn sửa/xóa/chuyển nhóm hàng loạt |
 | **Nhập Excel** | **Một phần** | Có mẫu + xem trước + nhập; **thiếu cột phụ thuộc** mà Base hỗ trợ — [excelTaskImport.service.js](../server/src/services/excelTaskImport.service.js) |
-| **Xuất Excel / xuất Gantt** | **Không có** | Nhập được nhưng không lấy ra được — xem [4.6](#46-xuất-dữ-liệu-công-việc) |
-| **Tệp đính kèm thật** | **Không có** | Xem [4.5](#45-đính-kèm-tệp-thật) |
+| **Xuất Excel / xuất Gantt** | **Có từ 08/10** | Xuất CSV theo bộ lọc ở màn Công việc; in Gantt trọn trục thời gian — xem [4.6](#46-xuất-dữ-liệu-công-việc) |
+| **Tệp đính kèm thật** | **Có từ 09/10** | Tab "Tệp" trong chi tiết công việc trên web và mobile, lưu trên đĩa, 10 MB/tệp — xem [4.5](#45-đính-kèm-tệp-thật) |
 | Đồng bộ Google Calendar | **Không có** | RAO có lịch nội bộ, không xuất ra ngoài |
 | Nhắc nhở (Reminders) | **Đầy đủ** | `GET /tasks/reminders` + `RemindersDrawer` |
 
@@ -180,6 +180,10 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
   form tạo/sửa task, mẫu Excel nhập, bộ lọc và file CSV xuất ra; làm sau thì phải sửa cả bốn chỗ.
   Kiểu **công thức** nên để lại sau cùng, nó là một trình đánh giá biểu thức chứ không phải một
   trường dữ liệu.
+- **Đã làm (09/10)**: đúng phác thảo, trừ bộ thứ hai cho `resultReport`. Bốn kiểu văn bản, số, ngày,
+  chọn một; giá trị bám theo `key` cố định do server sinh. Lan sang form, chi tiết việc (cả mobile, chỉ
+  xem), bộ lọc (trường chọn một), CSV và Excel (mẫu theo dự án, nhập đọc cột theo tên). Plan:
+  [2026-10-09-truong-tuy-chinh.md](./superpowers/plans/2026-10-09-truong-tuy-chinh.md).
 
 ### 4.3. Việc thường ngày của phòng ban không có chỗ để ở
 
@@ -195,6 +199,10 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
 - **Phác thảo**: rẻ nhất là thêm `Project.kind: 'project' | 'team'`, bỏ `required` của
   `startDate`/`endDate` khi `kind === 'team'`, và cho tầng tính capacity đọc cả hai loại. Không
   cần tách model mới.
+- **Đã làm (2026-10-07)** theo đúng phác thảo trên. Tầng tính capacity hóa ra không cần sửa:
+  nó vốn tính từ ngày của chính task, không phân biệt dự án. Phần phải quyết định thêm là
+  optimizer. Việc của team được giữ là **tải cố định**: không phân công lại khi chạy "Tất cả dự
+  án", nhưng vẫn tính vào giờ đã cam kết của người làm. Xem `docs/API.md`, mục POST `/api/projects`.
 
 ### 4.4. Vòng đời dự án: đóng/mở, nhân bản, mẫu thật
 
@@ -205,6 +213,11 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
   dự án lặp đi lặp lại phải gõ tay 40 công việc mỗi lần.
 - **Phác thảo**: `Project.isArchived` + `isTemplate`; nhân bản dự án chủ yếu là ghép lại thứ đã
   có — `duplicateTask` và `TaskGroup` — nên chi phí thấp hơn vẻ ngoài của nó.
+- **Đã làm (08/10)**: `isArchived` (chỉ đọc, chỉ lưu trữ được khi mọi việc đã đóng), `isTemplate` (ngoài
+  mọi tính toán, việc không có người) và `POST /projects/:id/duplicate` — một endpoint cho nhân bản, lưu
+  thành mẫu và tạo từ mẫu. Mọi ngày dời theo ngày bắt đầu mới, người thực hiện để trống cho thuật toán
+  tối ưu phân công. Hóa ra không ghép được từ `duplicateTask`: hàm đó chép từng việc một và không biết
+  trỏ lại phụ thuộc giữa các bản sao, nên nhân bản dự án cấp id trước rồi ghi một lần.
 
 ### 4.5. Đính kèm tệp thật
 
@@ -215,6 +228,10 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
   thấy mục Đính kèm sẽ tưởng đính kèm được.
 - **Phác thảo**: hoặc làm route upload thật (đĩa hoặc S3, kèm giới hạn dung lượng và kiểu tệp),
   hoặc quyết định chỉ nhận link ngoài — nhưng khi đó phải ghi rõ trên giao diện.
+- **Đã làm (09/10)**: route upload thật dưới `/api/tasks/:id/attachments`, lưu trên đĩa (`UPLOAD_DIR`)
+  qua một lớp `fileStorage` để sau đổi sang S3. 10 MB/tệp, 20 tệp/việc, danh sách đuôi cho phép.
+  Quyền như bình luận. Web và mobile đều có tab "Tệp". `resultReport.attachments` vẫn là trường cũ,
+  không có giao diện. Plan: [2026-10-09-dinh-kem-tep.md](./superpowers/plans/2026-10-09-dinh-kem-tep.md).
 
 ### 4.6. Xuất dữ liệu công việc
 
@@ -223,6 +240,12 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
   Reports. Nhập được mà không lấy ra được là một sự bất đối xứng khó biện hộ với người dùng.
 - **Phác thảo**: dùng lại đúng bộ tiện ích CSV đã có ở ba màn kia cho màn Công việc; xuất Gantt
   thì `window.print()` đã dựng sẵn cho Reports, áp cùng cách.
+- **Đã làm (08/10)**: thực tế không có tiện ích CSV nào để dùng lại — Projects và Resources chỉ
+  *nhập* CSV, còn Reports tự dựng chuỗi và không escape dấu `"`. Nay có `client/src/utils/csv.js`
+  (escape đủ, chặn công thức Excel), Reports chuyển sang dùng nó, và màn Công việc có nút Xuất
+  CSV đi hết mọi trang theo bộ lọc đang áp dụng. Gantt vốn có nút In, nhưng bản in chỉ ra khung
+  đang thấy trên màn hình và mất màu thanh. Nay bản in trọn trục thời gian, co vừa A4 ngang và
+  giữ màu.
 
 ### 4.7. Đánh giá theo nhóm công việc
 
@@ -240,6 +263,9 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
   nên `Notification.create` ném `ValidationError` và thông báo **mất hẳn** chứ không rơi về
   `system`. Vẫn còn thiếu: **đánh dấu Thất bại và đổi deadline không gửi thông báo nào** —
   chỗ đó thiếu lời gọi `sendNotification`, không phải thiếu giá trị enum.
+  **Đã làm (08/10)**: thêm `task_failed` (kèm lý do) và `task_deadline_changed` (ngày cũ → mới,
+  cả hai đường đổi hạn), gửi cho người thực hiện và người theo dõi. Trước đó Thất bại chỉ gửi
+  một `task_status_changed` chung cho người thực hiện, không có lý do.
 - **Email quá hẹp**: `EMAILED_TYPES` chỉ chứa `task_assigned`
   ([email.service.js:15](../server/src/services/email.service.js#L15)), và bật/tắt ở mức toàn hệ
   thống. Base cho cấu hình theo từng dự án. Quyết định "chỉ gửi một loại để hộp thư không ngập"
@@ -265,11 +291,14 @@ Nếu vẫn cần, đường vòng rẻ hơn: thêm `collaborators[]` **không**
 
 | Thứ tự | Hạng mục | Vì sao đặt ở đây |
 |--------|----------|------------------|
-| 1 | [4.1](#41-báo-cáo-kết-quả-theo-con-người) Báo cáo kết quả theo người | Dữ liệu và bộ lọc đã có sẵn — chi phí thấp nhất, giá trị thấy ngay |
-| 2 | [4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) Công việc cấp phòng ban | Thứ duy nhất ảnh hưởng tới **chất lượng thuật toán**, không chỉ giao diện |
-| 3 | [4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) Trường tùy chỉnh | Càng làm muộn càng đắt: lan sang form, Excel, bộ lọc, CSV |
-| 4 | [4.6](#46-xuất-dữ-liệu-công-việc) Xuất dữ liệu + [4.7](#47-đánh-giá-theo-nhóm-công-việc) Đánh giá theo nhóm + [4.8](#48-hai-việc-nhỏ-nhưng-lộ-ra-ngay-khi-dùng) | Đều nhỏ, đều dùng lại thứ đã có |
-| 5 | [4.4](#44-vòng-đời-dự-án-đóngmở-nhân-bản-mẫu-thật) Vòng đời dự án + [4.5](#45-đính-kèm-tệp-thật) Đính kèm | Cần quyết định hạ tầng lưu trữ trước khi code |
+| 1 | ~~[4.1](#41-báo-cáo-kết-quả-theo-con-người) Báo cáo kết quả theo người~~ | **Xong 08/10** — `GET /analytics/performance` và tab "Kết quả theo người" |
+| 2 | ~~[4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) Công việc cấp phòng ban~~ | **Xong 07/10** |
+| 3 | ~~[4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) Trường tùy chỉnh~~ | **Xong 09/10** (bốn kiểu). Còn công thức, nhiều lựa chọn và bộ trường cho Kết quả |
+| 4 | ~~[4.6](#46-xuất-dữ-liệu-công-việc) Xuất dữ liệu~~ + [4.7](#47-đánh-giá-theo-nhóm-công-việc) Đánh giá theo nhóm + [4.8](#48-hai-việc-nhỏ-nhưng-lộ-ra-ngay-khi-dùng) | 4.6 và phần thông báo của 4.8 **xong 08/10**. Còn 4.7 và phần email của 4.8 |
+| 5 | ~~[4.4](#44-vòng-đời-dự-án-đóngmở-nhân-bản-mẫu-thật) Vòng đời dự án~~ + ~~[4.5](#45-đính-kèm-tệp-thật) Đính kèm~~ | 4.4 **xong 08/10**. 4.5 **xong 09/10**, cả web lẫn mobile (lưu đĩa, 10 MB) |
+
+Trạng thái từng hạng mục, cộng các mục thuật toán và mobile không có trong tài liệu này, được
+theo dõi ở [superpowers/plans/2026-10-07-lo-trinh-hoan-thien.md](./superpowers/plans/2026-10-07-lo-trinh-hoan-thien.md).
 
 Ngoài ra: **cập nhật lại [FEATURES.md](./FEATURES.md)** — nó đang mô tả một phiên bản cũ hơn
 code khá nhiều, và mọi báo cáo dựa vào nó sẽ sai theo.

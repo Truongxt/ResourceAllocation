@@ -91,11 +91,11 @@ Dùng chế độ này khi chạy trên CI, hoặc khi thấy lỗi treo/crash k
 |----|------|---------|
 | Xác thực | `01-auth.spec.js` | Đăng nhập đúng/sai, validate phía client, giữ phiên qua F5 bằng cookie refresh, đăng xuất có thu hồi cookie không, và ranh giới `ProtectedRoute` khi gõ thẳng URL |
 | Điều hướng | `02-navigation.spec.js` | 11 trang trong workspace: mỗi trang phải dựng xong nội dung riêng, **không** có ngoại lệ JS và **không** có response 5xx. Kèm sidebar, đánh dấu trang đang mở, URL lạ, thu gọn menu |
-| Dự án | `03-projects.spec.js` | Danh sách, tab Phòng ban, tạo → xuất hiện → xóa, chặn form thiếu trường, mở trang chi tiết và đối chiếu số trên nhãn tab với số dòng thật, id không tồn tại |
+| Dự án | `03-projects.spec.js` | Danh sách, tab Phòng ban, tạo → xuất hiện → xóa, vòng đời (lưu trữ → sang tab Lưu trữ → mở lại → nhân bản → lưu thành mẫu), chặn form thiếu trường, mở trang chi tiết và đối chiếu số trên nhãn tab với số dòng thật, id không tồn tại |
 | Công việc | `04-tasks.spec.js` | Danh sách ↔ Kanban, tìm kiếm, tab không gian làm việc, drawer chi tiết, tạo → xóa, lọc nhanh `?status=blocked` mà Dashboard dẫn sang |
 | Nhân sự | `05-resources.spec.js` | Danh sách kèm phòng ban/công suất, lọc theo tải, Skill Matrix (đọc giá trị trong ô nhập), tab Phòng ban |
-| Tối ưu hóa | `06-optimization.spec.js` | **Chạy thuật toán thật**: GA và CSP đều phải ra phương án gán người thật cho việc thật; preset đổi được trọng số; lần chạy được ghi vào lịch sử |
-| Dashboard / Gantt / Báo cáo | `07-analytics.spec.js` | Thẻ KPI có số thật, khối "Cần xử lý", Gantt vẽ đủ thanh và báo được phụ thuộc bị vi phạm, Resource Histogram, xuất CSV tải được file |
+| Tối ưu hóa | `06-optimization.spec.js` | **Chạy thuật toán thật**: GA và CSP đều phải ra phương án gán người thật cho việc thật; Benchmark Studio chạy tập nhỏ và hiện chuyển ngữ cảnh cùng tốc độ hội tụ; preset đổi được trọng số; lần chạy được ghi vào lịch sử |
+| Dashboard / Gantt / Báo cáo | `07-analytics.spec.js` | Thẻ KPI có số thật, khối "Cần xử lý", Gantt vẽ đủ thanh và báo được phụ thuộc bị vi phạm, bản in Gantt chứa trọn trục thời gian trong bề ngang A4 ngang và PDF thật (xuất với `printBackground: false` như mặc định hộp thoại in) còn màu thanh, Resource Histogram, xuất CSV tải được file |
 | Phân quyền | `08-permissions.spec.js` | Sidebar giấu đúng mục theo vai trò, **và** gõ thẳng URL vào trang cấm thì bị chặn tại chỗ chứ không bị đá về `/login` |
 | Tùy chọn hiển thị | `09-preferences.spec.js` | Đổi ngôn ngữ và giao diện sáng/tối có **sống sót qua F5** không; tìm kiếm toàn cục |
 | Realtime | `10-realtime.spec.js` | Hai trình duyệt cùng lúc: admin giao việc → member thấy chuông nhảy số mà không tải lại trang |

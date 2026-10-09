@@ -67,4 +67,16 @@ function watchForProblems(page) {
   return problems;
 }
 
-module.exports = { ACCOUNTS, SEED, uniqueName, login, watchForProblems };
+/**
+ * Chuyển trang Công việc sang dạng Danh sách.
+ *
+ * Trang mặc định mở Kanban, mà Kanban không có `.ant-table-row` — test nào đọc
+ * dòng bảng mà quên bước này sẽ đỏ, hoặc tệ hơn là đếm 0 dòng rồi "đạt" mà không
+ * kiểm gì cả.
+ */
+async function showTaskList(page) {
+  await page.locator('.ant-segmented-item').filter({ hasText: 'Danh sách' }).first().click();
+  await expect(page.locator('.ant-table').first()).toBeVisible();
+}
+
+module.exports = { ACCOUNTS, SEED, uniqueName, login, watchForProblems, showTaskList };

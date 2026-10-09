@@ -350,7 +350,44 @@
     "noProjects": "No projects yet",
     "createProject": "Create Project",
     "editProject": "Edit Project",
-    "projectDetails": "Project Details"
+    "projectDetails": "Project Details",
+    "lifecycle": {
+      "active": "Active",
+      "archivedTab": "Archived",
+      "templates": "Templates",
+      "more": "More actions",
+      "duplicate": "Duplicate",
+      "saveAsTemplate": "Save as template",
+      "archive": "Archive",
+      "unarchive": "Reopen",
+      "createFromTemplate": "Create project from template",
+      "archiveConfirm": "Archive project \"{{name}}\"?",
+      "archiveHint": "The project will be hidden from lists and become read-only. It can only be archived once every task is closed. You can reopen it at any time.",
+      "archived": "Project archived",
+      "unarchived": "Project reopened",
+      "archiveFailed": "The action could not be completed",
+      "duplicated": "Project created",
+      "duplicateFailed": "Could not duplicate the project",
+      "copyName": "{{name}} (copy)",
+      "templateName": "Template — {{name}}",
+      "name": "Name",
+      "nameRequired": "Enter a name",
+      "startDate": "Start date",
+      "startHint": "Every task date shifts to this start, keeping the gaps between them.",
+      "copyHint": "Keeps task groups, subtasks, checklists, dependencies and estimates. Assignees are cleared and every task goes back to To do.",
+      "title": {
+        "duplicate": "Duplicate project",
+        "saveTemplate": "Save as template",
+        "fromTemplate": "Create project from template"
+      },
+      "ok": {
+        "duplicate": "Duplicate",
+        "saveTemplate": "Save template",
+        "fromTemplate": "Create project"
+      },
+      "archivedBanner": "This project is archived and read-only. Reopen it to make changes.",
+      "templateBanner": "This is a template: it is left out of workload, optimization and reports. Tasks in a template have no assignee."
+    }
   },
   "optimization": {
     "title": "Resource allocation optimization",
@@ -361,6 +398,7 @@
     "allProjects": "All projects",
     "pickAlgorithm": "Choose an algorithm",
     "filterByProject": "Filter by project (optional)",
+    "pickManagedProject": "Pick a project you manage",
     "gaParams": "GA parameters",
     "fitnessWeights": "Fitness weights",
     "weightWorkload": "Workload balance",
@@ -451,7 +489,9 @@
       "totalCost": "Estimated total cost",
       "averageUtilization": "Average utilization",
       "violatedConstraints": "Violated constraints",
-      "executionTime": "Runtime"
+      "executionTime": "Runtime",
+      "contextSwitches": "Context switches (extra projects)",
+      "convergenceGeneration": "90% convergence (generation)"
     },
     "unit": {
       "percent": "%",
@@ -686,7 +726,24 @@
       "confirm": "Hand over",
       "done": "Handed over {{count}} tasks",
       "checkWorkload": "Check the new assignee workload afterwards"
-    }
+    },
+    "exportCsv": "Export CSV",
+    "exported": "Exported {{count}} tasks",
+    "exportFailed": "Could not export the task list",
+    "csv": {
+      "title": "Task",
+      "project": "Project",
+      "group": "Task group",
+      "status": "Status",
+      "priority": "Priority",
+      "assignee": "Assignee",
+      "startDate": "Start date",
+      "endDate": "Due date",
+      "estimatedHours": "Estimated hours",
+      "progress": "Progress (%)",
+      "completedAt": "Completed at"
+    },
+    "truncated": "Showing {{shown}} of {{total}} tasks — filter by project, scope or time to see the rest. Export CSV still includes all of them."
   },
   "projectDetail": {
     "loadFailed": "Could not load the project",
@@ -765,7 +822,8 @@
       "utilization": "Resource histogram",
       "departments": "By department",
       "projects": "Project report",
-      "trend": "Trend over time"
+      "trend": "Trend over time",
+      "performance": "Results by person"
     },
     "stats": {
       "totalResources": "Total people",
@@ -811,6 +869,28 @@
       "loadRow": "Load (hours)",
       "capacityRow": "Capacity (hours)",
       "totalRow": "TOTAL"
+    },
+    "performance": {
+      "scopeMe": "Mine",
+      "scopeSubordinates": "Direct reports",
+      "scopeAll": "Whole company",
+      "periodHint": "Counts tasks due within the period",
+      "loadError": "Could not load the results report",
+      "empty": "No one in this scope",
+      "emptySubordinates": "You are not the direct manager of anyone",
+      "noTimestamp": "{{count}} completed tasks have no completion time (from before the review flow), so they are left out of the on-time rate.",
+      "noDeadline": "{{count}} open tasks have no deadline, so they belong to no period.",
+      "columns": {
+        "person": "Person",
+        "total": "Tasks",
+        "onTime": "On time",
+        "late": "Late",
+        "failed": "Failed",
+        "overdue": "Overdue",
+        "pendingReview": "Awaiting review",
+        "extensions": "Extensions",
+        "onTimeRate": "On-time rate"
+      }
     }
   },
   "gantt": {
@@ -910,6 +990,17 @@
     "overview": "Overview",
     "overviewHint": "Track progress and the work that needs your attention.",
     "planAllocation": "Plan allocation",
+    "jobs": {
+      "staleTitle": "Scheduled jobs are not running on time",
+      "staleHint": "If a job has never run, cron is most likely not configured or JOB_SECRET is missing (see the README section \"Job định kỳ\").",
+      "neverRan": "has never run",
+      "lastSuccess": "last succeeded at {{time}}",
+      "lastFailed": "last run failed: {{error}}",
+      "names": {
+        "recurring-tasks": "Recurring tasks",
+        "workload-snapshot": "Daily workload snapshot"
+      }
+    },
     "loadError": "Could not load data. Please try again.",
     "projectTotal": "{{count}} projects in your scope",
     "taskDone": "{{count}} tasks completed",

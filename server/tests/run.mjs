@@ -10,6 +10,8 @@
  */
 
 import { spawn } from 'child_process';
+import { rmSync } from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -18,24 +20,36 @@ const SERVER_DIR = path.join(__dirname, '..');
 
 const PORT = process.env.TEST_PORT || '5099';
 const DB = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/resource_allocation_test';
+// Tệp đính kèm của test nằm ngoài `server/uploads` của môi trường dev, và được dọn trước mỗi lượt.
+const UPLOAD_DIR = process.env.TEST_UPLOAD_DIR || path.join(os.tmpdir(), 'rao_test_uploads');
+rmSync(UPLOAD_DIR, { recursive: true, force: true });
 
 const SUITES = [
   // Bộ đơn vị, không cần server lẫn database — chạy trước để lỗi thuật toán lộ ra sớm.
   { name: 'scoring', file: 'scoring.test.mjs', label: 'Thang điểm dùng chung' },
   { name: 'csp', file: 'csp.test.mjs', label: 'CSP — ràng buộc H3/H4' },
   { name: 'hybrid', file: 'hybrid.test.mjs', label: 'Hybrid — bàn giao CSP → GA' },
+  { name: 'benchmark-dataset', file: 'benchmark-dataset.test.mjs', label: 'Bộ sinh dữ liệu Benchmark' },
   { name: 'workload-trend', file: 'workload-trend.test.mjs', label: 'Chuỗi thời gian khối lượng' },
+  { name: 'performance-summary', file: 'performance-summary.test.mjs', label: 'Báo cáo kết quả theo người — phép tính' },
   { name: 'email', file: 'email.test.mjs', label: 'Email — bật/tắt và nội dung thư' },
   { name: 'sanitize', file: 'sanitize.test.mjs', label: 'Cắt toán tử Mongo khỏi request' },
+  { name: 'cors', file: 'cors.test.mjs', label: 'Origin dùng chung cho REST và Socket.IO' },
+  { name: 'regex-search', file: 'regex-search.test.mjs', label: 'Tìm kiếm không hiểu chuỗi nhập là regex' },
+  { name: 'migrate-guest-company', file: 'migrate-guest-company.test.mjs', label: 'Migrate khách cũ về đúng công ty' },
+  { name: 'migrate-completed-at', file: 'migrate-completed-at.test.mjs', label: 'Khôi phục completedAt từ nhật ký' },
   { name: 'error-handler', file: 'error-handler.test.mjs', label: 'Bộ bắt lỗi toàn cục' },
   { name: 'refresh-token', file: 'refresh-token.test.mjs', label: 'Refresh token — xoay vòng, thu hồi, tái sử dụng' },
   { name: 'security', file: 'security.test.mjs', label: 'Header, CORS, giới hạn tần suất' },
   { name: 'api', file: 'api.test.mjs', label: 'REST API' },
   { name: 'project-detail', file: 'project-detail.test.mjs', label: 'Trang chi tiết dự án' },
+  { name: 'project-kind', file: 'project-kind.test.mjs', label: 'Dự án loại team — việc thường ngày' },
+  { name: 'project-lifecycle', file: 'project-lifecycle.test.mjs', label: 'Vòng đời dự án — lưu trữ, nhân bản, mẫu' },
   { name: 'task-permissions', file: 'task-permissions.test.mjs', label: 'Ma trận phân quyền Base Wework' },
   { name: 'followers', file: 'followers.test.mjs', label: 'Người theo dõi công việc' },
   { name: 'task-failed', file: 'task-failed.test.mjs', label: 'Trạng thái Thất bại' },
   { name: 'task-review', file: 'task-review.test.mjs', label: 'Luồng Chờ đánh giá' },
+  { name: 'task-status-paths', file: 'task-status-paths.test.mjs', label: 'Mọi đường đổi trạng thái qua cùng chốt' },
   { name: 'bulk-reassign', file: 'bulk-reassign.test.mjs', label: 'Bàn giao hàng loạt' },
   { name: 'dependency-types', file: 'dependency-types.test.mjs', label: 'Loại quan hệ phụ thuộc' },
   { name: 'department-wework', file: 'department-wework.test.mjs', label: 'Quản lý Department chuẩn Base Wework' },
@@ -43,6 +57,12 @@ const SUITES = [
   { name: 'notify-session', file: 'notify-session.test.mjs', label: 'Thông báo và phiên đăng nhập' },
   { name: 'hardening', file: 'hardening.test.mjs', label: 'Phân lập công ty, rò mật khẩu, validate payload' },
   { name: 'company-isolation', file: 'company-isolation.test.mjs', label: 'Phân lập công ty trên task, dự án, nhân sự, phòng ban' },
+  { name: 'cross-company-refs', file: 'cross-company-refs.test.mjs', label: 'Id công ty khác trong body và query' },
+  { name: 'jobs', file: 'jobs.test.mjs', label: 'Job định kỳ qua endpoint nội bộ' },
+  { name: 'performance', file: 'performance.test.mjs', label: 'Báo cáo kết quả theo người — HTTP' },
+  { name: 'optimize-pm', file: 'optimize-pm.test.mjs', label: 'Tối ưu hóa cho PM, thu hẹp theo dự án' },
+  { name: 'attachments', file: 'attachments.test.mjs', label: 'Đính kèm tệp trên công việc' },
+  { name: 'custom-fields', file: 'custom-fields.test.mjs', label: 'Trường dữ liệu tùy chỉnh theo dự án' },
 ];
 
 const filter = process.argv[2];
@@ -61,6 +81,8 @@ const env = {
   TEST_PORT: PORT,
   MONGODB_URI: DB,
   JWT_SECRET: process.env.JWT_SECRET || 'rao_test_secret',
+  JOB_SECRET: process.env.JOB_SECRET || 'rao_test_job_secret',
+  UPLOAD_DIR,
   // Bộ e2e đăng nhập và gọi API liên tục từ cùng một IP; ngưỡng thật sẽ chặn giữa chừng.
   // Bản thân middleware giới hạn tần suất được kiểm riêng trong bộ `security`.
   AUTH_RATE_LIMIT_MAX: '10000',

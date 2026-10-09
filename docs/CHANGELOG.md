@@ -6,6 +6,331 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-10-09 (báo cáo kết quả theo người, xuất công việc, thông báo, vòng đời dự án, đính kèm tệp)
+
+### Added
+
+- **Trường dữ liệu tùy chỉnh theo dự án** (văn bản, số, ngày, chọn một). Khai ở tab "Trường tùy chỉnh"
+  của chi tiết dự án (admin/Owner hoặc quản lý dự án), điền trong form tạo/sửa việc, hiện ở chi tiết việc
+  (cả mobile, chỉ xem), lọc theo trường chọn một, thêm cột khi xuất CSV, có cột trong mẫu Excel theo dự
+  án và được đọc khi nhập. Giá trị bám theo `key` cố định nên đổi tên không mất dữ liệu; nhân bản dự
+  án chép cả định nghĩa lẫn giá trị. Chuyển việc sang dự án khác thì bỏ giá trị.
+- **Đính kèm tệp thật trên công việc** (web). Tab "Tệp" trong chi tiết công việc: tải lên, tải về đúng
+  tên gốc, xóa. Lưu trên đĩa server (`UPLOAD_DIR`, mặc định `server/uploads`) qua một lớp `fileStorage`
+  để sau đổi sang S3. 10 MB mỗi tệp, 20 tệp mỗi việc, chỉ nhận tài liệu/PDF/văn bản/ảnh/tệp nén. Quyền
+  như bình luận; xóa là người tải lên, quản lý dự án hoặc admin; dự án lưu trữ chỉ đọc. Xóa việc hoặc
+  dự án thì xóa cả tệp. Trước đây `resultReport.attachments` chỉ là trường trong DB, không có đường
+  tải lên. Mobile có cùng tab "Tệp": chọn tệp bằng `expo-document-picker`, tải về rồi mở bằng bảng
+  chia sẻ của máy (`expo-sharing`). Quy tắc quyền nằm ở `attachmentRules.js`, mobile chép nguyên từ web.
+
+- **Mobile: PM vào được Tối ưu hóa**, giống web: ô chọn dự án chỉ có dự án họ quản lý, không có "Tất cả
+  dự án"; Benchmark ẩn "Dữ liệu Thật". Owner/Admin có thêm ô chọn dự án (mặc định "Tất cả dự án").
+  Logic phạm vi chép nguyên `client/src/utils/optimizeScope.js`, có test khóa hai bản giống nhau.
+- **PM được chọn sẵn dự án còn việc mở** (web và mobile) thay vì dự án mới nhất — với dữ liệu mẫu là
+  RAO-MOB, không có việc mở, bấm chạy nhận 400. `GET /projects` trả thêm `taskStats.openTasks`
+  (todo/in_progress/review, đúng tập tối ưu hóa đọc).
+- **Script `npm run measure:csp-soft`** đo lại bảng S1/S3 của ALGORITHMS.md mục 2.3 với seed cố định.
+- **PM chạy được tối ưu hóa, thu hẹp theo dự án mình quản lý** (`Project.manager`). Trước đây
+  `authorizeApp('optimize')` chặn PM ngay cửa, nên cả hai route Áp dụng/Hoàn tác vốn đã khai cho PM
+  cũng không tới được. Mọi lối vào đều kiểm dự án: chạy, `/readiness`, benchmark dữ liệu thật, lịch sử,
+  xem, so sánh, áp dụng, hoàn tác. Web: PM thấy mục Tối ưu hóa và Benchmark Studio; ô chọn dự án chỉ có
+  dự án họ quản lý, không có "Tất cả dự án"; Studio ẩn lựa chọn dữ liệu thật của cả công ty.
+- **Script `npm run migrate:completed-at`** khôi phục `completedAt` cho việc đã xong trước `152df0e`,
+  từ `reviewRequestedAt` rồi nhật ký hoạt động. Không suy ra được thì liệt kê ra, không đoán.
+- **Mobile: màn Gantt (chỉ xem).** Thu phóng ngày/tuần, lọc dự án, đường găng, vạch hôm nay; việc
+  thiếu ngày được liệt kê riêng là "chưa có lịch". Mở từ màn Công việc và chi tiết dự án. Logic CPM chép
+  nguyên từ web, có test khóa hai bản giống nhau.
+- **Mobile: test giao diện** bằng `jest-expo` + `@testing-library/react-native`.
+- **Job định kỳ qua endpoint nội bộ** (`POST /api/internal/jobs/:name`, khóa `X-Job-Secret` =
+  `JOB_SECRET`), gọi từ cron bên ngoài. Có hai job:
+  - `recurring-tasks`
+  - `workload-snapshot`: chụp tải hằng ngày, đọc qua `GET /api/analytics/workload-history`. Đây là
+    tải **đã ghi nhận**, khác `workload-trend` vốn suy ra từ lịch hiện tại.
+
+  Mỗi lần chạy được ghi vào `JobRun`. `GET /api/jobs/status` (Owner/Admin) báo `stale` khi job chưa
+  từng chạy hoặc quá hạn, vì quên cấu hình cron không làm nổ lỗi nào. Dashboard hiện cảnh báo cho
+  Owner/Admin khi có job `stale`, kèm lỗi của lần chạy gần nhất nếu có. Cách cấu hình ở README mục
+  "Job định kỳ".
+- **All-different (Régin): quyết định không làm.** Đo trên database dev, e2e và test: clique lớn nhất
+  của đồ thị xung đột H4 là 2, tức là ràng buộc `≠` nhị phân mà AC-3 đã lọc trọn vẹn. Chi tiết ở
+  ALGORITHMS.md mục 2.5.
+- **Ràng buộc mềm S1/S3 trong CSP.** Trước đây CSP chọn ứng viên chỉ theo capacity còn lại (LCV).
+  Nay chọn theo điểm `0.35 · khớp kỹ năng + 0.30 · chỗ trống + 0.15 · đã có việc cùng dự án`. Đo
+  trên cùng 30 bộ medium (ngưỡng 0.1, như Benchmark Studio): khớp kỹ năng 57 → 76%, chuyển ngữ
+  cảnh 60 → 32, fitness 0.699 → 0.762, số bộ giải được 20 → 24. Đổi lại, tải kém cân hơn (σ 15.3
+  → 16.2). Chi tiết ở ALGORITHMS.md mục 2.3.
+- **Hai chỉ số mới**, lưu trong kết quả tối ưu, hiện ở Benchmark Studio và bảng so sánh:
+  - `contextSwitches` (S3): số dự án thừa của mỗi người. Chỉ đo, không vào fitness.
+  - `convergenceGeneration`: thế hệ đạt 90% tổng mức cải thiện.
+
+  Bộ sinh dữ liệu benchmark nay gắn dự án cho từng việc.
+- **Vòng đời dự án: lưu trữ, nhân bản, mẫu.**
+  - **Lưu trữ** (`POST /projects/:id/archive`, `/unarchive`): dự án rời khỏi danh sách mặc định và
+    thành chỉ đọc. Mọi thao tác ghi lên nó và lên việc của nó trả 409, kể cả với admin/PM. Chỉ lưu trữ
+    được khi không còn việc mở và không còn việc lặp lại đang bật, nên tải nhân sự không đổi ngầm.
+  - **Nhân bản** (`POST /projects/:id/duplicate`): mọi ngày dời theo ngày bắt đầu mới. Giữ nhóm việc,
+    việc con, checklist, phụ thuộc (trỏ sang bản sao) và giờ ước tính. Bỏ người thực hiện để thuật
+    toán tối ưu phân công lại.
+  - **Mẫu** (`isTemplate`): tạo bằng "Lưu thành mẫu", dùng bằng "Tạo dự án từ mẫu". Mẫu nằm ngoài
+    danh sách việc, thống kê, analytics và tối ưu; việc trong mẫu không có người thực hiện.
+  - Giao diện: bộ lọc Đang chạy / Lưu trữ / Mẫu, menu "…" trên từng dự án, dải báo chỉ đọc ở trang
+    chi tiết dự án.
+
+- **Xuất CSV ở màn Công việc.** File xuất theo đúng bộ lọc đang áp dụng và đi hết mọi trang.
+  Server trả tối đa 100 việc mỗi trang, nên lấy danh sách đang hiện trên màn hình là thiếu.
+  Tiện ích chung `client/src/utils/csv.js`: mọi ô trong ngoặc kép, `"` được nhân đôi, ô bắt đầu
+  bằng `= + - @` bị chặn thành công thức Excel, có BOM UTF-8.
+- **Thông báo khi Thất bại và khi đổi deadline** (`task_failed`, `task_deadline_changed`), gửi
+  cho người thực hiện và người theo dõi, trừ người thao tác. Thông báo Thất bại có kèm lý do.
+  Thông báo đổi hạn có ngày cũ → ngày mới, và được gửi ở cả `PATCH /tasks/:id/deadline` lẫn
+  `PUT /tasks/:id`. Trước đây Thất bại chỉ gửi một `task_status_changed` chung cho người thực
+  hiện, còn đổi hạn thì không gửi gì.
+
+- **Báo cáo kết quả theo người** (`GET /analytics/performance`, tab "Kết quả theo người" trong
+  Reports). Báo cáo trả lời câu hỏi "kỳ này ai làm kịp việc": với mỗi người có số việc đúng hạn,
+  trễ hạn, thất bại, quá hạn, chờ duyệt và số lần gia hạn deadline. Có ba phạm vi: của tôi, cấp
+  dưới trực tiếp (theo `User.manager`) và toàn công ty (chỉ Owner/Admin). Kỳ báo cáo lọc theo
+  deadline, mặc định là tháng này. Đúng hạn đo bằng `completedAt`. Việc xong không có mốc thời
+  gian và việc còn mở không có deadline được đếm riêng, không bị lặng lẽ bỏ đi.
+  `getProductivitySummary` (tab Năng suất trong Nhân sự) giữ nguyên.
+
+### Fixed
+
+- **Trang Công việc chỉ thấy 20 dự án đầu** trong ô lọc, ô chọn dự án và danh sách dự án dùng để
+  dựng form: gọi `GET /projects` không kèm `limit` nên nhận mặc định 20 của server. Nay xin 100.
+- **Mobile: màn Tối ưu hóa chưa từng chạy được.** Gọi `POST /optimization/run` — route không tồn tại
+  (server có `/run/genetic|csp|hybrid`) — với trọng số sai tên. Kèm theo: độ khớp kỹ năng nhân thêm 100
+  (server đã trả 0–100, ra "Khớp 8500%"); số giả "92%"/"420ms" khi thiếu dữ liệu; báo "Thành công" cả khi
+  thuật toán không xếp được; lịch sử đọc `status === 'applied'` (không tồn tại, trường thật là
+  `isApplied`) nên phương án đã áp dụng vẫn có nút Áp dụng, và "Đã gán" luôn ra 0.
+- **Việc lặp lại lỡ nhiều lượt** (cron ngừng) phải đợi chừng ấy lần gọi mới đuổi kịp. Nay một lần gọi sinh
+  bù mọi lượt đến hạn, mỗi việc mang đúng ngày của lượt đó, tối đa 31 lượt mỗi cấu hình.
+- **Seeder tạo việc Hoàn thành không có `completedAt`**, nên mọi database mới đều có một việc "xong nhưng
+  không có mốc" trong báo cáo kết quả.
+- **Cảnh báo Mongoose trùng index `companyName`** khi khởi động: `CompanySetting` khai unique hai lần.
+- **Mobile: Công việc và chi tiết dự án chỉ thấy 50 việc đầu, Lịch chỉ thấy 100.** Đúng lỗi web đã sửa ở
+  `51f0d5f`. Nay đi hết mọi trang qua `taskApi.getAllPages` (trần 10 trang).
+- **Dữ liệu tổng hợp của Benchmark làm CSP vô nghiệm vì bộ sinh, không phải vì bài toán.** Kỹ năng
+  của người và kỹ năng việc đòi được bốc độc lập từ 15 kỹ năng, nên 26% việc ở bộ small không ai đạt
+  ngưỡng H2 0.5 và CSP giải được 0/30 bộ small. Nay cả hai gắn vào vai trò: mỗi việc thuộc vai trò
+  của một người có thật trong đội và đòi kỹ năng từ cụm của vai trò đó. Ở ngưỡng 0.5, small giải
+  được 16/30, medium 19/30. Các lần thất bại còn lại là capacity (small) hoặc chạm trần 10 000 bước
+  (medium). Chi tiết ở ALGORITHMS.md mục 2.3.
+- **Benchmark Studio chạy CSP và Hybrid ở ngưỡng kỹ năng 0.1**, trong khi hệ thống thật dùng 0.5. Ngưỡng
+  đó đặt ra để chữa bộ sinh dữ liệu cũ. Nay về mặc định 0.5, nên số của hai cột này trong Studio đổi theo.
+- **CSP báo "vô nghiệm" khi chỉ hết ngân sách tìm kiếm.** Chạm `maxIterations` hoặc `timeout` từng cho
+  cùng câu "Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc" như khi đã thử hết, nên người dùng đi
+  nới ràng buộc vô ích. Nay kết quả có `stopReason` và `exhaustive`, câu báo nói rõ "chưa tìm xong".
+  Chạm trần xong cũng dừng hẳn: trước đây các tầng trên vẫn thử tiếp, đếm vượt trần (~10 250 bước).
+- **Màn Dự án, dạng thẻ**: dự án lưu trữ vẫn hiện nút sửa và xóa, và quyền phân hệ "Chỉ xem" vẫn
+  thấy các nút đó. Nay dạng thẻ dùng chung cụm nút với dạng bảng (`ProjectRowActions`).
+- **"Việc lặp lại" chưa từng tự sinh việc.** `generatePendingRecurringTasks` không có ai gọi, nên
+  việc chỉ được sinh khi bấm "Chạy ngay". Nay job `recurring-tasks` gọi hàm này. Hàm cũng **không an
+  toàn khi chạy đồng thời**: tái hiện bằng hai request song song thì sinh ra 2 việc. Nay mỗi cấu hình
+  được nhận nguyên tử trên `nextRunDate` trước khi sinh việc.
+- **Cột Hybrid của Benchmark Studio không chạy Hybrid.** Miền của CSP được truyền vào
+  *constructor* của GA (`feasibleDomains`), nơi không ai đọc, nên cột đó chỉ là GA với tỉ lệ lai
+  ghép/đột biến khác. Mọi kết luận "Hybrid tốt hơn GA" rút từ trang này trước 08/10 đều không có
+  cơ sở. Nay miền đi qua `optimize(..., { domains })`.
+- **GA báo sai số thế hệ.** `generations` lấy mốc ghi lịch sử cuối (bội số của 10) thay vì thế hệ
+  dừng thật, và `convergenceHistory` thiếu điểm cuối khi dừng sớm. Bảng GA/Hybrid ở ALGORITHMS.md
+  mục 3.3 đã đo lại: 76 / 52 thế hệ (bảng cũ ghi 119 / 90).
+- **Bốn màn hình chỉ thấy trang đầu của danh sách công việc mà không báo.** Server trả tối đa 100
+  việc mỗi trang (mặc định 50) và cắt `limit` lớn hơn về 100.
+  - Màn Công việc: Kanban, danh sách và chip "Tổng" dừng ở 50.
+  - Lịch: gửi `limit: 200`, nhận về 100.
+  - Gantt: dừng ở 100.
+  - Tìm kiếm toàn cục: lọc phía client trên 50 việc đầu, nên việc thứ 51 trở đi không bao giờ tìm thấy.
+
+  Nay cả bốn đi hết các trang qua `taskService.getAllPages`, trần 1000 việc. Màn Công việc vượt
+  trần thì báo "Đang hiện X / Y công việc". Cùng đợt sửa: chip "Bị chặn" đếm `status === 'cancelled'`,
+  một trạng thái không tồn tại, nên luôn ra 0.
+- **Kéo thẻ Kanban sang Hoàn thành không ghi `completedAt`.** Chỉ luồng "Báo hoàn thành" ghi mốc
+  này. Hệ quả là báo cáo kết quả xếp phần lớn việc xong ở dự án không bật đánh giá vào "xong
+  nhưng không có mốc", và loại chúng khỏi tỉ lệ đúng hạn. Nay mọi đường sang `done` đều ghi mốc,
+  trừ khi đi từ Chờ đánh giá: lúc đó mốc lúc nộp được giữ nguyên. Việc đã xong **trước** bản sửa
+  này vẫn không có mốc, và không bịa ra được.
+
+- **Bản in Gantt bị cắt và mất thanh.** Nút In đã có, nhưng trục thời gian cuộn ngang, nên bản
+  in chỉ ra khung đang thấy trên màn hình. Ở thang Ngày với dữ liệu mẫu, 1065px trục thời gian
+  nằm khuất. Thanh vẽ bằng màu nền, mà hộp thoại in mặc định bỏ màu nền, nên bản in còn không
+  có thanh nào. Nay trang Gantt in khổ A4 ngang, trải hết trục thời gian rồi co cho vừa bề
+  ngang trang, và giữ màu.
+- **Mọi trang in đều mất khoảng 265px ở mép trái.** Thanh bên đã ẩn khi in, nhưng lề chừa cho
+  nó (inline style trong `App.jsx`) vẫn còn. Lề này còn đang chạy transition khi chuyển sang
+  media in, nên có thể bị chụp ở giá trị giữa chừng.
+- **CSV của Reports lệch cột khi tên có dấu `"`.** Nay dùng tiện ích CSV chung.
+
+### Security
+
+- **`PUT /tasks/:id` đổi được trạng thái mà không qua chốt nào.** Form sửa công việc luôn gửi
+  `status`, và đường này ghi thẳng giá trị đó. Tái hiện bằng request thật trước khi sửa:
+  - Người thực hiện tự đặt `done` ở dự án bật đánh giá: 200.
+  - Đặt `failed` khi dự án chưa bật Thất bại, hoặc không có lý do: 200.
+  - Người thực hiện tự đánh `failed` dù `failureConfig.allowedRoles` không có vai đó: 200, chỉ
+    cần không gửi kèm `failureReason`.
+
+  Thất bại qua đường này cũng không ghi `failedAt`/`failedBy` và không gửi `task_failed`. Nay
+  `PUT` đi qua cùng `validateStatusTransition` và cùng chốt quyền với `PATCH /:id/status`, nhưng
+  chỉ khi `status` thật sự đổi, để lưu lại form không bị chặn. Các trường ghi kèm được gom vào
+  `statusChangeFields`, dùng chung cho cả hai đường.
+- **`PUT /tasks/:id` ghi được vết của luồng trạng thái từ body.** PM hoặc người tạo việc gửi
+  `completedAt` sớm hơn deadline là biến một việc trễ thành đúng hạn trong báo cáo kết quả.
+  `reviewDecision` cũng ghi được như vậy. Nay các trường này bị bỏ qua.
+
+- **Benchmark trên "dữ liệu thật" đọc được dữ liệu của công ty khác.** `runBenchmark` gọi
+  `loadOptimizationData(projectId)` mà không kèm người gọi. Khi không chọn dự án, mọi nhánh lọc
+  công ty đều bị bỏ qua, nên admin của bất kỳ công ty nào cũng kéo được công việc và nhân sự của
+  mọi công ty. Khi có chọn dự án thì ngược lại: nó lọc theo công ty mặc định, nên công ty khác
+  nhận về rỗng. Nay hàm nhận `req.user`. Nhánh "Tất cả dự án" cũng không còn phụ thuộc vào
+  `user`, nên hàm không bao giờ trả dữ liệu chưa lọc theo công ty.
+
+### Removed
+
+- Nhánh "người không phải admin" trong `loadOptimizationData`. Đây là code chết, vì
+  `authorizeApp('optimize')` chỉ cho Owner, Admin và App Admin qua, mà nhánh này lại loại trừ
+  đúng ba nhóm đó.
+
+### Tests
+
+- Bộ `benchmark-dataset` (14 assertion, đơn vị): mọi việc có người đạt ngưỡng 0.5, vẫn còn lựa chọn
+  giữa các ứng viên, việc nằm trọn trong một vai trò có người đảm nhận. Ở bộ sinh cũ, 202/800 việc
+  small không ai đạt ngưỡng.
+- Client: `job-stale-alert` (6 bài) và 4 bài cho cụm nút dự án trong `project-lifecycle`.
+- `cross-company-refs` thêm hai bài (nay 64 assertion): admin công ty B chạy benchmark, một lần
+  không chọn dự án và một lần chọn dự án của B. Số việc và số nhân sự phải khớp đúng với
+  `GET /optimization/readiness`. Trước khi sửa, hai bài này lần lượt nhận 4 việc và 5 nhân sự của
+  công ty khác, và 400 (rỗng).
+- Bộ `performance-summary` (14 assertion, đơn vị) và `performance` (20 assertion, HTTP) cho báo
+  cáo kết quả. Phía client có `performance-report.test.jsx` (3 test).
+- `notify-session` thêm 11 assertion (nay 31): ai nhận `task_failed` và `task_deadline_changed`,
+  nội dung có lý do và ngày mới, `PUT` lại cùng `endDate` thì không sinh thông báo.
+- Client: `csv.test.mjs` (8, logic thuần) và `task-export.test.jsx`. Bài xuất CSV đã được thử
+  ngược: làm hỏng vòng lặp phân trang thì test đỏ.
+- Bộ `project-lifecycle` (58 assertion), `project-lifecycle.test.jsx` (5 test) và một bài e2e ở
+  `03-projects` chạy trọn vòng lưu trữ → mở lại → nhân bản → lưu thành mẫu trên trình duyệt thật.
+  Bộ bắt lỗi chung nay đọc `err.statusCode`, để tầng dưới ném được lỗi nghiệp vụ 4xx.
+- Bộ `task-status-paths` (20 assertion) giữ cả hai đường đổi trạng thái: ba lớp chặn trên `PUT`,
+  người được phép vẫn làm được, lưu lại form không bị chặn, `completedAt` trên mọi đường sang
+  `done`, và vết trạng thái không ghi được từ body. Đã thử ngược: bỏ dòng gỡ trường thì
+  `completedAt` gửi lên đè được mốc thật.
+- e2e: bài in Gantt ở `07-analytics` đo dưới media print ở bề ngang A4 ngang, rồi đọc lệnh tô màu
+  trong PDF thật. Đã thử ngược: bỏ `print-color-adjust` thì PDF mất màu thanh và test đỏ.
+
+## [Chưa phát hành] - 2026-10-07 (phòng ban vận hành, id công ty khác trong body)
+
+### Added
+
+- **Phòng ban vận hành** (`Project.kind: 'team'`): không có ngày kết thúc, chứa việc thường
+  ngày. Trước đây việc vận hành không có chỗ để nhập, nên tối ưu hóa luôn xuất phát từ năng lực
+  rảnh cao hơn thực tế. Việc trong team được tính vào tải. Tối ưu "Tất cả dự án" giữ chúng là
+  giờ đã cam kết thay vì phân công lại. Form dự án có ô chọn loại hình; với team, khoảng ngày bắt
+  buộc được đổi thành một ngày bắt đầu không bắt buộc.
+
+### Security
+
+- **Id của công ty khác đi trong body/query** (`3d93981`). Chốt `router.param('id')` chỉ soi id
+  trên URL; những id đi trong body thì mỗi controller phải tự kiểm, và nhiều chỗ chưa kiểm. Nay
+  gom vào `services/companyRefs.service.js` (`usersError`, `departmentError`, `projectRef`,
+  `taskGroupError`, `parentTaskError`, `stripProtected`…), áp cho:
+  - Công việc: `assignee`, `followers`, `reviewers`, `taskGroup`, `parentTask`, `project` khi tạo
+    và sửa; việc con; checklist; nhân bản sang dự án hoặc nhóm khác; bàn giao hàng loạt.
+  - Dự án: quản lý, thành viên, phòng ban (tạo, sửa, sửa nhanh, thêm thành viên), người duyệt
+    trong `reviewConfig`.
+  - Nhân sự, tài khoản, phòng ban: `user` của Resource, quản lý trực tiếp, trưởng phòng.
+  - Nhóm việc (`reorder` nay lọc theo công ty) và việc lặp lại.
+  - `GET /analytics/workload-trend?projectId=` không còn bỏ phạm vi người gọi; `loadOptimizationData`
+    lọc theo công ty cả khi có `projectId`.
+- **`companyName` trong body không còn chuyển được bản ghi sang công ty khác.** Task, dự án, nhân
+  sự, việc lặp lại: trường này bị gỡ khỏi payload. Hồ sơ tài khoản: từ chối khi khác công ty hiện
+  tại; ô này trên giao diện chuyển thành chỉ đọc.
+- Bộ `followers`: ranh giới 50/51 người theo dõi nay dựng bằng 50 tài khoản thật. Id giả bị từ
+  chối từ trước khi chạm tới trần, nên bài 50 không còn xanh được nữa.
+
+### Tests
+
+- Bộ `cross-company-refs` (62 assertion): admin công ty A gửi id của công ty B vào từng trường.
+  "An toàn" nghĩa là bị từ chối, hoặc bản ghi trả về không chứa id ngoài.
+- Bộ `project-kind` (20 assertion) và một bài e2e tạo team không cần ngày.
+- Ghi nhận khi viết test: nhánh "người không phải admin" trong `loadOptimizationData` không đi
+  tới được qua HTTP, vì `authorizeApp('optimize')` chỉ cho Owner/Admin/App Admin qua, mà nhánh đó
+  lại loại trừ đúng ba nhóm này.
+
+## [Chưa phát hành] - 2026-10-07 (rà soát cấu hình và lỗi chạy thật)
+
+### Security
+
+Mỗi lỗ hổng dưới đây được tái hiện bằng request thật trước khi sửa, và có test giữ lại.
+
+- **Nhập Excel ghi được vào dự án công ty khác.** `POST /tasks/excel/import` nhận
+  `projectId` trong form multipart, nên chốt `router.param('id')` không che được; controller
+  cũng không kiểm dự án. Admin công ty B nhập được công việc vào dự án của A (200), id dự án
+  không tồn tại thì sinh công việc mồ côi (200). Nay: 404 / 403 như `POST /tasks`, công việc
+  mang công ty của dự án, và route gắn thêm `canCreateTask` — trước đó member ngoài dự án
+  cũng nhập được.
+- **Bảng trước/sau tối ưu lộ dữ liệu giữa công ty.** `GET /analytics/optimization-comparison/:id`
+  không kiểm công ty của kết quả và liệt kê nhân sự **mọi** công ty. Nay 403 với kết quả công
+  ty khác, nhân sự và giờ task lọc theo công ty. Đường `/optimization/compare` vốn đã chặn đúng.
+- **Tìm kiếm dựng regex thẳng từ chuỗi người dùng gõ** ở 7 endpoint: gõ `(` là 500, mẫu
+  `(a+)+$` có thể làm nghẽn tiến trình. Nay escape qua `src/utils/escapeRegex.js` (bộ test
+  `regex-search`).
+- **Socket.IO không kiểm `isActive`.** Access token còn sống tới 15 phút sau khi khóa tài
+  khoản, nên người bị khóa vẫn giữ socket và mở được socket mới. Nay handshake tra `User`, và
+  khóa tài khoản thì ngắt luôn socket đang mở.
+- **Di chuyển công việc không kiểm phía đích.** `canMoveTask` và `router.param('id')` chỉ soi
+  công việc nguồn; `targetProjectId`/`targetTaskGroupId` đi trong body. Admin/PM chuyển được
+  công việc sang dự án **công ty khác**, member là người thực hiện chuyển được sang dự án mình
+  không thuộc, và nhóm đích gắn được nhóm của dự án khác. Nay 403/403/400; luật "ai được thêm
+  việc vào dự án" tách thành `createDeniedReason`, dùng chung với `canCreateTask`.
+- **Script `migrate:guest-company`** cho tài khoản khách tạo trước `15aad4f` (không công ty
+  nào thấy họ nhưng họ vẫn đăng nhập được). Quy về công ty theo dự án khách thuộc; mơ hồ thì
+  liệt kê ra, không đoán. Database dev không có khách nào như vậy; môi trường khác cần chạy.
+- **`xlsx` 0.18.5 còn prototype pollution và ReDoS**, mà nó đọc chính file người dùng tải
+  lên. Nâng lên 0.20.3, cài từ `cdn.sheetjs.com` vì npm registry không có bản vá. Client
+  khai báo `xlsx` mà không dùng — đã gỡ.
+
+### Changed
+
+- **Yêu cầu Node.js ≥ 20** (nodemailer 10). `npm audit fix` ở server: body-parser, express,
+  qs, proxy-addr, engine.io, ip-address, morgan, multer — server còn 0 lỗ hổng. Client còn 2
+  advisory ở `react-router` 6, chỉ vá được bằng v7.
+- axios lên 1.20 ở client và mobile.
+- Thêm `.gitattributes` (`* text=auto eol=lf`): repo đã lưu LF, file này chặn những commit
+  đổi kết thúc dòng hàng loạt do `core.autocrlf` khác nhau giữa các máy.
+
+### Tests
+
+- Trang Công việc mặc định mở Kanban (`b2978ab`) mà bộ e2e vẫn tìm dòng bảng: 10 bài đỏ, trong
+  đó 3 bài là hệ quả dây chuyền. Thêm helper `showTaskList()`. Bài lọc `?status=blocked` trước
+  đó "xanh" vì đếm 0 dòng — nay kiểm thật.
+- Bảng bộ test trong `server/tests/README.md` thiếu 15/24 bộ — đã bổ sung.
+
+### Docs
+
+- Hai mục "chưa sửa" trong tài liệu thực ra đã sửa từ 22/09 mà chưa ai cập nhật: `register()`
+  để lại User không có Resource (`1768edd`), và `move` không kiểm task đang phụ thuộc vào nó
+  (`cab0864`). Đã đổi trạng thái.
+
+### Fixed
+
+- **Tạo/sửa nhân sự luôn trả 500 `mongoose is not defined`.** `validateDepartment`
+  trong `resource.controller.js` gọi `mongoose.Types.ObjectId.isValid` mà file không
+  import `mongoose`. Bộ `api` đỏ từ commit `b2978ab`.
+- **Socket.IO không nhận nhiều origin.** REST tách `CLIENT_URL` theo dấu phẩy, Socket.IO
+  nhận nguyên chuỗi — khai báo hai origin thì realtime âm thầm không kết nối. Nay cả hai
+  dùng chung `src/config/cors.js` (bộ test đơn vị `cors`).
+- **Regex mạng LAN ở dev chặn nhầm `172.x.x.x` và `10.x.x.x`** — chỉ khớp ba nhóm số.
+- **`readMailConfig` nạp lại `.env` với `override: true` cả ở production**, đè biến môi
+  trường thật của hạ tầng mỗi lần gửi mail. Nay chỉ làm ở môi trường không phải production.
+- **`AUTH_RATE_LIMIT_MAX` bị bỏ qua ngoài production** (luôn 200). Nay khai báo thì dùng,
+  bỏ trống thì production 10, dev 200. Bộ `security` đỏ vì lỗi này.
+- `Resource.utilizationRate` trả `Infinity` khi `fte = 0`.
+- Mobile không còn hard-code IP LAN của một máy: mặc định dò IP máy chạy Metro, hoặc đọc
+  `EXPO_PUBLIC_API_URL`; giả lập Android dùng `10.0.2.2`.
+- `set-test-pw.js` đọc nhầm `MONGO_URI` và viết cứng email/mật khẩu; nay nhận qua tham số.
+
+---
+
 ## [Chưa phát hành] - 2026-09-22 (rà soát phân lập công ty)
 
 ### Security

@@ -10,6 +10,7 @@ const { runComparativeBenchmark } = require('../algorithms/benchmark/benchmarkRu
 const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
+const { projectScopeError, resultScopeError } = require('../services/optimizeScope');
 
 /** Công ty của người gọi — dùng chung cho cả phân lập lẫn phạm vi dữ liệu. */
 const companyOf = (user) => (user && user.companyName) || 'Công ty Công nghệ RAO';
@@ -29,6 +30,21 @@ const resultBelongsTo = (result, user) => {
 };
 
 /**
+ * Phạm vi tối ưu của người gọi (`req.optimizeScope`, gắn ở optimization.routes.js): PM chỉ
+ * được đụng tới dự án mình quản lý. Trả 403 và `true` nếu bị chặn.
+ */
+const denyProject = (req, res, projectId) => {
+  const message = projectScopeError(req.optimizeScope, projectId);
+  if (message) res.status(403).json({ success: false, message });
+  return Boolean(message);
+};
+const denyResult = (req, res, result) => {
+  const message = resultScopeError(req.optimizeScope, result);
+  if (message) res.status(403).json({ success: false, message });
+  return Boolean(message);
+};
+
+/**
  * Helper: Load tasks & resources for optimization
  */
 const loadOptimizationData = async (projectId, user) => {
@@ -42,7 +58,14 @@ const loadOptimizationData = async (projectId, user) => {
 
   if (projectId) {
     taskFilter.project = projectId;
-    const project = await Project.findById(projectId).select('members manager companyName');
+    // `projectId` đến từ body/query: thiếu dòng này thì chạy tối ưu (và Áp dụng) được
+    // trên công việc của công ty khác, chỉ cần biết id dự án.
+    taskFilter.companyName = companyScope;
+    const project = await Project.findById(projectId).select('members manager companyName isTemplate');
+    if (project?.isTemplate) {
+      // Mẫu nằm ngoài mọi tính toán: việc của nó không có người và không có thật.
+      throw Object.assign(new Error('Dự án mẫu không chạy tối ưu được — hãy tạo dự án từ mẫu trước'), { statusCode: 400 });
+    }
     if (project) {
       const memberUserIds = new Set();
       if (project.manager) memberUserIds.add(project.manager.toString());
@@ -62,42 +85,28 @@ const loadOptimizationData = async (projectId, user) => {
         resourceFilter.companyName = companyScope;
       }
     }
-  } else if (user && user.role !== 'admin' && !user.isOwner && !user.appAdmins?.includes('optimize')) {
-    // Nếu không chỉ định projectId và không phải admin/owner/appAdmin: giới hạn theo dự án của user
-    const userProjects = await Project.find({
-      companyName: companyScope,
-      $or: [
-        { manager: user._id },
-        { 'members.user': user._id },
-        { createdBy: user._id },
-      ],
-    }).select('_id members');
-    const userProjectIds = userProjects.map((p) => p._id);
-    taskFilter.project = { $in: userProjectIds };
-    taskFilter.companyName = companyScope;
-
-    const allowedUserIds = new Set();
-    allowedUserIds.add(user._id.toString());
-    userProjects.forEach((p) => {
-      if (p.members) {
-        p.members.forEach((m) => {
-          if (m.user) allowedUserIds.add(m.user.toString());
-        });
-      }
-    });
-
-    resourceFilter = {
-      isActive: true,
-      companyName: companyScope,
-      $or: [
-        { user: { $in: Array.from(allowedUserIds) } },
-        { createdBy: user._id },
-      ],
-    };
-  } else if (user) {
-    // Admin chọn "Tất cả dự án": lấy toàn bộ công việc và nhân sự của công ty mình
+  } else {
+    // "Tất cả dự án": toàn bộ công việc và nhân sự của công ty mình. Không cần thu hẹp
+    // theo dự án của người gọi — PM không tới được nhánh này (`denyProject` chặn khi
+    // thiếu projectId), chỉ Owner/Admin/App Admin. Không điều kiện `user`: thiếu người
+    // gọi thì vẫn lọc theo công ty mặc định, không bao giờ trả dữ liệu của mọi công ty.
     taskFilter.companyName = companyScope;
     resourceFilter.companyName = companyScope;
+  }
+
+  // Việc của phòng ban vận hành (`kind: 'team'`) là tải cố định: trực hệ thống hay
+  // họp định kỳ gắn với đúng người đó, phân công lại không có nghĩa. Bỏ khỏi biến khi
+  // chạy "Tất cả dự án", nhưng KHÔNG bỏ khỏi tải — chúng rơi vào `committedTasks` bên
+  // dưới vì không nằm trong `optimizedIds`. Chọn đích danh một team thì vẫn chạy được.
+  // Mẫu (và dự án lưu trữ — vốn không còn việc mở) cũng không phải biến của bài toán.
+  if (!projectId) {
+    const excluded = await Project.find({
+      companyName: companyScope,
+      $or: [{ kind: 'team' }, { isTemplate: true }, { isArchived: true }],
+    }).distinct('_id');
+    if (excluded.length) {
+      taskFilter.project = { ...(taskFilter.project || {}), $nin: excluded };
+    }
   }
 
   const [tasks, resources] = await Promise.all([
@@ -122,7 +131,7 @@ const loadOptimizationData = async (projectId, user) => {
       assignee: { $in: memberUserIds },
       status: { $in: ['todo', 'in_progress', 'review'] },
       _id: { $nin: optimizedIds },
-    }).select('assignee estimatedHours startDate endDate');
+    }).select('assignee estimatedHours startDate endDate project');
 
     committedTasks.forEach((t) => {
       const key = String(t.assignee);
@@ -131,6 +140,8 @@ const loadOptimizationData = async (projectId, user) => {
         startDate: t.startDate,
         endDate: t.endDate,
         estimatedHours: t.estimatedHours || 0,
+        // Cho chỉ số chuyển ngữ cảnh (S3): người đang ôm dự án khác cũng là một ngữ cảnh.
+        project: t.project,
       });
     });
   }
@@ -173,6 +184,7 @@ const runGeneticAlgorithm = async (req, res, next) => {
       costWeight,
       overallocationWeight,
     } = req.body;
+    if (denyProject(req, res, projectId)) return;
 
     const { tasks, resources } = await loadOptimizationData(projectId, req.user);
 
@@ -244,6 +256,7 @@ const runGeneticAlgorithm = async (req, res, next) => {
 const runCSPSolver = async (req, res, next) => {
   try {
     const { projectId, maxIterations, timeout, minSkillMatchThreshold } = req.body;
+    if (denyProject(req, res, projectId)) return;
 
     const { tasks, resources } = await loadOptimizationData(projectId, req.user);
 
@@ -296,6 +309,7 @@ const runCSPSolver = async (req, res, next) => {
 const runHybrid = async (req, res, next) => {
   try {
     const { projectId, ...gaParams } = req.body;
+    if (denyProject(req, res, projectId)) return;
     const { tasks, resources } = await loadOptimizationData(projectId, req.user);
 
     if (!tasks.length || !resources.length) {
@@ -377,7 +391,9 @@ const getHistory = async (req, res, next) => {
           ? { $in: [userCompany, null, undefined] }
           : userCompany,
     };
-    if (req.user && req.user.role !== 'admin') {
+    if (req.optimizeScope && !req.optimizeScope.all) {
+      filter.projectFilter = { $in: [...req.optimizeScope.projectIds] };
+    } else if (req.user && req.user.role !== 'admin') {
       filter.runBy = req.user._id;
     }
     if (req.query.algorithm) filter.algorithm = req.query.algorithm;
@@ -421,6 +437,8 @@ const COMPARISON_METRICS = [
   { key: 'averageSkillMatch', digits: 0, higherIsBetter: true, pick: (r) => r.metrics?.averageSkillMatch },
   { key: 'workloadVariance', digits: 2, higherIsBetter: false, pick: (r) => r.metrics?.workloadVariance },
   { key: 'overallocatedResources', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.overallocatedResources },
+  { key: 'contextSwitches', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.contextSwitches },
+  { key: 'convergenceGeneration', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.convergenceGeneration },
   { key: 'totalCost', digits: 0, higherIsBetter: false, pick: (r) => r.metrics?.totalCost },
   { key: 'averageUtilization', digits: 0, higherIsBetter: null, pick: (r) => r.metrics?.averageUtilization },
   { key: 'violatedConstraints', digits: 0, higherIsBetter: false, pick: (r) => r.constraintReport?.violated },
@@ -581,6 +599,8 @@ const compareResults = async (req, res, next) => {
         message: 'Không có quyền so sánh kết quả tối ưu của công ty khác',
       });
     }
+    const outOfScope = found.find((r) => resultScopeError(req.optimizeScope, r));
+    if (outOfScope && denyResult(req, res, outOfScope)) return;
 
     // Giữ đúng thứ tự người dùng chọn — Mongo trả về theo thứ tự lưu trữ, và các cột
     // trong bảng so sánh phải khớp với thứ tự đó thì người đọc mới lần được.
@@ -610,6 +630,8 @@ const compareResults = async (req, res, next) => {
         totalCost: r.metrics?.totalCost ?? null,
         overallocatedResources: r.metrics?.overallocatedResources ?? null,
         averageUtilization: r.metrics?.averageUtilization ?? null,
+        contextSwitches: r.metrics?.contextSwitches ?? null,
+        convergenceGeneration: r.metrics?.convergenceGeneration ?? null,
       },
       // GA không kiểm tra ràng buộc, nhưng Mongoose vẫn dựng sẵn nested path rỗng cho
       // nó. Chỉ coi là có báo cáo khi thực sự có con số, để cột GA hiển thị "—" thay
@@ -671,6 +693,7 @@ const getResultById = async (req, res, next) => {
         message: 'Không có quyền xem kết quả tối ưu của công ty khác',
       });
     }
+    if (denyResult(req, res, result)) return;
 
     res.json({
       success: true,
@@ -703,6 +726,7 @@ const applyResult = async (req, res, next) => {
         message: 'Không có quyền áp dụng kết quả tối ưu của công ty khác',
       });
     }
+    if (denyResult(req, res, result)) return;
 
     if (result.status !== 'completed') {
       return res.status(400).json({ success: false, message: 'Chỉ có thể áp dụng kết quả đã hoàn thành' });
@@ -830,6 +854,7 @@ const rollbackResult = async (req, res, next) => {
         message: 'Không có quyền hoàn tác kết quả tối ưu của công ty khác',
       });
     }
+    if (denyResult(req, res, result)) return;
 
     if (!result.isApplied) {
       return res.status(400).json({ success: false, message: 'Chỉ có thể hoàn tác phương án đã được áp dụng' });
@@ -911,7 +936,8 @@ const runBenchmark = async (req, res, next) => {
     let datasetLabel = '';
 
     if (useDatabaseData) {
-      const liveData = await loadOptimizationData(projectId);
+      if (denyProject(req, res, projectId)) return;
+      const liveData = await loadOptimizationData(projectId, req.user);
       tasks = liveData.tasks;
       resources = liveData.resources;
       datasetLabel = `Dữ liệu Thực tế Hệ thống (${tasks.length} tasks, ${resources.length} nhân sự)`;
@@ -966,6 +992,7 @@ const runBenchmark = async (req, res, next) => {
 const getOptimizationReadiness = async (req, res, next) => {
   try {
     const { projectId } = req.query;
+    if (denyProject(req, res, projectId)) return;
     const { tasks, resources } = await loadOptimizationData(projectId, req.user);
 
     const unassignedTasks = tasks.filter((t) => !t.assignee).length;

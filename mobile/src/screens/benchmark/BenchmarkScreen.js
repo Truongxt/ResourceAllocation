@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
+import { optimizeScopeOf } from '../../utils/optimizeScope.js';
 import Header from '../../components/common/Header';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -25,6 +27,12 @@ const DATASETS = [
 
 export default function BenchmarkScreen({ navigation }) {
   const { theme } = useTheme();
+  const { user } = useAuth();
+  // "Dữ liệu Thật" chạy trên toàn công ty; PM chỉ được dự án mình quản lý nên không có lựa
+  // chọn này (server cũng chặn bằng 403).
+  const datasets = optimizeScopeOf(user) === 'managed'
+    ? DATASETS.filter((d) => d.key !== 'live')
+    : DATASETS;
 
   const [selectedDataset, setSelectedDataset] = useState('medium');
   const [running, setRunning] = useState(false);
@@ -82,7 +90,7 @@ export default function BenchmarkScreen({ navigation }) {
         </Text>
 
         <View style={styles.datasetsRow}>
-          {DATASETS.map((d) => {
+          {datasets.map((d) => {
             const isSel = selectedDataset === d.key;
             return (
               <TouchableOpacity

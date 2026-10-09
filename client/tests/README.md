@@ -25,12 +25,16 @@ npm run test:watch    # component, chế độ theo dõi
 | Bộ | File | Phạm vi |
 |----|------|---------|
 | Gantt | `gantt.test.mjs` | CPM (lượt xuôi/ngược, slack, phát hiện chu trình), tính thời lượng, nhận diện mốc |
+| CSV | `csv.test.mjs` | Tiện ích xuất CSV dùng chung: mọi ô trong ngoặc kép, `"` được nhân đôi, xuống dòng nằm gọn trong ô, số giữ nguyên (cả số âm), chuỗi bắt đầu bằng `= + - @`/tab/CR bị chặn thành công thức |
 | Locale | `locales.test.mjs` | `vi.json` và `en.json` khớp nhau: khóa, biến nội suy, không có bản dịch rỗng, đủ giá trị enum khớp schema |
 | ProtectedRoute | `protected-route.test.jsx` | Ranh giới đăng nhập: đang kiểm tra phiên thì **không** đá về `/login`; chưa đăng nhập thì đá; sai vai trò thì chặn tại chỗ chứ không đá về `/login` |
 | Định tuyến | `app-routing.test.jsx` | 12 trang nạp theo chunk (`React.lazy`) có render ra không, và ranh giới `Suspense` trong `Content` có giữ được sidebar/header khi nội dung đang tải không |
 | Link thông báo | `notification-link.test.jsx` | Chặn open redirect ở `notif.link` — đích điều hướng động duy nhất của client. Bấm thật qua giao diện, không gọi thẳng hàm kiểm tra |
 | Đổi ngôn ngữ | `language-switch.test.jsx` | Bấm nút đổi ngôn ngữ thì sidebar, tiêu đề trang, nhãn enum, nhãn form và thông báo lỗi validation có đổi theo không, và lựa chọn có được nhớ không |
 | Làm mới token | `api-refresh.test.jsx` | Interceptor 401 tự làm mới rồi chạy lại request. Ca quan trọng nhất: nhiều request cùng hết hạn chỉ được kích hoạt **một** lượt làm mới — nhiều hơn thì server hiểu là token bị đánh cắp và thu hồi cả chuỗi |
+| Báo cáo kết quả | `performance-report.test.jsx` | Tab Kết quả theo người: Admin mở thẳng phạm vi toàn công ty, member không thấy lựa chọn đó (server trả 403), đổi phạm vi thì gọi lại API, tỉ lệ `null` hiện `—`, và các việc bị loại khỏi báo cáo được báo ra |
+| Xuất công việc | `task-export.test.jsx` | Màn Công việc hiện việc ở **mọi trang** (không dừng ở trang đầu), chip đếm đủ kể cả "Bị chặn", và quá trần 1000 việc thì báo "Đang hiện X / Y". Nút Xuất CSV đi hết **mọi trang** (server trả tối đa 100 việc/trang, màn hình chỉ giữ trang đầu) và mang đúng bộ lọc đang áp dụng. Mock tầng `api` theo URL, và mock `downloadCsv` để đọc thẳng các dòng sẽ ghi ra file |
+| Vòng đời dự án | `project-lifecycle.test.jsx` | Menu "…" trên dự án đúng với chỗ dự án đang ở (đang chạy / lưu trữ / mẫu); lý do server từ chối lưu trữ (còn bao nhiêu việc mở) hiện nguyên văn; modal nhân bản gửi đúng tham số cho "Tạo từ mẫu" (có ngày) và "Lưu thành mẫu" (không hỏi ngày, `asTemplate: true`) |
 
 Đuôi `.jsx` đánh dấu **trình chạy** (vitest + jsdom), không có nghĩa là file phải chứa JSX:
 `api-refresh.test.jsx` không render component nào nhưng vẫn cần `localStorage` của jsdom.

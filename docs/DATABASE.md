@@ -30,6 +30,9 @@
      ├─▶│ ActivityLogs  │      │ RefreshTokens │
      │  └───────────────┘      └───────▲───────┘
      └──────────────────────────────────┘
+
+  Ghi bởi job định kỳ:  WorkloadSnapshots (Resources × ngày)   JobRuns (mỗi lần chạy job)
+  Gắn với Tasks:        Attachments (nội dung tệp nằm trên đĩa, UPLOAD_DIR)
 ```
 
 ---
@@ -106,8 +109,9 @@ Ba điểm thiết kế:
   code: String,              // Mã dự án (unique sparse, uppercase, max 10)
   status: String,            // 'planning' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled'
   priority: String,          // 'low' | 'medium' | 'high' | 'critical'
-  startDate: Date,           // required
-  endDate: Date,             // required
+  kind: String,              // 'project' (default) | 'team' — team = phòng ban vận hành, vô thời hạn
+  startDate: Date,           // required khi kind = 'project'
+  endDate: Date,             // required khi kind = 'project'; team KHÔNG BAO GIỜ có trường này
   budget: Number,            // default 0
   progress: Number,          // 0-100, tự tính lại từ tasks
   manager: ObjectId → Users, // REQUIRED — mặc định là user tạo dự án
@@ -120,6 +124,21 @@ Ba điểm thiết kế:
     }
   ],
   tags: [String],
+  template: String,          // bộ nhóm việc dựng sẵn lúc tạo ('agile_scrum' | 'marketing' | 'standard') — KHÔNG phải dự án mẫu
+  isArchived: Boolean,       // default false — lưu trữ: ẩn khỏi danh sách mặc định, CHỈ ĐỌC
+  archivedAt: Date,
+  archivedBy: ObjectId → Users,
+  isTemplate: Boolean,       // default false — dự án mẫu: ngoài mọi tính toán, việc không có người thực hiện
+  customFields: [            // trường tùy chỉnh cho công việc của dự án, tối đa 20 — chỉ ghi qua PUT /:id/custom-fields
+    {
+      key: String,           // 'f_' + 8 ký tự, server sinh, không bao giờ đổi — giá trị bám theo key
+      name: String,          // ≤ 60, không trùng trong dự án
+      type: String,          // 'text' | 'number' | 'date' | 'select' — không đổi được sau khi tạo
+      options: [String],     // chỉ với 'select', 1–50 lựa chọn
+      required: Boolean,
+      order: Number
+    }
+  ],
   createdBy: ObjectId → Users,
   createdAt: Date,
   updatedAt: Date
@@ -127,7 +146,13 @@ Ba điểm thiết kế:
 ```
 
 **Virtuals**: `tasks` (populate ngược từ `Task.project`)
-**Indexes**: `status`, `manager`, `(startDate, endDate)`
+**Indexes**: `status`, `manager`, `(startDate, endDate)`, `isArchived`, `isTemplate`
+
+**Vòng đời** (`services/projectLifecycle.service.js`): chỉ lưu trữ được khi không còn việc mở
+(`todo`/`in_progress`/`review`/`blocked`) và không còn việc lặp lại đang bật. Truy vấn loại trừ dùng
+`{ $ne: true }` để bản ghi cũ thiếu trường vẫn tính là đang hoạt động. Mẫu bị loại khỏi danh sách
+việc, thống kê, analytics và tối ưu; dự án lưu trữ chỉ bị loại khỏi danh sách mặc định — việc đã
+đóng của nó vẫn được tính trong báo cáo, vì đó là lịch sử.
 
 ---
 
@@ -155,6 +180,7 @@ Ba điểm thiết kế:
     }
   ],
   dependencies: [ObjectId → Tasks],  // Mảng ObjectId PHẲNG, không có field `type`
+  customValues: Map,           // key (Project.customFields) → giá trị: chuỗi ≤ 1000, số, Date, hoặc một lựa chọn
   createdBy: ObjectId → Users,
   createdAt: Date,
   updatedAt: Date
@@ -173,6 +199,10 @@ Ba điểm thiết kế:
   field này nhận tới 5, khiến yêu cầu mức 5 vĩnh viễn không ai khớp tuyệt đối (tối đa
   `min(4,5)/5 = 0.8`). Bản ghi cũ còn mức 5 dọn bằng `npm run migrate:skill-level`.
 - Không có field `storyPoints` và `completedAt`.
+- **`customValues` chỉ ghi qua `mergeCustomValues`** (`services/customFields.service.js`): kiểm kiểu,
+  lựa chọn và trường bắt buộc. Xóa trường hoặc bỏ một lựa chọn ở dự án thì giá trị tương ứng trên mọi
+  việc bị `$unset`; chuyển việc sang dự án khác thì bỏ hết giá trị. Trả `Task` ra client bằng
+  `toObject()` thì phải kèm `{ flattenMaps: true }`, không thì Map thành `{}`.
 
 ---
 
@@ -463,6 +493,74 @@ Cấu hình cấp công ty. Một bản ghi cho mỗi `companyName`, ràng buộ
 Hai cờ này quyết định ai thấy được nút "Tạo dự án" / "Tạo Department" trên giao diện —
 `client/src/pages/projects/Projects.jsx` đọc chúng cùng với vai trò và quyền App Admin.
 Chúng **không** thay thế kiểm tra ở server; route vẫn tự kiểm quyền.
+
+---
+
+## 12. WorkloadSnapshots Collection
+
+Tải **đã ghi nhận** của một nhân sự trong một ngày, do job `workload-snapshot` ghi (xem API.md mục 14).
+
+```javascript
+{
+  date: Date,                // nửa đêm (giờ server) của ngày chụp
+  resource: ObjectId → Resources,
+  user: ObjectId → Users,
+  companyName: String,
+  workload: Number,          // giờ của tuần cao điểm — đúng con số trang Utilization lúc chụp
+  unscheduled: Number,       // giờ đã giao nhưng chưa có ngày
+  capacity: Number,          // maxCapacity × fte
+  utilization: Number,       // %
+  openTasks: Number,         // việc todo / in_progress / review
+  updatedAt: Date
+}
+```
+
+**Indexes**: `(resource, date)` **unique** — chạy lại job trong ngày thì ghi đè; `(companyName, date)`.
+
+---
+
+## 13. JobRuns Collection
+
+Một lần chạy job định kỳ. Job được cron bên ngoài gọi, nên đây là bằng chứng duy nhất job có chạy hay không.
+
+```javascript
+{
+  name: String,              // 'recurring-tasks' | 'workload-snapshot'
+  status: String,            // 'running' | 'success' | 'failed'
+  startedAt: Date,
+  finishedAt: Date,
+  result: Mixed,             // ví dụ { generated: 3 } hoặc { date, snapshots }
+  error: String
+}
+```
+
+**Indexes**: `(name, startedAt)`; TTL 90 ngày trên `startedAt`.
+
+---
+
+## 14. Attachments Collection
+
+Tệp đính kèm của một công việc. Ở đây chỉ có siêu dữ liệu; nội dung nằm trong `UPLOAD_DIR`
+(`server/src/services/fileStorage.js`) dưới khóa `storageKey`.
+
+```javascript
+{
+  task: ObjectId → Tasks,
+  companyName: String,
+  originalName: String,      // tên người dùng đặt, có dấu, ≤ 255 ký tự
+  mimeType: String,          // suy từ đuôi tệp, không theo thứ client khai
+  size: Number,              // byte, ≤ 10 MB
+  storageKey: String,        // 32 ký tự hex ngẫu nhiên — select: false, không bao giờ trả ra client
+  uploadedBy: ObjectId → Users,
+  createdAt: Date
+}
+```
+
+**Indexes**: `task`.
+
+Không lưu dự án: việc chuyển được sang dự án khác, nên xóa theo dự án phải đi qua id các việc.
+Xóa việc hoặc xóa dự án (`force`) xóa cả tệp trên đĩa; nhân bản thì không chép tệp.
+`resultReport.attachments` của Tasks là trường cũ (`{ name, url, size }`), không gắn với collection này.
 
 ---
 

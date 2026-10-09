@@ -7,6 +7,10 @@ import i18n from '../src/i18n';
 const state = vi.hoisted(() => ({ auth: null, getDashboard: vi.fn() }));
 vi.mock('../src/context/AuthContext', () => ({ useAuth: () => state.auth }));
 vi.mock('../src/services/analyticsService', () => ({ default: { getDashboard: state.getDashboard } }));
+// Cảnh báo job có bộ test riêng (job-stale-alert); ở đây cho mọi job đúng hạn.
+vi.mock('../src/services/jobService', () => ({
+  default: { getStatus: () => Promise.resolve({ data: { data: { jobs: [] } } }) },
+}));
 const { default: Dashboard } = await import('../src/pages/dashboard/Dashboard');
 
 const data = {

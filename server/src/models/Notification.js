@@ -27,6 +27,8 @@ const notificationSchema = new mongoose.Schema(
         'task_review_requested',
         'task_review_approved',
         'task_review_rejected',
+        'task_failed',
+        'task_deadline_changed',
         'project_updated',
         'project_member_added',
         'optimization_completed',

@@ -26,8 +26,10 @@ function readMailConfig(env = process.env) {
     return { enabled: false, reason: 'đang chạy kiểm thử' };
   }
 
-  // Luôn nạp lại .env mới nhất nếu ở môi trường dev để nhận cấu hình ngay lập tức mà không cần restart server
-  if (env.NODE_ENV !== 'test') {
+  // Nạp lại .env mới nhất ở môi trường dev để nhận cấu hình SMTP mà không cần restart.
+  // Không làm ở production: `override: true` sẽ đè biến môi trường thật của hạ tầng
+  // bằng nội dung một file .env còn sót lại trên máy chủ, mỗi lần gửi mail.
+  if (env.NODE_ENV !== 'production') {
     try {
       dotenv.config({ path: path.join(__dirname, '../../../.env'), override: true });
     } catch {

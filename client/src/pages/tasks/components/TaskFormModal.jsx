@@ -40,6 +40,7 @@ import {
   requiredSkillLevelOptions,
 } from '../../../i18n/enums';
 import { getTaskPermissions } from '../../../utils/taskPermissions';
+import CustomFieldInputs from '../../../components/tasks/CustomFieldInputs';
 
 const { TextArea } = Input;
 
@@ -326,6 +327,9 @@ export default function TaskFormModal({
         <Form.Item name="description" label={t('tasks.form.description') || 'Mô tả chi tiết'}>
           <TextArea rows={3} placeholder="Mô tả công việc..." disabled={!canEditTitleDesc} />
         </Form.Item>
+
+        {/* Trường tùy chỉnh của dự án — cùng quyền sửa với tiêu đề/mô tả */}
+        <CustomFieldInputs project={currentProj} disabled={!canEditTitleDesc} />
 
         {/* Kỹ năng yêu cầu cho thuật toán tối ưu */}
         <Form.Item

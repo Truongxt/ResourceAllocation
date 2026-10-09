@@ -14,6 +14,7 @@ import ReportsScreen from '../screens/reports/ReportsScreen';
 import BenchmarkScreen from '../screens/benchmark/BenchmarkScreen';
 import TaskDetailScreen from '../screens/tasks/TaskDetailScreen';
 import CalendarScreen from '../screens/calendar/CalendarScreen';
+import GanttScreen from '../screens/gantt/GanttScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -75,6 +76,10 @@ export default function AppNavigator() {
             <Stack.Screen
               name="CalendarScreen"
               component={CalendarScreen}
+            />
+            <Stack.Screen
+              name="GanttScreen"
+              component={GanttScreen}
             />
           </>
         )}

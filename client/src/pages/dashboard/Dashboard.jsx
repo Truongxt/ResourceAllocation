@@ -6,6 +6,7 @@ import { ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import analyticsService from '../../services/analyticsService';
 import { taskStatusLabel } from '../../i18n/enums';
 import { useAuth } from '../../context/AuthContext';
+import JobStaleAlert from '../../components/common/JobStaleAlert';
 import { TASK_STATUSES, taskStatusCountKey } from '../../constants';
 import DashboardKpiCards from './components/DashboardKpiCards';
 import DashboardQuickAndRecent from './components/DashboardQuickAndRecent';
@@ -88,6 +89,8 @@ export default function Dashboard() {
           )}
         </Space>
       </header>
+
+      <JobStaleAlert />
 
       {error && (
         <Alert

@@ -22,6 +22,7 @@
 
 const Project = require('../models/Project');
 const Task = require('../models/Task');
+const { inactiveProjectIds } = require('./projectLifecycle.service');
 
 /**
  * Xây dựng các điều kiện lọc MongoDB ($match) tương ứng với quyền của người dùng.
@@ -38,12 +39,16 @@ const Task = require('../models/Task');
 const getUserAnalyticsScope = async (user) => {
   const isGlobalAdmin = user && user.role === 'admin';
   const userCompany = user?.companyName || 'Công ty Công nghệ RAO';
+  // Mẫu nằm ngoài mọi số liệu. Dự án lưu trữ thì KHÔNG loại: việc đã đóng của nó là
+  // lịch sử, ẩn đi thì báo cáo kỳ trước tự đổi số.
+  const templateIds = await inactiveProjectIds(userCompany, { includeArchived: false });
+  const notTemplate = { project: { $nin: templateIds } };
 
   // Trường hợp 1: Admin công ty -> Xem toàn bộ dữ liệu trong phạm vi công ty mình
   if (isGlobalAdmin || !user) {
     return {
-      projectMatch: { companyName: userCompany },
-      taskMatch: { companyName: userCompany },
+      projectMatch: { companyName: userCompany, isTemplate: { $ne: true } },
+      taskMatch: { companyName: userCompany, ...notTemplate },
       resourceMatch: { isActive: true, companyName: userCompany },
       recentOptimizationFilter: { status: 'completed' },
       isGlobalAdmin: true,
@@ -62,6 +67,7 @@ const getUserAnalyticsScope = async (user) => {
   // Bước 2.2: Lọc các dự án mà user có liên quan
   const projectMatch = {
     companyName: userCompany,
+    isTemplate: { $ne: true },
     $or: [
       { manager: user._id },
       { 'members.user': user._id },
@@ -75,6 +81,7 @@ const getUserAnalyticsScope = async (user) => {
 
   // Bước 2.3: Lọc các công việc nằm trong các dự án của user hoặc do user làm/tạo
   const taskMatch = {
+    ...notTemplate,
     $or: [
       { project: { $in: userProjectIds } },
       { assignee: user._id },

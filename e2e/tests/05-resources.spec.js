@@ -65,8 +65,9 @@ test.describe('Quản lý nhân sự', () => {
     await expect(modal).toContainText('Trần Văn Nam');
 
     // Tên kỹ năng nằm trong ô nhập nên không đọc được qua textContent —
-    // phải lấy từ `value` của từng input.
-    const skills = await modal.getByPlaceholder('Tên kỹ năng (VD: React)')
+    // phải lấy từ `value` của từng input. Chỉ khớp phần đầu của placeholder:
+    // phần ví dụ trong ngoặc đã đổi một lần và làm bài này đỏ oan.
+    const skills = await modal.getByPlaceholder('Tên kỹ năng')
       .evaluateAll((inputs) => inputs.map((i) => i.value));
     expect(skills).toEqual(expect.arrayContaining(['React', 'Node.js', 'MongoDB']));
 

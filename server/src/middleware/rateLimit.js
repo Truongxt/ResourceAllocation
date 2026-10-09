@@ -17,7 +17,9 @@ const message = (text) => ({ success: false, message: text });
 
 const authLimiter = rateLimit({
   windowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || minutes(15),
-  max: process.env.NODE_ENV === 'production' ? (Number(process.env.AUTH_RATE_LIMIT_MAX) || 10) : 200,
+  // Khai báo AUTH_RATE_LIMIT_MAX thì luôn dùng nó. Bỏ trống thì production chặt
+  // (10), còn dev nới ra 200 để gõ sai mật khẩu vài lần không bị khoá cả buổi.
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX) || (process.env.NODE_ENV === 'production' ? 10 : 200),
   standardHeaders: true,
   legacyHeaders: false,
   // Chỉ đếm lần thất bại: đăng nhập đúng liên tục không bị khoá.

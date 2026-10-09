@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { toSearchRegex } = require('../utils/escapeRegex');
 const Task = require('../models/Task');
 const Project = require('../models/Project');
 const User = require('../models/User');
@@ -6,8 +7,22 @@ const TaskGroup = require('../models/TaskGroup');
 const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
+const { createDeniedReason } = require('../middleware/taskAccess');
+const { placementError, inactiveProjectIds } = require('../services/projectLifecycle.service');
+const { removeAttachments } = require('../services/attachment.service');
+const { mergeCustomValues, customValueFilter } = require('../services/customFields.service');
+const {
+  DEFAULT_COMPANY,
+  companyOf,
+  stripProtected,
+  usersError,
+  projectRef,
+  taskGroupError,
+  taskRefsError,
+} = require('../services/companyRefs.service');
 const {
   validateStatusTransition,
+  statusChangeFields,
   resolveReviewers,
   isReviewOverdue,
   CLOSED_STATUSES,
@@ -21,6 +36,19 @@ const {
   parseTaskExcelBuffer,
   importTasksFromExcel,
 } = require('../services/excelTaskImport.service');
+
+/**
+ * Vết của luồng trạng thái — chỉ server ghi, qua `statusChangeFields`, `completeTask` và
+ * `reviewTask`. `PUT /:id` gỡ chúng khỏi body.
+ */
+const STATUS_TRAIL_FIELDS = [
+  'completedAt', 'failedAt', 'failedBy',
+  'reviewRequestedAt', 'reviewedAt', 'reviewedBy', 'reviewDecision', 'reviewComment',
+];
+
+/** Điều kiện `companyName` của một công ty — công ty mặc định gồm cả bản ghi cũ thiếu trường. */
+const companyProjectScope = (company) =>
+  company === DEFAULT_COMPANY ? { $in: [company, null, undefined] } : company;
 
 /**
  * Helper: Tính lại progress dự án dựa trên tasks
@@ -39,6 +67,52 @@ const recalculateProjectProgress = async (projectId) => {
   const progress = Math.round(total / counted.length);
   await Project.findByIdAndUpdate(projectId, { progress });
 };
+
+/** `dd/mm/yyyy` theo giờ server — dùng trong nội dung thông báo. */
+const formatDay = (value) => {
+  if (!value) return 'chưa có';
+  const d = new Date(value);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+};
+
+/**
+ * Báo cho người thực hiện và người theo dõi của một công việc, trừ chính người thao tác.
+ * `followers`/`assignee` có thể là id hoặc object đã populate.
+ */
+const notifyTaskPeople = (task, actor, { type, title, message }) => {
+  const idOf = (v) => String(v?._id || v);
+  const actorId = String(actor._id);
+  const recipients = new Set(
+    [...(task.followers || []), task.assignee].filter(Boolean).map(idOf).filter((id) => id !== actorId)
+  );
+  recipients.forEach((recipient) => {
+    sendNotification({
+      recipient,
+      actor: actor._id,
+      type,
+      title,
+      message,
+      entityType: 'task',
+      entityId: task._id,
+      link: '/tasks',
+    });
+  });
+};
+
+// Việc đóng lại với kết quả xấu: người theo dõi cũng cần biết, và cần biết vì sao.
+const notifyTaskFailed = (task, actor) =>
+  notifyTaskPeople(task, actor, {
+    type: 'task_failed',
+    title: 'Công việc thất bại',
+    message: `${actor.name} đánh dấu "${task.title}" là Thất bại. Lý do: ${task.failureReason}`,
+  });
+
+const notifyDeadlineChanged =(task, actor, oldEndDate, newEndDate, reason) =>
+  notifyTaskPeople(task, actor, {
+    type: 'task_deadline_changed',
+    title: 'Đổi hạn công việc',
+    message: `${actor.name} đổi hạn "${task.title}": ${formatDay(oldEndDate)} → ${formatDay(newEndDate)}${reason ? `. Lý do: ${reason}` : ''}`,
+  });
 
 /**
  * Công việc này có thuộc công ty của người gọi không.
@@ -65,7 +139,10 @@ const belongsToCompany = (task, user) => {
  */
 const getTasks = async (req, res, next) => {
   try {
-    const filter = {};
+    // `cf_<key>=<giá trị>`: lọc theo trường tùy chỉnh. Kiểm `key` trước khi ghép vào đường dẫn.
+    const custom = customValueFilter(req.query);
+    if (custom.error) return res.status(400).json({ success: false, message: custom.error });
+    const filter = { ...custom.filter };
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
 
     const companyProjects = await Project.find({
@@ -193,7 +270,7 @@ const getTasks = async (req, res, next) => {
     }
 
     if (req.query.search) {
-      const regex = new RegExp(req.query.search, 'i');
+      const regex = toSearchRegex(req.query.search);
       const searchOr = [{ title: regex }, { description: regex }];
       if (filter.$and) {
         filter.$and.push({ $or: searchOr });
@@ -210,6 +287,15 @@ const getTasks = async (req, res, next) => {
       filter.parentTask = req.query.parentTask;
     } else if (req.query.includeSubtasks !== 'true') {
       filter.parentTask = { $in: [null, undefined] };
+    }
+
+    // Mẫu và dự án lưu trữ rút khỏi danh sách mặc định. Lọc đích danh `?project=` thì
+    // vẫn xem được — trang chi tiết dự án lưu trữ, Gantt của một mẫu.
+    if (!req.query.project) {
+      const inactive = await inactiveProjectIds(companyProjectScope(userCompany));
+      if (inactive.length) {
+        filter.$and = [...(filter.$and || []), { project: { $nin: inactive } }];
+      }
     }
 
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -257,7 +343,7 @@ const getTasks = async (req, res, next) => {
 const getTaskById = async (req, res, next) => {
   try {
     const task = await Task.findById(req.params.id)
-      .populate('project', 'name code status members manager permissions failureConfig reviewConfig companyName')
+      .populate('project', 'name code status members manager permissions failureConfig reviewConfig companyName isArchived customFields')
       .populate('assignee', 'name email avatar department')
       .populate('dependencies.task', 'title status priority startDate endDate progress')
       .populate('taskGroup', 'name color order')
@@ -289,7 +375,8 @@ const getTaskById = async (req, res, next) => {
       .populate('assignee', 'name email avatar')
       .select('title status priority progress startDate endDate assignee estimatedHours actualHours');
 
-    const taskObj = task.toObject();
+    // `flattenMaps`: `customValues` là Map, để nguyên thì JSON hóa thành `{}`.
+    const taskObj = task.toObject({ flattenMaps: true });
     taskObj.subtasks = subtasks;
 
     res.json({
@@ -376,6 +463,15 @@ const createTask = async (req, res, next) => {
       });
     }
 
+    const placement = placementError(project, { assignee: req.body.assignee });
+    if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
+
+    // assignee/followers/reviewers phải cùng công ty, taskGroup/parentTask phải cùng dự án
+    const refError = await taskRefsError(req.body, { projectId: project._id, company: companyOf(project) });
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
+    }
+
     const depError = await validateDependencies(req.body.dependencies, {
       taskId: null,
       projectId: project._id,
@@ -391,8 +487,22 @@ const createTask = async (req, res, next) => {
       req.body.dependencies = normalized.value;
     }
 
+    // Có body `customValues` hay không cũng phải kiểm: dự án có trường bắt buộc thì tạo việc
+    // thiếu nó là sai, dù client không biết gì về trường tùy chỉnh.
+    const custom = mergeCustomValues(project.customFields, req.body.customValues, {});
+    if (custom.error) return res.status(400).json({ success: false, message: custom.error });
+    req.body.customValues = Object.keys(custom.values).length ? custom.values : undefined;
+
     const taskData = {
       ...req.body,
+      // Gắn công ty theo DỰ ÁN chứa nó, như `createSubtask` gắn theo task cha.
+      //
+      // Thiếu dòng này, mọi công việc đều rơi vào `default` của schema là
+      // "Công ty Công nghệ RAO", bất kể nó thuộc công ty nào. Trang Công việc không
+      // lộ ra vì nó lọc theo công ty của *dự án*, nhưng `optimization.controller`
+      // lọc thẳng theo `Task.companyName`: chạy tối ưu phạm vi toàn công ty báo 0
+      // công việc trong khi chạy theo từng dự án vẫn thấy đủ.
+      companyName: project.companyName || userCompany,
       createdBy: req.user._id,
     };
 
@@ -483,6 +593,16 @@ const updateTask = async (req, res, next) => {
       });
     }
 
+    const placement = placementError(project, { assignee: req.body.assignee });
+    if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
+
+    // Không cho đổi công ty qua body, và mọi tham chiếu mới phải cùng công ty/dự án
+    stripProtected(req.body);
+    const refError = await taskRefsError(req.body, { projectId: task.project, company: companyOf(project) });
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
+    }
+
     if (req.body.dependencies !== undefined) {
       const depError = await validateDependencies(req.body.dependencies, {
         taskId: task._id,
@@ -498,9 +618,36 @@ const updateTask = async (req, res, next) => {
       req.body.dependencies = normalized.value;
     }
 
-    // Auto-set progress to 100 when status changed to done
-    if (req.body.status === 'done' && task.status !== 'done') {
-      req.body.progress = 100;
+    // Vết của luồng trạng thái chỉ do server ghi. Nhận từ body thì gửi `completedAt` sớm
+    // hơn deadline là biến việc trễ thành đúng hạn trong báo cáo kết quả.
+    STATUS_TRAIL_FIELDS.forEach((field) => delete req.body[field]);
+    const failureReason = req.body.failureReason;
+    delete req.body.failureReason;
+
+    // Form sửa công việc luôn gửi kèm `status`. Khi nó thật sự đổi trạng thái thì phải
+    // qua đúng chốt của PATCH /:id/status — thiếu đoạn này, PUT là đường vòng qua cả ba
+    // lớp chặn (đánh giá, lý do Thất bại, dự án bật Thất bại) và không ghi vết nào.
+    const statusChanging = req.body.status !== undefined && req.body.status !== task.status;
+    if (statusChanging) {
+      const check = validateStatusTransition({
+        currentStatus: task.status,
+        nextStatus: req.body.status,
+        project,
+        failureReason,
+        isReviewer: canApproveReview(task, project, req.user),
+      });
+      if (!check.valid) {
+        return res.status(400).json({ success: false, message: check.message });
+      }
+      Object.assign(req.body, statusChangeFields({ task, nextStatus: req.body.status, failureReason, userId: req.user._id }));
+    }
+
+    // Chỉ kiểm (cả trường bắt buộc) khi lần sửa này có đụng tới `customValues`: đổi trạng thái
+    // hay kéo Kanban không được bị chặn vì dự án vừa thêm một trường bắt buộc.
+    if (req.body.customValues !== undefined) {
+      const custom = mergeCustomValues(project?.customFields, req.body.customValues, task.customValues);
+      if (custom.error) return res.status(400).json({ success: false, message: custom.error });
+      req.body.customValues = custom.values;
     }
 
     const updateData = { ...req.body };
@@ -576,6 +723,15 @@ const updateTask = async (req, res, next) => {
       });
     }
 
+    // Cùng điều kiện với việc ghi `deadlineHistory` ở trên: gửi lại đúng ngày cũ thì im.
+    const deadlineEntry = updateData.$push?.deadlineHistory;
+    if (deadlineEntry) {
+      notifyDeadlineChanged(updatedTask, req.user, deadlineEntry.oldEndDate, deadlineEntry.newEndDate, req.body.deadlineReason);
+    }
+    if (statusChanging && updatedTask.status === 'failed') {
+      notifyTaskFailed(updatedTask, req.user);
+    }
+
     logActivity({
       req,
       action: 'UPDATE_TASK',
@@ -639,21 +795,7 @@ const updateTaskStatus = async (req, res, next) => {
       return res.status(400).json({ success: false, message: check.message });
     }
 
-    const updateData = { status };
-    if (status === 'done') updateData.progress = 100;
-    if (status === 'todo') updateData.progress = 0;
-
-    if (status === 'failed') {
-      updateData.failureReason = String(failureReason).trim();
-      updateData.failedAt = new Date();
-      updateData.failedBy = req.user._id;
-    } else if (task.status === 'failed') {
-      // Mở lại việc đã đóng: xóa vết thất bại cũ, nếu không báo cáo sẽ đọc được một
-      // công việc 'đang làm' mà vẫn kèm lý do thất bại từ lần trước.
-      updateData.failureReason = '';
-      updateData.failedAt = null;
-      updateData.failedBy = null;
-    }
+    const updateData = statusChangeFields({ task, nextStatus: status, failureReason, userId: req.user._id });
 
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
@@ -669,8 +811,10 @@ const updateTaskStatus = async (req, res, next) => {
       await syncResourceWorkload(task.assignee);
     }
 
-    // Notify assignee if status changed by someone else
-    if (
+    if (status === 'failed') {
+      // Thay hẳn thông báo đổi trạng thái chung bên dưới, để không ai nhận hai lần.
+      notifyTaskFailed(updatedTask, req.user);
+    } else if (
       updatedTask.assignee &&
       updatedTask.assignee._id.toString() !== req.user._id.toString()
     ) {
@@ -739,6 +883,7 @@ const deleteTask = async (req, res, next) => {
     );
 
     await task.deleteOne();
+    await removeAttachments({ task: task._id });
 
     // Recalculate project progress
     await recalculateProjectProgress(projectId);
@@ -813,6 +958,10 @@ const getTaskSummary = async (req, res, next) => {
       } else {
         filter.project = req.query.project;
       }
+    } else {
+      // Cùng luật với `getTasks`: mẫu và dự án lưu trữ không nằm trong số liệu mặc định.
+      const inactive = await inactiveProjectIds(companyProjectScope(userCompany));
+      if (inactive.length) filter.$and = [...(filter.$and || []), { project: { $nin: inactive } }];
     }
 
     if (!req.query.includeSubtasks) {
@@ -974,6 +1123,9 @@ const addChecklistItem = async (req, res, next) => {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
 
+    const refError = await usersError(assignee, companyOf(req.user));
+    if (refError) return res.status(400).json({ success: false, message: refError });
+
     const order = task.checklist.length;
     task.checklist.push({ title: title.trim(), assignee: assignee || null, order });
     await task.save();
@@ -1094,6 +1246,11 @@ const addFollower = async (req, res, next) => {
         message: 'Danh sách có người dùng không tồn tại',
       });
     }
+    // Người theo dõi nhận thông báo về công việc — người công ty khác thì không được
+    const companyError = await usersError(toAdd, companyOf(req.user));
+    if (companyError) {
+      return res.status(400).json({ success: false, message: companyError });
+    }
 
     if (current.size + toAdd.length > Task.MAX_FOLLOWERS) {
       return res.status(400).json({
@@ -1208,6 +1365,13 @@ const createSubtask = async (req, res, next) => {
     if (!title || !title.trim()) {
       return res.status(400).json({ success: false, message: 'Tiêu đề việc con là bắt buộc' });
     }
+
+    const refError = await usersError([assignee, ...(Array.isArray(followers) ? followers : [])], companyOf(req.user));
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
+    }
+    const placement = placementError(await Project.findById(parent.project).select('isArchived isTemplate'), { assignee });
+    if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
 
     const subtask = await Task.create({
       title: title.trim(),
@@ -1369,15 +1533,37 @@ const duplicateTask = async (req, res, next) => {
 
     const { targetProjectId, targetTaskGroupId, newTitle } = req.body;
     const targetProject = targetProjectId || original.project;
-    const targetGroup = targetTaskGroupId !== undefined ? targetTaskGroupId : original.taskGroup;
+    // Nhóm của bản gốc chỉ còn hợp lệ khi bản sao vẫn ở dự án cũ
+    const changesProject = Boolean(targetProjectId) && String(targetProjectId) !== String(original.project);
+    const targetGroup = targetTaskGroupId !== undefined ? targetTaskGroupId : changesProject ? null : original.taskGroup;
+
+    // Cùng luật với `moveTask`: dự án đích đi trong body nên phải tự kiểm — nhân bản
+    // sang dự án công ty khác là chép nguyên nội dung công việc cho công ty đó đọc.
+    let targetCompany = original.companyName;
+    // Nhân bản vào mẫu thì bỏ người: việc trong mẫu không bao giờ có người thực hiện.
+    let intoTemplate = false;
+    if (changesProject) {
+      const { error, status, project } = await projectRef(targetProjectId, companyOf(req.user));
+      if (error) return res.status(status || 400).json({ success: false, message: error });
+      const denied = createDeniedReason(req.user, project);
+      if (denied) {
+        return res.status(403).json({ success: false, message: `Không thể nhân bản sang dự án này: ${denied}` });
+      }
+      const placement = placementError(project);
+      if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
+      intoTemplate = Boolean(project.isTemplate);
+      targetCompany = companyOf(project);
+    }
+    const groupError = await taskGroupError(targetGroup, targetProject);
+    if (groupError) return res.status(400).json({ success: false, message: groupError });
 
     const duplicated = await Task.create({
       title: newTitle || `${original.title} (Bản sao)`,
       description: original.description,
       project: targetProject,
       taskGroup: targetGroup || null,
-      assignee: original.assignee,
-      followers: original.followers,
+      assignee: intoTemplate ? null : original.assignee,
+      followers: intoTemplate ? [] : original.followers,
       priority: original.priority,
       status: 'todo',
       progress: 0,
@@ -1385,13 +1571,15 @@ const duplicateTask = async (req, res, next) => {
       startDate: new Date(),
       endDate: original.endDate,
       requiredSkills: original.requiredSkills,
+      // Giá trị trường tùy chỉnh bám theo định nghĩa của dự án: sang dự án khác thì bỏ.
+      customValues: changesProject ? undefined : original.customValues,
       checklist: (original.checklist || []).map((c) => ({
         title: c.title,
         assignee: c.assignee,
         isCompleted: false,
         order: c.order,
       })),
-      companyName: original.companyName,
+      companyName: targetCompany,
       createdBy: req.user._id,
     });
 
@@ -1405,7 +1593,7 @@ const duplicateTask = async (req, res, next) => {
           project: targetProject,
           taskGroup: targetGroup || null,
           parentTask: duplicated._id,
-          assignee: sub.assignee,
+          assignee: intoTemplate ? null : sub.assignee,
           priority: sub.priority,
           status: 'todo',
           progress: 0,
@@ -1414,7 +1602,7 @@ const duplicateTask = async (req, res, next) => {
             title: c.title,
             isCompleted: false,
           })),
-          companyName: sub.companyName,
+          companyName: targetCompany,
           createdBy: req.user._id,
         });
       }
@@ -1454,6 +1642,23 @@ const moveTask = async (req, res, next) => {
       if (!targetProject) {
         return res.status(404).json({ success: false, message: 'Không tìm thấy dự án đích' });
       }
+
+      // `canMoveTask` và `router.param('id')` chỉ soi công việc NGUỒN; dự án đích đi
+      // trong body nên phải tự kiểm. Chuyển việc vào dự án cũng là thêm việc vào đó,
+      // nên dùng đúng luật của tạo mới — kể cả chốt công ty áp cho admin/PM.
+      const userCompany = req.user.companyName || 'Công ty Công nghệ RAO';
+      if (targetProject.companyName && targetProject.companyName !== userCompany && req.user.role !== 'superadmin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Không thể chuyển công việc sang dự án của công ty khác',
+        });
+      }
+      const denied = createDeniedReason(req.user, targetProject);
+      if (denied) {
+        return res.status(403).json({ success: false, message: `Không thể chuyển sang dự án này: ${denied}` });
+      }
+      const placement = placementError(targetProject, { assignee: task.assignee });
+      if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
 
       // Tiền nhiệm của task giữ nguyên tham chiếu tới dự án cũ khi chuyển dự án
       // — cùng lỗi mà POST /tasks đã chặn bằng 400, nên chuyển dự án cũng phải
@@ -1500,6 +1705,20 @@ const moveTask = async (req, res, next) => {
       }
 
       task.project = targetProjectId;
+      // Định nghĩa trường tùy chỉnh thuộc dự án cũ: giữ lại thì thành giá trị mồ côi.
+      task.customValues = undefined;
+    }
+
+    // Nhóm đích phải thuộc đúng dự án mà công việc sẽ nằm sau khi chuyển — nếu không,
+    // công việc "thuộc" một dự án nhưng nằm trong nhóm của dự án khác (kể cả công ty khác).
+    if (targetTaskGroupId) {
+      const group = await TaskGroup.findById(targetTaskGroupId).select('project');
+      if (!group || String(group.project) !== String(task.project)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Nhóm công việc đích không thuộc dự án của công việc',
+        });
+      }
     }
     if (targetTaskGroupId !== undefined) task.taskGroup = targetTaskGroupId || null;
 
@@ -1555,8 +1774,11 @@ const updateDeadline = async (req, res, next) => {
       changedAt: new Date(),
     });
 
+    const oldEndDate = task.endDate;
     task.endDate = new Date(newEndDate);
     await task.save();
+
+    notifyDeadlineChanged(task, req.user, oldEndDate, task.endDate, reason);
 
     const populated = await Task.findById(task._id)
       .populate('deadlineHistory.changedBy', 'name email avatar');
@@ -1578,7 +1800,20 @@ const updateDeadline = async (req, res, next) => {
  */
 const downloadExcelTemplate = async (req, res, next) => {
   try {
-    const buffer = generateTaskTemplateWorkbook();
+    // `?project=`: mẫu kèm sẵn các cột trường tùy chỉnh của dự án đó (cùng công ty mới được đọc).
+    let customFields = [];
+    if (req.query.project) {
+      if (!mongoose.isValidObjectId(req.query.project)) {
+        return res.status(400).json({ success: false, message: 'ID dự án không hợp lệ' });
+      }
+      const project = await Project.findById(req.query.project).select('companyName customFields');
+      const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+      if (!project || (project.companyName && project.companyName !== userCompany)) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
+      }
+      customFields = project.customFields || [];
+    }
+    const buffer = generateTaskTemplateWorkbook(customFields);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="Mau_Cong_Viec_Base_Wework.xlsx"');
     res.send(buffer);
@@ -1623,12 +1858,34 @@ const importExcelTasks = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Vui lòng chọn dự án tiếp nhận công việc' });
     }
 
-    const companyName = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    // Cùng hai chốt như `createTask`. `projectId` đi trong form multipart nên
+    // `router.param('id')` không che được — thiếu đoạn này thì công ty khác ghi
+    // được hàng loạt công việc vào dự án chỉ bằng id.
+    const project = await Project.findById(projectId).select('companyName isArchived isTemplate customFields');
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
+    }
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (project.companyName && project.companyName !== userCompany && req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền nhập công việc vào dự án của công ty khác',
+      });
+    }
+
+    const placement = placementError(project);
+    if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
+
+    // Gắn công ty theo dự án chứa công việc, như `createTask`
+    const companyName = project.companyName || userCompany;
     const result = await importTasksFromExcel({
       buffer: req.file.buffer,
       projectId,
       companyName,
       createdBy: req.user._id,
+      // Nhập vào mẫu thì bỏ cột người thực hiện và người theo dõi.
+      withoutPeople: Boolean(project.isTemplate),
+      customFields: project.customFields || [],
     });
 
     logActivity({
@@ -1966,7 +2223,7 @@ const getPendingReviews = async (req, res, next) => {
       .map((task) => {
         const project = projectMap.get(String(task.project?._id || task.project));
         return {
-          ...task.toObject(),
+          ...task.toObject({ flattenMaps: true }),
           slaHours: project?.reviewConfig?.slaHours || 24,
           isOverdueReview: isReviewOverdue(task, project, now),
           waitingHours: task.reviewRequestedAt
@@ -2095,6 +2352,11 @@ const bulkReassign = async (req, res, next) => {
         success: false,
         message: 'Không bàn giao được cho tài khoản đã bị vô hiệu hóa',
       });
+    }
+    // Tập việc đã giới hạn trong công ty, nhưng người NHẬN thì chưa
+    const recipientError = await usersError(toUserId, companyOf(req.user));
+    if (recipientError) {
+      return res.status(400).json({ success: false, message: recipientError });
     }
 
     const scopeIds = await companyProjectIds(req.user);

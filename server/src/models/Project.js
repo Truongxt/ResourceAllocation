@@ -1,5 +1,17 @@
 const mongoose = require('mongoose');
 
+/**
+ * Phòng ban vận hành (`kind: 'team'`) chạy vô thời hạn nên không bắt buộc ngày.
+ *
+ * Ở ngữ cảnh update (`findByIdAndUpdate` với `runValidators`) `this` là Query, không
+ * đọc được `kind` của bản ghi — trả `true` ở đó sẽ chặn nhầm việc gỡ `endDate` khi
+ * chuyển sang team. `updateProject` tự kiểm sau khi gộp bản ghi cũ với payload.
+ */
+function datesRequired() {
+  if (this instanceof mongoose.Query) return false;
+  return this.kind !== 'team';
+}
+
 const projectSchema = new mongoose.Schema(
   {
     name: {
@@ -31,13 +43,23 @@ const projectSchema = new mongoose.Schema(
       enum: ['low', 'medium', 'high', 'critical'],
       default: 'medium',
     },
+    // Base Wework tách Phòng ban (team, vô thời hạn) khỏi Dự án (có ngày kết thúc).
+    // Không tách model: tải và tối ưu hóa đọc task theo ngày của chính task, nên việc
+    // thường ngày của team tự vào tải mà không cần sửa tầng tính toán.
+    kind: {
+      type: String,
+      enum: ['project', 'team'],
+      default: 'project',
+    },
     startDate: {
       type: Date,
-      required: [true, 'Ngày bắt đầu là bắt buộc'],
+      required: [datesRequired, 'Ngày bắt đầu là bắt buộc'],
     },
+    // Team không bao giờ lưu trường này — kể cả `null`, vì client gọi `dayjs(null)`
+    // sẽ ra Invalid Date thay vì "không có hạn".
     endDate: {
       type: Date,
-      required: [true, 'Ngày kết thúc là bắt buộc'],
+      required: [datesRequired, 'Ngày kết thúc là bắt buộc'],
     },
     budget: {
       type: Number,
@@ -110,12 +132,35 @@ const projectSchema = new mongoose.Schema(
       trim: true,
       default: '#6366f1',
     },
-    // Base Wework: Mẫu dự án (Template)
+    // Base Wework: bộ nhóm việc dựng sẵn lúc tạo dự án ('agile_scrum' | 'marketing' |
+    // 'standard'). KHÔNG phải dự án mẫu — dự án mẫu là `isTemplate` bên dưới.
     template: {
       type: String,
       trim: true,
       default: null,
     },
+    // Vòng đời: dự án lưu trữ bị ẩn khỏi danh sách mặc định và chỉ đọc. Chỉ lưu trữ
+    // được khi không còn việc mở, nên tải nhân sự không đổi ngầm. Truy vấn loại trừ
+    // dùng `{ $ne: true }` để bản ghi cũ thiếu trường vẫn tính là đang hoạt động.
+    isArchived: { type: Boolean, default: false, index: true },
+    archivedAt: { type: Date, default: null },
+    archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    // Dự án mẫu: chỉ để nhân bản ra dự án thật. Nằm ngoài mọi tính toán (danh sách,
+    // tải, tối ưu, báo cáo), và việc trong mẫu không bao giờ có người thực hiện.
+    isTemplate: { type: Boolean, default: false, index: true },
+    // Trường dữ liệu tùy chỉnh cho công việc của dự án. Chỉ ghi qua
+    // `PUT /projects/:id/custom-fields` — xem services/customFields.service.js.
+    customFields: [
+      {
+        _id: false,
+        key: { type: String, required: true },
+        name: { type: String, required: true, trim: true },
+        type: { type: String, enum: ['text', 'number', 'date', 'select'], required: true },
+        options: { type: [String], default: [] },
+        required: { type: Boolean, default: false },
+        order: { type: Number, default: 0 },
+      },
+    ],
     // Base Wework: Cấu hình phân quyền thao tác trong dự án
     permissions: {
       allowAssigneeEditDeadline: { type: Boolean, default: false },

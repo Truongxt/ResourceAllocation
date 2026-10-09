@@ -1,9 +1,22 @@
 const Project = require('../models/Project');
+const { toSearchRegex } = require('../utils/escapeRegex');
 const Task = require('../models/Task');
 const TaskGroup = require('../models/TaskGroup');
 const User = require('../models/User');
 const CompanySetting = require('../models/CompanySetting');
 const { logActivity } = require('../services/activityLog.service');
+const { stripProtected, usersError, departmentError } = require('../services/companyRefs.service');
+const { archiveBlocker, cloneProject } = require('../services/projectLifecycle.service');
+const { removeAttachments } = require('../services/attachment.service');
+const { normalizeFieldDefinitions } = require('../services/customFields.service');
+
+/** Quản lý, thành viên và phòng ban gửi lên phải cùng công ty với dự án. */
+const projectRefsError = async ({ manager, members, department }, company) => {
+  const users = [];
+  if (manager) users.push(manager);
+  if (Array.isArray(members)) users.push(...members.map((m) => m.user));
+  return (await usersError(users, company)) || (await departmentError(department, company));
+};
 
 const buildProjectQuery = async (query, user) => {
   const filter = {};
@@ -42,7 +55,7 @@ const buildProjectQuery = async (query, user) => {
   }
 
   if (query.search) {
-    const searchRegex = new RegExp(query.search, 'i');
+    const searchRegex = toSearchRegex(query.search);
     const searchFilter = [{ name: searchRegex }, { code: searchRegex }, { description: searchRegex }];
     if (filter.$or) {
       filter.$and = [
@@ -59,6 +72,15 @@ const buildProjectQuery = async (query, user) => {
     filter.startDate = {};
     if (query.startDate) filter.startDate.$gte = new Date(query.startDate);
     if (query.endDate) filter.startDate.$lte = new Date(query.endDate);
+  }
+
+  // Vòng đời: mặc định chỉ dự án đang chạy. `archived=true` là kho lưu trữ,
+  // `templates=true` là danh sách mẫu. `$ne: true` để bản ghi cũ thiếu trường vẫn hiện.
+  if (query.templates === 'true') {
+    filter.isTemplate = true;
+  } else {
+    filter.isTemplate = { $ne: true };
+    filter.isArchived = query.archived === 'true' ? true : { $ne: true };
   }
 
   return filter;
@@ -114,6 +136,13 @@ const getProjects = async (req, res, next) => {
               $cond: [{ $eq: ['$status', 'done'] }, 1, 0],
             },
           },
+          // Đúng tập trạng thái tối ưu hóa đọc (`loadOptimizationData`): client dựa vào
+          // con số này để chọn sẵn dự án chạy được, thay vì để người dùng nhận 400.
+          openTasks: {
+            $sum: {
+              $cond: [{ $in: ['$status', ['todo', 'in_progress', 'review']] }, 1, 0],
+            },
+          },
         },
       },
     ]);
@@ -122,6 +151,7 @@ const getProjects = async (req, res, next) => {
       acc[stat._id.toString()] = {
         totalTasks: stat.totalTasks,
         completedTasks: stat.completedTasks,
+        openTasks: stat.openTasks,
       };
       return acc;
     }, {});
@@ -131,6 +161,7 @@ const getProjects = async (req, res, next) => {
       json.taskStats = statsMap[project._id.toString()] || {
         totalTasks: 0,
         completedTasks: 0,
+        openTasks: 0,
       };
       return json;
     });
@@ -220,6 +251,8 @@ const createProject = async (req, res, next) => {
       });
     }
 
+    // Định nghĩa trường tùy chỉnh chỉ ghi qua PUT /:id/custom-fields, nơi có kiểm.
+    delete req.body.customFields;
     const managerId = req.body.manager || req.user._id;
 
     // Chuẩn hóa danh sách thành viên thực hiện dự án (nếu được truyền)
@@ -240,6 +273,14 @@ const createProject = async (req, res, next) => {
       }
     }
 
+    const refError = await projectRefsError(
+      { manager: req.body.manager, members: formattedMembers, department: req.body.department },
+      userCompany
+    );
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
+    }
+
     const projectData = {
       ...req.body,
       department: req.body.department || null,
@@ -251,6 +292,8 @@ const createProject = async (req, res, next) => {
       color: req.body.color || '#6366f1',
       template: req.body.template || null,
     };
+    // Phòng ban vận hành không có hạn: ngày kết thúc gửi kèm (form cũ, import) bị bỏ.
+    if (projectData.kind === 'team') delete projectData.endDate;
 
     const project = await Project.create(projectData);
 
@@ -337,8 +380,10 @@ const updateProject = async (req, res, next) => {
       });
     }
 
-    const updateData = { ...req.body };
-    delete updateData.createdBy;
+    // `companyName` gửi lên trước đây chuyển được cả dự án sang công ty khác
+    const updateData = stripProtected({ ...req.body });
+    // Định nghĩa trường tùy chỉnh chỉ ghi qua PUT /:id/custom-fields, nơi có kiểm.
+    delete updateData.customFields;
 
     if (Array.isArray(req.body.members)) {
       const formattedMembers = req.body.members
@@ -373,6 +418,28 @@ const updateProject = async (req, res, next) => {
     }
     if (req.body.template !== undefined) {
       updateData.template = req.body.template;
+    }
+
+    // Ngày bắt buộc hay không phụ thuộc loại SAU khi sửa, mà validator của schema
+    // không đọc được bản ghi cũ ở ngữ cảnh update — nên kiểm ở đây.
+    const nextKind = updateData.kind || project.kind || 'project';
+    if (nextKind === 'team') {
+      // Gỡ hẳn chứ không gán null: client gọi `dayjs(null)` sẽ ra Invalid Date.
+      delete updateData.endDate;
+      updateData.$unset = { endDate: 1 };
+    } else if (!(updateData.startDate || project.startDate) || !(updateData.endDate || project.endDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dự án có thời hạn cần ngày bắt đầu và ngày kết thúc',
+      });
+    }
+
+    const refError = await projectRefsError(
+      { manager: updateData.manager, members: updateData.members, department: updateData.department },
+      userCompany
+    );
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
     }
 
     const updatedProject = await Project.findByIdAndUpdate(req.params.id, updateData, {
@@ -427,6 +494,13 @@ const quickEditProject = async (req, res, next) => {
     }
 
     const { name, department, status, priority, manager } = req.body;
+    const refError = await projectRefsError(
+      { manager, department: department === 'unassigned' ? null : department },
+      userCompany
+    );
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
+    }
     if (name !== undefined) project.name = name;
     if (department !== undefined) {
       project.department = (department === '' || department === 'unassigned' || department === null) ? null : department;
@@ -489,6 +563,9 @@ const deleteProject = async (req, res, next) => {
     }
 
     if (req.query.force === 'true') {
+      // Tệp đính kèm trước, khi còn biết việc nào thuộc dự án — xóa việc rồi thì tệp thành mồ côi.
+      const taskIds = await Task.find({ project: req.params.id }).distinct('_id');
+      await removeAttachments({ task: { $in: taskIds } });
       await Task.deleteMany({ project: req.params.id });
     }
 
@@ -670,6 +747,10 @@ const getProjectSummary = async (req, res, next) => {
       ];
     }
 
+    // Cùng luật với danh sách mặc định: chỉ đếm dự án đang chạy.
+    match.isTemplate = { $ne: true };
+    match.isArchived = { $ne: true };
+
     const [statusStats, priorityStats, totals] = await Promise.all([
       Project.aggregate([
         { $match: match },
@@ -754,6 +835,10 @@ const updateProjectPermissions = async (req, res, next) => {
     }
 
     if (req.body.reviewConfig) {
+      const reviewerError = await usersError(req.body.reviewConfig.reviewers || [], userCompany);
+      if (reviewerError) {
+        return res.status(400).json({ success: false, message: reviewerError });
+      }
       project.reviewConfig = {
         ...(project.reviewConfig?.toObject ? project.reviewConfig.toObject() : project.reviewConfig),
         ...req.body.reviewConfig,
@@ -778,7 +863,178 @@ const updateProjectPermissions = async (req, res, next) => {
   }
 };
 
+/** Dự án của công ty người gọi, hoặc gửi luôn response lỗi và trả `null`. */
+const loadOwnProject = async (req, res) => {
+  const project = await Project.findById(req.params.id);
+  if (!project) {
+    res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
+    return null;
+  }
+  const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+  if (project.companyName && project.companyName !== userCompany) {
+    res.status(403).json({ success: false, message: 'Không có quyền thao tác trên dự án của công ty khác' });
+    return null;
+  }
+  return project;
+};
+
+/**
+ * @desc    Lưu trữ dự án — ẩn khỏi danh sách mặc định, chỉ đọc
+ * @route   POST /api/projects/:id/archive
+ * @access  Admin, PM
+ */
+const archiveProject = async (req, res, next) => {
+  try {
+    const project = await loadOwnProject(req, res);
+    if (!project) return;
+    if (project.isTemplate) {
+      return res.status(400).json({ success: false, message: 'Dự án mẫu không lưu trữ được — xóa mẫu nếu không cần nữa' });
+    }
+    if (!project.isArchived) {
+      const blocker = await archiveBlocker(project._id);
+      if (blocker) return res.status(409).json({ success: false, message: blocker });
+      project.isArchived = true;
+      project.archivedAt = new Date();
+      project.archivedBy = req.user._id;
+      await project.save();
+      logActivity({
+        req, action: 'ARCHIVE_PROJECT', entityType: 'project', entityId: project._id, entityTitle: project.name,
+        description: `Lưu trữ dự án "${project.name}"`,
+      });
+    }
+    res.json({ success: true, data: { project }, message: 'Đã lưu trữ dự án' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Mở lại dự án đã lưu trữ
+ * @route   POST /api/projects/:id/unarchive
+ * @access  Admin, PM
+ */
+const unarchiveProject = async (req, res, next) => {
+  try {
+    const project = await loadOwnProject(req, res);
+    if (!project) return;
+    if (project.isArchived) {
+      project.isArchived = false;
+      project.archivedAt = null;
+      project.archivedBy = null;
+      await project.save();
+      logActivity({
+        req, action: 'UNARCHIVE_PROJECT', entityType: 'project', entityId: project._id, entityTitle: project.name,
+        description: `Mở lại dự án "${project.name}"`,
+      });
+    }
+    res.json({ success: true, data: { project }, message: 'Đã mở lại dự án' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Nhân bản dự án. Dùng cho cả ba việc: nhân bản, "Lưu thành mẫu"
+ *          (`asTemplate: true`) và "Tạo từ mẫu" (gọi trên một mẫu).
+ * @route   POST /api/projects/:id/duplicate   body: { name, code?, startDate?, asTemplate? }
+ * @access  Admin, PM
+ */
+const duplicateProject = async (req, res, next) => {
+  try {
+    const source = await loadOwnProject(req, res);
+    if (!source) return;
+
+    const name = String(req.body.name || '').trim();
+    if (!name) return res.status(400).json({ success: false, message: 'Tên dự án mới là bắt buộc' });
+    const { startDate, code } = req.body;
+    if (startDate && Number.isNaN(new Date(startDate).getTime())) {
+      return res.status(400).json({ success: false, message: 'Ngày bắt đầu không hợp lệ' });
+    }
+
+    const { project, groupCount, taskCount } = await cloneProject(source, {
+      name, code, startDate, asTemplate: req.body.asTemplate === true, user: req.user,
+    });
+    const populated = await Project.findById(project._id)
+      .populate('manager', 'name email avatar')
+      .populate('members.user', 'name email avatar');
+
+    logActivity({
+      req, action: 'DUPLICATE_PROJECT', entityType: 'project', entityId: project._id, entityTitle: project.name,
+      description: `${project.isTemplate ? 'Lưu thành mẫu' : source.isTemplate ? 'Tạo từ mẫu' : 'Nhân bản'} "${source.name}" → "${project.name}" (${taskCount} công việc)`,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: { project: populated, groupCount, taskCount },
+      message: `Đã tạo "${project.name}" với ${taskCount} công việc`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Khai trường dữ liệu tùy chỉnh cho công việc của dự án (thay cả danh sách)
+ * @route   PUT /api/projects/:id/custom-fields
+ * @access  Private (admin/Owner hoặc quản lý dự án — như phân quyền thao tác)
+ *
+ * Xóa trường thì xóa giá trị của nó trên mọi việc của dự án; bỏ một lựa chọn thì xóa các giá
+ * trị đang là lựa chọn đó. Không để lại giá trị mồ côi mà form không còn hiện ra được.
+ */
+const updateCustomFields = async (req, res, next) => {
+  try {
+    const project = await loadOwnProject(req, res);
+    if (!project) return;
+
+    const isAdmin = req.user.role === 'admin' || Boolean(req.user.isOwner);
+    const isManager = project.manager && project.manager.toString() === req.user._id.toString();
+    if (!isAdmin && !isManager) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ Quản trị viên hoặc Quản lý dự án mới khai được trường tùy chỉnh',
+      });
+    }
+
+    const result = normalizeFieldDefinitions(req.body.fields, project.customFields || []);
+    if (result.error) return res.status(400).json({ success: false, message: result.error });
+
+    project.customFields = result.fields;
+    await project.save();
+
+    // `key` ở đây đều đã qua `normalizeFieldDefinitions` (do server sinh hoặc có sẵn trong dự án).
+    if (result.removedKeys.length) {
+      await Task.updateMany(
+        { project: project._id },
+        { $unset: Object.fromEntries(result.removedKeys.map((key) => [`customValues.${key}`, ''])) }
+      );
+    }
+    for (const [key, options] of Object.entries(result.removedOptions)) {
+      await Task.updateMany(
+        { project: project._id, [`customValues.${key}`]: { $in: options } },
+        { $unset: { [`customValues.${key}`]: '' } }
+      );
+    }
+
+    logActivity({
+      req,
+      action: 'UPDATE_PROJECT',
+      entityType: 'project',
+      entityId: project._id,
+      entityTitle: project.name,
+      description: `Cập nhật trường tùy chỉnh của dự án "${project.name}" (${result.fields.length} trường)`,
+    });
+
+    res.json({ success: true, data: { project }, message: 'Đã lưu trường tùy chỉnh' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
+  updateCustomFields,
+  duplicateProject,
+  archiveProject,
+  unarchiveProject,
   getProjects,
   getProjectById,
   createProject,

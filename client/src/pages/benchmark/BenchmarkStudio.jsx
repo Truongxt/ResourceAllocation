@@ -35,6 +35,8 @@ import {
 } from '@ant-design/icons';
 import optimizationService from '../../services/optimizationService';
 import { formatCurrency } from '../../i18n/format';
+import { useAuth } from '../../context/AuthContext';
+import { optimizeScopeOf } from '../../utils/optimizeScope';
 import './BenchmarkStudio.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -71,6 +73,12 @@ const DATASET_PRESETS = [
 ];
 
 export default function BenchmarkStudio() {
+  const { user } = useAuth();
+  // "Dữ liệu thật" chạy trên toàn công ty; PM chỉ được dự án mình quản lý nên không có lựa
+  // chọn này (server cũng chặn bằng 403).
+  const presets = optimizeScopeOf(user) === 'managed'
+    ? DATASET_PRESETS.filter((preset) => preset.key !== 'live')
+    : DATASET_PRESETS;
   const [selectedDataset, setSelectedDataset] = useState('medium');
   const [running, setRunning] = useState(false);
   const [benchmarkData, setBenchmarkData] = useState(null);
@@ -243,6 +251,34 @@ export default function BenchmarkStudio() {
           hybrid: h.overallocationCount || 0,
         },
         {
+          key: 'contextSwitches',
+          metric: (
+            <Space size={6}>
+              <TeamOutlined style={{ color: '#8b5cf6' }} />
+              <span>Chuyển ngữ cảnh (S3)</span>
+            </Space>
+          ),
+          hint: 'Σ theo người của (số dự án đang ôm − 1). Càng nhỏ, mỗi người càng ít phải nhảy giữa các dự án',
+          greedy: g.contextSwitches ?? 0,
+          csp: c.contextSwitches ?? 0,
+          genetic: ga.contextSwitches ?? 0,
+          hybrid: h.contextSwitches ?? 0,
+        },
+        {
+          key: 'convergence',
+          metric: (
+            <Space size={6}>
+              <RiseOutlined style={{ color: '#0ea5e9' }} />
+              <span>Hội tụ 90% (thế hệ)</span>
+            </Space>
+          ),
+          hint: 'Thế hệ đầu tiên đạt 90% tổng mức cải thiện fitness của lần chạy. Chỉ áp dụng cho GA và Hybrid',
+          greedy: '—',
+          csp: '—',
+          genetic: `${ga.convergenceGeneration ?? 0} / ${ga.generations ?? 0}`,
+          hybrid: `${h.convergenceGeneration ?? 0} / ${h.generations ?? 0}`,
+        },
+        {
           key: 'cost',
           metric: (
             <Space size={6}>
@@ -301,7 +337,7 @@ export default function BenchmarkStudio() {
         <Row gutter={[16, 20]} align="middle">
           <Col xs={24} lg={18}>
             <div className="benchmark-dataset-grid">
-              {DATASET_PRESETS.map((preset) => {
+              {presets.map((preset) => {
                 const isSelected = selectedDataset === preset.key;
                 return (
                   <div

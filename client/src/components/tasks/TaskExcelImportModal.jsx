@@ -36,7 +36,8 @@ export default function TaskExcelImportModal({ open, onClose, projects = [], onI
   // Tải file mẫu Excel
   const handleDownloadTemplate = async () => {
     try {
-      const res = await taskService.downloadExcelTemplate();
+      // Đã chọn dự án thì mẫu có thêm cột trường tùy chỉnh của dự án đó, đúng tên để nhập lại.
+      const res = await taskService.downloadExcelTemplate(selectedProject || undefined);
       const blob = new Blob([res.data], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
@@ -236,13 +237,27 @@ export default function TaskExcelImportModal({ open, onClose, projects = [], onI
               <Text strong style={{ fontSize: 14 }}>File mẫu chuẩn Base Wework (.xlsx)</Text>
               <div>
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  Tải file template đã cấu hình sẵn các cột dữ liệu để điền nhanh
+                  Tải file template đã cấu hình sẵn các cột dữ liệu để điền nhanh. Chọn dự án trước thì
+                  mẫu có thêm cột trường tùy chỉnh của dự án đó.
                 </Text>
               </div>
             </div>
-            <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownloadTemplate}>
-              Tải file mẫu
-            </Button>
+            <Space>
+              <Select
+                placeholder="Dự án (không bắt buộc)"
+                allowClear
+                style={{ width: 200 }}
+                value={selectedProject}
+                onChange={(val) => setSelectedProject(val || null)}
+                options={projects.map((p) => ({
+                  value: p._id,
+                  label: `${p.name} (${p.code || 'PRJ'})`,
+                }))}
+              />
+              <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownloadTemplate}>
+                Tải file mẫu
+              </Button>
+            </Space>
           </div>
 
           <div style={{ marginBottom: 16 }}>

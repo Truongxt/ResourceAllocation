@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+const { toSearchRegex } = require('../utils/escapeRegex');
 const Resource = require('../models/Resource');
 const Task = require('../models/Task');
 const User = require('../models/User');
@@ -6,6 +8,7 @@ const Department = require('../models/Department');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
 const { generateEmployeeId } = require('../utils/employeeId.util');
+const { stripProtected } = require('../services/companyRefs.service');
 
 const validateDepartment = async (departmentName, companyName = 'Công ty Công nghệ RAO') => {
   if (!departmentName) return null;
@@ -66,7 +69,7 @@ const getResources = async (req, res, next) => {
 
     // Skill search: ?skill=React&skillLevel=3
     if (req.query.skill) {
-      const skillFilter = { 'skills.name': new RegExp(req.query.skill, 'i') };
+      const skillFilter = { 'skills.name': toSearchRegex(req.query.skill) };
       if (req.query.skillLevel) {
         skillFilter['skills.level'] = { $gte: parseInt(req.query.skillLevel, 10) };
       }
@@ -74,7 +77,7 @@ const getResources = async (req, res, next) => {
     }
 
     if (req.query.search) {
-      const regex = new RegExp(req.query.search, 'i');
+      const regex = toSearchRegex(req.query.search);
       const matchedUsers = await User.find({
         companyName: userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
         $or: [{ name: regex }, { email: regex }],
@@ -283,7 +286,9 @@ const updateResource = async (req, res, next) => {
       });
     }
 
-    const updateData = { ...req.body };
+    // `companyName` gửi lên trước đây chuyển được nhân sự sang công ty khác — và kéo họ
+    // vào bài toán tối ưu của công ty đó
+    const updateData = stripProtected({ ...req.body });
     const newName = updateData.name;
     const newEmail = updateData.email;
     delete updateData.name;

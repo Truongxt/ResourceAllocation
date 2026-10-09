@@ -18,6 +18,8 @@ import Header from '../../components/common/Header';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
+import TaskAttachments from '../../components/tasks/TaskAttachments';
+import { sortedFields, formatCustomValue } from '../../utils/customFields.js';
 import taskApi from '../../api/taskApi';
 import {
   formatDate,
@@ -32,6 +34,7 @@ const TABS = [
   { key: 'checklist', label: 'Checklist' },
   { key: 'workflow', label: 'Quy trình' },
   { key: 'comments', label: 'Bình luận' },
+  { key: 'files', label: 'Tệp' },
 ];
 
 export default function TaskDetailScreen({ route, navigation }) {
@@ -271,8 +274,13 @@ export default function TaskDetailScreen({ route, navigation }) {
         </View>
       ) : (
         <>
-          {/* Tabs bar */}
-          <View style={[styles.tabsBar, { borderBottomColor: theme.colors.border }]}>
+          {/* Tabs bar — cuộn ngang: năm tab không vừa một hàng trên màn hình hẹp */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={[styles.tabsBar, { borderBottomColor: theme.colors.border }]}
+            contentContainerStyle={styles.tabsBarContent}
+          >
             {TABS.map((tab) => {
               const active = activeTab === tab.key;
               const count =
@@ -304,7 +312,7 @@ export default function TaskDetailScreen({ route, navigation }) {
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
 
           <ScrollView
             contentContainerStyle={styles.scrollContent}
@@ -360,6 +368,23 @@ export default function TaskDetailScreen({ route, navigation }) {
                     {task.description || 'Không có mô tả chi tiết.'}
                   </Text>
                 </Card>
+
+                {/* Trường tùy chỉnh của dự án — chỉ xem; sửa trên web */}
+                {sortedFields(task.project).length > 0 && (
+                  <Card style={styles.metaCard} testID="task-custom-values">
+                    {sortedFields(task.project).map((field) => (
+                      <View key={field.key} style={styles.metaRow}>
+                        <Ionicons name="pricetag-outline" size={18} color={theme.colors.textMuted} />
+                        <Text style={[styles.metaKey, { color: theme.colors.textSecondary }]}>
+                          {field.name}:
+                        </Text>
+                        <Text style={[styles.metaVal, { color: theme.colors.text }]}>
+                          {formatCustomValue(field, task.customValues?.[field.key]) || '—'}
+                        </Text>
+                      </View>
+                    ))}
+                  </Card>
+                )}
 
                 {/* Key metadata grid */}
                 <Card style={styles.metaCard}>
@@ -663,6 +688,9 @@ export default function TaskDetailScreen({ route, navigation }) {
                 </Card>
               </View>
             )}
+
+            {/* TAB 5: TỆP ĐÍNH KÈM — tự tải danh sách khi tab được mở */}
+            {activeTab === 'files' && <TaskAttachments task={task} />}
           </ScrollView>
 
           {/* Modal 1: Nộp báo cáo kết quả */}
@@ -843,8 +871,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   tabsBar: {
-    flexDirection: 'row',
+    flexGrow: 0,
     borderBottomWidth: 1,
+  },
+  tabsBarContent: {
     paddingHorizontal: 8,
   },
   tabItem: {

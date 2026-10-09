@@ -8,6 +8,7 @@ const {
   canCreateTask,
   canModifyTask,
   canUpdateTaskStatus,
+  canChangeStatusOnUpdate,
   canCompleteTask,
   canUpdateDeadline,
   canDeleteTask,
@@ -50,6 +51,13 @@ const {
   previewReassign,
   bulkReassign,
 } = require('../controllers/task.controller');
+const {
+  parseUpload,
+  listAttachments,
+  uploadAttachment,
+  downloadAttachment,
+  deleteAttachment,
+} = require('../controllers/attachment.controller');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -174,7 +182,7 @@ router.get('/stats/summary', getTaskSummary);
 // Base Wework: Excel import & template (Đặt trước /:id)
 router.get('/excel/template', downloadExcelTemplate);
 router.post('/excel/preview', upload.single('file'), previewExcelTasks);
-router.post('/excel/import', upload.single('file'), importExcelTasks);
+router.post('/excel/import', upload.single('file'), canCreateTask(), importExcelTasks);
 // Base Wework: Reminders (Nhắc nhở công việc cần hoàn thành - đặt trước /:id)
 router.get('/reminders', getTaskReminders);
 
@@ -199,6 +207,7 @@ router.put(
   updateValidation,
   validate,
   canModifyTask({ restrictFields: true }),
+  canChangeStatusOnUpdate(),
   updateTask
 );
 router.patch('/:id/status', taskIdValidation, statusValidation, validate, canUpdateTaskStatus(), updateTaskStatus);
@@ -226,6 +235,17 @@ router.patch('/:id/deadline', taskIdValidation, validate, canUpdateDeadline(), u
 router.post('/:id/comments', taskIdValidation, validate, addComment);
 router.delete('/:id/comments/:commentId', deleteComment);
 
+// Tệp đính kèm. Nằm dưới `/:id` để đi qua `guardTaskCompany` (công ty, dự án lưu trữ) và
+// quyền phân hệ Công việc như mọi thao tác khác trên việc.
+const attachmentIdValidation = [
+  ...taskIdValidation,
+  param('attachmentId').isMongoId().withMessage('ID tệp không hợp lệ'),
+];
+router.get('/:id/attachments', taskIdValidation, validate, listAttachments);
+router.post('/:id/attachments', taskIdValidation, validate, parseUpload, uploadAttachment);
+router.get('/:id/attachments/:attachmentId/download', attachmentIdValidation, validate, downloadAttachment);
+router.delete('/:id/attachments/:attachmentId', attachmentIdValidation, validate, deleteAttachment);
+
 // Checklist
 router.post('/:id/checklist', taskIdValidation, validate, canManageChecklist(), addChecklistItem);
 router.put('/:id/checklist/:itemId/toggle', taskIdValidation, canManageChecklist(), toggleChecklistItem);
@@ -239,4 +259,4 @@ router.delete('/:id/followers/:userId', taskIdValidation, canManageFollowers('re
 router.get('/:id/subtasks', taskIdValidation, validate, getSubtasks);
 router.post('/:id/subtasks', taskIdValidation, validate, canCreateSubtask(), createSubtask);
 
-module.exports = router;
+module.exports = router;

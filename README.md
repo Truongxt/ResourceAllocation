@@ -11,7 +11,7 @@ Web App hỗ trợ quản lý phân công công việc cho các dự án chạy 
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18 + Vite 5 |
-| Mobile | Expo 54 + React Native 0.81 (client thứ hai, cùng API) |
+| Mobile | Expo 57 + React Native 0.86 + React 19 (client thứ hai, cùng API) |
 | UI Library | Ant Design 6 + @ant-design/icons |
 | Backend | Node.js + Express 4 |
 | Database | MongoDB 7 + Mongoose 8 |
@@ -47,7 +47,7 @@ Muốn chạy kiểm thử giao diện thì cần tải trình duyệt cho Playw
 npm run test:e2e:install
 ```
 
-Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017`.
+Yêu cầu: **Node.js ≥ 20** và **MongoDB** đang chạy ở `localhost:27017`.
 
 > `JWT_SECRET` bỏ trống ở môi trường dev thì hệ thống vẫn chạy (ghi cảnh báo và dùng khóa tạm),
 > nhưng với `NODE_ENV=production` server sẽ **từ chối khởi động**. Hãy đặt giá trị thật trước khi triển khai.
@@ -70,19 +70,49 @@ Yêu cầu: **Node.js ≥ 18** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run dev:server` | gốc | Chỉ chạy server (port 5000) |
 | `npm run build` | gốc | Build client cho production |
 | `npm start` | `server/` | Chạy server không auto-reload |
-| `npm run seed` | `server/` | Tạo dữ liệu mẫu (xóa sạch cả 12 collection, rồi đồng bộ workload) |
+| `npm run seed` | `server/` | Tạo dữ liệu mẫu (xóa sạch cả 14 collection, rồi đồng bộ workload) |
 | `npm run cleanup` | `server/` | Liệt kê dữ liệu mồ côi trong DB đang chạy; thêm `-- --apply` để xóa thật |
 | `npm run migrate:skill-level` | `server/` | Hạ `requiredSkills.level` cũ từ 5 về 4; thêm `-- --apply` để sửa thật |
 | `npm run migrate:dependencies` | `server/` | Chuyển `dependencies` cũ sang dạng `{ task, type }`; thêm `-- --apply` để sửa thật |
+| `npm run migrate:guest-company` | `server/` | Đưa tài khoản khách tạo trước khi có `guestCompany` về đúng công ty (suy từ dự án họ thuộc); thêm `-- --apply` để sửa thật |
 | `npm test` | `server/` | Kiểm thử API + Socket.IO trên DB + cổng riêng ([chi tiết](./server/tests/README.md)) |
 | `npm test` | `client/` | Logic thuần bằng node + kiểm thử render component bằng vitest ([chi tiết](./client/tests/README.md)) |
-| `npm test` | `mobile/` | Quy tắc quyền của app di động — node thuần, không cần cài dependencies |
+| `npm test` | `mobile/` | Logic thuần (quyền, Gantt) và test giao diện jest-expo — cần `npm install` trong `mobile/` |
 | `npm start` | `mobile/` | Chạy app Expo (cần `npm install` trong `mobile/` trước) |
 | `npm run test:e2e` | gốc | Kiểm thử giao diện bằng Chromium thật, tự khởi động client + server ([chi tiết](./e2e/README.md)) |
 | `npm run test:e2e:install` | gốc | Tải trình duyệt cho Playwright — chạy một lần trước lần test đầu tiên |
 | `npm run test:e2e:ui` | gốc | Chế độ gỡ lỗi tương tác của Playwright |
 | `npm run test:e2e:report` | gốc | Mở báo cáo HTML của lần chạy e2e gần nhất |
 | `npm run preview` | `client/` | Xem thử bản build production |
+
+## Job định kỳ
+
+Server **không tự hẹn giờ**. Hai job phải được một cron bên ngoài (cron của hệ điều hành, Cloud
+Scheduler, GitHub Actions…) gọi vào endpoint nội bộ, khóa bằng `JOB_SECRET` trong `.env`:
+
+| Job | Gọi | Việc làm |
+|-----|-----|----------|
+| `recurring-tasks` | mỗi giờ | Sinh công việc từ các cấu hình "Việc lặp lại" đã đến hạn |
+| `workload-snapshot` | mỗi ngày | Chụp tải của mọi nhân sự, làm lịch sử cho báo cáo |
+
+```bash
+# crontab -e
+0 * * * *  curl -fsS -X POST -H "X-Job-Secret: $JOB_SECRET" https://<host>/api/internal/jobs/recurring-tasks
+5 0 * * *  curl -fsS -X POST -H "X-Job-Secret: $JOB_SECRET" https://<host>/api/internal/jobs/workload-snapshot
+```
+
+Cả hai job **chạy lại an toàn**: gọi trùng hoặc gọi lại khi timeout không sinh việc trùng, chụp lại
+trong ngày thì ghi đè. Thiếu `JOB_SECRET` thì endpoint trả 503. Quên cấu hình cron thì không có lỗi
+nào nổ ra, nên hãy kiểm `GET /api/jobs/status` (Owner/Admin): job chưa từng chạy, hoặc quá hạn, có
+`stale: true`.
+
+## Tệp đính kèm
+
+Tệp người dùng tải lên công việc nằm trên đĩa server, trong `UPLOAD_DIR` (mặc định `server/uploads`,
+đã có trong `.gitignore`). Khi triển khai, đặt `UPLOAD_DIR` vào một thư mục **được sao lưu** và
+**không bị xóa khi deploy lại** (volume riêng nếu chạy container). Database chỉ giữ siêu dữ liệu, nên
+sao lưu database mà thiếu thư mục này thì danh sách tệp còn nhưng tải về báo "Tệp không còn trên máy
+chủ". Muốn chuyển sang S3 thì chỉ thay `server/src/services/fileStorage.js`.
 
 ## Tài liệu
 
