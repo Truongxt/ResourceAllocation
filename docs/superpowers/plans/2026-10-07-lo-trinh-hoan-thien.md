@@ -12,6 +12,22 @@ phụ thuộc vào những gì giai đoạn trước để lại, nên viết ch
 
 **Ưu tiên hiện tại (chốt với người dùng ngày 2026-10-08): hoàn thành chương trình trước, sửa luận văn sau.**
 
+### Điểm dừng (2026-10-09)
+
+**Tạm dừng theo yêu cầu người dùng: ghi nhận trạng thái, chưa làm tiếp.** 9/10 giai đoạn đã xong (GĐ1–9).
+Còn lại:
+
+- **GĐ10 (react-router v7) — chưa bắt đầu**, chờ người dùng quyết có chấp nhận đổi API router không. Xem ghi
+  chú GĐ10 ở cuối file để biết phạm vi.
+- **Việc dở** ở mục "Chưa làm" bên dưới: hai việc khi triển khai (cron/`JOB_SECRET`, `UPLOAD_DIR`), phần còn
+  lại của trường tùy chỉnh, và báo cáo luận văn (để sau cùng).
+- **Chưa thử trên điện thoại thật** (jest giả lập module native, Metro đóng gói Android thành công):
+  - Tab "Tệp": hộp chọn tệp (`expo-document-picker`) và bảng mở/lưu tệp (`expo-sharing`). Ba thư viện mới có
+    sẵn trong Expo Go; development build thì phải build lại app.
+  - Ô trường tùy chỉnh khi tạo việc ở màn Lịch và chi tiết dự án (dùng chung component với màn Công việc,
+    màn đó có test).
+- **Commit chưa push** tại điểm dừng: `7b08975`, `913b911` và commit ghi điểm dừng này.
+
 Số test ở lần chạy gần nhất (2026-10-09, sau GĐ7): server **37/37 bộ**, client **81/81** (cộng 7 bộ logic
 thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/93** (trọn bộ).
 
@@ -52,6 +68,9 @@ thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/9
 | Mobile: Công việc / chi tiết dự án chỉ thấy 50 việc đầu, Lịch chỉ thấy 100 | `2d486ab` |
 | Mobile: màn Tối ưu gọi `POST /optimization/run` (không tồn tại) nên chưa từng chạy được; độ khớp kỹ năng nhân thêm 100; số giả khi thiếu dữ liệu; lịch sử đọc `status === 'applied'` (trường thật là `isApplied`) | `86ae1db` |
 | Bài test `jobs` lấy "hôm nay" theo UTC, đỏ oan từ 00:00 đến 07:00 giờ VN | `7462d3f` |
+| Bài test `app-routing` (client) đỏ oan khi chạy cả bộ: chỉ chờ 1 giây cho Vite biên dịch chunk Dashboard | `6de20b4` |
+| Trang Công việc chỉ tải 20 dự án (gọi `GET /projects` không kèm `limit`): dự án thứ 21 trở đi mất khỏi ô lọc, ô chọn dự án | `bce63b9` |
+| Tệp đính kèm thành mồ côi trên đĩa khi ghi bản ghi DB lỗi, và khi e2e seed lại database mà giữ thư mục tệp | `be0aa20` |
 
 ### Chưa làm
 
@@ -113,4 +132,9 @@ Màn **Lịch** trên mobile đã có (`mobile/src/screens/calendar/CalendarScre
   Bài toán gốc cho phép một người nhận nhiều việc, nên không thể áp all-different lên toàn bộ biến.
   Trước khi code phải liệt kê được các tập như vậy trong dữ liệu thật; nếu không có thì ghi nhận và bỏ.
 - **GĐ7**: kiểu **công thức** để sau cùng, vì đó là một trình đánh giá biểu thức chứ không phải một kiểu trường.
-- **GĐ10**: cần chạy lại cả `client/tests` lẫn `e2e` sau khi nâng cấp.
+- **GĐ10**: cần chạy lại cả `client/tests` lẫn `e2e` sau khi nâng cấp. Phạm vi đo ngày 2026-10-09: đang dùng
+  `react-router-dom ^6.26.0`, 17 file import nó; dùng `Route` (23 chỗ), `useNavigate` (22), `Navigate` (7),
+  `useLocation` (6), `useSearchParams` (4), `useParams` (2), `Routes`/`BrowserRouter` (3 mỗi loại); `Link` đếm
+  được 26 nhưng có thể lẫn `Typography.Link` của antd. Chưa bật cờ `future` nào: test client đang in cảnh báo
+  `v7_startTransition` và `v7_relativeSplatPath`. Cách ít rủi ro: bật hai cờ đó trên v6 trước, chạy lại toàn bộ
+  test, rồi mới đổi gói sang `react-router` v7.
