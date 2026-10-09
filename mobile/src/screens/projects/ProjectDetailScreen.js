@@ -20,6 +20,8 @@ import EmptyState from '../../components/common/EmptyState';
 import projectApi from '../../api/projectApi';
 import taskApi from '../../api/taskApi';
 import taskGroupApi from '../../api/taskGroupApi';
+import CustomFieldInputs from '../../components/tasks/CustomFieldInputs';
+import { valuesFromInputs } from '../../utils/customFieldInputs.js';
 import {
   formatDate,
   formatCurrency,
@@ -57,6 +59,7 @@ export default function ProjectDetailScreen({ route, navigation }) {
   // Create Task in Project Modal
   const [createTaskModalOpen, setCreateTaskModalOpen] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
+  const [customInputs, setCustomInputs] = useState({});
   const [taskGroup, setTaskGroup] = useState('');
   const [taskPriority, setTaskPriority] = useState('medium');
   const [taskHours, setTaskHours] = useState('8');
@@ -121,6 +124,11 @@ export default function ProjectDetailScreen({ route, navigation }) {
       Alert.alert('Thông báo', 'Vui lòng nhập tên công việc');
       return;
     }
+    const custom = valuesFromInputs(project, customInputs);
+    if (custom.error) {
+      Alert.alert('Thông báo', custom.error);
+      return;
+    }
     setCreatingTask(true);
     try {
       await taskApi.create({
@@ -130,9 +138,11 @@ export default function ProjectDetailScreen({ route, navigation }) {
         priority: taskPriority,
         estimatedHours: Number(taskHours) || 8,
         description: taskDesc.trim(),
+        ...(Object.keys(custom.values).length ? { customValues: custom.values } : {}),
       });
       setCreateTaskModalOpen(false);
       setTaskTitle('');
+      setCustomInputs({});
       setTaskDesc('');
       setTaskGroup('');
       await loadProjectData();
@@ -576,6 +586,13 @@ export default function ProjectDetailScreen({ route, navigation }) {
                 placeholderTextColor={theme.colors.textMuted}
                 value={taskTitle}
                 onChangeText={setTaskTitle}
+              />
+
+              {/* Trường tùy chỉnh của dự án */}
+              <CustomFieldInputs
+                project={project}
+                inputs={customInputs}
+                onChange={(key, text) => setCustomInputs((prev) => ({ ...prev, [key]: text }))}
               />
 
               {/* Task Groups */}

@@ -20,6 +20,8 @@ import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import TaskAttachments from '../../components/tasks/TaskAttachments';
 import { sortedFields, formatCustomValue } from '../../utils/customFields.js';
+import CustomFieldInputs from '../../components/tasks/CustomFieldInputs';
+import { inputsFromValues, valuesFromInputs } from '../../utils/customFieldInputs.js';
 import taskApi from '../../api/taskApi';
 import {
   formatDate,
@@ -40,7 +42,7 @@ const TABS = [
 export default function TaskDetailScreen({ route, navigation }) {
   const { taskId, title } = route.params;
   const { theme, isDark } = useTheme();
-  const { user } = useAuth();
+  const { user, canManageModule } = useAuth();
 
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -70,6 +72,12 @@ export default function TaskDetailScreen({ route, navigation }) {
   const [submittingFail, setSubmittingFail] = useState(false);
 
   const [statusModalOpen, setStatusModalOpen] = useState(false);
+
+  // Sửa trường tùy chỉnh. Server quyết ai được sửa (như tiêu đề/mô tả); ở đây chỉ ẩn nút khi
+  // chắc chắn không được: chỉ có quyền xem phân hệ Công việc, hoặc dự án đã lưu trữ.
+  const [customModalOpen, setCustomModalOpen] = useState(false);
+  const [customInputs, setCustomInputs] = useState({});
+  const [savingCustom, setSavingCustom] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const loadTask = useCallback(async () => {
@@ -87,6 +95,29 @@ export default function TaskDetailScreen({ route, navigation }) {
   useEffect(() => {
     loadTask();
   }, [loadTask]);
+
+  const openCustomEditor = () => {
+    setCustomInputs(inputsFromValues(task.project, task.customValues));
+    setCustomModalOpen(true);
+  };
+
+  const handleSaveCustomValues = async () => {
+    const custom = valuesFromInputs(task.project, customInputs);
+    if (custom.error) {
+      Alert.alert('Thông báo', custom.error);
+      return;
+    }
+    setSavingCustom(true);
+    try {
+      await taskApi.update(taskId, { customValues: custom.values });
+      setCustomModalOpen(false);
+      await loadTask();
+    } catch (err) {
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không lưu được trường tùy chỉnh');
+    } finally {
+      setSavingCustom(false);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -369,9 +400,15 @@ export default function TaskDetailScreen({ route, navigation }) {
                   </Text>
                 </Card>
 
-                {/* Trường tùy chỉnh của dự án — chỉ xem; sửa trên web */}
+                {/* Trường tùy chỉnh của dự án */}
                 {sortedFields(task.project).length > 0 && (
                   <Card style={styles.metaCard} testID="task-custom-values">
+                    {canManageModule('tasks') && !task.project?.isArchived && (
+                      <TouchableOpacity onPress={openCustomEditor} style={styles.customEditBtn} accessibilityLabel="Sửa trường tùy chỉnh">
+                        <Ionicons name="create-outline" size={16} color={theme.colors.primary} />
+                        <Text style={[styles.customEditText, { color: theme.colors.primary }]}>Sửa</Text>
+                      </TouchableOpacity>
+                    )}
                     {sortedFields(task.project).map((field) => (
                       <View key={field.key} style={styles.metaRow}>
                         <Ionicons name="pricetag-outline" size={18} color={theme.colors.textMuted} />
@@ -737,6 +774,28 @@ export default function TaskDetailScreen({ route, navigation }) {
             </View>
           </Modal>
 
+          {/* Modal: Sửa trường tùy chỉnh */}
+          <Modal visible={customModalOpen} transparent animationType="slide">
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalCard, { backgroundColor: theme.colors.surface }]}>
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Trường tùy chỉnh</Text>
+                  <TouchableOpacity onPress={() => setCustomModalOpen(false)} accessibilityLabel="Đóng">
+                    <Ionicons name="close" size={22} color={theme.colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={{ maxHeight: 420 }}>
+                  <CustomFieldInputs
+                    project={task.project}
+                    inputs={customInputs}
+                    onChange={(key, text) => setCustomInputs((prev) => ({ ...prev, [key]: text }))}
+                  />
+                </ScrollView>
+                <Button title="Lưu" onPress={handleSaveCustomValues} loading={savingCustom} style={{ marginTop: 12 }} />
+              </View>
+            </View>
+          </Modal>
+
           {/* Modal 2: Trả lại công việc */}
           <Modal visible={rejectModalOpen} transparent animationType="slide">
             <View style={styles.modalOverlay}>
@@ -908,6 +967,17 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  customEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 4,
+    marginBottom: 4,
+  },
+  customEditText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   metaCard: {
     padding: 16,
