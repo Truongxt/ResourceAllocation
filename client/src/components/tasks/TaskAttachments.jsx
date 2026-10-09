@@ -6,28 +6,24 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/vi';
 import attachmentService from '../../services/attachmentService';
 import { useAuth } from '../../context/AuthContext';
+import {
+  MAX_ATTACHMENT_SIZE,
+  formatFileSize,
+  canWriteAttachments,
+  canDeleteAttachment,
+} from '../../utils/attachmentRules';
 
 dayjs.extend(relativeTime);
 
 const { Text } = Typography;
 
-// Khớp `MAX_FILE_SIZE` của server: chặn sớm để khỏi đẩy 50 MB lên mới nhận 413.
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
 // Chỉ để hộp chọn tệp lọc sẵn; server mới là nơi quyết định (attachment.service.js).
 const ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.txt,.csv,.md,.png,.jpg,.jpeg,.gif,.webp,.bmp,.zip,.rar,.7z';
-
-const idOf = (value) => String((value && value._id) || value || '');
-
-export const formatSize = (bytes) => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
 
 /**
  * Tab "Tệp" của ngăn chi tiết công việc. Quyền giống bình luận: ai xem được việc thì xem và
  * tải về; tải lên cần quyền sửa ở phân hệ Công việc; xóa là người tải lên, admin hoặc quản lý
- * dự án. Dự án lưu trữ thì chỉ xem. Server kiểm lại tất cả — ở đây chỉ để không bày nút vô ích.
+ * dự án. Dự án lưu trữ thì chỉ xem. Quy tắc nằm ở `utils/attachmentRules.js` (mobile chép nguyên).
  */
 export default function TaskAttachments({ task }) {
   const { user, canManageModule } = useAuth();
@@ -39,11 +35,9 @@ export default function TaskAttachments({ task }) {
 
   const taskId = task?._id;
   const archived = Boolean(task?.project?.isArchived);
-  const canWrite = !archived && (canManageModule ? canManageModule('tasks') : true);
-  const me = idOf(user?._id);
-  const isManager = idOf(task?.project?.manager) === me;
-  const canDelete = (att) =>
-    canWrite && (idOf(att.uploadedBy) === me || user?.isOwner || user?.role === 'admin' || isManager);
+  const canManageTasks = canManageModule ? canManageModule('tasks') : true;
+  const canWrite = canWriteAttachments(task, canManageTasks);
+  const canDelete = (att) => canDeleteAttachment(att, task, user, canManageTasks);
 
   const load = useCallback(async () => {
     if (!taskId) return;
@@ -66,7 +60,7 @@ export default function TaskAttachments({ task }) {
     event.target.value = ''; // chọn lại đúng tệp đó vẫn kích hoạt onChange
     if (!file) return;
     setError('');
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > MAX_ATTACHMENT_SIZE) {
       setError('Tệp vượt quá 10 MB');
       return;
     }
@@ -154,7 +148,7 @@ export default function TaskAttachments({ task }) {
                 </Button>
                 <div>
                   <Text type="secondary" style={{ fontSize: 11 }}>
-                    {formatSize(att.size)} · {att.uploadedBy?.name || 'Không rõ'} · {dayjs(att.createdAt).locale('vi').fromNow()}
+                    {formatFileSize(att.size)} · {att.uploadedBy?.name || 'Không rõ'} · {dayjs(att.createdAt).locale('vi').fromNow()}
                   </Text>
                 </div>
               </div>
