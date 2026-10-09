@@ -43,6 +43,7 @@ import {
   CheckCircleOutlined,
   KeyOutlined,
   SafetyCertificateOutlined,
+  ProfileOutlined,
   CalendarOutlined,
   EyeOutlined,
   AppstoreOutlined,
@@ -68,6 +69,7 @@ import { projectStatusLabel, priorityLabel, taskStatusLabel } from '../../i18n/e
 import { formatCurrency } from '../../i18n/format';
 import './ProjectDetail.css';
 import { depId } from '../../utils/gantt';
+import ProjectCustomFields from '../../components/projects/ProjectCustomFields';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -978,6 +980,25 @@ export default function ProjectDetail() {
                   />
                 )}
               </div>
+            ),
+          },
+          {
+            key: 'customFields',
+            label: (
+              <span>
+                <ProfileOutlined style={{ marginRight: 6 }} />
+                Trường tùy chỉnh
+              </span>
+            ),
+            children: (
+              <ProjectCustomFields
+                project={project}
+                onSaved={(saved) => {
+                  // Server trả dự án chưa populate quản lý/thành viên: chỉ lấy phần vừa đổi.
+                  setProject((prev) => ({ ...prev, customFields: saved.customFields }));
+                  message.success('Đã lưu trường tùy chỉnh');
+                }}
+              />
             ),
           },
           {

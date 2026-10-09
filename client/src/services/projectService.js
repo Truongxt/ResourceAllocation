@@ -58,6 +58,11 @@ const projectService = {
     return api.patch(`/projects/${id}/permissions`, { permissions });
   },
 
+  // Trường dữ liệu tùy chỉnh của công việc: thay cả danh sách một lần.
+  updateCustomFields(id, fields) {
+    return api.put(`/projects/${id}/custom-fields`, { fields });
+  },
+
   // Cấu hình đánh dấu Thất bại và luồng Đánh giá dùng chung endpoint trên:
   // cùng một người quyết, cùng một màn hình cài đặt dự án.
   updateWorkflowConfig(id, config) {

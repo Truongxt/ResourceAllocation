@@ -29,6 +29,7 @@ import SubtaskFormModal from './SubtaskFormModal';
 import TaskResultModal from './TaskResultModal';
 import TaskWorkflowActions from './TaskWorkflowActions';
 import TaskAttachments from './TaskAttachments';
+import { sortedFields, formatCustomValue } from '../../utils/customFields';
 import { getTaskPermissions } from '../../utils/taskPermissions';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -546,6 +547,27 @@ export default function TaskDetailDrawer({
           {task.description || 'Chưa có mô tả'}
         </Paragraph>
       </div>
+
+      {/* Trường tùy chỉnh của dự án */}
+      {sortedFields(task.project).length > 0 && (
+        <div
+          data-testid="task-custom-values"
+          style={{
+            background: subtleBg, borderRadius: 10, padding: '12px 16px',
+            border: `1px solid ${borderColor}`, marginBottom: 16,
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10,
+          }}
+        >
+          {sortedFields(task.project).map((field) => (
+            <div key={field.key}>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{field.name}</Text>
+              <Text style={{ fontSize: 13 }}>
+                {formatCustomValue(field, task.customValues?.[field.key]) || '—'}
+              </Text>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Grid thông tin */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>

@@ -51,6 +51,8 @@ import TaskFilterBar from './components/TaskFilterBar';
 import TaskKanbanView from './components/TaskKanbanView';
 import TaskTableView from './components/TaskTableView';
 import TaskFormModal from './components/TaskFormModal';
+import { toFormCustomValues, fromFormCustomValues } from '../../components/tasks/CustomFieldInputs';
+import { customFilterParams, customCsvColumns } from '../../utils/customFields';
 import TaskGroupManagerModal from '../../components/tasks/TaskGroupManagerModal';
 import TaskDetailDrawer from '../../components/tasks/TaskDetailDrawer';
 import TaskExcelImportModal from '../../components/tasks/TaskExcelImportModal';
@@ -75,6 +77,8 @@ export default function Tasks() {
   // Tổng số việc khớp bộ lọc theo server — có thể lớn hơn `tasks.length` khi chạm trần.
   const [taskTotal, setTaskTotal] = useState(0);
   const [projects, setProjects] = useState([]);
+  // Dự án đầy đủ (có `customFields`) từ danh sách đã tải; `task.project` chỉ populate tên, mã.
+  const projectOf = (ref) => projects.find((p) => (p._id || p.id) === String(ref?._id || ref || ''));
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -144,7 +148,11 @@ export default function Tasks() {
   // Bộ lọc đang áp dụng — dùng chung cho màn hình và cho file xuất, để file khớp đúng
   // những gì người dùng đang lọc.
   const taskQueryParams = useCallback(() => {
-    const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
+    const { custom, ...plainFilters } = filters;
+    const params = {
+      ...Object.fromEntries(Object.entries(plainFilters).filter(([, v]) => v)),
+      ...customFilterParams(custom),
+    };
     if (attentionStatus) params.status = attentionStatus;
     if (unassignedOnly) params.unassigned = 'true';
     if (attentionStatus || unassignedOnly || timeFilter === 'overdue') params.includeSubtasks = 'true';
@@ -176,9 +184,14 @@ export default function Tasks() {
     try {
       const { tasks: all } = await taskService.getAllPages(taskQueryParams());
       const day = (d) => (d ? dayjs(d).format('YYYY-MM-DD') : '');
+      // Trường tùy chỉnh: một cột cho mỗi tên trường của các dự án có việc trong file.
+      const custom = customCsvColumns(all, projects);
       const rows = [
-        ['title', 'project', 'group', 'status', 'priority', 'assignee', 'startDate', 'endDate', 'estimatedHours', 'progress', 'completedAt']
-          .map((key) => t(`tasks.csv.${key}`)),
+        [
+          ...['title', 'project', 'group', 'status', 'priority', 'assignee', 'startDate', 'endDate', 'estimatedHours', 'progress', 'completedAt']
+            .map((key) => t(`tasks.csv.${key}`)),
+          ...custom.headers,
+        ],
         ...all.map((task) => [
           task.title,
           task.project?.name || '',
@@ -191,6 +204,7 @@ export default function Tasks() {
           task.estimatedHours ?? '',
           task.progress ?? '',
           task.completedAt ? dayjs(task.completedAt).format('YYYY-MM-DD HH:mm') : '',
+          ...custom.cells(task),
         ]),
       ];
       downloadCsv(`cong_viec_${dayjs().format('YYYY-MM-DD')}.csv`, rows);
@@ -207,7 +221,9 @@ export default function Tasks() {
    */
   const loadProjects = useCallback(async () => {
     try {
-      const res = await projectService.getAll();
+      // Không truyền `limit` thì server chỉ trả 20 dự án: dự án thứ 21 trở đi biến khỏi bộ lọc,
+      // ô chọn dự án và mất luôn ô trường tùy chỉnh. 100 là trần của server.
+      const res = await projectService.getAll({ limit: 100 });
       setProjects(res.data.data.projects || []);
     } catch {
       // Bỏ qua lỗi kết nối ban đầu
@@ -464,6 +480,7 @@ export default function Tasks() {
         task.startDate && task.endDate
           ? [dayjs(task.startDate), dayjs(task.endDate)]
           : undefined,
+      customValues: toFormCustomValues(projectOf(task.project), task.customValues),
     });
     setModalOpen(true);
   };
@@ -506,6 +523,13 @@ export default function Tasks() {
         endDate: values.dateRange?.[1] ? values.dateRange[1].toISOString() : undefined,
       };
       delete payload.dateRange;
+      // Trường tùy chỉnh theo dự án của công việc (sửa thì dự án không đổi được qua form này).
+      const formProject = projectOf(editingTask ? editingTask.project : values.project);
+      if ((formProject?.customFields || []).length) {
+        payload.customValues = fromFormCustomValues(formProject, values.customValues);
+      } else {
+        delete payload.customValues;
+      }
 
       if (editingTask) {
         if (!canManageTasks) {
@@ -526,6 +550,7 @@ export default function Tasks() {
           if (perms.canEditDetails) {
             if (payload.title !== undefined) filteredPayload.title = payload.title;
             if (payload.description !== undefined) filteredPayload.description = payload.description;
+            if (payload.customValues !== undefined) filteredPayload.customValues = payload.customValues;
           }
           if (perms.canChangeAssignee && payload.assignee !== undefined) {
             filteredPayload.assignee = payload.assignee;

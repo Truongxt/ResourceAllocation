@@ -127,8 +127,9 @@ const taskService = {
   },
 
   // === Base Wework: Excel Import/Export ===
-  downloadExcelTemplate() {
-    return api.get('/tasks/excel/template', { responseType: 'blob' });
+  /** Có `projectId` thì mẫu kèm sẵn các cột trường tùy chỉnh của dự án đó. */
+  downloadExcelTemplate(projectId) {
+    return api.get('/tasks/excel/template', { responseType: 'blob', params: projectId ? { project: projectId } : {} });
   },
   previewExcel(formData) {
     return api.post('/tasks/excel/preview', formData, {
