@@ -45,6 +45,10 @@ const resourceService = {
     return api.put('/resources/my-evaluation', { skills });
   },
 
+  getMyEvaluation() {
+    return api.get('/resources/me/evaluation');
+  },
+
   managerEvaluate(id, data) {
     return api.put(`/resources/${id}/manager-evaluation`, data);
   },

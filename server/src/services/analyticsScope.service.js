@@ -75,6 +75,7 @@ const getUserAnalyticsScope = async (user) => {
 
   // Bước 2.3: Lọc các công việc nằm trong các dự án của user hoặc do user làm/tạo
   const taskMatch = {
+    companyName: userCompany,
     $or: [
       { project: { $in: userProjectIds } },
       { assignee: user._id },
@@ -96,6 +97,7 @@ const getUserAnalyticsScope = async (user) => {
   // Chỉ lấy hồ sơ nhân sự của các đồng nghiệp trong cùng nhóm dự án
   const resourceMatch = {
     isActive: true,
+    companyName: userCompany,
     $or: [
       { user: { $in: Array.from(memberUserIds) } },
       { createdBy: user._id },

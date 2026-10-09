@@ -77,6 +77,7 @@ export default function TaskFormModal({
 }) {
   const selectedAssigneeId = Form.useWatch('assignee', form);
   const selectedDifficulty = Form.useWatch('difficulty', form) || 'medium';
+  const selectedRequiredSkills = Form.useWatch('requiredSkills', form) || [];
 
   const currentProj = useMemo(() => {
     const projId = selectedProject || editingTask?.project?._id || editingTask?.project;
@@ -106,8 +107,13 @@ export default function TaskFormModal({
 
   const competencyAssessment = useMemo(() => {
     if (!assigneeResource) return null;
-    const skills = assigneeResource.skills || [];
-    const maxSkillLevel = Math.max(1, ...skills.map((s) => s.managerLevel || s.level || 1));
+    const skills = (assigneeResource.skills || []).filter((skill) => skill.evaluationStatus !== 'self_assessed' || skill.managerLevel);
+    const maxSkillLevel = Math.max(0, ...skills.map((s) => s.managerLevel || s.level || 0));
+    const missingSkills = selectedRequiredSkills.filter((required) => {
+      if (!required?.name) return false;
+      const matched = skills.find((skill) => skill.name?.toLowerCase() === required.name.toLowerCase());
+      return !matched || (matched.managerLevel || matched.level || 0) < Number(required.level || 1);
+    });
     const isOverloaded =
       assigneeResource.isOverloaded ||
       (assigneeResource.utilizationRate && assigneeResource.utilizationRate > 100);
@@ -118,7 +124,10 @@ export default function TaskFormModal({
     if (isOverloaded) {
       type = 'error';
       message = `🔴 Cảnh báo Quá tải: Nhân sự này đang hoạt động ở mức ${assigneeResource.utilizationRate || '>100'}% công suất. Đề xuất san tải hoặc chọn nhân sự khác đang rảnh!`;
-    } else if (diffLevel > maxSkillLevel + 1) {
+    } else if (missingSkills.length > 0) {
+      type = 'warning';
+      message = `⚠️ Chưa đạt kỹ năng yêu cầu đã duyệt: ${missingSkills.map((skill) => skill.name).join(', ')}. Hãy kiểm tra người được giao hoặc điều chỉnh yêu cầu.`;
+    } else if (diffLevel > maxSkillLevel) {
       type = 'warning';
       message = `⚠️ Cảnh báo Năng lực: Độ khó công việc (Level ${diffLevel}) vượt mức kỹ năng cao nhất của nhân sự (Level ${maxSkillLevel}). Cần người có kinh nghiệm kèm cặp!`;
     } else if (maxSkillLevel >= diffLevel) {
@@ -127,7 +136,7 @@ export default function TaskFormModal({
     }
 
     return { type, message, isOverloaded };
-  }, [assigneeResource, diffLevel]);
+  }, [assigneeResource, diffLevel, selectedRequiredSkills]);
 
   const permissionFeatures = [];
   if (canEditDeadline) permissionFeatures.push('Gia hạn / Sửa thời hạn');

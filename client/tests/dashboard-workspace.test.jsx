@@ -4,9 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders, authState } from './helpers.jsx';
 import i18n from '../src/i18n';
 
-const state = vi.hoisted(() => ({ auth: null, getDashboard: vi.fn() }));
+const state = vi.hoisted(() => ({ auth: null, getDashboard: vi.fn(), getProductivitySummary: vi.fn() }));
 vi.mock('../src/context/AuthContext', () => ({ useAuth: () => state.auth }));
 vi.mock('../src/services/analyticsService', () => ({ default: { getDashboard: state.getDashboard } }));
+vi.mock('../src/services/resourceService', () => ({ default: { getProductivitySummary: state.getProductivitySummary } }));
 const { default: Dashboard } = await import('../src/pages/dashboard/Dashboard');
 
 const data = {
@@ -18,6 +19,7 @@ const data = {
 beforeEach(async () => {
   state.auth = authState();
   state.getDashboard.mockReset().mockResolvedValue({ data: { data } });
+  state.getProductivitySummary.mockReset().mockResolvedValue({ data: { data: { personnel: [], departments: [] } } });
   await i18n.changeLanguage('vi');
 });
 
@@ -58,5 +60,23 @@ describe('Dashboard working view', () => {
     await screen.findByRole('heading', { name: 'Cần xử lý' });
     expect(screen.queryByRole('link', { name: /Nhân sự quá tải/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Lập phương án phân bổ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Tổng quan điều hành' })).not.toBeInTheDocument();
+    expect(state.getProductivitySummary).not.toHaveBeenCalled();
+  });
+
+  it('shows project-wide progress and department workload for managers', async () => {
+    state.getDashboard.mockResolvedValueOnce({ data: { data: { ...data, projectProgress: [
+      { _id: 'p1', name: 'Dự án Alpha', total: 10, done: 4, taskProgress: 40, overdue: 2, blocked: 0, unassigned: 1, inProgress: 3, review: 1 },
+    ] } } });
+    state.getProductivitySummary.mockResolvedValueOnce({ data: { data: {
+      personnel: [{ _id: 'r1', name: 'An', statusCode: 'red', utilizationRate: 120 }, { _id: 'r2', name: 'Bình', statusCode: 'yellow', utilizationRate: 35 }],
+      departments: [{ name: 'Thiết kế', utilizationRate: 108, totalWorkload: 54, totalCapacity: 50, overloadedCount: 1, personnelCount: 2, statusCode: 'red', statusLabel: 'Phòng ban quá tải' }],
+    } } });
+    renderWithProviders(<Dashboard />);
+    const overview = await screen.findByRole('region', { name: 'Tổng quan điều hành' });
+    expect(overview).toHaveTextContent('Dự án Alpha');
+    expect(overview).toHaveTextContent('Thiết kế');
+    expect(overview).toHaveTextContent('4/10 việc hoàn thành');
+    expect(overview).toHaveTextContent('1 nhân sự cần san tải');
   });
 });

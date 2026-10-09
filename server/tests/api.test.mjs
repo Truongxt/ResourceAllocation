@@ -405,6 +405,27 @@ let deptId, resId;
   });
   ok(memberSkills.status === 403, 'Member sửa skill matrix của người khác → 403');
 
+  const ownProfile = await call('GET', '/resources/me/evaluation', { token: TOK.member });
+  ok(ownProfile.status === 200 && ownProfile.data.resource._id, 'Member đọc hồ sơ năng lực của chính mình');
+  const originalLevel = ownProfile.data.resource.skills.find((skill) => skill.name === 'React')?.level;
+  const invalidSelf = await call('PUT', '/resources/my-evaluation', {
+    token: TOK.member, body: { skills: [{ name: 'React', selfLevel: 8 }] },
+  });
+  ok(invalidSelf.status === 400, 'Member tự chấm sai thang level bị từ chối');
+  const self = await call('PUT', '/resources/my-evaluation', {
+    token: TOK.member, body: { skills: [{ name: 'React', selfLevel: 1, yearsOfExperience: 5 }, { name: 'Kỹ năng mới', selfLevel: 4, yearsOfExperience: 1 }] },
+  });
+  ok(self.status === 200, 'Member gửi tự đánh giá không cần quyền trang Nhân sự');
+  const afterSelf = await call('GET', '/resources/me/evaluation', { token: TOK.member });
+  ok(afterSelf.data.resource.skills.find((skill) => skill.name === 'React')?.level === originalLevel,
+    'Tự đánh giá không đổi level chính thức của kỹ năng cũ');
+  ok(afterSelf.data.resource.skills.find((skill) => skill.name === 'Kỹ năng mới')?.evaluationStatus === 'self_assessed',
+    'Kỹ năng mới đang chờ quản lý duyệt');
+  ok((await call('GET', '/resources/productivity/summary', { token: TOK.member })).status === 403,
+    'Member không đọc được năng suất của toàn bộ nhóm');
+  ok((await call('GET', '/resources/productivity/summary', { token: TOK.pm })).status === 200,
+    'Quản lý đọc được tải của nhóm trong phạm vi quyền');
+
   const bySkill = await call('GET', '/resources?skill=Testing&skillLevel=3', { token: TOK.admin });
   ok(bySkill.data.resources.length >= 1, 'Tìm nhân sự theo skill + level');
 
@@ -624,6 +645,8 @@ S('7. Analytics');
   const dash = await call('GET', '/analytics/dashboard', { token: TOK.admin });
   ok(dash.data.projects && dash.data.tasks && dash.data.resources, 'dashboard trả đủ 3 nhóm');
   ok(Array.isArray(dash.data.recentTasks) && Array.isArray(dash.data.recentOptimizations), 'dashboard có recentTasks/recentOptimizations');
+  ok(Array.isArray(dash.data.projectProgress) && dash.data.projectProgress.every((row) => 'taskProgress' in row && 'overdue' in row),
+    'dashboard trả tiến độ của từng dự án và số việc trễ hạn');
 
   const fixtures = [];
   for (const body of [

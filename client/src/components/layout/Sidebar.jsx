@@ -14,7 +14,8 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   CalendarOutlined,
-  SafetyCertificateOutlined
+  SafetyCertificateOutlined,
+  StarOutlined
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
@@ -94,6 +95,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         </span>
       ) : null,
       children: [
+        { key: '/account?tab=skills', icon: <StarOutlined style={{ fontSize: 16, color: '#f59e0b' }} />, label: 'Tự đánh giá năng lực' },
         { key: '/account', icon: <SafetyCertificateOutlined style={{ fontSize: 16, color: '#3b82f6' }} />, label: 'Base Account' },
         { key: '/activity-logs', icon: <HistoryOutlined style={{ fontSize: 16 }} />, label: t('nav.activityLogs') },
       ],
@@ -156,7 +158,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           <Menu
             theme={isDark ? 'dark' : 'light'}
             mode="inline"
-            selectedKeys={[location.pathname]}
+            selectedKeys={[location.pathname === '/account' && location.search.includes('tab=skills') ? '/account?tab=skills' : location.pathname]}
             items={menuItems}
             onClick={({ key }) => navigate(key)}
             style={{

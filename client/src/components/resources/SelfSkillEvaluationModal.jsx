@@ -32,6 +32,7 @@ export default function SelfSkillEvaluationModal({
   useEffect(() => {
     if (open && currentResource) {
       const initialSkills = (currentResource.skills || []).map((s) => ({
+        originalId: s._id,
         name: s.name,
         selfLevel: s.selfLevel || s.level || 1,
         managerLevel: s.managerLevel,
@@ -98,13 +99,7 @@ export default function SelfSkillEvaluationModal({
                         ) : (
                           <Tag color="warning">⏳ Chờ quản lý duyệt</Tag>
                         )}
-                        <Button
-                          type="text"
-                          danger
-                          size="small"
-                          icon={<MinusCircleOutlined />}
-                          onClick={() => remove(name)}
-                        />
+                        {!currentItem?.originalId && <Button type="text" danger size="small" icon={<MinusCircleOutlined />} onClick={() => remove(name)} aria-label="Bỏ kỹ năng mới" />}
                       </Space>
                     </div>
 
@@ -115,7 +110,7 @@ export default function SelfSkillEvaluationModal({
                         rules={[{ required: true, message: 'Nhập tên kỹ năng' }]}
                         style={{ flex: 2, minWidth: 160, marginBottom: 0 }}
                       >
-                        <Input placeholder="Tên kỹ năng (VD: React, Node, AI...)" />
+                        <Input disabled={Boolean(currentItem?.originalId)} placeholder="Tên kỹ năng (VD: React, Node, AI...)" />
                       </Form.Item>
 
                       <Form.Item
@@ -161,6 +156,10 @@ export default function SelfSkillEvaluationModal({
             </>
           )}
         </Form.List>
+
+        <Form.Item noStyle shouldUpdate>
+          {() => (form.getFieldValue('skills') || []).length === 0 ? <Alert type="warning" message="Hãy thêm ít nhất một kỹ năng trước khi gửi." style={{ marginBottom: 12 }} /> : null}
+        </Form.Item>
 
         <Divider style={{ margin: '14px 0' }} />
 

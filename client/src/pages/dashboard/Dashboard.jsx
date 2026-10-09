@@ -4,12 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Button, Skeleton, Space, Typography } from 'antd';
 import { ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import analyticsService from '../../services/analyticsService';
+import resourceService from '../../services/resourceService';
 import { taskStatusLabel } from '../../i18n/enums';
 import { useAuth } from '../../context/AuthContext';
 import { TASK_STATUSES, taskStatusCountKey } from '../../constants';
 import DashboardKpiCards from './components/DashboardKpiCards';
 import DashboardQuickAndRecent from './components/DashboardQuickAndRecent';
 import DashboardTaskAndHours from './components/DashboardTaskAndHours';
+import ManagementOverview from './components/ManagementOverview';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -19,6 +21,10 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [productivity, setProductivity] = useState(null);
+  const [productivityLoading, setProductivityLoading] = useState(false);
+  const [productivityError, setProductivityError] = useState(false);
+  const isManager = user?.role === 'admin' || user?.role === 'project_manager';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,6 +42,21 @@ export default function Dashboard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const loadProductivity = useCallback(async () => {
+    setProductivityLoading(true);
+    setProductivityError(false);
+    try {
+      const response = await resourceService.getProductivitySummary();
+      setProductivity(response.data.data);
+    } catch {
+      setProductivityError(true);
+    } finally {
+      setProductivityLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { if (isManager) loadProductivity(); }, [isManager, loadProductivity]);
 
   const task = data?.tasks || {};
   const res = data?.resources || {};
@@ -70,7 +91,7 @@ export default function Dashboard() {
         <Space wrap className="dashboard-header-actions">
           <Button
             icon={<ReloadOutlined spin={loading} />}
-            onClick={load}
+            onClick={() => { load(); if (isManager) loadProductivity(); }}
             loading={loading}
             className="btn-dashboard-reload"
           >
@@ -114,6 +135,7 @@ export default function Dashboard() {
         </div>
       ) : data ? (
         <div className="dashboard-body-container">
+          {isManager && <ManagementOverview projects={data.projectProgress || []} productivity={productivity} loading={productivityLoading} error={productivityError} />}
           {/* 1. HÀNG 4 THẺ KPI BENTO */}
           <DashboardKpiCards
             proj={data.projects}

@@ -3,9 +3,11 @@ const Task = require('../models/Task');
 const User = require('../models/User');
 const Project = require('../models/Project');
 const Department = require('../models/Department');
+const mongoose = require('mongoose');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
 const { generateEmployeeId } = require('../utils/employeeId.util');
+const { getUserAnalyticsScope } = require('../services/analyticsScope.service');
 
 const validateDepartment = async (departmentName, companyName = 'Công ty Công nghệ RAO') => {
   if (!departmentName) return null;
@@ -634,6 +636,20 @@ const deleteMyLeave = async (req, res, next) => {
  * @route   PUT /api/resources/my-evaluation
  * @access  Private
  */
+const getMyEvaluation = async (req, res, next) => {
+  try {
+    const resource = await Resource.findOne({ user: req.user._id })
+      .select('employeeId position department skills performanceRating performanceNotes')
+      .lean();
+    if (!resource) {
+      return res.status(404).json({ success: false, message: 'Chưa có hồ sơ nhân sự. Vui lòng liên hệ quản lý.' });
+    }
+    res.json({ success: true, data: { resource } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const selfEvaluate = async (req, res, next) => {
   try {
     const { skills } = req.body;
@@ -652,20 +668,18 @@ const selfEvaluate = async (req, res, next) => {
       const idx = updatedSkills.findIndex(
         (s) => s.name.trim().toLowerCase() === inputSkill.name.trim().toLowerCase()
       );
-      const sLevel = Number(inputSkill.selfLevel || inputSkill.level) || 1;
-      const yExp = Number(inputSkill.yearsOfExperience) || 0;
+      const sLevel = Number(inputSkill.selfLevel);
+      const yExp = Number(inputSkill.yearsOfExperience || 0);
 
       if (idx >= 0) {
         updatedSkills[idx].selfLevel = sLevel;
-        updatedSkills[idx].yearsOfExperience = yExp || updatedSkills[idx].yearsOfExperience;
+        updatedSkills[idx].yearsOfExperience = yExp;
         updatedSkills[idx].evaluationStatus = 'self_assessed';
-        if (!updatedSkills[idx].managerLevel) {
-          updatedSkills[idx].level = sLevel;
-        }
+        // Bản tự chấm chưa được duyệt không được thay đổi level chính thức.
       } else {
         updatedSkills.push({
           name: inputSkill.name.trim(),
-          level: sLevel,
+          level: 1,
           selfLevel: sLevel,
           yearsOfExperience: yExp,
           evaluationStatus: 'self_assessed',
@@ -711,6 +725,11 @@ const managerEvaluate = async (req, res, next) => {
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
     if (resource.companyName && resource.companyName !== userCompany && req.user.role !== 'superadmin') {
       return res.status(403).json({ success: false, message: 'Không có quyền thao tác trên nhân sự công ty khác' });
+    }
+    if (req.user.role === 'project_manager') {
+      const { resourceMatch } = await getUserAnalyticsScope(req.user);
+      const visible = await Resource.exists({ ...resourceMatch, _id: resource._id });
+      if (!visible) return res.status(403).json({ success: false, message: 'Nhân sự không thuộc phạm vi quản lý của bạn' });
     }
 
     if (Array.isArray(skills)) {
@@ -783,15 +802,8 @@ const managerEvaluate = async (req, res, next) => {
  */
 const getProductivitySummary = async (req, res, next) => {
   try {
-    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
-    const filter = { isActive: true };
-    if (userCompany === 'Công ty Công nghệ RAO') {
-      filter.companyName = { $in: [userCompany, null, undefined] };
-    } else {
-      filter.companyName = userCompany;
-    }
-
-    const resources = await Resource.find(filter)
+    const { resourceMatch, taskMatch } = await getUserAnalyticsScope(req.user);
+    const resources = await Resource.find(resourceMatch)
       .populate('user', 'name email avatar role')
       .lean();
 
@@ -799,7 +811,7 @@ const getProductivitySummary = async (req, res, next) => {
 
     // Lấy thống kê task theo nhân sự
     const taskAgg = await Task.aggregate([
-      { $match: { assignee: { $in: resourceUserIds } } },
+      { $match: { $and: [taskMatch, { assignee: { $in: resourceUserIds } }] } },
       {
         $group: {
           _id: '$assignee',
@@ -825,6 +837,13 @@ const getProductivitySummary = async (req, res, next) => {
               ],
             },
           },
+          measuredDoneTasks: { $sum: { $cond: [
+            { $and: [
+              { $eq: ['$status', 'done'] },
+              { $ne: [{ $ifNull: ['$completedAt', null] }, null] },
+              { $ne: [{ $ifNull: ['$endDate', null] }, null] },
+            ] }, 1, 0,
+          ] } },
         },
       },
     ]);
@@ -838,37 +857,36 @@ const getProductivitySummary = async (req, res, next) => {
       const tStats = uId ? taskMap.get(uId) : null;
       const capacity = (r.maxCapacity || 40) * (r.fte || 1);
       const workload = r.currentWorkload || 0;
-      const utilizationRate = capacity > 0 ? Math.round((workload / capacity) * 100) : 0;
+      const utilizationRate = capacity > 0 ? Math.round((workload / capacity) * 100) : workload > 0 ? 101 : 0;
+      const today = new Date();
+      const isOnLeave = (r.unavailablePeriods || []).some((period) =>
+        new Date(period.startDate) <= today && new Date(period.endDate) >= today
+      );
 
       const totalTasks = tStats?.totalTasks || 0;
       const doneTasks = tStats?.doneTasks || 0;
       const activeTasks = tStats?.activeTasks || 0;
       const failedTasks = tStats?.failedTasks || 0;
       const onTimeTasks = tStats?.onTimeTasks || 0;
-      const onTimeRate = doneTasks > 0 ? Math.round((onTimeTasks / doneTasks) * 100) : 100;
-      const failedRate = totalTasks > 0 ? Math.round((failedTasks / totalTasks) * 100) : 0;
+      const measuredDoneTasks = tStats?.measuredDoneTasks || 0;
+      const onTimeRate = measuredDoneTasks > 0 ? Math.round((onTimeTasks / measuredDoneTasks) * 100) : null;
 
       // Tính điểm năng suất: kết hợp % hoàn thành đúng hạn và rating
-      const productivityScore = Math.min(
-        100,
-        Math.round((onTimeRate * 0.6) + ((r.performanceRating || 4.5) / 5 * 40))
-      );
+      const productivityScore = onTimeRate;
 
       // Mã màu trực quan:
-      // 🟢 Xanh: Tải tối ưu 60% - 85% và năng suất tốt
-      // 🟡 Vàng: Tải thấp < 50% (Underload) HOẶC 86% - 100% (Tiệm cận ngưỡng)
-      // 🔴 Đỏ: Quá tải > 100% HOẶC tỷ lệ thất bại cao > 30%
+      // Màu chỉ biểu thị tải công việc, không suy diễn năng suất từ tải.
       let statusCode = 'green';
-      let statusLabel = 'Tối ưu (Năng suất tốt)';
+      let statusLabel = 'Tải cân bằng';
       let color = '#10b981'; // Green
 
-      if (utilizationRate > 100 || failedRate > 30) {
+      if (utilizationRate > 100) {
         statusCode = 'red';
         statusLabel = 'Quá tải (Cần san tải việc)';
         color = '#ef4444'; // Red
-      } else if (utilizationRate < 50) {
+      } else if (utilizationRate < 60) {
         statusCode = 'yellow';
-        statusLabel = 'Nhàn rỗi (Dưới công suất)';
+        statusLabel = 'Còn công suất';
         color = '#f59e0b'; // Amber / Yellow
       } else if (utilizationRate > 85) {
         statusCode = 'yellow';
@@ -885,6 +903,8 @@ const getProductivitySummary = async (req, res, next) => {
         avatar: r.user?.avatar || '',
         position: r.position,
         department: r.department || 'Chung',
+        availability: r.availability,
+        isOnLeave,
         capacity,
         workload,
         unscheduledWorkload: r.unscheduledWorkload || 0,
@@ -892,11 +912,12 @@ const getProductivitySummary = async (req, res, next) => {
         statusCode,
         statusLabel,
         color,
-        performanceRating: r.performanceRating || 4.5,
+        performanceRating: r.performanceRating,
         productivityScore,
         totalTasks,
         activeTasks,
         doneTasks,
+        measuredDoneTasks,
         failedTasks,
         onTimeRate,
         skills: r.skills || [],
@@ -920,6 +941,7 @@ const getProductivitySummary = async (req, res, next) => {
           totalActiveTasks: 0,
           avgProductivity: 0,
           sumProductivity: 0,
+          productivitySampleCount: 0,
           members: [],
         });
       }
@@ -928,17 +950,20 @@ const getProductivitySummary = async (req, res, next) => {
       d.totalWorkload += p.workload;
       d.personnelCount += 1;
       d.totalActiveTasks += p.activeTasks;
-      d.sumProductivity += p.productivityScore;
+      if (p.productivityScore !== null) {
+        d.sumProductivity += p.productivityScore;
+        d.productivitySampleCount += 1;
+      }
       d.members.push(p);
 
       if (p.statusCode === 'red') d.overloadedCount += 1;
-      else if (p.statusCode === 'yellow' && p.utilizationRate < 50) d.underloadedCount += 1;
+      else if (p.statusCode === 'yellow' && p.utilizationRate < 60) d.underloadedCount += 1;
       else d.optimalCount += 1;
     });
 
     const departmentList = Array.from(deptMap.values()).map((d) => {
-      const utilizationRate = d.totalCapacity > 0 ? Math.round((d.totalWorkload / d.totalCapacity) * 100) : 0;
-      const avgProductivity = d.personnelCount > 0 ? Math.round(d.sumProductivity / d.personnelCount) : 0;
+      const utilizationRate = d.totalCapacity > 0 ? Math.round((d.totalWorkload / d.totalCapacity) * 100) : d.totalWorkload > 0 ? 101 : 0;
+      const avgProductivity = d.productivitySampleCount > 0 ? Math.round(d.sumProductivity / d.productivitySampleCount) : null;
 
       let statusCode = 'green';
       let statusLabel = 'Hoạt động tối ưu';
@@ -946,9 +971,9 @@ const getProductivitySummary = async (req, res, next) => {
 
       if (utilizationRate > 100 || (d.overloadedCount > 0 && d.overloadedCount >= d.personnelCount / 2)) {
         statusCode = 'red';
-        statusLabel = 'Phòng ban Quá tải (Cần điều phối)';
+        statusLabel = utilizationRate > 100 ? 'Phòng ban quá tải' : 'Nhiều nhân sự quá tải';
         color = '#ef4444';
-      } else if (utilizationRate < 50) {
+      } else if (utilizationRate < 60) {
         statusCode = 'yellow';
         statusLabel = 'Dưới công suất (Có thể nhận thêm việc)';
         color = '#f59e0b';
@@ -999,6 +1024,7 @@ module.exports = {
   updateResource,
   deleteResource,
   updateSkills,
+  getMyEvaluation,
   selfEvaluate,
   managerEvaluate,
   getProductivitySummary,

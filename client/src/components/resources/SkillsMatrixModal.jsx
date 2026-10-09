@@ -196,7 +196,7 @@ export default function SkillsMatrixModal({
                 ⭐ Điểm đánh giá Năng suất & Thái độ làm việc
               </Text>
               <div style={{ fontSize: 12, color: '#64748b' }}>
-                Đóng góp vào điểm năng suất tổng hợp trên biểu đồ cột
+                Đánh giá định tính của quản lý; hiển thị riêng, không quyết định màu tải công việc.
               </div>
             </div>
             <Form.Item name="performanceRating" style={{ marginBottom: 0 }}>

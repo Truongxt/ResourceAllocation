@@ -9,6 +9,7 @@ const {
   updateResource,
   deleteResource,
   updateSkills,
+  getMyEvaluation,
   selfEvaluate,
   managerEvaluate,
   getProductivitySummary,
@@ -159,6 +160,19 @@ const skillsValidation = [
     .withMessage('Level kỹ năng phải từ 1 đến 4'),
 ];
 
+const selfEvaluationValidation = [
+  body('skills').isArray({ min: 1, max: 50 }).withMessage('Cần nhập từ 1 đến 50 kỹ năng'),
+  body('skills.*.name').isString().trim().isLength({ min: 1, max: 100 }).withMessage('Tên kỹ năng không hợp lệ'),
+  body('skills.*.selfLevel').isInt({ min: 1, max: 4 }).withMessage('Mức tự đánh giá phải từ 1 đến 4'),
+  body('skills.*.yearsOfExperience').optional().isFloat({ min: 0, max: 60 }).withMessage('Số năm kinh nghiệm không hợp lệ'),
+  body('skills').custom((skills) => {
+    if (!Array.isArray(skills)) return true;
+    const names = skills.map((skill) => String(skill?.name || '').trim().toLowerCase());
+    if (new Set(names).size !== names.length) throw new Error('Tên kỹ năng không được trùng');
+    return true;
+  }),
+];
+
 router.use(protect);
 
 router.get('/stats/summary', getResourceSummary);
@@ -170,10 +184,11 @@ router.post('/me/leaves', addMyLeave);
 router.delete('/me/leaves/:leaveId', deleteMyLeave);
 
 // Báo cáo Năng suất & Sơ đồ Cột trực quan (Xanh/Vàng/Đỏ) theo Nhân sự & Phòng ban
-router.get('/productivity/summary', getProductivitySummary);
+router.get('/productivity/summary', authorize('admin', 'project_manager'), getProductivitySummary);
 
 // Đánh giá năng lực 2 chiều (Two-Way Skill Assessment)
-router.put('/my-evaluation', selfEvaluate);
+router.get('/me/evaluation', getMyEvaluation);
+router.put('/my-evaluation', selfEvaluationValidation, validate, selfEvaluate);
 router.put('/:id/manager-evaluation', authorize('admin', 'project_manager'), resourceIdValidation, validate, managerEvaluate);
 
 router.get('/', listValidation, validate, getResources);

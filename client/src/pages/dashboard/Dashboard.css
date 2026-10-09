@@ -814,7 +814,29 @@
 /* --------------------------------------------------------------------------
    6. Responsive Adaptations
    -------------------------------------------------------------------------- */
+.management-overview { margin-bottom: 24px; }
+.management-overview-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.management-overview-heading h4 { margin: 0 0 4px !important; }
+.management-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.management-summary-grid > div { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--surface-card); }
+.management-summary-grid span, .management-summary-grid small { color: var(--text-secondary); }
+.management-summary-grid strong { font-size: 27px; line-height: 1.1; color: var(--text-primary); }
+.management-summary-grid strong.danger { color: #dc2626; }
+.management-overview-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 16px; }
+.management-overview-grid .ant-card { min-width: 0; }
+.management-departments { display: flex; flex-direction: column; gap: 14px; max-height: 385px; overflow: auto; }
+.management-department-label { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.management-department-track { height: 14px; background: var(--surface-hover); border-radius: 10px; overflow: hidden; margin: 5px 0 3px; }
+.management-department-track > div { height: 100%; border-radius: inherit; }
+.management-department small { color: var(--text-secondary); }
+.management-people { display: flex; flex-direction: column; gap: 9px; border-top: 1px solid var(--border-subtle); margin-top: 15px; padding-top: 13px; }
+.management-people > strong { font-size: 13px; }
+.management-person-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.management-person-row span { display: flex; flex-direction: column; min-width: 0; }
+.management-person-row small { color: var(--text-secondary); overflow-wrap: anywhere; }
+
 @media (max-width: 1200px) {
+  .management-overview-grid { grid-template-columns: 1fr; }
   .dashboard-kpi-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -832,6 +854,8 @@
 }
 
 @media (max-width: 640px) {
+  .management-overview-heading { flex-direction: column; }
+  .management-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-header {
     flex-direction: column;
     align-items: stretch;
