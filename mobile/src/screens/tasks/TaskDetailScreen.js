@@ -18,6 +18,7 @@ import Header from '../../components/common/Header';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
+import TaskAttachments from '../../components/tasks/TaskAttachments';
 import taskApi from '../../api/taskApi';
 import {
   formatDate,
@@ -32,6 +33,7 @@ const TABS = [
   { key: 'checklist', label: 'Checklist' },
   { key: 'workflow', label: 'Quy trình' },
   { key: 'comments', label: 'Bình luận' },
+  { key: 'files', label: 'Tệp' },
 ];
 
 export default function TaskDetailScreen({ route, navigation }) {
@@ -271,8 +273,13 @@ export default function TaskDetailScreen({ route, navigation }) {
         </View>
       ) : (
         <>
-          {/* Tabs bar */}
-          <View style={[styles.tabsBar, { borderBottomColor: theme.colors.border }]}>
+          {/* Tabs bar — cuộn ngang: năm tab không vừa một hàng trên màn hình hẹp */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={[styles.tabsBar, { borderBottomColor: theme.colors.border }]}
+            contentContainerStyle={styles.tabsBarContent}
+          >
             {TABS.map((tab) => {
               const active = activeTab === tab.key;
               const count =
@@ -304,7 +311,7 @@ export default function TaskDetailScreen({ route, navigation }) {
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
 
           <ScrollView
             contentContainerStyle={styles.scrollContent}
@@ -663,6 +670,9 @@ export default function TaskDetailScreen({ route, navigation }) {
                 </Card>
               </View>
             )}
+
+            {/* TAB 5: TỆP ĐÍNH KÈM — tự tải danh sách khi tab được mở */}
+            {activeTab === 'files' && <TaskAttachments task={task} />}
           </ScrollView>
 
           {/* Modal 1: Nộp báo cáo kết quả */}
@@ -843,8 +853,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   tabsBar: {
-    flexDirection: 'row',
+    flexGrow: 0,
     borderBottomWidth: 1,
+  },
+  tabsBarContent: {
     paddingHorizontal: 8,
   },
   tabItem: {
