@@ -98,6 +98,8 @@ const cloneProject = async (source, { name, code, startDate, asTemplate = false,
     permissions: source.permissions,
     failureConfig: source.failureConfig,
     reviewConfig: { ...(source.reviewConfig?.toObject?.() || source.reviewConfig || {}), reviewers: peopleless ? [] : source.reviewConfig?.reviewers || [] },
+    // Giữ nguyên `key` để giá trị của các việc chép sang vẫn khớp định nghĩa.
+    customFields: (source.customFields || []).map((f) => (f.toObject ? f.toObject() : f)),
     isTemplate: Boolean(asTemplate),
     companyName: source.companyName,
     createdBy: user._id,
@@ -132,6 +134,7 @@ const cloneProject = async (source, { name, code, startDate, asTemplate = false,
       endDate: shift(t.endDate),
       estimatedHours: t.estimatedHours,
       requiredSkills: t.requiredSkills,
+      customValues: t.customValues,
       checklist: (t.checklist || []).map((c) => ({ title: c.title, isCompleted: false, order: c.order })),
       // Phụ thuộc trỏ ra ngoài dự án (không có trong idMap) thì bỏ, không trỏ về bản gốc.
       dependencies: (t.dependencies || [])

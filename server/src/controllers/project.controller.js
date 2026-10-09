@@ -8,6 +8,7 @@ const { logActivity } = require('../services/activityLog.service');
 const { stripProtected, usersError, departmentError } = require('../services/companyRefs.service');
 const { archiveBlocker, cloneProject } = require('../services/projectLifecycle.service');
 const { removeAttachments } = require('../services/attachment.service');
+const { normalizeFieldDefinitions } = require('../services/customFields.service');
 
 /** Quản lý, thành viên và phòng ban gửi lên phải cùng công ty với dự án. */
 const projectRefsError = async ({ manager, members, department }, company) => {
@@ -250,6 +251,8 @@ const createProject = async (req, res, next) => {
       });
     }
 
+    // Định nghĩa trường tùy chỉnh chỉ ghi qua PUT /:id/custom-fields, nơi có kiểm.
+    delete req.body.customFields;
     const managerId = req.body.manager || req.user._id;
 
     // Chuẩn hóa danh sách thành viên thực hiện dự án (nếu được truyền)
@@ -379,6 +382,8 @@ const updateProject = async (req, res, next) => {
 
     // `companyName` gửi lên trước đây chuyển được cả dự án sang công ty khác
     const updateData = stripProtected({ ...req.body });
+    // Định nghĩa trường tùy chỉnh chỉ ghi qua PUT /:id/custom-fields, nơi có kiểm.
+    delete updateData.customFields;
 
     if (Array.isArray(req.body.members)) {
       const formattedMembers = req.body.members
@@ -968,7 +973,65 @@ const duplicateProject = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Khai trường dữ liệu tùy chỉnh cho công việc của dự án (thay cả danh sách)
+ * @route   PUT /api/projects/:id/custom-fields
+ * @access  Private (admin/Owner hoặc quản lý dự án — như phân quyền thao tác)
+ *
+ * Xóa trường thì xóa giá trị của nó trên mọi việc của dự án; bỏ một lựa chọn thì xóa các giá
+ * trị đang là lựa chọn đó. Không để lại giá trị mồ côi mà form không còn hiện ra được.
+ */
+const updateCustomFields = async (req, res, next) => {
+  try {
+    const project = await loadOwnProject(req, res);
+    if (!project) return;
+
+    const isAdmin = req.user.role === 'admin' || Boolean(req.user.isOwner);
+    const isManager = project.manager && project.manager.toString() === req.user._id.toString();
+    if (!isAdmin && !isManager) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ Quản trị viên hoặc Quản lý dự án mới khai được trường tùy chỉnh',
+      });
+    }
+
+    const result = normalizeFieldDefinitions(req.body.fields, project.customFields || []);
+    if (result.error) return res.status(400).json({ success: false, message: result.error });
+
+    project.customFields = result.fields;
+    await project.save();
+
+    // `key` ở đây đều đã qua `normalizeFieldDefinitions` (do server sinh hoặc có sẵn trong dự án).
+    if (result.removedKeys.length) {
+      await Task.updateMany(
+        { project: project._id },
+        { $unset: Object.fromEntries(result.removedKeys.map((key) => [`customValues.${key}`, ''])) }
+      );
+    }
+    for (const [key, options] of Object.entries(result.removedOptions)) {
+      await Task.updateMany(
+        { project: project._id, [`customValues.${key}`]: { $in: options } },
+        { $unset: { [`customValues.${key}`]: '' } }
+      );
+    }
+
+    logActivity({
+      req,
+      action: 'UPDATE_PROJECT',
+      entityType: 'project',
+      entityId: project._id,
+      entityTitle: project.name,
+      description: `Cập nhật trường tùy chỉnh của dự án "${project.name}" (${result.fields.length} trường)`,
+    });
+
+    res.json({ success: true, data: { project }, message: 'Đã lưu trường tùy chỉnh' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
+  updateCustomFields,
   duplicateProject,
   archiveProject,
   unarchiveProject,

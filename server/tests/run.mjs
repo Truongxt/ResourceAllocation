@@ -62,6 +62,7 @@ const SUITES = [
   { name: 'performance', file: 'performance.test.mjs', label: 'Báo cáo kết quả theo người — HTTP' },
   { name: 'optimize-pm', file: 'optimize-pm.test.mjs', label: 'Tối ưu hóa cho PM, thu hẹp theo dự án' },
   { name: 'attachments', file: 'attachments.test.mjs', label: 'Đính kèm tệp trên công việc' },
+  { name: 'custom-fields', file: 'custom-fields.test.mjs', label: 'Trường dữ liệu tùy chỉnh theo dự án' },
 ];
 
 const filter = process.argv[2];

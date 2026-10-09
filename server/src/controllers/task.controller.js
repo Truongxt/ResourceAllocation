@@ -10,6 +10,7 @@ const { syncResourceWorkload } = require('../services/workload.service');
 const { createDeniedReason } = require('../middleware/taskAccess');
 const { placementError, inactiveProjectIds } = require('../services/projectLifecycle.service');
 const { removeAttachments } = require('../services/attachment.service');
+const { mergeCustomValues, customValueFilter } = require('../services/customFields.service');
 const {
   DEFAULT_COMPANY,
   companyOf,
@@ -138,7 +139,10 @@ const belongsToCompany = (task, user) => {
  */
 const getTasks = async (req, res, next) => {
   try {
-    const filter = {};
+    // `cf_<key>=<giá trị>`: lọc theo trường tùy chỉnh. Kiểm `key` trước khi ghép vào đường dẫn.
+    const custom = customValueFilter(req.query);
+    if (custom.error) return res.status(400).json({ success: false, message: custom.error });
+    const filter = { ...custom.filter };
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
 
     const companyProjects = await Project.find({
@@ -371,7 +375,8 @@ const getTaskById = async (req, res, next) => {
       .populate('assignee', 'name email avatar')
       .select('title status priority progress startDate endDate assignee estimatedHours actualHours');
 
-    const taskObj = task.toObject();
+    // `flattenMaps`: `customValues` là Map, để nguyên thì JSON hóa thành `{}`.
+    const taskObj = task.toObject({ flattenMaps: true });
     taskObj.subtasks = subtasks;
 
     res.json({
@@ -481,6 +486,12 @@ const createTask = async (req, res, next) => {
       }
       req.body.dependencies = normalized.value;
     }
+
+    // Có body `customValues` hay không cũng phải kiểm: dự án có trường bắt buộc thì tạo việc
+    // thiếu nó là sai, dù client không biết gì về trường tùy chỉnh.
+    const custom = mergeCustomValues(project.customFields, req.body.customValues, {});
+    if (custom.error) return res.status(400).json({ success: false, message: custom.error });
+    req.body.customValues = Object.keys(custom.values).length ? custom.values : undefined;
 
     const taskData = {
       ...req.body,
@@ -629,6 +640,14 @@ const updateTask = async (req, res, next) => {
         return res.status(400).json({ success: false, message: check.message });
       }
       Object.assign(req.body, statusChangeFields({ task, nextStatus: req.body.status, failureReason, userId: req.user._id }));
+    }
+
+    // Chỉ kiểm (cả trường bắt buộc) khi lần sửa này có đụng tới `customValues`: đổi trạng thái
+    // hay kéo Kanban không được bị chặn vì dự án vừa thêm một trường bắt buộc.
+    if (req.body.customValues !== undefined) {
+      const custom = mergeCustomValues(project?.customFields, req.body.customValues, task.customValues);
+      if (custom.error) return res.status(400).json({ success: false, message: custom.error });
+      req.body.customValues = custom.values;
     }
 
     const updateData = { ...req.body };
@@ -1552,6 +1571,8 @@ const duplicateTask = async (req, res, next) => {
       startDate: new Date(),
       endDate: original.endDate,
       requiredSkills: original.requiredSkills,
+      // Giá trị trường tùy chỉnh bám theo định nghĩa của dự án: sang dự án khác thì bỏ.
+      customValues: changesProject ? undefined : original.customValues,
       checklist: (original.checklist || []).map((c) => ({
         title: c.title,
         assignee: c.assignee,
@@ -1684,6 +1705,8 @@ const moveTask = async (req, res, next) => {
       }
 
       task.project = targetProjectId;
+      // Định nghĩa trường tùy chỉnh thuộc dự án cũ: giữ lại thì thành giá trị mồ côi.
+      task.customValues = undefined;
     }
 
     // Nhóm đích phải thuộc đúng dự án mà công việc sẽ nằm sau khi chuyển — nếu không,
@@ -2186,7 +2209,7 @@ const getPendingReviews = async (req, res, next) => {
       .map((task) => {
         const project = projectMap.get(String(task.project?._id || task.project));
         return {
-          ...task.toObject(),
+          ...task.toObject({ flattenMaps: true }),
           slaHours: project?.reviewConfig?.slaHours || 24,
           isOverdueReview: isReviewOverdue(task, project, now),
           waitingHours: task.reviewRequestedAt

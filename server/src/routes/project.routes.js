@@ -17,6 +17,7 @@ const {
   getProjectSummary,
   updateProjectPermissions,
   quickEditProject,
+  updateCustomFields,
   archiveProject,
   unarchiveProject,
   duplicateProject,
@@ -191,6 +192,9 @@ router.delete('/:id/members/:userId', authorize('admin', 'project_manager'), pro
 
 // Base Wework: Cấu hình phân quyền thao tác trong dự án (Owner & PM)
 router.patch('/:id/permissions', projectIdValidation, validate, updateProjectPermissions);
+
+// Trường dữ liệu tùy chỉnh của công việc (admin/Owner & quản lý dự án, kiểm trong controller)
+router.put('/:id/custom-fields', projectIdValidation, validate, updateCustomFields);
 
 // Base Wework: Chỉnh sửa nhanh (Quick Edit) dự án / phòng ban
 router.patch('/:id/quick-edit', projectIdValidation, validate, quickEditProject);

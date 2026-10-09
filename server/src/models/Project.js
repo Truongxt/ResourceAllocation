@@ -148,6 +148,19 @@ const projectSchema = new mongoose.Schema(
     // Dự án mẫu: chỉ để nhân bản ra dự án thật. Nằm ngoài mọi tính toán (danh sách,
     // tải, tối ưu, báo cáo), và việc trong mẫu không bao giờ có người thực hiện.
     isTemplate: { type: Boolean, default: false, index: true },
+    // Trường dữ liệu tùy chỉnh cho công việc của dự án. Chỉ ghi qua
+    // `PUT /projects/:id/custom-fields` — xem services/customFields.service.js.
+    customFields: [
+      {
+        _id: false,
+        key: { type: String, required: true },
+        name: { type: String, required: true, trim: true },
+        type: { type: String, enum: ['text', 'number', 'date', 'select'], required: true },
+        options: { type: [String], default: [] },
+        required: { type: Boolean, default: false },
+        order: { type: Number, default: 0 },
+      },
+    ],
     // Base Wework: Cấu hình phân quyền thao tác trong dự án
     permissions: {
       allowAssigneeEditDeadline: { type: Boolean, default: false },
