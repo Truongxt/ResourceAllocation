@@ -13,7 +13,7 @@ phụ thuộc vào những gì giai đoạn trước để lại, nên viết ch
 **Ưu tiên hiện tại (chốt với người dùng ngày 2026-10-08): hoàn thành chương trình trước, sửa luận văn sau.**
 
 Số test ở lần chạy gần nhất (2026-10-09, sau GĐ7): server **37/37 bộ**, client **81/81** (cộng 7 bộ logic
-thuần), mobile **38 + 14 + 3** (node thuần) **+ 34** (jest), e2e **93/93** (trọn bộ).
+thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/93** (trọn bộ).
 
 ### Đã làm
 
@@ -28,7 +28,7 @@ thuần), mobile **38 + 14 + 3** (node thuần) **+ 34** (jest), e2e **93/93** (
 | — | Dọn tồn đọng nhỏ | `8b01b01`, `ca15897`, `edd9847`, `66c1660`, `72d31a4`, `f5b8b00` | Nút ở dạng thẻ màn Dự án; cảnh báo job `stale` trên Dashboard; bộ sinh dữ liệu Benchmark theo vai trò; CSP tách hết ngân sách khỏi vô nghiệm; Benchmark Studio về ngưỡng 0.5 (người dùng chốt 2026-10-08) |
 | — | Dọn tồn đọng, đợt hai | `fbbd5ab`, `178eb51`, `7f984e2`, `3662cdd`, `05acc0b` | Trùng index `companyName`; khôi phục `completedAt` (script + seeder); việc lặp lại sinh bù lượt lỡ (trần 31); PM chạy tối ưu theo dự án mình quản lý (server + web) |
 | — | Dọn tồn đọng, đợt ba | `bd27c24`, `86ae1db`, `bd74ae1`, `7462d3f` | PM chọn sẵn dự án còn việc mở (`taskStats.openTasks`); mobile mở Tối ưu cho PM; đo lại S1/S3 bằng bộ sinh mới (`npm run measure:csp-soft`); e2e trọn bộ 91/91 |
-| 7 | Trường dữ liệu tùy chỉnh | `48e57b4`, `ba1b910`, `85bfa0a`, `bce63b9`, `60791c1` | [plan](./2026-10-09-truong-tuy-chinh.md). Văn bản, số, ngày, chọn một (người dùng chốt 2026-10-09); form, chi tiết, lọc, CSV, Excel; mobile chỉ xem |
+| 7 | Trường dữ liệu tùy chỉnh | `48e57b4`, `ba1b910`, `85bfa0a`, `bce63b9`, `60791c1`, `7b08975` | [plan](./2026-10-09-truong-tuy-chinh.md). Văn bản, số, ngày, chọn một (người dùng chốt 2026-10-09); form, chi tiết, lọc, CSV, Excel; mobile điền và sửa giá trị |
 | 8 | Đính kèm tệp thật | `39a7f3c`, `651e4a8`, `be0aa20`, `09de812`, `5177a20` | [plan](./2026-10-09-dinh-kem-tep.md). Web và mobile; lưu đĩa (`UPLOAD_DIR`), 10 MB/tệp, 20 tệp/việc |
 | 9 | Mobile: Gantt, test giao diện | `7be9ee8`, `2d486ab`, `a609ea5`, `172c062` | [plan](./2026-10-08-mobile-gantt.md). Gantt chỉ xem; jest-expo + RNTL; mobile tải đủ mọi trang |
 
@@ -66,9 +66,9 @@ thuần), mobile **38 + 14 + 3** (node thuần) **+ 34** (jest), e2e **93/93** (
 1. **Khi triển khai phải cấu hình cron và `JOB_SECRET`** (README mục "Job định kỳ"). Thiếu thì hai job không bao
    giờ chạy; Dashboard cảnh báo Owner/Admin khi có job `stale` (`ca15897`). Môi trường có dữ liệu từ trước
    `152df0e` thì chạy `npm run migrate:completed-at` (chạy khô trước), rồi `-- --apply`.
-2. **Trường tùy chỉnh — phần còn lại** (GĐ7 bản đầu): mobile chưa điền được giá trị, nên tạo việc trên mobile ở
-   dự án có trường bắt buộc sẽ bị server từ chối (mobile hiện lý do); việc con và việc lặp lại không kiểm
-   trường bắt buộc; chưa có kiểu công thức, nhiều lựa chọn, và bộ trường cho Kết quả công việc như Base.
+2. **Trường tùy chỉnh — phần còn lại** (GĐ7 bản đầu): việc con và việc lặp lại không kiểm trường bắt buộc;
+   chưa có kiểu công thức, nhiều lựa chọn, và bộ trường cho Kết quả công việc như Base. Mobile điền và sửa
+   được giá trị (`7b08975`), nhưng khai trường chỉ trên web.
 3. **Khi triển khai phải đặt `UPLOAD_DIR`** vào thư mục được sao lưu, không bị xóa khi deploy lại (README mục
    "Tệp đính kèm"). Sao lưu database mà thiếu thư mục này thì tệp tải về báo không còn.
 4. **Báo cáo luận văn dùng số đo cũ** — để sau cùng theo quyết định ngày 2026-10-08. `docs/build_thesis_report.py`

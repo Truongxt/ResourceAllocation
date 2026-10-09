@@ -229,7 +229,7 @@ làm hỏng hẳn tính năng.
 | Dự án | ✅ + chi tiết | sửa thành viên, phân quyền dự án, cấu hình luồng |
 | Công việc | 🔨 | Kanban, việc lặp lại, nhóm việc, phụ thuộc, người theo dõi, báo cáo kết quả, duyệt việc, nhân bản, di chuyển, bàn giao hàng loạt, nhập/xuất Excel |
 | ↳ checklist, bình luận, tệp đính kèm | ✅ | — |
-| ↳ trường tùy chỉnh | 🔨 chỉ xem | điền giá trị (tạo việc trên mobile ở dự án có trường bắt buộc sẽ bị server từ chối) |
+| ↳ trường tùy chỉnh | ✅ | khai trường (chỉ trên web); ngày gõ tay dd/mm/yyyy vì chưa có thư viện chọn ngày |
 | Nhân sự | 🔨 | nghỉ phép, tính lại tải |
 | Tối ưu hóa | 🔨 | so sánh, rollback, chỉnh tham số thuật toán |
 | Benchmark | ✅ | — |

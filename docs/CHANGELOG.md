@@ -14,7 +14,9 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   của chi tiết dự án (admin/Owner hoặc quản lý dự án), điền trong form tạo/sửa việc, hiện ở chi tiết việc
   (cả mobile, chỉ xem), lọc theo trường chọn một, thêm cột khi xuất CSV, có cột trong mẫu Excel theo dự
   án và được đọc khi nhập. Giá trị bám theo `key` cố định nên đổi tên không mất dữ liệu; nhân bản dự
-  án chép cả định nghĩa lẫn giá trị. Chuyển việc sang dự án khác thì bỏ giá trị.
+  án chép cả định nghĩa lẫn giá trị. Chuyển việc sang dự án khác thì bỏ giá trị. Mobile điền được khi
+  tạo việc (màn Công việc, Lịch, chi tiết dự án) và sửa ở chi tiết việc; ngày gõ dạng dd/mm/yyyy, số
+  theo thói quen Việt ("15.000.000", "1,5").
 - **Đính kèm tệp thật trên công việc** (web). Tab "Tệp" trong chi tiết công việc: tải lên, tải về đúng
   tên gốc, xóa. Lưu trên đĩa server (`UPLOAD_DIR`, mặc định `server/uploads`) qua một lớp `fileStorage`
   để sau đổi sang S3. 10 MB mỗi tệp, 20 tệp mỗi việc, chỉ nhận tài liệu/PDF/văn bản/ảnh/tệp nén. Quyền
