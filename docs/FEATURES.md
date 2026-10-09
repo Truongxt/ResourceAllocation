@@ -63,6 +63,7 @@ của `server/tests/api.test.mjs`.
 | 3.9 | Required Skills | Định nghĩa skills cần thiết cho task | ✅ | Nhập từng dòng: tên (gợi ý từ Skill Matrix nhân sự), mức yêu cầu Lv.1-4, trọng số 0-1. Danh sách kỹ năng kèm mức hiện luôn trên bảng công việc. Server chặn thiếu tên, level ngoài **1-4** (cùng thang với nhân sự), trọng số ngoài 0-1 |
 | 3.10 | Estimated Hours | Nhập giờ ước tính vs thực tế | ✅ | `estimatedHours` / `actualHours` |
 | 3.11 | Thay đổi trạng thái | Cập nhật progress, status | ✅ | `PATCH /:id/status`, tự set progress 0/100 |
+| 3.13 | Trường dữ liệu tùy chỉnh | Mỗi dự án tự khai thêm trường cho công việc | ✅ | Văn bản, số, ngày, chọn một; tối đa 20 trường/dự án, có bắt buộc. Khai ở tab "Trường tùy chỉnh" của chi tiết dự án; điền trong form việc; lọc theo trường chọn một; cột trong CSV và mẫu Excel. Chưa có kiểu công thức và bộ trường cho Kết quả công việc |
 | 3.12 | Mức độ khó & Khớp năng lực | 4 mức độ khó (Dễ Lv.1 đến Chuyên gia Lv.4) + Cảnh báo độ khớp và quá tải | ✅ | Phân loại `difficulty` & `difficultyLevel` (1..4). Form Task tự động đối chiếu với kỹ năng được duyệt của nhân sự, cảnh báo trực quan nếu thiếu level hoặc nhân sự đang trong vùng quá tải (🔴 Red alert) |
 
 ---
@@ -228,6 +229,7 @@ làm hỏng hẳn tính năng.
 | Dự án | ✅ + chi tiết | sửa thành viên, phân quyền dự án, cấu hình luồng |
 | Công việc | 🔨 | Kanban, việc lặp lại, nhóm việc, phụ thuộc, người theo dõi, báo cáo kết quả, duyệt việc, nhân bản, di chuyển, bàn giao hàng loạt, nhập/xuất Excel |
 | ↳ checklist, bình luận, tệp đính kèm | ✅ | — |
+| ↳ trường tùy chỉnh | 🔨 chỉ xem | điền giá trị (tạo việc trên mobile ở dự án có trường bắt buộc sẽ bị server từ chối) |
 | Nhân sự | 🔨 | nghỉ phép, tính lại tải |
 | Tối ưu hóa | 🔨 | so sánh, rollback, chỉnh tham số thuật toán |
 | Benchmark | ✅ | — |

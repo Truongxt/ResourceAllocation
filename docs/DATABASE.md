@@ -129,6 +129,16 @@ Ba điểm thiết kế:
   archivedAt: Date,
   archivedBy: ObjectId → Users,
   isTemplate: Boolean,       // default false — dự án mẫu: ngoài mọi tính toán, việc không có người thực hiện
+  customFields: [            // trường tùy chỉnh cho công việc của dự án, tối đa 20 — chỉ ghi qua PUT /:id/custom-fields
+    {
+      key: String,           // 'f_' + 8 ký tự, server sinh, không bao giờ đổi — giá trị bám theo key
+      name: String,          // ≤ 60, không trùng trong dự án
+      type: String,          // 'text' | 'number' | 'date' | 'select' — không đổi được sau khi tạo
+      options: [String],     // chỉ với 'select', 1–50 lựa chọn
+      required: Boolean,
+      order: Number
+    }
+  ],
   createdBy: ObjectId → Users,
   createdAt: Date,
   updatedAt: Date
@@ -170,6 +180,7 @@ việc, thống kê, analytics và tối ưu; dự án lưu trữ chỉ bị lo�
     }
   ],
   dependencies: [ObjectId → Tasks],  // Mảng ObjectId PHẲNG, không có field `type`
+  customValues: Map,           // key (Project.customFields) → giá trị: chuỗi ≤ 1000, số, Date, hoặc một lựa chọn
   createdBy: ObjectId → Users,
   createdAt: Date,
   updatedAt: Date
@@ -188,6 +199,10 @@ việc, thống kê, analytics và tối ưu; dự án lưu trữ chỉ bị lo�
   field này nhận tới 5, khiến yêu cầu mức 5 vĩnh viễn không ai khớp tuyệt đối (tối đa
   `min(4,5)/5 = 0.8`). Bản ghi cũ còn mức 5 dọn bằng `npm run migrate:skill-level`.
 - Không có field `storyPoints` và `completedAt`.
+- **`customValues` chỉ ghi qua `mergeCustomValues`** (`services/customFields.service.js`): kiểm kiểu,
+  lựa chọn và trường bắt buộc. Xóa trường hoặc bỏ một lựa chọn ở dự án thì giá trị tương ứng trên mọi
+  việc bị `$unset`; chuyển việc sang dự án khác thì bỏ hết giá trị. Trả `Task` ra client bằng
+  `toObject()` thì phải kèm `{ flattenMaps: true }`, không thì Map thành `{}`.
 
 ---
 

@@ -2,6 +2,12 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Trạng thái (2026-10-09): đã làm xong Task 1–5.** Server bộ `custom-fields` 51/51, client 81/81
+> (cộng logic `custom-fields` 15/15), mobile 34/34, bài e2e `12-custom-fields` đạt. Lệch so với plan:
+> người thực hiện sửa được `customValues` khi dự án bật "sửa tiêu đề/mô tả" (cùng nhóm "nội dung");
+> khóa có `.`/`$` bị middleware `sanitize` cắt trước khi tới controller nên không bao giờ được lưu; tạo
+> việc con và việc lặp lại không kiểm trường bắt buộc. Sửa kèm: trang Công việc chỉ tải 20 dự án.
+
 **Goal:** Mỗi dự án tự khai thêm trường cho công việc của mình (ví dụ "Kênh", "Ngân sách", "Ngày phát hành") mà không phải sửa schema. Giá trị đi theo công việc qua form, chi tiết, bộ lọc, xuất CSV và nhập Excel.
 
 **Spec:** [COMPARISON_BASE_WEWORK.md mục 4.2](../../COMPARISON_BASE_WEWORK.md#42-trường-dữ-liệu-tùy-chỉnh-custom-field), lộ trình: [2026-10-07-lo-trinh-hoan-thien.md](./2026-10-07-lo-trinh-hoan-thien.md) (GĐ7)

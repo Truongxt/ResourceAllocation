@@ -72,7 +72,7 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
 | Tạo dự án, thêm thành viên & quản lý | **Đầy đủ** | `POST /projects`, `/members` |
 | Phân biệt **Phòng ban (team)** và **Dự án (project)** | **Đầy đủ** (07/10) | `Project.kind: 'team'` không có ngày kết thúc — xem [4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) |
 | Cấu hình phân quyền trong dự án | **Đầy đủ** | `PATCH /projects/:id/permissions` |
-| **Trường dữ liệu tùy chỉnh** | **Không có** | Xem [4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) |
+| **Trường dữ liệu tùy chỉnh** | **Một phần, từ 09/10** | Văn bản, số, ngày, chọn một theo dự án; chưa có công thức, nhiều lựa chọn, tệp, bảng, và bộ trường cho Kết quả — xem [4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) |
 | Thiết lập **mục tiêu** | **Không có** | RAO chỉ có `progress` % suy ra từ task |
 | Cấu hình email theo dự án | **Không có** | Email bật/tắt toàn hệ thống, và chỉ gửi đúng một loại — [email.service.js:15](../server/src/services/email.service.js#L15) |
 | **Nhân bản** dự án | **Không có** | Có `duplicateTask` nhưng không có `duplicateProject` |
@@ -180,6 +180,10 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
   form tạo/sửa task, mẫu Excel nhập, bộ lọc và file CSV xuất ra; làm sau thì phải sửa cả bốn chỗ.
   Kiểu **công thức** nên để lại sau cùng, nó là một trình đánh giá biểu thức chứ không phải một
   trường dữ liệu.
+- **Đã làm (09/10)**: đúng phác thảo, trừ bộ thứ hai cho `resultReport`. Bốn kiểu văn bản, số, ngày,
+  chọn một; giá trị bám theo `key` cố định do server sinh. Lan sang form, chi tiết việc (cả mobile, chỉ
+  xem), bộ lọc (trường chọn một), CSV và Excel (mẫu theo dự án, nhập đọc cột theo tên). Plan:
+  [2026-10-09-truong-tuy-chinh.md](./superpowers/plans/2026-10-09-truong-tuy-chinh.md).
 
 ### 4.3. Việc thường ngày của phòng ban không có chỗ để ở
 
@@ -289,7 +293,7 @@ Nếu vẫn cần, đường vòng rẻ hơn: thêm `collaborators[]` **không**
 |--------|----------|------------------|
 | 1 | ~~[4.1](#41-báo-cáo-kết-quả-theo-con-người) Báo cáo kết quả theo người~~ | **Xong 08/10** — `GET /analytics/performance` và tab "Kết quả theo người" |
 | 2 | ~~[4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) Công việc cấp phòng ban~~ | **Xong 07/10** |
-| 3 | [4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) Trường tùy chỉnh | Càng làm muộn càng đắt: lan sang form, Excel, bộ lọc, CSV |
+| 3 | ~~[4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) Trường tùy chỉnh~~ | **Xong 09/10** (bốn kiểu). Còn công thức, nhiều lựa chọn và bộ trường cho Kết quả |
 | 4 | ~~[4.6](#46-xuất-dữ-liệu-công-việc) Xuất dữ liệu~~ + [4.7](#47-đánh-giá-theo-nhóm-công-việc) Đánh giá theo nhóm + [4.8](#48-hai-việc-nhỏ-nhưng-lộ-ra-ngay-khi-dùng) | 4.6 và phần thông báo của 4.8 **xong 08/10**. Còn 4.7 và phần email của 4.8 |
 | 5 | ~~[4.4](#44-vòng-đời-dự-án-đóngmở-nhân-bản-mẫu-thật) Vòng đời dự án~~ + ~~[4.5](#45-đính-kèm-tệp-thật) Đính kèm~~ | 4.4 **xong 08/10**. 4.5 **xong 09/10**, cả web lẫn mobile (lưu đĩa, 10 MB) |
 

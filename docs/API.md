@@ -505,6 +505,30 @@ thống, hỗ trợ khách, họp định kỳ):
 ### DELETE `/api/projects/:id`
 Nếu dự án còn task, API trả **400** kèm hướng dẫn. Thêm `?force=true` để xóa dự án **và toàn bộ task** của nó.
 
+### PUT `/api/projects/:id/custom-fields` — trường tùy chỉnh
+
+Thay cả danh sách trường tùy chỉnh của dự án. Admin/Owner hoặc quản lý của dự án; dự án lưu trữ → 409.
+
+```json
+{ "fields": [
+  { "key": "f_k3m9x2ab", "name": "Kênh", "type": "select", "options": ["Facebook", "TikTok"], "required": true },
+  { "name": "Ngân sách", "type": "number" }
+] }
+```
+
+Trường mới thì bỏ `key`, server sinh. Trường đã có thì gửi lại đúng `key` của nó: đổi tên, thứ tự,
+lựa chọn, bắt buộc đều được, **đổi `type` thì 400**. Thiếu một `key` cũ trong danh sách là xóa trường
+đó, kèm giá trị của nó trên mọi việc; bỏ một lựa chọn thì xóa các giá trị đang là lựa chọn đó. 400 khi
+tên trống/trùng (không phân biệt hoa thường), kiểu lạ, chọn một mà không có lựa chọn, quá 20 trường hoặc
+50 lựa chọn. Trả về `{ project }` (không populate).
+
+Giá trị đi theo công việc trong `customValues: { [key]: giá trị }` của `POST /api/tasks` và
+`PUT /api/tasks/:id`: văn bản ≤ 1000 ký tự, số, ngày `YYYY-MM-DD`, hoặc một lựa chọn. `null`/chuỗi rỗng
+là xóa. Thiếu trường bắt buộc khi tạo việc → 400; khi sửa thì chỉ kiểm nếu lần sửa có gửi
+`customValues`. Người thực hiện sửa được `customValues` khi dự án bật "sửa tiêu đề/mô tả". Lọc:
+`GET /api/tasks?cf_<key>=<lựa chọn>` (`key` sai dạng → 400). Mẫu Excel kèm cột trường của dự án:
+`GET /api/tasks/excel/template?project=<id>`; khi nhập, cột thứ 9 trở đi khớp tên trường (bỏ " (*)").
+
 ### Danh sách dự án có thêm `taskStats`
 Mỗi phần tử trong `GET /` được bổ sung `taskStats: { totalTasks, completedTasks, openTasks }`.
 `openTasks` đếm việc `todo`/`in_progress`/`review` — đúng tập tối ưu hóa đọc; trang Tối ưu dùng nó

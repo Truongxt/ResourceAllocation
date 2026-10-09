@@ -10,6 +10,11 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Added
 
+- **Trường dữ liệu tùy chỉnh theo dự án** (văn bản, số, ngày, chọn một). Khai ở tab "Trường tùy chỉnh"
+  của chi tiết dự án (admin/Owner hoặc quản lý dự án), điền trong form tạo/sửa việc, hiện ở chi tiết việc
+  (cả mobile, chỉ xem), lọc theo trường chọn một, thêm cột khi xuất CSV, có cột trong mẫu Excel theo dự
+  án và được đọc khi nhập. Giá trị bám theo `key` cố định nên đổi tên không mất dữ liệu; nhân bản dự
+  án chép cả định nghĩa lẫn giá trị. Chuyển việc sang dự án khác thì bỏ giá trị.
 - **Đính kèm tệp thật trên công việc** (web). Tab "Tệp" trong chi tiết công việc: tải lên, tải về đúng
   tên gốc, xóa. Lưu trên đĩa server (`UPLOAD_DIR`, mặc định `server/uploads`) qua một lớp `fileStorage`
   để sau đổi sang S3. 10 MB mỗi tệp, 20 tệp mỗi việc, chỉ nhận tài liệu/PDF/văn bản/ảnh/tệp nén. Quyền
@@ -91,6 +96,8 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ### Fixed
 
+- **Trang Công việc chỉ thấy 20 dự án đầu** trong ô lọc, ô chọn dự án và danh sách dự án dùng để
+  dựng form: gọi `GET /projects` không kèm `limit` nên nhận mặc định 20 của server. Nay xin 100.
 - **Mobile: màn Tối ưu hóa chưa từng chạy được.** Gọi `POST /optimization/run` — route không tồn tại
   (server có `/run/genetic|csp|hybrid`) — với trọng số sai tên. Kèm theo: độ khớp kỹ năng nhân thêm 100
   (server đã trả 0–100, ra "Khớp 8500%"); số giả "92%"/"420ms" khi thiếu dữ liệu; báo "Thành công" cả khi
