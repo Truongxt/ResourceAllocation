@@ -109,6 +109,21 @@ ok(created.status === 201, 'Tạo việc kèm giá trị đúng → 201', `statu
   ok(dropRequired.status === 400, 'Xóa giá trị của trường bắt buộc → 400', `status=${dropRequired.status}`);
 }
 
+section('Người thực hiện sửa giá trị: theo quyền sửa tiêu đề/mô tả của dự án');
+{
+  const hoa = await login('hoa.le@rao.com');
+  const hoaId = (await call('GET', '/auth/me', { token: hoa })).data?.user?._id;
+  const assigned = await newTask(admin, { title: `Việc của Hoa ${stamp}`, project: project._id, assignee: hoaId, customValues: { [channel.key]: 'Email' } });
+  const id = assigned.data?.task?._id;
+  const denied = await call('PUT', `/tasks/${id}`, { token: hoa, body: { customValues: { [budget.key]: 5 } } });
+  ok(denied.status === 403, 'Mặc định người thực hiện không sửa được', `status=${denied.status}`);
+  await call('PATCH', `/projects/${project._id}/permissions`, { token: pm, body: { permissions: { allowAssigneeEditTitleDesc: true } } });
+  const allowed = await call('PUT', `/tasks/${id}`, { token: hoa, body: { customValues: { [budget.key]: 5 } } });
+  ok(allowed.status === 200, 'Dự án bật quyền sửa tiêu đề/mô tả thì sửa được', `status=${allowed.status} ${allowed.message || ''}`);
+  await call('PATCH', `/projects/${project._id}/permissions`, { token: pm, body: { permissions: { allowAssigneeEditTitleDesc: false } } });
+  await call('DELETE', `/tasks/${id}`, { token: admin });
+}
+
 section('Lọc theo trường chọn một');
 {
   const email = await newTask(nam, { title: `Bản tin ${stamp}`, project: project._id, customValues: { [channel.key]: 'Email' } });

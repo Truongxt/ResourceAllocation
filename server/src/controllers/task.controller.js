@@ -343,7 +343,7 @@ const getTasks = async (req, res, next) => {
 const getTaskById = async (req, res, next) => {
   try {
     const task = await Task.findById(req.params.id)
-      .populate('project', 'name code status members manager permissions failureConfig reviewConfig companyName isArchived')
+      .populate('project', 'name code status members manager permissions failureConfig reviewConfig companyName isArchived customFields')
       .populate('assignee', 'name email avatar department')
       .populate('dependencies.task', 'title status priority startDate endDate progress')
       .populate('taskGroup', 'name color order')

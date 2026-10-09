@@ -265,7 +265,8 @@ const canModifyTask = ({ restrictFields = false } = {}) => async (req, res, next
     // `canChangeStatusOnUpdate` chốt quyền theo `failureConfig.allowedRoles`.
     const allowed = [...ASSIGNEE_EDITABLE_FIELDS, 'failureReason'];
     if (permissions.allowAssigneeEditTitleDesc) {
-      allowed.push('title', 'description');
+      // Trường tùy chỉnh đi cùng nhóm "nội dung" với tiêu đề/mô tả — giống `canEditDetails` bên web.
+      allowed.push('title', 'description', 'customValues');
     }
     if (permissions.allowAssigneeEditDeadline) {
       allowed.push('startDate', 'endDate', 'deadlineReason');
