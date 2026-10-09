@@ -45,7 +45,11 @@ const { default: App } = await import('../src/App.jsx');
 // đã từng làm cả bộ test định tuyến này đỏ oan dù định tuyến không hỏng gì.
 // Cần chốt level: Header cũng in tên trang "Tổng quan" ở một heading khác.
 const dashboardHeading = () => screen.queryByRole('heading', { level: 3, name: 'Tổng quan' });
-const findDashboardHeading = () => screen.findByRole('heading', { level: 3, name: 'Tổng quan' });
+// Chờ tới 10 giây chứ không phải 1 giây mặc định: lần đầu, chunk Dashboard được Vite biên dịch
+// ngay lúc test chạy. Chạy riêng thì kịp, chạy cùng cả bộ (2 worker giành CPU) thì có lúc quá
+// 1 giây, và bài đỏ oan dù định tuyến không hỏng.
+const findDashboardHeading = () =>
+  screen.findByRole('heading', { level: 3, name: 'Tổng quan' }, { timeout: 10_000 });
 
 describe('Định tuyến và nạp trang theo chunk', () => {
   it('khung layout đứng yên trong lúc chunk của trang đang tải', async () => {
