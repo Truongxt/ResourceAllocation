@@ -460,10 +460,9 @@ thật trong code**:
 
 Riêng phần app di động:
 
-- **Giao diện mobile chưa có lớp test nào.** Chỉ logic thuần trong `utils/` kiểm được. Nhóm
-  lỗi "sai tên trường" vừa sửa sẽ tái phát theo đúng cách cũ nếu không có gì đối chiếu tên
-  trường mobile đọc với tên server trả.
-- **Lịch và Gantt chưa có trên mobile.**
+- **Test giao diện mobile (jest-expo + RNTL) mới phủ vài màn**: Gantt, Tối ưu hóa, Benchmark, chi
+  tiết công việc (tab Tệp). Các màn khác vẫn chỉ có logic thuần trong `utils/` được kiểm, nên nhóm
+  lỗi "sai tên trường" có thể tái phát ở đó.
 - Quyền theo từng dự án/công việc (`taskAccess`) chưa phản ánh lên giao diện mobile; App Admin
   và quyền theo vai trò thì đã có ở mức tab.
 - Mobile chưa có: việc lặp lại, nhóm việc, phụ thuộc, người theo dõi, duyệt việc, nhập/xuất

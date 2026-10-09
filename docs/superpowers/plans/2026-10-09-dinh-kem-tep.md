@@ -27,6 +27,9 @@
 - **Nhật ký hoạt động:** ghi `UPLOAD_ATTACHMENT`, `DELETE_ATTACHMENT`.
 - **Web tải về qua axios (blob)**, vì route cần header `Authorization`.
 - **Mobile để sau.** Tải lên cần thêm thư viện native (`expo-document-picker`, `expo-file-system`). Ghi vào lộ trình.
+  *Đã làm cùng ngày* (`5177a20`): thêm cả `expo-sharing` để mở/lưu tệp tải về. Tải về đi qua `apiClient`
+  (dạng arraybuffer) chứ không đưa URL cho trình tải của hệ điều hành, để được làm mới token như mọi
+  request khác. Quy tắc quyền tách ra `client/src/utils/attachmentRules.js`, mobile chép nguyên.
 - `resultReport.attachments` giữ nguyên (vẫn nhận `{ name, url, size }` như cũ), không có giao diện.
 
 ## API

@@ -15,7 +15,8 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   để sau đổi sang S3. 10 MB mỗi tệp, 20 tệp mỗi việc, chỉ nhận tài liệu/PDF/văn bản/ảnh/tệp nén. Quyền
   như bình luận; xóa là người tải lên, quản lý dự án hoặc admin; dự án lưu trữ chỉ đọc. Xóa việc hoặc
   dự án thì xóa cả tệp. Trước đây `resultReport.attachments` chỉ là trường trong DB, không có đường
-  tải lên. Mobile chưa có.
+  tải lên. Mobile có cùng tab "Tệp": chọn tệp bằng `expo-document-picker`, tải về rồi mở bằng bảng
+  chia sẻ của máy (`expo-sharing`). Quy tắc quyền nằm ở `attachmentRules.js`, mobile chép nguyên từ web.
 
 - **Mobile: PM vào được Tối ưu hóa**, giống web: ô chọn dự án chỉ có dự án họ quản lý, không có "Tất cả
   dự án"; Benchmark ẩn "Dữ liệu Thật". Owner/Admin có thêm ô chọn dự án (mặc định "Tất cả dự án").

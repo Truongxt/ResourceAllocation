@@ -112,7 +112,7 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
 | Thao tác hàng loạt | **Một phần** | Chỉ có bàn giao hàng loạt; Base còn sửa/xóa/chuyển nhóm hàng loạt |
 | **Nhập Excel** | **Một phần** | Có mẫu + xem trước + nhập; **thiếu cột phụ thuộc** mà Base hỗ trợ — [excelTaskImport.service.js](../server/src/services/excelTaskImport.service.js) |
 | **Xuất Excel / xuất Gantt** | **Có từ 08/10** | Xuất CSV theo bộ lọc ở màn Công việc; in Gantt trọn trục thời gian — xem [4.6](#46-xuất-dữ-liệu-công-việc) |
-| **Tệp đính kèm thật** | **Có từ 09/10 (web)** | Tab "Tệp" trong chi tiết công việc, lưu trên đĩa, 10 MB/tệp — xem [4.5](#45-đính-kèm-tệp-thật). Mobile chưa có |
+| **Tệp đính kèm thật** | **Có từ 09/10** | Tab "Tệp" trong chi tiết công việc trên web và mobile, lưu trên đĩa, 10 MB/tệp — xem [4.5](#45-đính-kèm-tệp-thật) |
 | Đồng bộ Google Calendar | **Không có** | RAO có lịch nội bộ, không xuất ra ngoài |
 | Nhắc nhở (Reminders) | **Đầy đủ** | `GET /tasks/reminders` + `RemindersDrawer` |
 
@@ -226,7 +226,7 @@ Thang: **Đầy đủ** · **Một phần** · **Không có**
   hoặc quyết định chỉ nhận link ngoài — nhưng khi đó phải ghi rõ trên giao diện.
 - **Đã làm (09/10)**: route upload thật dưới `/api/tasks/:id/attachments`, lưu trên đĩa (`UPLOAD_DIR`)
   qua một lớp `fileStorage` để sau đổi sang S3. 10 MB/tệp, 20 tệp/việc, danh sách đuôi cho phép.
-  Quyền như bình luận. Web có tab "Tệp"; mobile chưa có. `resultReport.attachments` vẫn là trường cũ,
+  Quyền như bình luận. Web và mobile đều có tab "Tệp". `resultReport.attachments` vẫn là trường cũ,
   không có giao diện. Plan: [2026-10-09-dinh-kem-tep.md](./superpowers/plans/2026-10-09-dinh-kem-tep.md).
 
 ### 4.6. Xuất dữ liệu công việc
@@ -291,7 +291,7 @@ Nếu vẫn cần, đường vòng rẻ hơn: thêm `collaborators[]` **không**
 | 2 | ~~[4.3](#43-việc-thường-ngày-của-phòng-ban-không-có-chỗ-để-ở) Công việc cấp phòng ban~~ | **Xong 07/10** |
 | 3 | [4.2](#42-trường-dữ-liệu-tùy-chỉnh-custom-field) Trường tùy chỉnh | Càng làm muộn càng đắt: lan sang form, Excel, bộ lọc, CSV |
 | 4 | ~~[4.6](#46-xuất-dữ-liệu-công-việc) Xuất dữ liệu~~ + [4.7](#47-đánh-giá-theo-nhóm-công-việc) Đánh giá theo nhóm + [4.8](#48-hai-việc-nhỏ-nhưng-lộ-ra-ngay-khi-dùng) | 4.6 và phần thông báo của 4.8 **xong 08/10**. Còn 4.7 và phần email của 4.8 |
-| 5 | ~~[4.4](#44-vòng-đời-dự-án-đóngmở-nhân-bản-mẫu-thật) Vòng đời dự án~~ + ~~[4.5](#45-đính-kèm-tệp-thật) Đính kèm~~ | 4.4 **xong 08/10**. 4.5 **xong 09/10** trên web (lưu đĩa, 10 MB); mobile còn thiếu |
+| 5 | ~~[4.4](#44-vòng-đời-dự-án-đóngmở-nhân-bản-mẫu-thật) Vòng đời dự án~~ + ~~[4.5](#45-đính-kèm-tệp-thật) Đính kèm~~ | 4.4 **xong 08/10**. 4.5 **xong 09/10**, cả web lẫn mobile (lưu đĩa, 10 MB) |
 
 Trạng thái từng hạng mục, cộng các mục thuật toán và mobile không có trong tài liệu này, được
 theo dõi ở [superpowers/plans/2026-10-07-lo-trinh-hoan-thien.md](./superpowers/plans/2026-10-07-lo-trinh-hoan-thien.md).

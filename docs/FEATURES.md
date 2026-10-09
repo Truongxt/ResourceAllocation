@@ -227,9 +227,9 @@ làm hỏng hẳn tính năng.
 | Tổng quan | ✅ | — |
 | Dự án | ✅ + chi tiết | sửa thành viên, phân quyền dự án, cấu hình luồng |
 | Công việc | 🔨 | Kanban, việc lặp lại, nhóm việc, phụ thuộc, người theo dõi, báo cáo kết quả, duyệt việc, nhân bản, di chuyển, bàn giao hàng loạt, nhập/xuất Excel |
-| ↳ checklist, bình luận | ✅ | — |
+| ↳ checklist, bình luận, tệp đính kèm | ✅ | — |
 | Nhân sự | 🔨 | nghỉ phép, tính lại tải |
-| Tối ưu hóa | 🔨 | chạy riêng GA/CSP/Hybrid, so sánh, rollback |
+| Tối ưu hóa | 🔨 | so sánh, rollback, chỉnh tham số thuật toán |
 | Benchmark | ✅ | — |
 | Báo cáo | 🔨 | xuất CSV, so sánh trước/sau tối ưu |
 | Nhật ký, Thông báo | ✅ | — |
