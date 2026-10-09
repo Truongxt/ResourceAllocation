@@ -1800,7 +1800,20 @@ const updateDeadline = async (req, res, next) => {
  */
 const downloadExcelTemplate = async (req, res, next) => {
   try {
-    const buffer = generateTaskTemplateWorkbook();
+    // `?project=`: mẫu kèm sẵn các cột trường tùy chỉnh của dự án đó (cùng công ty mới được đọc).
+    let customFields = [];
+    if (req.query.project) {
+      if (!mongoose.isValidObjectId(req.query.project)) {
+        return res.status(400).json({ success: false, message: 'ID dự án không hợp lệ' });
+      }
+      const project = await Project.findById(req.query.project).select('companyName customFields');
+      const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+      if (!project || (project.companyName && project.companyName !== userCompany)) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
+      }
+      customFields = project.customFields || [];
+    }
+    const buffer = generateTaskTemplateWorkbook(customFields);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="Mau_Cong_Viec_Base_Wework.xlsx"');
     res.send(buffer);
@@ -1848,7 +1861,7 @@ const importExcelTasks = async (req, res, next) => {
     // Cùng hai chốt như `createTask`. `projectId` đi trong form multipart nên
     // `router.param('id')` không che được — thiếu đoạn này thì công ty khác ghi
     // được hàng loạt công việc vào dự án chỉ bằng id.
-    const project = await Project.findById(projectId).select('companyName isArchived isTemplate');
+    const project = await Project.findById(projectId).select('companyName isArchived isTemplate customFields');
     if (!project) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
     }
@@ -1872,6 +1885,7 @@ const importExcelTasks = async (req, res, next) => {
       createdBy: req.user._id,
       // Nhập vào mẫu thì bỏ cột người thực hiện và người theo dõi.
       withoutPeople: Boolean(project.isTemplate),
+      customFields: project.customFields || [],
     });
 
     logActivity({

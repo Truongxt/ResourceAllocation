@@ -4,7 +4,10 @@
 // ai được khai, server kiểm định nghĩa ra sao, mọi đường ghi giá trị (tạo, sửa) kiểm đúng kiểu
 // và lựa chọn, xóa trường / bỏ lựa chọn / chuyển dự án không để lại giá trị mồ côi, lọc theo
 // trường chọn một, và nhân bản giữ được cả định nghĩa lẫn giá trị.
-import { call, login, ok, section, summary } from './helpers.mjs';
+import { createRequire } from 'module';
+import { API, call, login, ok, section, summary } from './helpers.mjs';
+
+const XLSX = createRequire(import.meta.url)('xlsx');
 
 const admin = await login('admin@rao.com');
 const pm = await login('pm@rao.com');
@@ -154,6 +157,47 @@ section('Nhân bản và chuyển dự án');
   ok((cloneProject?.customFields || []).map((f) => f.key).join() === [channel.key, budget.key, release.key].join(), 'Nhân bản dự án chép định nghĩa, giữ key', `status=${cloned.status}`);
   const cloneTasks = (await call('GET', `/tasks?project=${cloneId}&limit=100`, { token: admin })).data?.tasks || [];
   ok(cloneTasks.some((t) => t.customValues?.[channel.key] === 'TikTok'), 'Nhân bản dự án chép giá trị');
+}
+
+section('Excel: mẫu theo dự án, nhập đọc cột theo tên trường');
+{
+  const tpl = await fetch(`${API}/tasks/excel/template?project=${project._id}`, { headers: { Authorization: `Bearer ${admin}` } });
+  const sheet = XLSX.read(Buffer.from(await tpl.arrayBuffer()), { type: 'buffer' });
+  const header = XLSX.utils.sheet_to_json(sheet.Sheets[sheet.SheetNames[0]], { header: 1 })[0] || [];
+  ok(tpl.status === 200 && header.slice(8).join('|') === 'Kênh truyền thông (*)|Ngân sách|Ngày lên sóng', 'Mẫu có cột trường của dự án, đánh dấu bắt buộc', header.slice(8).join('|'));
+
+  const fixed = ['Tên', 'Người thực hiện', 'Người theo dõi', 'Ưu tiên', 'Bắt đầu', 'Hạn', 'Giờ', 'Mô tả'];
+  const importRows = async (rows, extraHeaders = ['Kênh truyền thông (*)', 'Ngân sách', 'Ngày lên sóng']) => {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[...fixed, ...extraHeaders], ...rows]), 'S');
+    const form = new FormData();
+    form.append('file', new Blob([XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })]), 'tasks.xlsx');
+    form.append('projectId', project._id);
+    const res = await fetch(`${API}/tasks/excel/import`, { method: 'POST', headers: { Authorization: `Bearer ${admin}` }, body: form });
+    return { status: res.status, ...(await res.json().catch(() => ({}))) };
+  };
+  const row = (title, channelValue, budgetValue, releaseValue, ...rest) =>
+    [`${title} ${stamp}`, '', '', 'medium', '', '', 4, '', channelValue, budgetValue, releaseValue, ...rest];
+  const count = async () => (await call('GET', `/tasks?project=${project._id}&limit=100`, { token: admin })).data?.tasks?.length;
+
+  const before = await count();
+  const bad = await importRows([row('Excel đúng', 'TikTok', 1, ''), row('Excel sai', 'Zalo', 1, '')]);
+  ok(bad.status === 400 && /Dòng 3/.test(bad.message || ''), 'Một dòng sai lựa chọn → 400, nêu đúng số dòng', `status=${bad.status} ${bad.message || ''}`);
+  ok((await count()) === before, 'Sai một dòng thì không tạo việc nào');
+  const missing = await importRows([row('Excel thiếu kênh', '', 1, '')]);
+  ok(missing.status === 400 && /Kênh truyền thông/.test(missing.message || ''), 'Thiếu trường bắt buộc → 400', `status=${missing.status} ${missing.message || ''}`);
+
+  const good = await importRows(
+    [row('Excel serial', 'Facebook', 2500000, 46376, 'bỏ qua'), row('Excel chuỗi', 'TikTok', '1200', '20/12/2026', '')],
+    ['Kênh truyền thông (*)', 'Ngân sách', 'Ngày lên sóng', 'Cột không phải trường']
+  );
+  ok(good.status === 200 && good.data?.totalImported === 2, 'Nhập hợp lệ → 200; cột lạ bị bỏ qua', `status=${good.status} ${good.message || ''}`);
+  const imported = (await call('GET', `/tasks?project=${project._id}&limit=100`, { token: admin })).data?.tasks || [];
+  const serial = imported.find((t) => t.title === `Excel serial ${stamp}`)?.customValues || {};
+  const text = imported.find((t) => t.title === `Excel chuỗi ${stamp}`)?.customValues || {};
+  ok(serial[channel.key] === 'Facebook' && serial[budget.key] === 2500000, 'Đọc đúng lựa chọn và số', JSON.stringify(serial));
+  ok(String(serial[release.key]).startsWith('2026-12-20'), 'Ngày dạng số serial của Excel', String(serial[release.key]));
+  ok(text[budget.key] === 1200 && String(text[release.key]).startsWith('2026-12-20'), 'Số dạng chuỗi và ngày dd/mm/yyyy', JSON.stringify(text));
 }
 
 section('Dự án lưu trữ');
