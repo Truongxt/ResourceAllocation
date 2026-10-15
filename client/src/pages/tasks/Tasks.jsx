@@ -44,6 +44,7 @@ import { getTaskPermissions } from '../../utils/taskPermissions';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import TaskKpiChips from './components/TaskKpiChips';
+import { TasksOverview } from '../../components/common/OverviewPanel';
 import TaskFilterBar from './components/TaskFilterBar';
 import TaskKanbanView from './components/TaskKanbanView';
 import TaskTableView from './components/TaskTableView';
@@ -68,9 +69,11 @@ export default function Tasks() {
 
   // --- TRẠNG THÁI DỮ LIỆU ---
   const [tasks, setTasks] = useState([]);
+  const [taskTotal, setTaskTotal] = useState(0);
   const [projects, setProjects] = useState([]);
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [view, setView] = useState('kanban');
   const [filters, setFilters] = useState({ search: '', project: '', priority: '' });
@@ -137,6 +140,7 @@ export default function Tasks() {
    */
   const loadTasks = useCallback(async () => {
     setLoading(true);
+    setOverviewError(false);
     try {
       const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
       if (attentionStatus) params.status = attentionStatus;
@@ -146,7 +150,9 @@ export default function Tasks() {
       if (timeFilter !== 'all') params.timeFilter = timeFilter;
       const res = await taskService.getAll(params);
       setTasks(res.data.data.tasks || []);
+      setTaskTotal(res.data.total ?? res.data.pagination?.total ?? res.data.data.tasks?.length ?? 0);
     } catch {
+      setOverviewError(true);
       message.error(t('tasks.loadFailed') || 'Không thể tải danh sách công việc');
     } finally {
       setLoading(false);
@@ -254,7 +260,7 @@ export default function Tasks() {
     const total = tasks.length;
     const inProgress = tasks.filter((tItem) => tItem.status === 'in_progress').length;
     const done = tasks.filter((tItem) => tItem.status === 'done').length;
-    const blocked = tasks.filter((tItem) => tItem.status === 'cancelled').length;
+    const blocked = tasks.filter((tItem) => tItem.status === 'blocked').length;
     return { total, inProgress, done, blocked };
   }, [tasks]);
 
@@ -674,6 +680,7 @@ export default function Tasks() {
       {(attentionStatus || unassignedOnly) && <div className="task-active-filter"><span>{t(attentionStatus ? 'workspace.blocked' : 'workspace.unassigned')}</span><Button size="small" onClick={() => setSearchParams({})}>{t('workspace.clearFilter')}</Button></div>}
       {/* 1. Khối KPI Chips */}
       <TaskKpiChips stats={stats} isDark={isDark} t={t} />
+      <TasksOverview tasks={tasks} total={taskTotal} loading={loading} error={overviewError} />
 
       {/* 2. Thanh lọc & tìm kiếm */}
       <TaskFilterBar

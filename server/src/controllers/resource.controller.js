@@ -1,3 +1,4 @@
+const { reviewScope, saveEvaluation, notifyEvaluation } = require('../services/skillEvaluation.service');
 const Resource = require('../models/Resource');
 const Task = require('../models/Task');
 const User = require('../models/User');
@@ -8,6 +9,7 @@ const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
 const { generateEmployeeId } = require('../utils/employeeId.util');
 const { getUserAnalyticsScope } = require('../services/analyticsScope.service');
+const { reportingPeriod, workloadInPeriod } = require('../analytics/workloadPeriod');
 
 const validateDepartment = async (departmentName, companyName = 'Công ty Công nghệ RAO') => {
   if (!departmentName) return null;
@@ -104,6 +106,7 @@ const getResources = async (req, res, next) => {
 
     const [resources, total] = await Promise.all([
       Resource.find(filter)
+        .select('-skillEvaluationHistory')
         .populate('user', 'name email avatar role')
         .sort(sort)
         .skip(skip)
@@ -131,6 +134,7 @@ const getResources = async (req, res, next) => {
 const getResourceById = async (req, res, next) => {
   try {
     const resource = await Resource.findById(req.params.id)
+      .select('-skillEvaluationHistory')
       .populate('user', 'name email avatar role');
 
     if (!resource) {
@@ -236,6 +240,8 @@ const createResource = async (req, res, next) => {
       });
     }
 
+    delete resourceData.evaluationVersion;
+    delete resourceData.skillEvaluationHistory;
     delete resourceData.employeeId;
     resourceData.employeeId = await generateEmployeeId();
     const resource = await Resource.create({
@@ -285,7 +291,10 @@ const updateResource = async (req, res, next) => {
       });
     }
 
+    if (req.body.skills !== undefined) return res.status(400).json({ success: false, message: 'Vui lòng cập nhật năng lực qua chức năng Đánh giá & duyệt' });
     const updateData = { ...req.body };
+    delete updateData.evaluationVersion;
+    delete updateData.skillEvaluationHistory;
     const newName = updateData.name;
     const newEmail = updateData.email;
     delete updateData.name;
@@ -412,17 +421,9 @@ const updateSkills = async (req, res, next) => {
       });
     }
 
-    const resource = await Resource.findByIdAndUpdate(
-      req.params.id,
-      { skills },
-      { new: true, runValidators: true }
-    ).populate('user', 'name email avatar role');
-
-    res.json({
-      success: true,
-      data: { resource },
-      message: 'Cập nhật kỹ năng thành công',
-    });
+    if (!skills.length) return res.status(400).json({ success: false, message: 'Cần ít nhất một kỹ năng để duyệt' });
+    req.body.action = 'approve';
+    return managerEvaluate(req, res, next);
   } catch (error) {
     next(error);
   }
@@ -461,22 +462,25 @@ const recalculateWorkload = async (req, res, next) => {
  */
 const getResourceSummary = async (req, res, next) => {
   try {
+    const scope = await getUserAnalyticsScope(req.user);
+    const scopedIds = await Resource.find(scope.resourceMatch).distinct("_id");
+    const resourceMatch = { _id: { $in: scopedIds } };
     const [availabilityStats, departmentStats, totals] = await Promise.all([
       Resource.aggregate([
-        { $match: { isActive: true } },
+        { $match: resourceMatch },
         { $group: { _id: '$availability', count: { $sum: 1 } } },
       ]),
       Resource.aggregate([
-        { $match: { isActive: true } },
+        { $match: resourceMatch },
         { $group: { _id: '$department', count: { $sum: 1 } } },
       ]),
       Resource.aggregate([
-        { $match: { isActive: true } },
+        { $match: resourceMatch },
         {
           $group: {
             _id: null,
             totalResources: { $sum: 1 },
-            totalCapacity: { $sum: '$maxCapacity' },
+            totalCapacity: { $sum: { $multiply: [{ $ifNull: ['$maxCapacity', 40] }, { $ifNull: ['$fte', 1] }] } },
             totalWorkload: { $sum: '$currentWorkload' },
             avgFte: { $avg: '$fte' },
           },
@@ -639,7 +643,7 @@ const deleteMyLeave = async (req, res, next) => {
 const getMyEvaluation = async (req, res, next) => {
   try {
     const resource = await Resource.findOne({ user: req.user._id })
-      .select('employeeId position department skills performanceRating performanceNotes')
+      .select('employeeId position department skills performanceRating performanceNotes evaluationVersion skillEvaluationHistory')
       .lean();
     if (!resource) {
       return res.status(404).json({ success: false, message: 'Chưa có hồ sơ nhân sự. Vui lòng liên hệ quản lý.' });
@@ -652,147 +656,45 @@ const getMyEvaluation = async (req, res, next) => {
 
 const selfEvaluate = async (req, res, next) => {
   try {
-    const { skills } = req.body;
-    if (!Array.isArray(skills)) {
-      return res.status(400).json({ success: false, message: 'Skills phải là một mảng' });
-    }
-
-    const resource = await Resource.findOne({ user: req.user._id });
-    if (!resource) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ nhân sự của bạn' });
-    }
-
-    const updatedSkills = [...(resource.skills || [])];
-    skills.forEach((inputSkill) => {
-      if (!inputSkill.name || !inputSkill.name.trim()) return;
-      const idx = updatedSkills.findIndex(
-        (s) => s.name.trim().toLowerCase() === inputSkill.name.trim().toLowerCase()
-      );
-      const sLevel = Number(inputSkill.selfLevel);
-      const yExp = Number(inputSkill.yearsOfExperience || 0);
-
-      if (idx >= 0) {
-        updatedSkills[idx].selfLevel = sLevel;
-        updatedSkills[idx].yearsOfExperience = yExp;
-        updatedSkills[idx].evaluationStatus = 'self_assessed';
-        // Bản tự chấm chưa được duyệt không được thay đổi level chính thức.
-      } else {
-        updatedSkills.push({
-          name: inputSkill.name.trim(),
-          level: 1,
-          selfLevel: sLevel,
-          yearsOfExperience: yExp,
-          evaluationStatus: 'self_assessed',
-        });
-      }
-    });
-
-    resource.skills = updatedSkills;
-    await resource.save();
-
-    await logActivity({
-      req,
-      action: 'UPDATE_SKILLS',
-      entityType: 'resource',
-      entityId: resource._id,
-      description: `${req.user.name || 'Nhân sự'} gửi bản tự đánh giá năng lực (${skills.length} kỹ năng)`,
-      details: { skillsCount: skills.length },
-    });
-
-    res.json({
-      success: true,
-      message: 'Gửi bản tự đánh giá năng lực thành công',
-      data: { resource },
-    });
-  } catch (error) {
-    next(error);
-  }
+    const resource = await Resource.findOne({ user: req.user._id, companyName: req.user.companyName || 'Công ty Công nghệ RAO' });
+    if (!resource) return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ nhân sự của bạn' });
+    const saved = await saveEvaluation(resource, req.body, req.user, 'submitted');
+    await notifyEvaluation(saved, req.user, 'submitted').catch(error => console.error('Evaluation notification failed:', error.message));
+    await logActivity({ req, action: 'UPDATE_SKILLS', entityType: 'resource', entityId: saved._id, description: 'Gửi bản tự đánh giá năng lực' });
+    res.json({ success: true, data: { resource: saved } });
+  } catch (error) { if (error.status) res.status(error.status); next(error); }
 };
 
-/**
- * @desc    Quản lý đánh giá lại, điều chỉnh và duyệt ma trận kỹ năng của nhân sự
- * @route   PUT /api/resources/:id/manager-evaluation
- * @access  Private (Admin, PM)
- */
+const getPendingEvaluations = async (req, res, next) => {
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const filter = { $and: [await reviewScope(req.user), { 'skills.evaluationStatus': 'self_assessed' }] };
+    const [resources, total] = await Promise.all([
+      Resource.find(filter).select('user position department skills evaluationVersion updatedAt').populate('user', 'name email avatar').sort({ updatedAt: 1, _id: 1 }).skip((page - 1) * 50).limit(50).lean(),
+      Resource.countDocuments(filter),
+    ]);
+    res.json({ success: true, data: { resources, total }, pagination: { page, pages: Math.ceil(total / 50) } });
+  } catch (error) { next(error); }
+};
+
+const getManagerEvaluation = async (req, res, next) => {
+  try {
+    const resource = await Resource.findOne({ $and: [await reviewScope(req.user), { _id: req.params.id }] }).populate('user', 'name email avatar');
+    if (!resource) return res.status(403).json({ success: false, message: 'Nhân sự không thuộc phạm vi quản lý của bạn' });
+    res.json({ success: true, data: { resource } });
+  } catch (error) { next(error); }
+};
+
 const managerEvaluate = async (req, res, next) => {
   try {
-    const { skills, performanceRating, performanceNotes } = req.body;
-    const resource = await Resource.findById(req.params.id);
-    if (!resource) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy nhân sự' });
-    }
-
-    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
-    if (resource.companyName && resource.companyName !== userCompany && req.user.role !== 'superadmin') {
-      return res.status(403).json({ success: false, message: 'Không có quyền thao tác trên nhân sự công ty khác' });
-    }
-    if (req.user.role === 'project_manager') {
-      const { resourceMatch } = await getUserAnalyticsScope(req.user);
-      const visible = await Resource.exists({ ...resourceMatch, _id: resource._id });
-      if (!visible) return res.status(403).json({ success: false, message: 'Nhân sự không thuộc phạm vi quản lý của bạn' });
-    }
-
-    if (Array.isArray(skills)) {
-      const currentSkills = [...(resource.skills || [])];
-      skills.forEach((inputSkill) => {
-        if (!inputSkill.name || !inputSkill.name.trim()) return;
-        const idx = currentSkills.findIndex(
-          (s) => s.name.trim().toLowerCase() === inputSkill.name.trim().toLowerCase()
-        );
-        const mLevel = Number(inputSkill.managerLevel || inputSkill.level) || 1;
-        const feedback = inputSkill.managerFeedback || '';
-
-        if (idx >= 0) {
-          currentSkills[idx].managerLevel = mLevel;
-          currentSkills[idx].level = mLevel;
-          currentSkills[idx].managerFeedback = feedback;
-          currentSkills[idx].evaluationStatus = 'approved';
-          currentSkills[idx].evaluatedAt = new Date();
-          currentSkills[idx].evaluatedBy = req.user._id;
-        } else {
-          currentSkills.push({
-            name: inputSkill.name.trim(),
-            level: mLevel,
-            selfLevel: inputSkill.selfLevel || mLevel,
-            managerLevel: mLevel,
-            yearsOfExperience: Number(inputSkill.yearsOfExperience) || 0,
-            managerFeedback: feedback,
-            evaluationStatus: 'approved',
-            evaluatedAt: new Date(),
-            evaluatedBy: req.user._id,
-          });
-        }
-      });
-      resource.skills = currentSkills;
-    }
-
-    if (performanceRating !== undefined && performanceRating !== null) {
-      resource.performanceRating = Math.min(5, Math.max(1, Number(performanceRating) || 4.5));
-    }
-    if (performanceNotes !== undefined) {
-      resource.performanceNotes = performanceNotes;
-    }
-
-    await resource.save();
-
-    await logActivity({
-      req,
-      action: 'UPDATE_SKILLS',
-      entityType: 'resource',
-      entityId: resource._id,
-      description: `Quản lý ${req.user.name} đã đánh giá và duyệt năng lực cho nhân sự ${resource.employeeId || resource.position}`,
-      details: { performanceRating: resource.performanceRating },
-    });
-
-    const populated = await Resource.findById(resource._id).populate('user', 'name email avatar role');
-    res.json({
-      success: true,
-      message: 'Đánh giá và phê duyệt năng lực nhân sự thành công',
-      data: { resource: populated },
-    });
-  } catch (error) {
-    next(error);
-  }
+    const resource = await Resource.findOne({ $and: [await reviewScope(req.user), { _id: req.params.id }] });
+    if (!resource) return res.status(403).json({ success: false, message: 'Nhân sự không thuộc phạm vi quản lý của bạn' });
+    const action = req.body.action === 'return' ? 'returned' : 'approved';
+    const saved = await saveEvaluation(resource, req.body, req.user, action);
+    await notifyEvaluation(saved, req.user, action).catch(error => console.error('Evaluation notification failed:', error.message));
+    await logActivity({ req, action: 'UPDATE_SKILLS', entityType: 'resource', entityId: saved._id, description: action === 'approved' ? 'Phê duyệt năng lực' : 'Yêu cầu bổ sung minh chứng năng lực' });
+    res.json({ success: true, data: { resource: saved } });
+  } catch (error) { if (error.status) res.status(error.status); next(error); }
 };
 
 /**
@@ -802,12 +704,25 @@ const managerEvaluate = async (req, res, next) => {
  */
 const getProductivitySummary = async (req, res, next) => {
   try {
+    let period;
+    try { period = reportingPeriod(req.query); } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     const { resourceMatch, taskMatch } = await getUserAnalyticsScope(req.user);
     const resources = await Resource.find(resourceMatch)
       .populate('user', 'name email avatar role')
       .lean();
 
     const resourceUserIds = resources.map((r) => r.user?._id).filter(Boolean);
+    const activeTasksInScope = await Task.find({ $and: [taskMatch, {
+      assignee: { $in: resourceUserIds }, status: { $in: ['todo', 'in_progress', 'review'] },
+    }] }).select('assignee title status estimatedHours startDate endDate').lean();
+    const tasksByUser = new Map();
+    activeTasksInScope.forEach((task) => {
+      const id = String(task.assignee);
+      if (!tasksByUser.has(id)) tasksByUser.set(id, []);
+      tasksByUser.get(id).push(task);
+    });
 
     // Lấy thống kê task theo nhân sự
     const taskAgg = await Task.aggregate([
@@ -855,9 +770,8 @@ const getProductivitySummary = async (req, res, next) => {
     const personnelList = resources.map((r) => {
       const uId = r.user?._id?.toString();
       const tStats = uId ? taskMap.get(uId) : null;
-      const capacity = (r.maxCapacity || 40) * (r.fte || 1);
-      const workload = r.currentWorkload || 0;
-      const utilizationRate = capacity > 0 ? Math.round((workload / capacity) * 100) : workload > 0 ? 101 : 0;
+      const periodLoad = workloadInPeriod(r, tasksByUser.get(uId) || [], period);
+      const { capacity, workload, utilizationRate } = periodLoad;
       const today = new Date();
       const isOnLeave = (r.unavailablePeriods || []).some((period) =>
         new Date(period.startDate) <= today && new Date(period.endDate) >= today
@@ -905,9 +819,10 @@ const getProductivitySummary = async (req, res, next) => {
         department: r.department || 'Chung',
         availability: r.availability,
         isOnLeave,
+        ...periodLoad,
         capacity,
         workload,
-        unscheduledWorkload: r.unscheduledWorkload || 0,
+        unscheduledWorkload: periodLoad.unscheduledWorkload,
         utilizationRate,
         statusCode,
         statusLabel,
@@ -938,6 +853,7 @@ const getProductivitySummary = async (req, res, next) => {
           overloadedCount: 0,
           underloadedCount: 0,
           optimalCount: 0,
+          nearCapacityCount: 0,
           totalActiveTasks: 0,
           avgProductivity: 0,
           sumProductivity: 0,
@@ -958,7 +874,8 @@ const getProductivitySummary = async (req, res, next) => {
 
       if (p.statusCode === 'red') d.overloadedCount += 1;
       else if (p.statusCode === 'yellow' && p.utilizationRate < 60) d.underloadedCount += 1;
-      else d.optimalCount += 1;
+      else if (p.statusCode === 'green') d.optimalCount += 1;
+      else d.nearCapacityCount += 1;
     });
 
     const departmentList = Array.from(deptMap.values()).map((d) => {
@@ -985,6 +902,8 @@ const getProductivitySummary = async (req, res, next) => {
 
       return {
         ...d,
+        totalWorkload: Math.round(d.totalWorkload * 100) / 100,
+        totalCapacity: Math.round(d.totalCapacity * 100) / 100,
         utilizationRate,
         avgProductivity,
         statusCode,
@@ -998,6 +917,7 @@ const getProductivitySummary = async (req, res, next) => {
       success: true,
       data: {
         personnel: personnelList,
+        period: { from: period.from, to: period.to, timezone: period.timezone },
         departments: departmentList,
         summary: {
           totalPersonnel: personnelList.length,
@@ -1018,6 +938,8 @@ const getProductivitySummary = async (req, res, next) => {
 };
 
 module.exports = {
+  getPendingEvaluations,
+  getManagerEvaluation,
   getResources,
   getResourceById,
   createResource,

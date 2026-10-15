@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import MetricStrip from '../../components/common/MetricStrip';
+import { ResourcesOverview } from '../../components/common/OverviewPanel';
 import './Resources.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -40,7 +41,8 @@ import {
   UserOutlined,
   WarningOutlined,
   ApartmentOutlined,
-  ThunderboltOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
   MinusCircleOutlined,
   CalendarOutlined,
   SwapOutlined,
@@ -62,6 +64,8 @@ import SkillsMatrixModal from '../../components/resources/SkillsMatrixModal';
 import ResourceLeaveModal from '../../components/resources/ResourceLeaveModal';
 import CsvImportModal from '../../components/resources/CsvImportModal';
 import BulkReassignModal from '../../components/resources/BulkReassignModal';
+import EvaluationQueue from '../../components/resources/EvaluationQueue';
+import WorkloadPeriodControls, { weekRange } from '../../components/resources/WorkloadPeriodControls';
 import WorkloadProductivityChart from '../../components/resources/WorkloadProductivityChart';
 
 const { Title, Text, Paragraph } = Typography;
@@ -106,6 +110,10 @@ export default function Resources() {
   const [reassignFrom, setReassignFrom] = useState(null);
   const [editingResource, setEditingResource] = useState(null);
   const [editingDepartment, setEditingDepartment] = useState(null);
+  const [period, setPeriod] = useState(() => weekRange());
+  const productivityRequest = useRef(0);
+  const [evaluationRevision, setEvaluationRevision] = useState(0);
+  const [pendingCount, setPendingCount] = useState(null);
   const [productivityData, setProductivityData] = useState(null);
   const [productivityLoading, setProductivityLoading] = useState(false);
   const [productivityError, setProductivityError] = useState(false);
@@ -163,17 +171,14 @@ export default function Resources() {
   }, [loadResources, filters.department, filters.availability]);
 
   const loadProductivity = useCallback(async () => {
-    setProductivityLoading(true);
-    setProductivityError(false);
+    const request = ++productivityRequest.current;
+    setProductivityLoading(true); setProductivityError(false); setProductivityData(null);
     try {
-      const res = await resourceService.getProductivitySummary();
-      setProductivityData(res.data?.data || null);
-    } catch {
-      setProductivityError(true);
-    } finally {
-      setProductivityLoading(false);
-    }
-  }, []);
+      const res = await resourceService.getProductivitySummary(period);
+      if (request === productivityRequest.current) setProductivityData(res.data?.data || null);
+    } catch { if (request === productivityRequest.current) setProductivityError(true); }
+    finally { if (request === productivityRequest.current) setProductivityLoading(false); }
+  }, [period]);
 
   useEffect(() => {
     loadProductivity();
@@ -218,24 +223,26 @@ export default function Resources() {
       employeeId: res.employeeId || '',
       position: res.position || '',
       department: res.department || '',
-      maxCapacity: res.maxCapacity || 40,
-      fte: res.fte || 1,
+      maxCapacity: res.maxCapacity ?? 40,
+      fte: res.fte ?? 1,
       hourlyRate: res.hourlyRate || 0,
     });
     setResourceModalOpen(true);
   };
 
-  const openSkillsModal = (res) => {
-    setEditingResource(res);
-    skillsForm.setFieldsValue({
-      skills: (res.skills || []).map((s) => ({
-        name: s.name,
-        level: s.level || 2,
-        yearsOfExperience: s.yearsOfExperience || 0,
-      })),
-    });
-    setSkillsModalOpen(true);
-  };
+  const openSkillsModal = useCallback(async (res) => {
+    try {
+      const response = await resourceService.getManagerEvaluation(res._id);
+      setEditingResource(response.data.data.resource);
+      setSkillsModalOpen(true);
+    } catch (err) { message.error(err.response?.data?.message || 'Không tải được bản đánh giá'); }
+  }, []);
+
+  useEffect(() => {
+    const id = searchParams.get('resource');
+    if (searchParams.get('tab') === 'evaluations') setActiveTab('evaluations');
+    if (id && searchParams.get('tab') === 'evaluations') openSkillsModal({ _id: id });
+  }, [searchParams, openSkillsModal]);
 
   const openLeaveModal = (res) => {
     setEditingResource(res);
@@ -315,10 +322,13 @@ export default function Resources() {
       const skills = values.skills || (Array.isArray(values) ? values : []);
       await resourceService.managerEvaluate(editingResource._id, {
         skills,
+        action: values.action || 'approve',
+        evaluationVersion: editingResource.evaluationVersion || 0,
         performanceRating: values.performanceRating,
         performanceNotes: values.performanceNotes,
       });
-      message.success('Đã đánh giá và phê duyệt năng lực nhân sự');
+      message.success(values.action === 'return' ? 'Đã yêu cầu nhân viên bổ sung minh chứng' : 'Đã phê duyệt năng lực nhân sự');
+      setEvaluationRevision(value => value + 1);
       setSkillsModalOpen(false);
       await loadResources();
       await loadProductivity();
@@ -450,6 +460,32 @@ export default function Resources() {
       ),
     },
     {
+      title: t('resources.skillReviewColumn'),
+      key: 'skillReview',
+      width: 210,
+      render: (_, record) => {
+        const pendingCount = (record.skills || []).filter((skill) => skill.evaluationStatus === 'self_assessed').length;
+        return (
+          <div className="resource-skill-review">
+            {pendingCount > 0 && (
+              <Tag color="orange" icon={<ClockCircleOutlined />}>
+                {t('resources.skillsAwaitingReview', { count: pendingCount })}
+              </Tag>
+            )}
+            <Button
+              type={pendingCount > 0 ? 'primary' : 'default'}
+              icon={<CheckCircleOutlined />}
+              className="resource-skill-review-button"
+              aria-label={t('resources.reviewSkillsFor', { name: record.user?.name || record.position || t('resources.noUser') })}
+              onClick={() => openSkillsModal(record)}
+            >
+              {t('resources.reviewSkills')}
+            </Button>
+          </div>
+        );
+      },
+    },
+    {
       title: t('reports.columns.department'),
       dataIndex: 'department',
       key: 'department',
@@ -531,14 +567,6 @@ export default function Resources() {
               </Tag>
             ))}
             {skills.length > 3 && <Tag>+{skills.length - 3}</Tag>}
-            <Button
-              type="text"
-              size="small"
-              icon={<ThunderboltOutlined />}
-              onClick={() => openSkillsModal(record)}
-            >
-              {t('resources.matrixButton', { count: skills.length })}
-            </Button>
           </Space>
         );
       },
@@ -548,7 +576,7 @@ export default function Resources() {
       key: 'rate',
       render: (_, record) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
-          FTE: {record.fte || 1} •{' '}
+          FTE: {record.fte ?? 1} •{' '}
           {record.hourlyRate ? t('resources.perHour', { amount: formatNumber(record.hourlyRate) }) : '—'}
         </Text>
       ),
@@ -709,6 +737,7 @@ export default function Resources() {
         { label: t('workspace.capacityUsed'), value: stats.avgUtil + '%' },
         { label: t('resources.overloaded'), value: stats.overloaded, danger: stats.overloaded > 0 },
       ]} />
+      <ResourcesOverview resources={visibleResources} loading={loading} error={loadError} />
       <div className="section-heading resource-view-heading">
         <div><h2>{t('workspace.teamCapacity')}</h2><p>{t('workspace.resourceScope')}</p></div>
         <Space wrap className="resource-quick-filters">
@@ -758,7 +787,7 @@ export default function Resources() {
                   <Table
                     columns={resourceColumns}
                     dataSource={visibleResources}
-                    scroll={{ x: 1050 }}
+                    scroll={{ x: 1260 }}
                     rowClassName={record => record.isOverloaded ? 'resource-row-overloaded' : ''}
                     rowKey="_id"
                     loading={loading}
@@ -851,6 +880,12 @@ export default function Resources() {
             ),
           },
           {
+            key: 'evaluations',
+            label: <span><CheckCircleOutlined /> Chờ duyệt năng lực {pendingCount != null && <Tag color="orange">{pendingCount}</Tag>}</span>,
+            forceRender: true,
+            children: <EvaluationQueue revision={evaluationRevision} onReview={openSkillsModal} onCount={setPendingCount} />,
+          },
+          {
             key: 'productivity',
             label: (
               <span>
@@ -862,6 +897,8 @@ export default function Resources() {
               </span>
             ),
             children: (
+              <>
+              <WorkloadPeriodControls value={period} onChange={setPeriod} />
               <WorkloadProductivityChart
                 productivityData={productivityData}
                 loading={productivityLoading}
@@ -872,6 +909,7 @@ export default function Resources() {
                 }}
                 onRefresh={loadProductivity}
               />
+              </>
             ),
           },
         ]}

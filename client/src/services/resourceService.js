@@ -41,20 +41,22 @@ const resourceService = {
     return api.post('/resources/me/leaves', data);
   },
 
-  selfEvaluate(skills) {
-    return api.put('/resources/my-evaluation', { skills });
+  selfEvaluate(skills, evaluationVersion) {
+    return api.put('/resources/my-evaluation', { skills, evaluationVersion });
   },
 
   getMyEvaluation() {
     return api.get('/resources/me/evaluation');
   },
 
+  getPendingEvaluations(params = {}) { return api.get('/resources/evaluations/pending', { params }); },
+  getManagerEvaluation(id) { return api.get(`/resources/${id}/evaluation`); },
   managerEvaluate(id, data) {
     return api.put(`/resources/${id}/manager-evaluation`, data);
   },
 
-  getProductivitySummary() {
-    return api.get('/resources/productivity/summary');
+  getProductivitySummary(params = {}) {
+    return api.get('/resources/productivity/summary', { params });
   },
 
   deleteMyLeave(leaveId) {

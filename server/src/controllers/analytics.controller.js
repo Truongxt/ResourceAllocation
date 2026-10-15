@@ -318,7 +318,7 @@ const getUtilizationBreakdown = async (req, res, next) => {
     });
 
     const breakdown = resources.map((r) => {
-      const capacity = (r.maxCapacity || 40) * (r.fte || 1);
+      const capacity = (r.maxCapacity ?? 40) * (r.fte ?? 1);
       const userId = r.user?._id?.toString();
       const assign = userId ? assignMap[userId] : null;
       const outcome = userId ? outcomeMap[userId] : null;
@@ -592,7 +592,7 @@ const getOptimizationComparison = async (req, res, next) => {
     });
 
     const rows = resources.map((r) => {
-      const capacity = (r.maxCapacity || 40) * (r.fte || 1);
+      const capacity = (r.maxCapacity ?? 40) * (r.fte ?? 1);
       const userId = r.user?._id?.toString();
       const beforeWorkload = userId in hoursByUser ? hoursByUser[userId] : (r.currentWorkload || 0);
       const after = afterByResource[r._id.toString()];

@@ -254,7 +254,7 @@ class CSPSolver {
    */
   _checkCapacityConstraint(resourceIdx, resources, loads, demand) {
     const resource = resources[resourceIdx];
-    const capacity = (resource.maxCapacity || 40) * (resource.fte || 1);
+    const capacity = (resource.maxCapacity ?? 40) * (resource.fte ?? 1);
     const load = loads[resourceIdx];
 
     for (const [week, hours] of demand.weeks) {
@@ -339,7 +339,7 @@ class CSPSolver {
       const demand = weeklyDemandOf(tasks[t]);
       const needed = Math.max(demand.peakWeekHours, demand.unscheduledHours);
       return domain.filter((rIdx) => {
-        const capacity = (resources[rIdx].maxCapacity || 40) * (resources[rIdx].fte || 1);
+        const capacity = (resources[rIdx].maxCapacity ?? 40) * (resources[rIdx].fte ?? 1);
         if (needed > capacity) return false;
 
         // Người đã kín lịch vì việc ở dự án khác phải bị loại ngay từ bước lọc miền.
@@ -475,7 +475,7 @@ class CSPSolver {
     // Chỗ trống còn lại tính theo TUẦN NẶNG NHẤT hiện có của mỗi người, cùng đơn vị
     // với capacity. Xếp người còn nhiều chỗ lên trước để ít ràng buộc các biến sau.
     const remainingOf = (rIdx) => {
-      const capacity = (resources[rIdx].maxCapacity || 40) * (resources[rIdx].fte || 1);
+      const capacity = (resources[rIdx].maxCapacity ?? 40) * (resources[rIdx].fte ?? 1);
       return capacity - this._peakOf(loads[rIdx]);
     };
 
@@ -527,7 +527,7 @@ class CSPSolver {
 
     // Check capacity for each resource
     resources.forEach((r, i) => {
-      const capacity = (r.maxCapacity || 40) * (r.fte || 1);
+      const capacity = (r.maxCapacity ?? 40) * (r.fte ?? 1);
       const peak = Math.round(this._peakOf(loads[i]) * 10) / 10;
       const detail = `${peak}/${capacity}h mỗi tuần`;
       if (peak <= capacity) {
@@ -598,7 +598,7 @@ class CSPSolver {
     const lines = [];
     const nameOf = (r, i) => r.userName || r.position || `Nhân sự ${i + 1}`;
     const round1 = (n) => Math.round(n * 10) / 10;
-    const capOf = (r) => (r.maxCapacity || 40) * (r.fte || 1);
+    const capOf = (r) => (r.maxCapacity ?? 40) * (r.fte ?? 1);
 
     // Ai đang bận sẵn vì việc ở nơi khác
     resources.forEach((r, i) => {

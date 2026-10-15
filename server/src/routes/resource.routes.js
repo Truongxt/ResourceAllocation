@@ -12,6 +12,8 @@ const {
   getMyEvaluation,
   selfEvaluate,
   managerEvaluate,
+  getPendingEvaluations,
+  getManagerEvaluation,
   getProductivitySummary,
   recalculateWorkload,
   getResourceSummary,
@@ -160,7 +162,38 @@ const skillsValidation = [
     .withMessage('Level kỹ năng phải từ 1 đến 4'),
 ];
 
+const evaluationCommon = [
+  body('evaluationVersion').optional().isInt({ min: 0 }),
+  body('skills').isArray({ min: 1, max: 50 }).bail().custom(skills => {
+    const names = skills.map(s => String(s?.name || '').trim().toLowerCase());
+    if (new Set(names).size !== names.length) throw new Error('Tên kỹ năng không được trùng');
+    return true;
+  }),
+  body('skills.*.name').isString().trim().isLength({ min: 1, max: 100 }),
+];
+const managerEvaluationValidation = [
+  ...evaluationCommon,
+  body('action').optional().isIn(['approve', 'return']),
+  body('skills.*.managerFeedback').optional().isString().isLength({ max: 2000 }),
+  body('skills.*.yearsOfExperience').optional().isFloat({ min: 0, max: 60 }),
+  body('skills').custom((skills, { req }) => {
+    if (!Array.isArray(skills)) return true;
+    for (const skill of skills) {
+      if (req.body.action === 'return') {
+        if (!String(skill?.managerFeedback || '').trim()) throw new Error('Cần ghi yêu cầu bổ sung cho mỗi kỹ năng trả lại');
+      } else {
+        const level = Number(skill?.managerLevel ?? skill?.level);
+        if (!Number.isInteger(level) || level < 1 || level > 4) throw new Error('Cấp độ duyệt phải từ 1 đến 4');
+      }
+    }
+    return true;
+  }),
+  body('performanceRating').optional().isFloat({ min: 1, max: 5 }),
+  body('performanceNotes').optional().isString().isLength({ max: 5000 }),
+];
 const selfEvaluationValidation = [
+  ...evaluationCommon,
+  body('skills.*.evidence').optional().isString().isLength({ max: 2000 }),
   body('skills').isArray({ min: 1, max: 50 }).withMessage('Cần nhập từ 1 đến 50 kỹ năng'),
   body('skills.*.name').isString().trim().isLength({ min: 1, max: 100 }).withMessage('Tên kỹ năng không hợp lệ'),
   body('skills.*.selfLevel').isInt({ min: 1, max: 4 }).withMessage('Mức tự đánh giá phải từ 1 đến 4'),
@@ -189,7 +222,9 @@ router.get('/productivity/summary', authorize('admin', 'project_manager'), getPr
 // Đánh giá năng lực 2 chiều (Two-Way Skill Assessment)
 router.get('/me/evaluation', getMyEvaluation);
 router.put('/my-evaluation', selfEvaluationValidation, validate, selfEvaluate);
-router.put('/:id/manager-evaluation', authorize('admin', 'project_manager'), resourceIdValidation, validate, managerEvaluate);
+router.get('/evaluations/pending', authorize('admin', 'project_manager'), query('page').optional().isInt({ min: 1 }), validate, getPendingEvaluations);
+router.get('/:id/evaluation', authorize('admin', 'project_manager'), resourceIdValidation, validate, getManagerEvaluation);
+router.put('/:id/manager-evaluation', authorize('admin', 'project_manager'), resourceIdValidation, managerEvaluationValidation, validate, managerEvaluate);
 
 router.get('/', listValidation, validate, getResources);
 router.get('/:id', resourceIdValidation, validate, getResourceById);

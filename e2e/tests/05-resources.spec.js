@@ -58,15 +58,15 @@ test.describe('Quản lý nhân sự', () => {
     const problems = watchForProblems(page);
 
     const nam = page.locator('.ant-table-row').filter({ hasText: 'Trần Văn Nam' });
-    await nam.getByRole('button', { name: /Matrix/ }).click();
+    await nam.getByRole('button', { name: /Đánh giá & duyệt/ }).click();
 
-    const modal = page.locator('.ant-modal').filter({ hasText: 'Skill Matrix' }).first();
+    const modal = page.locator('.ant-modal').filter({ hasText: 'Đánh Giá & Phê Duyệt Năng Lực' }).first();
     await expect(modal).toBeVisible({ timeout: 20_000 });
     await expect(modal).toContainText('Trần Văn Nam');
 
     // Tên kỹ năng nằm trong ô nhập nên không đọc được qua textContent —
     // phải lấy từ `value` của từng input.
-    const skills = await modal.getByPlaceholder('Tên kỹ năng (VD: React)')
+    const skills = await modal.getByPlaceholder('Tên kỹ năng (VD: React, Node, AI...)')
       .evaluateAll((inputs) => inputs.map((i) => i.value));
     expect(skills).toEqual(expect.arrayContaining(['React', 'Node.js', 'MongoDB']));
 

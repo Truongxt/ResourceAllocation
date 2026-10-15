@@ -1,3 +1,4 @@
+import SkillEvaluationHistory from '../resources/SkillEvaluationHistory';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Card, Empty, Space, Table, Tag, Typography, message } from 'antd';
 import { EditOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -29,7 +30,7 @@ export default function MySkillAssessmentTab() {
   const submit = async (skills) => {
     setSubmitting(true);
     try {
-      await resourceService.selfEvaluate(skills);
+      await resourceService.selfEvaluate(skills, resource.evaluationVersion || 0);
       message.success('Đã gửi bản tự đánh giá để quản lý xem xét');
       setOpen(false);
       await load();
@@ -65,10 +66,11 @@ export default function MySkillAssessmentTab() {
               { title: 'Kỹ năng', dataIndex: 'name' },
               { title: 'Tự đánh giá', dataIndex: 'selfLevel', render: (value, row) => row.evaluationStatus === 'draft' ? '—' : `Mức ${value || '—'}` },
               { title: 'Quản lý duyệt', dataIndex: 'managerLevel', render: (value) => value ? `Mức ${value}` : 'Chưa duyệt' },
-              { title: 'Trạng thái', dataIndex: 'evaluationStatus', render: (value) => <Tag color={value === 'approved' ? 'success' : 'warning'}>{value === 'approved' ? 'Đã duyệt' : value === 'self_assessed' ? 'Chờ quản lý' : 'Chưa đánh giá'}</Tag> },
+              { title: 'Trạng thái', dataIndex: 'evaluationStatus', render: (value) => <Tag color={value === 'approved' ? 'success' : 'warning'}>{value === 'approved' ? 'Đã duyệt' : value === 'self_assessed' ? 'Chờ quản lý' : value === 'returned' ? 'Cần bổ sung' : 'Chưa đánh giá'}</Tag> },
               { title: 'Phản hồi', dataIndex: 'managerFeedback', render: (value) => value || '—' },
             ]}
           />
+          <SkillEvaluationHistory history={resource.skillEvaluationHistory} />
           <SelfSkillEvaluationModal open={open} onClose={() => setOpen(false)} currentResource={resource} onSubmit={submit} submitting={submitting} />
         </>
       ) : !loading && !error ? <Empty description="Chưa có hồ sơ năng lực" /> : null}

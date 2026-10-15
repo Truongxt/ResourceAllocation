@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import WorkloadBreakdown from './WorkloadBreakdown';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -41,6 +42,8 @@ export default function WorkloadProductivityChart({
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState('personnel'); // 'personnel' | 'department'
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'red' | 'yellow' | 'green'
+  const [selection, setSelection] = useState(null);
+  useEffect(() => { setSelection(null); }, [productivityData]);
   const [search, setSearch] = useState('');
 
   const personnel = productivityData?.personnel || [];
@@ -53,6 +56,9 @@ export default function WorkloadProductivityChart({
     redCount: personnel.filter((p) => p.statusCode === 'red').length,
     avgUtilization: 0,
   };
+
+  const filterItems = viewMode === 'department' ? departments : personnel;
+  const counts = code => filterItems.filter(item => item.statusCode === code).length;
 
   // Filter personnel list
   const filteredPersonnel = useMemo(() => {
@@ -81,6 +87,8 @@ export default function WorkloadProductivityChart({
 
   return (
     <div style={{ marginTop: 12 }}>
+      <WorkloadBreakdown selection={selection} period={productivityData?.period} onClose={() => setSelection(null)} />
+      <Paragraph type="secondary">Tải kế hoạch trong kỳ {productivityData?.period?.from} → {productivityData?.period?.to}. Bấm số giờ để xem cách tính. Số việc đang làm và tỷ lệ đúng hạn là thống kê toàn bộ lịch sử trong phạm vi quản lý.</Paragraph>
       {/* 1. Header & Summary KPI Strip */}
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         <Col xs={24} sm={12} md={6}>
@@ -210,7 +218,7 @@ export default function WorkloadProductivityChart({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <Text type="secondary" style={{ fontSize: 13, fontWeight: 500, color: '#92400e' }}>
-                  Nhàn rỗi / Chú ý
+                  Cần chú ý
                 </Text>
                 <div style={{ fontSize: 24, fontWeight: 700, color: '#f59e0b', marginTop: 4 }}>
                   {summary.yellowCount}{' '}
@@ -292,7 +300,7 @@ export default function WorkloadProductivityChart({
                 borderColor: '#ef4444',
               }}
             >
-              🔴 Quá tải ({summary.redCount})
+              🔴 Quá tải ({counts('red')})
             </Tag.CheckableTag>
             <Tag.CheckableTag
               checked={statusFilter === 'yellow'}
@@ -305,7 +313,7 @@ export default function WorkloadProductivityChart({
                 borderColor: '#f59e0b',
               }}
             >
-              🟡 Cần chú ý ({summary.yellowCount})
+              🟡 Cần chú ý ({counts('yellow')})
             </Tag.CheckableTag>
             <Tag.CheckableTag
               checked={statusFilter === 'green'}
@@ -318,7 +326,7 @@ export default function WorkloadProductivityChart({
                 borderColor: '#10b981',
               }}
             >
-              🟢 Tải cân bằng ({summary.greenCount})
+              🟢 Tải cân bằng ({counts('green')})
             </Tag.CheckableTag>
           </Space>
 
@@ -343,7 +351,7 @@ export default function WorkloadProductivityChart({
                 ? '📊 Tải công việc & kết quả theo Nhân sự'
                 : '🏢 Tải công việc & kết quả theo Phòng ban'}
             </span>
-            <Tooltip title="Vạch chuẩn 100% biểu thị công suất tuần chuẩn (40h/tuần). Cột vượt quá vạch này sẽ chuyển sang màu đỏ báo động quá tải. Bấm nút 'San tải việc' để điều chuyển công việc tức thời.">
+            <Tooltip title="Vạch chuẩn 100% biểu thị công suất khả dụng trong kỳ đã chọn, sau khi áp dụng FTE và trừ lịch nghỉ. Cột vượt quá vạch này sẽ chuyển sang màu đỏ báo động quá tải. Bấm nút 'San tải việc' để điều chuyển công việc tức thời.">
               <InfoCircleOutlined style={{ color: '#6366f1', cursor: 'pointer' }} />
             </Tooltip>
           </div>
@@ -432,7 +440,8 @@ export default function WorkloadProductivityChart({
 
                         {/* Quick Action Button for Overloaded Personnel */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <Tooltip title={`Tải: ${person.workload}h / Định mức: ${person.capacity}h/tuần`}>
+                          <Button type="link" onClick={() => setSelection({ name: person.name, people: [person] })}>{person.workload}h / {person.capacity}h · Chi tiết</Button>
+                          <Tooltip title={`Tải: ${person.workload}h / Định mức: ${person.capacity}h trong kỳ`}>
                             <Tag
                               color={person.color}
                               style={{
@@ -442,7 +451,7 @@ export default function WorkloadProductivityChart({
                                 borderRadius: 12,
                               }}
                             >
-                              {person.utilizationRate}% Công suất
+                              {person.noCapacity ? 'Không có công suất' : `${person.utilizationRate}% Công suất`}
                             </Tag>
                           </Tooltip>
 
@@ -623,7 +632,8 @@ export default function WorkloadProductivityChart({
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                          <Button type="link" onClick={() => setSelection({ name: dept.name, people: personnel.filter(person => person.department === dept.name) })}>{dept.totalWorkload}h / {dept.totalCapacity}h · Chi tiết</Button>
                           <Tag
                             color={dept.color}
                             style={{
@@ -633,7 +643,7 @@ export default function WorkloadProductivityChart({
                               borderRadius: 12,
                             }}
                           >
-                            {dept.utilizationRate}% Tải Phòng
+                            {dept.totalCapacity === 0 ? 'Không có công suất' : `${dept.utilizationRate}% Tải phòng`}
                           </Tag>
 
                           <Tag color="cyan" style={{ fontSize: 12, borderRadius: 12 }}>
@@ -733,7 +743,8 @@ export default function WorkloadProductivityChart({
 
                         <div style={{ display: 'flex', gap: 12, fontWeight: 600 }}>
                           <span style={{ color: '#10b981' }}>🟢 {dept.optimalCount} Cân bằng</span>
-                          <span style={{ color: '#f59e0b' }}>🟡 {dept.underloadedCount} Nhàn rỗi</span>
+                          <span style={{ color: '#f59e0b' }}>🟡 {dept.underloadedCount} Còn công suất</span>
+                          <span style={{ color: '#f59e0b' }}>{dept.nearCapacityCount || 0} Tiệm cận tối đa</span>
                           <span style={{ color: '#ef4444' }}>🔴 {dept.overloadedCount} Quá tải</span>
                         </div>
                       </div>

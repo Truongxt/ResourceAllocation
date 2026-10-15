@@ -143,9 +143,9 @@ const loadOptimizationData = async (projectId, user) => {
     position: r.position,
     department: r.department,
     // Kỹ năng mới do nhân viên tự khai chưa có quản lý duyệt không đi vào bộ tối ưu.
-    skills: (r.skills || []).filter((skill) => skill.evaluationStatus !== 'self_assessed' || skill.managerLevel),
-    maxCapacity: r.maxCapacity || 40,
-    fte: r.fte || 1,
+    skills: (r.skills || []).filter((skill) => skill.evaluationStatus === 'approved' || skill.managerLevel),
+    maxCapacity: r.maxCapacity ?? 40,
+    fte: r.fte ?? 1,
     hourlyRate: r.hourlyRate || 0,
     availability: r.availability || 'available',
     unavailablePeriods: r.unavailablePeriods || [],
@@ -971,7 +971,7 @@ const getOptimizationReadiness = async (req, res, next) => {
 
     const unassignedTasks = tasks.filter((t) => !t.assignee).length;
     const totalEstimatedHours = tasks.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
-    const totalCapacityHours = resources.reduce((sum, r) => sum + (r.maxCapacity || 40), 0);
+    const totalCapacityHours = resources.reduce((sum, r) => sum + (r.maxCapacity ?? 40) * (r.fte ?? 1), 0);
     const uniqueSkillsRequired = new Set();
     tasks.forEach((t) => {
       (t.requiredSkills || []).forEach((s) => {

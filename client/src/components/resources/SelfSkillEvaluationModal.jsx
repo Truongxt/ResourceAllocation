@@ -32,7 +32,8 @@ export default function SelfSkillEvaluationModal({
   useEffect(() => {
     if (open && currentResource) {
       const initialSkills = (currentResource.skills || []).map((s) => ({
-        originalId: s._id,
+        originalId: s._id || s.name,
+        evidence: s.evidence || '',
         name: s.name,
         selfLevel: s.selfLevel || s.level || 1,
         managerLevel: s.managerLevel,
@@ -97,7 +98,7 @@ export default function SelfSkillEvaluationModal({
                         {isApproved ? (
                           <Tag color="success">✓ Quản lý đã duyệt: Lv.{currentItem?.managerLevel}</Tag>
                         ) : (
-                          <Tag color="warning">⏳ Chờ quản lý duyệt</Tag>
+                          <Tag color="warning">{currentItem?.evaluationStatus === 'returned' ? 'Cần bổ sung minh chứng' : currentItem?.evaluationStatus === 'self_assessed' ? 'Chờ quản lý duyệt' : 'Chưa gửi đánh giá'}</Tag>
                         )}
                         {!currentItem?.originalId && <Button type="text" danger size="small" icon={<MinusCircleOutlined />} onClick={() => remove(name)} aria-label="Bỏ kỹ năng mới" />}
                       </Space>
@@ -107,6 +108,7 @@ export default function SelfSkillEvaluationModal({
                       <Form.Item
                         {...restField}
                         name={[name, 'name']}
+                        label="Tên kỹ năng"
                         rules={[{ required: true, message: 'Nhập tên kỹ năng' }]}
                         style={{ flex: 2, minWidth: 160, marginBottom: 0 }}
                       >
@@ -133,6 +135,9 @@ export default function SelfSkillEvaluationModal({
                       </Form.Item>
                     </div>
 
+                    <Form.Item name={[name, 'evidence']} label="Minh chứng / kết quả công việc" style={{ marginTop: 12 }}>
+                      <Input.TextArea maxLength={2000} showCount rows={3} placeholder="Mô tả công việc đã hoàn thành, kết quả và đường dẫn tài liệu để quản lý đối chiếu..." />
+                    </Form.Item>
                     {currentItem?.managerFeedback && (
                       <div style={{ marginTop: 8, fontSize: 12, color: '#475569', background: '#eff6ff', padding: '6px 10px', borderRadius: 6 }}>
                         💬 <strong>Nhận xét từ Quản lý:</strong> {currentItem.managerFeedback}

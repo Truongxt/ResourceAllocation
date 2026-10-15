@@ -5,6 +5,10 @@
 .resources-page .ant-table-cell { padding-block: 15px !important; }
 .resources-page .ant-avatar { border-radius: 6px; }
 .resource-quick-filters .ant-btn { font-size: 12px; }
+.resource-skill-review { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.resource-skill-review .ant-tag { margin-inline-end: 0; }
+.resource-skill-review-button { min-height: 36px; font-weight: 600; }
+.resource-skill-review-button.ant-btn-default { color: var(--brand-primary); border-color: var(--brand-primary); }
 @media (max-width: 767px) {
   .resources-page .page-heading > .ant-space { width: 100%; }
   .resource-quick-filters { width: 100%; }
