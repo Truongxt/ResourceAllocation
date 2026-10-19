@@ -45,6 +45,13 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   duyệt kết quả, bàn giao hàng loạt và việc lặp lại cũng chỉ kiểm vai trò. Nay PM chỉ có quyền của PM trên dự án mình
   là `manager`; ở dự án khác — kể cả khi có tên trong đó — PM như một thành viên. Giao diện (Công việc, Gantt, chi
   tiết dự án, `utils/taskPermissions.js`) chỉ hiện thao tác thuộc quyền theo dự án của từng việc.
+- **Mobile bày nút ghi cho mọi người.** Chi tiết công việc, Công việc, Lịch, Dự án, Chi tiết dự án và Nhân sự hiện nút đổi
+  trạng thái, checklist, nộp kết quả, duyệt, thất bại, tạo việc, sửa/tạo dự án, thêm/sửa nhân sự với cả người không có
+  quyền. Nay mobile dùng chung luật quyền với web (`utils/projectAccess.js`, `utils/taskPermissions.js` — bản chép
+  khóa bằng `shared-copies.test.mjs`). Kèm hai lỗi: nút Phê duyệt / Trả lại gửi `approved`/`rejected` (server nhận
+  `approve`/`reject`) nên chưa từng chạy được; chạm nhãn trạng thái ở dạng danh sách gọi `setSelectedTask` không tồn
+  tại nên app lỗi — nay chuyển việc sang bước kế tiếp. Web: nút tạo dự án theo đúng luật server (App Admin `work` là
+  thành viên chỉ tạo được khi công ty cho phép mọi người).
 
 ---
 
