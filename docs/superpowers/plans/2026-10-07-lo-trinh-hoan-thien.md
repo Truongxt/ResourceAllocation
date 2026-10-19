@@ -74,6 +74,8 @@ thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/9
 | Admin tự cấp được quyền đặc biệt `can_change_email` rồi đổi email người khác (thao tác chỉ dành cho Owner) | `41d9fc6` |
 | Admin (và PM có tên trong dự án mình quản lý) tự duyệt được bản tự đánh giá năng lực của chính mình | `db2b875` |
 | PM lưu trữ / mở lại được dự án người khác quản lý | `d7bacda` |
+| PM sửa, xóa được dự án và thành viên của dự án người khác; ai trong công ty (cả Thành viên, Khách) cũng tạo/sửa/xóa được nhóm công việc của mọi dự án | `aa3aac3` |
+| PM toàn quyền với công việc của **mọi** dự án (11 guard trong `taskAccess.js`, duyệt kết quả, bàn giao hàng loạt, việc lặp lại); giao diện hiện nút cho cả thao tác không có quyền | `752c95b`, `0f7d8bd` |
 | Bộ sinh dữ liệu Benchmark lấy "hôm nay" làm mốc nên `measure:csp-soft` chạy hôm khác ra số khác — Bảng 4-5 của báo cáo không tái tạo được | `aa849f4` |
 
 ### Chưa làm
@@ -105,6 +107,8 @@ thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/9
      chưa chụp.
    - **E1–E4:** kiểm tay trong Word (F9 cập nhật danh mục, gạch đầu dòng/đánh số, định dạng tham chiếu [15],
      bảng tràn/ngắt trang).
+   - **Mobile chưa theo nguyên tắc "không có quyền thì không hiện"**: nút tạo dự án (`ProjectsScreen`) và nút sửa trường
+     tùy chỉnh của việc (`TaskDetailScreen`) chỉ ẩn theo quyền phân hệ, chưa theo luật server. Có từ trước, chưa sửa.
    - **E5:** xóa 4 file báo cáo cũ (`BoSungUML_HoanChinh`, `HoanThien` — `.docx` và `.pdf`) **sau khi nộp** bản cuối.
    - Số đo của báo cáo tái tạo được: `npm run measure:csp-soft` (Bảng 4-5) và `npm run measure:baselines`
      (so với Greedy, ALGORITHMS.md mục 3.4) đều cố định seed và ngày mốc 08/10/2026. Bảng 4-4 (GA/Hybrid) chưa có
