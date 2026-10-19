@@ -137,7 +137,7 @@ cookie `rao_refresh`.
 | PUT | `/users/:id/manager` | Gán quản lý trực tiếp | 👑 |
 | PUT | `/users/:id/profile` | Sửa name/department/phone/jobTitle | 👑 |
 | PUT | `/users/:id/app-permissions` | Quyền theo phân hệ | 👑 |
-| PUT | `/users/:id/special-grants` | Quyền đặc biệt (🔑) | 👑 |
+| PUT | `/users/:id/special-grants` | Quyền đặc biệt (🔑) | 👑 + Owner |
 | PUT | `/users/:id/app-admin` | Chỉ định App Admin | 👑 + Owner |
 | PUT | `/users/:id/owner` | Cấp/hủy quyền Owner | 👑 + Owner |
 | PUT | `/users/:id/email` | Đổi email tài khoản | 👑 + Owner **hoặc** 🔑 `can_change_email` |

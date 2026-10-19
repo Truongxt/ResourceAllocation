@@ -26,6 +26,12 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 - `GET /resources/productivity/summary` chỉ dành cho Admin/PM.
 - `utilizationRate` khi capacity bằng 0 mà vẫn có việc trả `101` (quá tải) thay vì `0`.
 
+### Fixed
+
+- **Admin tự cấp được quyền đổi email.** `PUT /auth/users/:id/special-grants` chỉ kiểm vai trò admin, nên Admin tự
+  thêm `can_change_email` cho mình rồi đổi email người khác — thao tác vốn chỉ dành cho Owner. Nay chỉ Owner cấp
+  được quyền đặc biệt (403 với Admin thường); nút cấp quyền ở tab App Admin bị khóa với người không phải Owner.
+
 ---
 
 ## [Chưa phát hành] - 2026-10-09 (báo cáo kết quả theo người, xuất công việc, thông báo, vòng đời dự án, đính kèm tệp)
