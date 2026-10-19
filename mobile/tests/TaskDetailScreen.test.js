@@ -8,14 +8,17 @@ import { Alert } from 'react-native';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { renderWithTheme } from './helpers';
 
-jest.mock('../src/api/taskApi', () => ({ __esModule: true, default: { getById: jest.fn(), update: jest.fn() } }));
+jest.mock('../src/api/taskApi', () => ({
+  __esModule: true,
+  default: { getById: jest.fn(), update: jest.fn(), review: jest.fn(), updateStatus: jest.fn() },
+}));
 jest.mock('../src/api/attachmentApi', () => ({
   __esModule: true,
   default: { list: jest.fn(), upload: jest.fn(), download: jest.fn(), remove: jest.fn() },
 }));
-const mockAuth = { canManage: true };
+const mockAuth = { canManage: true, user: { _id: 'u-me', role: 'member' } };
 jest.mock('../src/context/AuthContext', () => ({
-  useAuth: () => ({ user: { _id: 'u-me', role: 'member' }, canManageModule: () => mockAuth.canManage }),
+  useAuth: () => ({ user: mockAuth.user, canManageModule: () => mockAuth.canManage }),
 }));
 jest.mock('expo-document-picker', () => ({ getDocumentAsync: jest.fn() }));
 jest.mock('expo-sharing', () => ({ isAvailableAsync: jest.fn(), shareAsync: jest.fn() }));
@@ -29,13 +32,18 @@ const TASK = {
   title: 'Xây dựng API',
   status: 'in_progress',
   priority: 'high',
-  project: { _id: 'p1', name: 'Web', manager: { _id: 'u-pm' } },
+  project: { _id: 'p1', name: 'Web', manager: { _id: 'u-pm' }, permissions: {} },
+  // Người dùng mặc định là người tạo việc: được sửa nội dung (kể cả trường tùy chỉnh).
+  createdBy: 'u-me',
   comments: [],
   checklist: [],
 };
 
 beforeEach(() => {
   mockAuth.canManage = true;
+  mockAuth.user = { _id: 'u-me', role: 'member' };
+  taskApi.review.mockReset().mockResolvedValue({ data: { success: true } });
+  taskApi.updateStatus.mockReset().mockResolvedValue({ data: { success: true } });
   taskApi.update.mockReset().mockResolvedValue({ data: { success: true } });
   taskApi.getById.mockReset().mockResolvedValue({ data: { data: { task: TASK } } });
   attachmentApi.list.mockReset().mockResolvedValue([
@@ -138,4 +146,51 @@ test('chỉ có quyền xem, hoặc dự án lưu trữ: không có nút Sửa',
   openDetail();
   await screen.findByTestId('task-custom-values');
   expect(screen.queryByLabelText('Sửa trường tùy chỉnh')).toBeNull();
+});
+
+// ── Chỉ hiện thao tác thuộc quyền (utils/taskPermissions.js, dùng chung với web) ──
+const OTHERS_TASK = { ...TASK, createdBy: 'u-pm', assignee: { _id: 'u-other', name: 'Lan' } };
+
+test('thành viên không liên quan: chỉ xem — không đổi trạng thái, checklist, nộp kết quả, thất bại', async () => {
+  taskApi.getById.mockResolvedValue({ data: { data: { task: OTHERS_TASK } } });
+  openDetail();
+  await screen.findByText('Lan');
+  expect(screen.queryByLabelText('Đổi trạng thái')).toBeNull();
+  fireEvent.press(screen.getByText(/^Checklist/));
+  expect(screen.queryByPlaceholderText('Thêm mục checklist mới...')).toBeNull();
+  fireEvent.press(screen.getByText(/^Quy trình/));
+  expect(screen.queryByText('Nộp báo cáo kết quả')).toBeNull();
+  expect(screen.queryByText('Đánh dấu Thất bại (Failed)')).toBeNull();
+});
+
+test('người được giao: đổi trạng thái, thêm checklist, nộp kết quả; dự án chưa cho thì không đánh dấu thất bại', async () => {
+  taskApi.getById.mockResolvedValue({ data: { data: { task: { ...OTHERS_TASK, assignee: { _id: 'u-me', name: 'Tôi' } } } } });
+  openDetail();
+  expect(await screen.findByLabelText('Đổi trạng thái')).toBeTruthy();
+  fireEvent.press(screen.getByText(/^Checklist/));
+  expect(screen.getByPlaceholderText('Thêm mục checklist mới...')).toBeTruthy();
+  fireEvent.press(screen.getByText(/^Quy trình/));
+  expect(screen.getByText('Nộp báo cáo kết quả')).toBeTruthy();
+  expect(screen.queryByText('Đánh dấu Thất bại (Failed)')).toBeNull();
+});
+
+test('quản lý dự án duyệt: gửi đúng decision mà server nhận (approve / reject)', async () => {
+  mockAuth.user = { _id: 'u-pm', role: 'project_manager' };
+  taskApi.getById.mockResolvedValue({ data: { data: { task: { ...OTHERS_TASK, status: 'review' } } } });
+  openDetail();
+  await screen.findByText('Lan');
+  fireEvent.press(screen.getByText(/^Quy trình/));
+  fireEvent.press(screen.getByText('✓ Phê duyệt'));
+  await waitFor(() => expect(taskApi.review).toHaveBeenCalledWith('t1', 'approve', expect.any(String)));
+});
+
+test('PM ở dự án người khác: như thành viên — không duyệt, không đổi trạng thái', async () => {
+  mockAuth.user = { _id: 'u-pm2', role: 'project_manager' };
+  taskApi.getById.mockResolvedValue({ data: { data: { task: { ...OTHERS_TASK, status: 'review' } } } });
+  openDetail();
+  await screen.findByText('Lan');
+  expect(screen.queryByLabelText('Đổi trạng thái')).toBeNull();
+  fireEvent.press(screen.getByText(/^Quy trình/));
+  expect(screen.queryByText('✓ Phê duyệt')).toBeNull();
+  expect(screen.queryByText('✕ Trả lại')).toBeNull();
 });

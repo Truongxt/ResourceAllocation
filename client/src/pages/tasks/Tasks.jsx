@@ -60,6 +60,7 @@ import TaskExcelImportModal from '../../components/tasks/TaskExcelImportModal';
 import RecurringTaskModal from '../../components/tasks/RecurringTaskModal';
 import RemindersDrawer from '../../components/tasks/RemindersDrawer';
 import PendingReviewDrawer from '../../components/tasks/PendingReviewDrawer';
+import { canCreateTaskIn, canManageProject } from '../../utils/projectAccess';
 import './Tasks.css';
 
 const { Title, Text } = Typography;
@@ -119,8 +120,12 @@ export default function Tasks() {
   const [form] = Form.useForm();
   const selectedProject = Form.useWatch('project', form);
 
-  // Phân quyền: Admin và PM có toàn quyền; Creator và Assignee sửa task của mình
-  const canManageTasks = user?.role === ROLES.ADMIN || user?.role === ROLES.PM || Boolean(user?.isOwner);
+  // Phân quyền: Admin toàn quyền; PM toàn quyền **trên dự án mình quản lý** — ở dự án khác PM chỉ
+  // như thành viên (khớp server: taskAccess.js). Creator và Assignee sửa task của mình.
+  const isAdmin = user?.role === ROLES.ADMIN || Boolean(user?.isOwner);
+  const managesTaskProject = (projectRef) => isAdmin || canManageProject(user, projectOf(projectRef));
+  // Cấp danh sách (nút Thêm công việc): quản lý được ít nhất một dự án.
+  const canManageTasks = isAdmin || projects.some((p) => canManageProject(user, p));
   const canWriteTasks = canManageModule('tasks');
   const isAssignedToMe = (task) => {
     const assigneeId = task?.assignee?._id || task?.assignee;
@@ -136,13 +141,16 @@ export default function Tasks() {
     // chặn mọi method khác GET trên /api/tasks, kể cả đường người được giao tự
     // cập nhật tiến độ. Phải chặn trước khi rơi xuống `getTaskPermissions`.
     if (!canWriteTasks) return false;
-    if (canManageTasks) return true;
+    if (managesTaskProject(task.project)) return true;
     const taskProj =
       (projects || []).find((p) => (p._id || p.id) === (task.project?._id || task.project)) || task.project;
     const perms = getTaskPermissions(task, taskProj, user);
     return perms.canEditDetails || perms.canEditDeadline || perms.canChangeAssignee || perms.canUpdateStatus;
   };
-  const canCreateAnyTask = canWriteTasks && (canManageTasks || (Array.isArray(projects) && projects.length > 0));
+  // Nút tạo việc: tạo được ở ít nhất một dự án — quản lý dự án, hoặc thành viên khi dự án cho phép
+  // (khớp createDeniedReason ở server). Form cũng chỉ liệt kê những dự án đó.
+  const canCreateAnyTask = canWriteTasks
+    && (projects || []).some((p) => !p.isArchived && !p.isTemplate && canCreateTaskIn(user, p));
 
   /**
    * Tải danh sách công việc theo bộ lọc
@@ -536,7 +544,7 @@ export default function Tasks() {
       }
 
       if (editingTask) {
-        if (!canManageTasks) {
+        if (!managesTaskProject(editingTask.project)) {
           const taskProj =
             (projects || []).find((p) => (p._id || p.id) === (editingTask.project?._id || editingTask.project)) ||
             editingTask.project;
@@ -768,13 +776,13 @@ export default function Tasks() {
         projects={projects}
         view={view}
         setView={setView}
-        canManageTasks={canManageTasks}
+        canManageTasks={canCreateAnyTask}
         onOpenCreateModal={handleOpenCreate}
         onReload={loadTasks}
-        onManageGroups={(projId) => {
+        onManageGroups={managesTaskProject(filters.project) ? (projId) => {
           setManageGroupProjectId(projId);
           setTaskGroupModalOpen(true);
-        }}
+        } : undefined}
         t={t}
       />
 
@@ -785,6 +793,7 @@ export default function Tasks() {
           loading={loading}
           canEditTask={canEditTask}
           canManageTasks={canManageTasks}
+          canDeleteTask={(task) => managesTaskProject(task.project)}
           onOpenEdit={handleOpenEdit}
           onOpenDetail={handleOpenDetail}
           onDelete={handleDelete}
@@ -796,7 +805,7 @@ export default function Tasks() {
         <TaskKanbanView
           kanbanCols={kanbanCols}
           statusCols={STATUS_COLS}
-          canManageTasks={canManageTasks}
+          canManageTasks={canCreateAnyTask}
           canEditTask={canEditTask}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
@@ -816,7 +825,7 @@ export default function Tasks() {
         onClose={() => setModalOpen(false)}
         editingTask={editingTask}
         form={form}
-        canManageTasks={canManageTasks}
+        canManageTasks={editingTask ? managesTaskProject(editingTask.project) : (selectedProject ? managesTaskProject(selectedProject) : canManageTasks)}
         currentUser={user}
         projects={projects}
         resources={resources}
@@ -824,10 +833,13 @@ export default function Tasks() {
         dependencyOptions={dependencyOptions}
         selectedProject={selectedProject}
         taskGroups={taskGroups}
-        onManageTaskGroups={(projId) => {
-          setManageGroupProjectId(projId);
-          setTaskGroupModalOpen(true);
-        }}
+        // Nhóm công việc chỉ Admin/Owner hoặc PM của dự án đang chọn quản lý được.
+        onManageTaskGroups={canManageProject(user, projects.find((p) => p._id === selectedProject))
+          ? (projId) => {
+            setManageGroupProjectId(projId);
+            setTaskGroupModalOpen(true);
+          }
+          : undefined}
         onSubmit={handleFormSubmit}
         submitting={submitting}
         t={t}

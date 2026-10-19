@@ -406,7 +406,7 @@ export default function AppPermissionsTab() {
       message.success(`Đã ${hasGrant ? 'thu hồi' : 'cấp'} quyền đặc biệt cho ${user.name}`);
       loadUsersAndGuests();
     } catch (err) {
-      message.error('Không thể cập nhật quyền');
+      message.error(err.response?.data?.message || 'Không thể cập nhật quyền');
     }
   };
 
@@ -835,6 +835,9 @@ export default function AppPermissionsTab() {
                               size="small"
                               type={hasEmailKey ? 'primary' : 'default'}
                               icon={<KeyOutlined />}
+                              // Server chỉ cho Owner cấp quyền đặc biệt.
+                              disabled={!currentUser?.isOwner}
+                              title={currentUser?.isOwner ? undefined : 'Chỉ Owner mới cấp được quyền đặc biệt'}
                               style={{
                                 fontSize: 11.5,
                                 background: hasEmailKey ? '#d97706' : undefined,

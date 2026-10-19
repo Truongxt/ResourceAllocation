@@ -1283,12 +1283,22 @@ const updateUserAppAdmin = async (req, res, next) => {
 };
 
 /**
- * @desc    Cập nhật quyền đặc biệt (Chìa khóa 🔑) cho người dùng
+ * @desc    Cập nhật quyền đặc biệt (Chìa khóa 🔑) cho người dùng (Chỉ Owner)
  * @route   PUT /api/auth/users/:id/special-grants
  * @access  Private/Admin
+ *
+ * Quyền đặc biệt mở thao tác dành riêng cho Owner (đổi email), nên chỉ Owner được cấp —
+ * nếu không, Admin tự cấp cho mình rồi đổi email người khác.
  */
 const updateUserSpecialGrants = async (req, res, next) => {
   try {
+    if (!req.user.isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ Quản trị cấp cao (Owner) mới có quyền cấp quyền đặc biệt',
+      });
+    }
+
     const targetUser = await User.findById(req.params.id);
     if (!targetUser) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });

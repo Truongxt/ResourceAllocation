@@ -18,14 +18,16 @@ Hai lớp đầu chạy trong vòng vài phút (server khoảng 6 phút, compone
 mất **12–20 phút** (đo trên máy phát triển, 1 worker: 18,8 phút ngày 09/10, 11,8 phút ngày 19/10 cho
 93 bài) vì nó khởi động thật, đăng nhập thật và chờ API thật ở từng bài.
 
-**Lần chạy trọn bộ gần nhất — 19/10/2026**, sau lần gộp `main` (PR #5), tất cả đạt:
+**Lần chạy trọn bộ gần nhất — 19/10/2026 tối**, sau luật "PM chỉ có quyền PM trên dự án mình quản lý"
+(`aa3aac3`, `0f7d8bd`, `752c95b`), mobile dùng chung luật quyền với web (`56d729e`), App Admin `work` tạo được dự án
+(`8ec776b`), không tự duyệt việc của mình (`b127a04`) và form tạo việc của web (`d56b8cf`), tất cả đạt:
 
 | Lớp | Kết quả |
 |-----|---------|
-| Server | 39/39 bộ, 1.381 ca |
-| Web | 7 bộ logic (123 ca) + 18 file component (92/92 ca); build production 4.248 module, 20,66 giây |
-| Mobile | 4 bộ logic (68 ca) + 7 file jest (40/40 ca) |
-| E2E | 93/93 bài, 11,8 phút |
+| Server | 40/40 bộ, 1.448 ca (thêm bộ `project-permissions`) |
+| Web | 8 bộ logic (152 ca, thêm `project-access`) + 22 file component (107/107 ca); build production 4.249 module, còn cảnh báo chunk lớn hơn 500 kB |
+| Mobile | 4 bộ logic (70 ca) + 10 file jest (59/59 ca) |
+| E2E | 93/93 bài, không bài nào chạy lại, 11,8 phút (sau `d56b8cf`). Một lượt trước đó (sau `56d729e`, 19,2 phút) có `10-realtime` hết 45 giây ở lần đầu vì máy chậm, đạt khi chạy lại |
 
 Chi tiết từng lớp:
 

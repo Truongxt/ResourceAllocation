@@ -43,6 +43,8 @@ export default function TaskTableView({
   loading = false,
   canEditTask,
   canManageTasks = false,
+  // Quyền xóa theo từng việc (PM chỉ trên dự án mình quản lý); thiếu thì dùng `canManageTasks`.
+  canDeleteTask,
   onOpenEdit,
   onOpenDetail,
   onDelete,
@@ -286,7 +288,7 @@ export default function TaskTableView({
               />
             </Tooltip>
           )}
-          {canManageTasks && (
+          {(canDeleteTask ? canDeleteTask(record) : canManageTasks) && (
             <Tooltip title={t('common.delete') || 'Xóa'}>
               <Popconfirm
                 title={t('tasks.deleteConfirm') || 'Xác nhận xóa công việc?'}

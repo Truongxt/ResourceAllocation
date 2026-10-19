@@ -14,7 +14,8 @@
     "migrate:stale-indexes": "node src/utils/migrate-stale-indexes.js",
     "migrate:guest-company": "node src/utils/migrate-guest-company.js",
     "migrate:completed-at": "node src/utils/migrate-completed-at.js",
-    "measure:csp-soft": "node src/utils/measure-csp-soft.js"
+    "measure:csp-soft": "node src/utils/measure-csp-soft.js",
+    "measure:baselines": "node src/utils/measure-baselines.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

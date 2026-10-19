@@ -26,6 +26,45 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 - `GET /resources/productivity/summary` chỉ dành cho Admin/PM.
 - `utilizationRate` khi capacity bằng 0 mà vẫn có việc trả `101` (quá tải) thay vì `0`.
 
+### Fixed
+
+- **Admin tự cấp được quyền đổi email.** `PUT /auth/users/:id/special-grants` chỉ kiểm vai trò admin, nên Admin tự
+  thêm `can_change_email` cho mình rồi đổi email người khác — thao tác vốn chỉ dành cho Owner. Nay chỉ Owner cấp
+  được quyền đặc biệt (403 với Admin thường); nút cấp quyền ở tab App Admin bị khóa với người không phải Owner.
+- **Tự duyệt năng lực của chính mình.** Phạm vi duyệt của Admin là cả công ty, gồm chính họ, nên Admin (và PM có
+  tên trong dự án mình quản lý) duyệt được bản tự đánh giá của bản thân. Nay phạm vi duyệt luôn loại chính người
+  duyệt: bản của mình không vào hàng chờ của mình, duyệt hoặc trả lại trả 403.
+- **PM lưu trữ được dự án người khác quản lý.** Lưu trữ và mở lại chỉ kiểm cùng công ty. Nay PM chỉ lưu trữ / mở lại
+  dự án mình quản lý (403 với dự án khác); Admin/Owner như cũ. Nhân bản và tạo từ mẫu vẫn mở cho mọi dự án trong
+  công ty, vì chỉ đọc dự án nguồn.
+- **PM sửa, xóa được dự án của PM khác; ai cũng sửa được nhóm công việc.** Sửa toàn bộ, xóa dự án và thêm / sửa / gỡ
+  thành viên chỉ kiểm vai trò; nhóm công việc không kiểm gì ngoài công ty, nên cả Thành viên và Khách tạo, đổi tên,
+  xóa, sắp xếp được nhóm của mọi dự án. Nay mọi thao tác quản lý dự án dùng chung một luật (`services/projectAccess.js`):
+  Admin/Owner, hoặc PM của chính dự án đó. Xem nhóm vẫn mở cho cả công ty.
+- **PM toàn quyền với công việc của mọi dự án.** `taskAccess.js` cho vai trò `project_manager` đi thẳng qua 11 guard;
+  duyệt kết quả, bàn giao hàng loạt và việc lặp lại cũng chỉ kiểm vai trò. Nay PM chỉ có quyền của PM trên dự án mình
+  là `manager`; ở dự án khác — kể cả khi có tên trong đó — PM như một thành viên. Giao diện (Công việc, Gantt, chi
+  tiết dự án, `utils/taskPermissions.js`) chỉ hiện thao tác thuộc quyền theo dự án của từng việc.
+- **Mobile bày nút ghi cho mọi người.** Chi tiết công việc, Công việc, Lịch, Dự án, Chi tiết dự án và Nhân sự hiện nút đổi
+  trạng thái, checklist, nộp kết quả, duyệt, thất bại, tạo việc, sửa/tạo dự án, thêm/sửa nhân sự với cả người không có
+  quyền. Nay mobile dùng chung luật quyền với web (`utils/projectAccess.js`, `utils/taskPermissions.js` — bản chép
+  khóa bằng `shared-copies.test.mjs`). Kèm hai lỗi: nút Phê duyệt / Trả lại gửi `approved`/`rejected` (server nhận
+  `approve`/`reject`) nên chưa từng chạy được; chạm nhãn trạng thái ở dạng danh sách gọi `setSelectedTask` không tồn
+  tại nên app lỗi — nay chuyển việc sang bước kế tiếp.
+- **App Admin `work` không tạo được dự án, và người quản lý có vai trò thành viên bị 403 trên chính dự án mình.**
+  `createProject` tính quyền App Admin `work` rồi ghi đè ngay bằng nhánh "là thành viên thì xem cấu hình công ty", trái
+  với chính thông báo lỗi ("chỉ Admin & App Admin"); tạo phòng ban thì vẫn cho. Các route sửa, xóa, thành viên, lưu trữ
+  dự án và việc lặp lại còn chặn vai trò (`authorize('admin', 'project_manager')`) trước khi kiểm người quản lý. Nay App
+  Admin `work` tạo được dự án và trở thành người quản lý; các route đó chỉ kiểm "Admin/Owner hoặc người quản lý của dự
+  án", không kiểm nhãn vai trò. Nhân bản / mẫu vẫn dành cho Admin và PM.
+- **Người thực hiện tự duyệt được kết quả việc của mình.** Web và mobile ẩn nút duyệt với người thực hiện, nhưng
+  `canApproveReview` ở server cho admin, quản lý dự án và người có tên trong danh sách đánh giá duyệt cả việc chính họ
+  làm. Nay người thực hiện không bao giờ duyệt được việc mình (403), và việc đó không nằm trong hàng chờ duyệt của họ.
+- **Web: form tạo công việc liệt kê mọi dự án.** Chọn dự án không được phép thì bấm Tạo mới nhận 403; ô chọn dự án lại
+  bị khóa với người không quản lý dự án nào, kể cả thành viên được phép tạo việc. Nay form chỉ liệt kê dự án tạo được
+  (`canCreateTaskIn`); nút Tạo công việc (đầu trang, thanh lọc, cột Kanban, chi tiết dự án) chỉ hiện khi tạo được ở ít
+  nhất một dự án, và không hiện trên dự án đã lưu trữ.
+
 ---
 
 ## [Chưa phát hành] - 2026-10-09 (báo cáo kết quả theo người, xuất công việc, thông báo, vòng đời dự án, đính kèm tệp)

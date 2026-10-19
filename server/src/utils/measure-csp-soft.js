@@ -6,10 +6,17 @@
  *
  * "Trước" là thứ tự thử ứng viên chỉ xét chỗ trống của tuần nặng nhất (LCV, trước `1c73ee0`);
  * "sau" là `_orderCandidates` hiện tại. Mọi phần khác của bộ giải giữ nguyên, nên chênh lệch
- * chỉ do thứ tự. Dữ liệu sinh một lần bằng bộ sinh của Benchmark với seed cố định — chạy lại ra
- * đúng số cũ — và CSP tất định nên mỗi bộ chỉ cần chạy một lần. Số trung bình chỉ lấy trên các
- * bộ mà **cả hai** bản cùng giải được, để so cặp.
+ * chỉ do thứ tự. Dữ liệu sinh một lần bằng bộ sinh của Benchmark với seed cố định và ngày mốc
+ * cố định (`BASE_DATE`, ngày đo trong báo cáo) — chạy lại ngày nào cũng ra đúng số cũ — và CSP
+ * tất định nên mỗi bộ chỉ cần chạy một lần. Số trung bình chỉ lấy trên các bộ mà **cả hai** bản
+ * cùng giải được, để so cặp.
+ *
+ * Ngày mốc phải cố định: lịch việc quyết định việc rơi vào tuần nào, tức ràng buộc H1. Trước
+ * 19/10/2026 bộ sinh lấy "hôm nay", nên chạy lại hôm khác ra số khác ở mọi dòng.
  */
+
+/** Ngày đo của Bảng 4-5 trong báo cáo. */
+const BASE_DATE = new Date('2026-10-08T14:00:00+07:00');
 
 const CSPSolver = require('../algorithms/csp/CSPSolver');
 
@@ -39,7 +46,7 @@ const makeDatasets = (scale, count, seed) => {
   const original = Math.random;
   Math.random = seeded(seed);
   try {
-    return Array.from({ length: count }, () => generateBenchmarkDataset(scale));
+    return Array.from({ length: count }, () => generateBenchmarkDataset(scale, { baseDate: BASE_DATE }));
   } finally {
     Math.random = original;
   }

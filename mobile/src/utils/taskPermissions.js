@@ -1,0 +1,156 @@
+/**
+ * ============================================================================
+ * BASE WEWORK — Client Task Permissions Helper
+ * ============================================================================
+ * Tham chiếu chuẩn: https://help.base.vn/support/solutions/articles/63000273353
+ */
+
+export function getTaskPermissions(task, project, user) {
+  if (!user) {
+    return {
+      isOwner: false,
+      isPM: false,
+      isCreator: false,
+      isAssignee: false,
+      isFollower: false,
+      roleLabel: 'Khách',
+      canEditDetails: false,
+      canEditDeadline: false,
+      canChangeAssignee: false,
+      canUpdateStatus: false,
+      canDelete: false,
+      canManageChecklist: false,
+      canReportResult: false,
+      canDuplicate: false,
+      canMove: false,
+      canAddSubtask: false,
+      canAddFollower: false,
+      canRemoveFollower: () => false,
+      canReview: false,
+      canMarkFailed: false,
+    };
+  }
+
+  const userId = user._id || user.id;
+  const isOwner = user.role === 'admin' || Boolean(user.isOwner);
+
+  const proj =
+    (project && project.permissions)
+      ? project
+      : (task?.project && task.project.permissions ? task.project : (project || task?.project));
+  const managerId = proj?.manager?._id || proj?.manager;
+  // Vai trò PM chỉ có tác dụng trên dự án mình là `manager`; ở dự án khác PM chỉ như thành viên
+  // (khớp `PRIVILEGED_ROLES` của server/src/middleware/taskAccess.js).
+  const isPM = isOwner || (!!managerId && managerId.toString() === userId.toString());
+
+  const creatorId = task?.createdBy?._id || task?.createdBy;
+  const isCreator = !!creatorId && creatorId.toString() === userId.toString();
+
+  const assigneeId = task?.assignee?._id || task?.assignee;
+  const isAssignee = !!assigneeId && assigneeId.toString() === userId.toString();
+
+  const followers = task?.followers || [];
+  const isFollower = followers.some((f) => {
+    const fid = f?._id || f;
+    return fid && fid.toString() === userId.toString();
+  });
+
+  const perms = proj?.permissions || {};
+
+  // Nhãn vai trò hiển thị
+  let roleLabel = 'Thành viên';
+  if (isOwner) roleLabel = 'Chủ sở hữu (Owner)';
+  else if (isPM) roleLabel = 'Quản lý dự án (PM)';
+  else if (isCreator && isAssignee) roleLabel = 'Người giao & Thực hiện';
+  else if (isCreator) roleLabel = 'Người giao việc';
+  else if (isAssignee) roleLabel = 'Người thực hiện';
+  else if (isFollower) roleLabel = 'Người theo dõi';
+
+  // 1. Chỉnh sửa tiêu đề & mô tả
+  const canEditDetails = isOwner || isPM || isCreator || (isAssignee && !!perms.allowAssigneeEditTitleDesc);
+
+  // 2. Chỉnh sửa deadline & ngày bắt đầu
+  const canEditDeadline = isOwner || isPM || isCreator || (isAssignee && !!perms.allowAssigneeEditDeadline);
+
+  // 3. Đổi người thực hiện (Reassign)
+  const canChangeAssignee = isOwner || isPM || isCreator || (isAssignee && !!perms.allowAssigneeReassign);
+
+  // 4. Đánh dấu hoàn thành / Cập nhật tiến độ
+  const canUpdateStatus = isOwner || isPM || isCreator || isAssignee || (isFollower && !!perms.allowFollowerMarkDone);
+
+  // 5. Xóa công việc
+  const isSubtask = !!task?.parentTask;
+  const canDelete =
+    isOwner ||
+    isPM ||
+    (isSubtask && (isCreator || isAssignee)) ||
+    (isCreator && !!perms.allowCreatorDeleteTask) ||
+    (isAssignee && !!perms.allowAssigneeDeleteTask);
+
+  // 6. Checklist
+  const canManageChecklist = isOwner || isPM || isCreator || isAssignee || (isFollower && !!perms.allowFollowerManageChecklist);
+
+  // 7. Báo cáo kết quả
+  const canReportResult = isOwner || isPM || isCreator || isAssignee;
+
+  // 8. Nhân bản công việc (Creator, PM, Owner)
+  const canDuplicate = isOwner || isPM || isCreator;
+
+  // 9. Di chuyển công việc (Creator, Assignee, PM, Owner)
+  const canMove = isOwner || isPM || isCreator || isAssignee;
+
+  // 10. Tạo công việc con
+  const canAddSubtask = isOwner || isPM || isCreator || isAssignee || isFollower;
+
+  // 11. Thêm người theo dõi
+  const canAddFollower = isOwner || isPM || isCreator || isAssignee;
+
+  // 13. Duyệt / trả lại kết quả công việc.
+  // Danh sách người đánh giá của công việc đè cấu hình dự án; không khai ở đâu thì
+  // chỉ Owner và quản lý dự án duyệt được. Người thực hiện KHÔNG tự duyệt việc mình
+  // làm kể cả khi tên họ nằm trong danh sách — đó là điểm mấu chốt của bước này.
+  const reviewerIds = ((task?.reviewers?.length ? task.reviewers : proj?.reviewConfig?.reviewers) || [])
+    .map((r) => String(r?._id || r));
+  const canReview = !isAssignee && (isOwner || isPM || reviewerIds.includes(String(userId)));
+
+  // 14. Đánh dấu Thất bại — theo allowedRoles của dự án, tách khỏi quyền đổi trạng
+  // thái thường vì thao tác này đóng công việc lại.
+  const failureRoles = proj?.failureConfig?.allowedRoles || [];
+  const canMarkFailed =
+    isOwner ||
+    isPM ||
+    (isCreator && failureRoles.includes('assigner')) ||
+    (isAssignee && failureRoles.includes('assignee')) ||
+    (isFollower && failureRoles.includes('follower'));
+
+  // 12. Gỡ người theo dõi
+  const canRemoveFollower = (targetUserId) => {
+    if (isOwner || isPM || isCreator || isAssignee) return true;
+    // Follower chỉ được tự gỡ chính mình
+    if (isFollower && targetUserId && targetUserId.toString() === userId.toString()) return true;
+    return false;
+  };
+
+  return {
+    isOwner,
+    isPM,
+    isCreator,
+    isAssignee,
+    isFollower,
+    roleLabel,
+    canEditDetails,
+    canEditDeadline,
+    canChangeAssignee,
+    canUpdateStatus,
+    canDelete,
+    canManageChecklist,
+    canReportResult,
+    canDuplicate,
+    canMove,
+    canAddSubtask,
+    canAddFollower,
+    canRemoveFollower,
+    canReview,
+    canMarkFailed,
+  };
+}

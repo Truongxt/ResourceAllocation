@@ -18,6 +18,8 @@ import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import projectApi from '../../api/projectApi';
+import { useAuth } from '../../context/AuthContext';
+import { canCreateTaskIn, canManageProject } from '../../utils/projectAccess';
 import taskApi from '../../api/taskApi';
 import taskGroupApi from '../../api/taskGroupApi';
 import CustomFieldInputs from '../../components/tasks/CustomFieldInputs';
@@ -38,6 +40,7 @@ const PRIORITIES = [
 ];
 
 export default function ProjectDetailScreen({ route, navigation }) {
+  const { user, canManageModule } = useAuth();
   const { projectId, title } = route.params;
   const { theme, isDark } = useTheme();
 
@@ -89,6 +92,12 @@ export default function ProjectDetailScreen({ route, navigation }) {
   useEffect(() => {
     loadProjectData();
   }, [loadProjectData]);
+
+  // Chỉ hiện thao tác thuộc quyền — luật dùng chung với web, khớp server. Sửa dự án: Admin/Owner
+  // hoặc PM của chính dự án; thêm việc: quản lý dự án, hoặc thành viên khi dự án cho phép.
+  const editable = Boolean(project) && !project.isArchived;
+  const canEditProject = editable && canManageModule('projects') && canManageProject(user, project);
+  const canAddTask = editable && canManageModule('tasks') && canCreateTaskIn(user, project);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -174,8 +183,10 @@ export default function ProjectDetailScreen({ route, navigation }) {
             >
               <Ionicons name="bar-chart-outline" size={20} color={theme.colors.primary} />
             </TouchableOpacity>
+            {canEditProject && (
             <TouchableOpacity
               style={styles.editBtnHeader}
+              accessibilityLabel="Sửa dự án"
               onPress={() => {
                 if (project) {
                   setEditName(project.name || '');
@@ -188,6 +199,7 @@ export default function ProjectDetailScreen({ route, navigation }) {
             >
               <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
             </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -378,13 +390,15 @@ export default function ProjectDetailScreen({ route, navigation }) {
                   <Text style={[styles.taskGroupsCount, { color: theme.colors.textSecondary }]}>
                     {taskGroups.length > 0 ? `📁 ${taskGroups.length} nhóm việc` : ''}
                   </Text>
-                  <TouchableOpacity
-                    style={[styles.addTaskMiniBtn, { backgroundColor: theme.colors.primary }]}
-                    onPress={() => setCreateTaskModalOpen(true)}
-                  >
-                    <Ionicons name="add" size={16} color="#fff" />
-                    <Text style={styles.addTaskMiniText}>Thêm việc</Text>
-                  </TouchableOpacity>
+                  {canAddTask && (
+                    <TouchableOpacity
+                      style={[styles.addTaskMiniBtn, { backgroundColor: theme.colors.primary }]}
+                      onPress={() => setCreateTaskModalOpen(true)}
+                    >
+                      <Ionicons name="add" size={16} color="#fff" />
+                      <Text style={styles.addTaskMiniText}>Thêm việc</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {(Array.isArray(tasks) ? tasks : []).length === 0 ? (

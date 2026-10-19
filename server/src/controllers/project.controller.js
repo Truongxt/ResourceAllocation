@@ -9,6 +9,7 @@ const { stripProtected, usersError, departmentError } = require('../services/com
 const { archiveBlocker, cloneProject } = require('../services/projectLifecycle.service');
 const { removeAttachments } = require('../services/attachment.service');
 const { normalizeFieldDefinitions } = require('../services/customFields.service');
+const { canManageProject, MANAGE_DENIED } = require('../services/projectAccess');
 
 /** Quản lý, thành viên và phòng ban gửi lên phải cùng công ty với dự án. */
 const projectRefsError = async ({ manager, members, department }, company) => {
@@ -232,16 +233,15 @@ const createProject = async (req, res, next) => {
     const isPM = req.user?.role === 'project_manager';
     const isWeworkAdmin = req.user?.appAdmins?.includes('work');
 
+    // App Admin `work` tạo được dù vai trò là thành viên — như tạo phòng ban. Trước đây nhánh
+    // "là thành viên thì xem cấu hình" ghi đè cả App Admin, trái với chính thông báo lỗi bên dưới.
+    // Người tạo thành người quản lý dự án, nên quản lý được dự án mình tạo (services/projectAccess.js).
     let canCreate = isOwner || isAdmin || isWeworkAdmin || isPM;
 
-    // Kiểm tra cấu hình hệ thống Base Wework của công ty
-    if (!canCreate || req.user?.role === 'member') {
+    // Còn lại: theo cấu hình Base Wework của công ty
+    if (!canCreate) {
       const settings = await CompanySetting.findOne({ companyName: userCompany });
-      if (settings?.createProjectPermission === 'all_members') {
-        canCreate = true;
-      } else {
-        canCreate = false;
-      }
+      canCreate = settings?.createProjectPermission === 'all_members';
     }
 
     if (!canCreate) {
@@ -379,6 +379,7 @@ const updateProject = async (req, res, next) => {
         message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
+    if (!ensureManagesProject(req, res, project)) return;
 
     // `companyName` gửi lên trước đây chuyển được cả dự án sang công ty khác
     const updateData = stripProtected({ ...req.body });
@@ -553,6 +554,7 @@ const deleteProject = async (req, res, next) => {
         message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
+    if (!ensureManagesProject(req, res, project)) return;
 
     const taskCount = await Task.countDocuments({ project: req.params.id });
     if (taskCount > 0 && req.query.force !== 'true') {
@@ -609,6 +611,7 @@ const addProjectMember = async (req, res, next) => {
         message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
+    if (!ensureManagesProject(req, res, project)) return;
 
     const userToAdd = await User.findById(user);
     if (userToAdd && userToAdd.companyName && userToAdd.companyName !== userCompany && req.user.role !== 'superadmin') {
@@ -660,6 +663,7 @@ const updateProjectMember = async (req, res, next) => {
         message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
+    if (!ensureManagesProject(req, res, project)) return;
 
     const member = project.members.find((item) => item.user.toString() === req.params.userId);
     if (!member) {
@@ -705,6 +709,7 @@ const removeProjectMember = async (req, res, next) => {
         message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
+    if (!ensureManagesProject(req, res, project)) return;
 
     project.members = project.members.filter((member) => member.user.toString() !== req.params.userId);
     await project.save();
@@ -879,14 +884,25 @@ const loadOwnProject = async (req, res) => {
 };
 
 /**
+ * Admin/Owner, hoặc PM là người quản lý dự án (`canManageProject`); không thì gửi luôn 403 và
+ * trả `false`. Dùng cho sửa, xóa, thành viên, lưu trữ / mở lại. Nhân bản thì không cần — chỉ
+ * đọc dự án nguồn, nên mọi PM dùng được mẫu người khác tạo.
+ */
+const ensureManagesProject = (req, res, project) => {
+  if (canManageProject(req.user, project)) return true;
+  res.status(403).json({ success: false, message: MANAGE_DENIED });
+  return false;
+};
+
+/**
  * @desc    Lưu trữ dự án — ẩn khỏi danh sách mặc định, chỉ đọc
  * @route   POST /api/projects/:id/archive
- * @access  Admin, PM
+ * @access  Admin, PM của dự án
  */
 const archiveProject = async (req, res, next) => {
   try {
     const project = await loadOwnProject(req, res);
-    if (!project) return;
+    if (!project || !ensureManagesProject(req, res, project)) return;
     if (project.isTemplate) {
       return res.status(400).json({ success: false, message: 'Dự án mẫu không lưu trữ được — xóa mẫu nếu không cần nữa' });
     }
@@ -911,12 +927,12 @@ const archiveProject = async (req, res, next) => {
 /**
  * @desc    Mở lại dự án đã lưu trữ
  * @route   POST /api/projects/:id/unarchive
- * @access  Admin, PM
+ * @access  Admin, PM của dự án
  */
 const unarchiveProject = async (req, res, next) => {
   try {
     const project = await loadOwnProject(req, res);
-    if (!project) return;
+    if (!project || !ensureManagesProject(req, res, project)) return;
     if (project.isArchived) {
       project.isArchived = false;
       project.archivedAt = null;

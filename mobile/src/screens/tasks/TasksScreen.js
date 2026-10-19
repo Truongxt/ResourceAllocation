@@ -15,6 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { canCreateTaskIn } from '../../utils/projectAccess';
+import { getTaskPermissions } from '../../utils/taskPermissions';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
@@ -100,6 +102,7 @@ const KANBAN_COLUMNS = [
 
 export default function TasksScreen({ navigation }) {
   const { theme, isDark } = useTheme();
+  const { user, canManageModule } = useAuth();
 
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -251,13 +254,16 @@ export default function TasksScreen({ navigation }) {
               )}
             </View>
           </View>
-          <TouchableOpacity onPress={() => setSelectedTask(item)}>
-            <Badge
-              label={sMeta.label}
-              color={sMeta.color}
-              bg={sMeta.bg}
-            />
-          </TouchableOpacity>
+          {canAdvance(item) && nextStatusOf(item.status) ? (
+            <TouchableOpacity
+              onPress={() => handleQuickStatus(item._id, nextStatusOf(item.status))}
+              accessibilityLabel={`Chuyển sang bước kế tiếp: ${item.title}`}
+            >
+              <Badge label={sMeta.label} color={sMeta.color} bg={sMeta.bg} />
+            </TouchableOpacity>
+          ) : (
+            <Badge label={sMeta.label} color={sMeta.color} bg={sMeta.bg} />
+          )}
         </View>
 
         {item.description ? (
@@ -336,6 +342,16 @@ export default function TasksScreen({ navigation }) {
       </Card>
     );
   };
+
+  // Chỉ hiện thao tác thuộc quyền — luật dùng chung với web, khớp server. Tạo việc: chỉ ở dự án
+  // người dùng tạo được (quản lý dự án, hoặc thành viên khi dự án cho phép). Đổi trạng thái: theo
+  // quyền trên từng việc; PM ở dự án người khác chỉ như thành viên.
+  const canWriteTasks = canManageModule('tasks');
+  const creatableProjects = (Array.isArray(projects) ? projects : [])
+    .filter((p) => !p.isArchived && !p.isTemplate && canCreateTaskIn(user, p));
+  const canCreate = canWriteTasks && creatableProjects.length > 0;
+  const canAdvance = (item) => canWriteTasks && getTaskPermissions(item, item.project, user).canUpdateStatus;
+  const nextStatusOf = (status) => KANBAN_COLUMNS.find((c) => c.key === status)?.nextStatus;
 
   const handleQuickStatus = async (taskId, nextStatus) => {
     try {
@@ -445,7 +461,7 @@ export default function TasksScreen({ navigation }) {
         </View>
 
         {/* Quick Action Button to advance status */}
-        {col.nextStatus ? (
+        {col.nextStatus && canAdvance(item) ? (
           <TouchableOpacity
             onPress={() => handleQuickStatus(item._id, col.nextStatus)}
             style={[
@@ -469,7 +485,7 @@ export default function TasksScreen({ navigation }) {
               {col.nextLabel}
             </Text>
           </TouchableOpacity>
-        ) : (
+        ) : col.nextStatus ? null : (
           <View style={styles.kanbanDoneBadge}>
             <Ionicons name="checkmark-done" size={14} color="#10b981" />
             <Text style={styles.kanbanDoneText}>Đã hoàn tất</Text>
@@ -553,6 +569,7 @@ export default function TasksScreen({ navigation }) {
 
             <TouchableOpacity
               onPress={() => setViewMode('list')}
+              accessibilityLabel="Xem dạng danh sách"
               style={[
                 styles.toggleIconBtn,
                 viewMode === 'list' && [
@@ -613,13 +630,15 @@ export default function TasksScreen({ navigation }) {
           </TouchableOpacity>
 
           {/* Add Task Button */}
-          <TouchableOpacity
-            onPress={() => setShowCreateModal(true)}
-            accessibilityLabel="Tạo công việc mới"
-            style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
-          >
-            <Ionicons name="add" size={22} color="#ffffff" />
-          </TouchableOpacity>
+          {canCreate && (
+            <TouchableOpacity
+              onPress={() => setShowCreateModal(true)}
+              accessibilityLabel="Tạo công việc mới"
+              style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
+            >
+              <Ionicons name="add" size={22} color="#ffffff" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* 1. Scope Filter Tabs (Không gian làm việc) */}
@@ -805,19 +824,21 @@ export default function TasksScreen({ navigation }) {
                     </View>
                   </View>
 
-                  <TouchableOpacity
-                    onPress={() => {
-                      setNewTitle('');
-                      setShowCreateModal(true);
-                    }}
-                    style={styles.colAddBtn}
-                  >
-                    <Ionicons
-                      name="add"
-                      size={18}
-                      color={theme.colors.textMuted}
-                    />
-                  </TouchableOpacity>
+                  {canCreate && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setNewTitle('');
+                        setShowCreateModal(true);
+                      }}
+                      style={styles.colAddBtn}
+                    >
+                      <Ionicons
+                        name="add"
+                        size={18}
+                        color={theme.colors.textMuted}
+                      />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {/* Column Tasks List */}
@@ -933,7 +954,7 @@ export default function TasksScreen({ navigation }) {
                 showsHorizontalScrollIndicator={false}
                 style={styles.projectScroll}
               >
-                {(Array.isArray(projects) ? projects : []).map((p) => {
+                {creatableProjects.map((p) => {
                   const isSel = newProject === p._id;
                   return (
                     <TouchableOpacity

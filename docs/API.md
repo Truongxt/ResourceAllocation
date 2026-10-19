@@ -5,16 +5,18 @@
 > Mọi endpoint được mô tả ở đây đều đối chiếu trực tiếp với mã nguồn và **kiểm chứng bằng
 > request thật** — không viết theo suy đoán từ tên hàm.
 
-> ✅ **Đã phủ hết 118 endpoint trên 12 nhóm route.** Hai nhóm lớn nhất từng là phần thiếu
-> lớn nhất của tài liệu này, nay đã mô tả đủ:
+> ✅ **Đã phủ hết 135 endpoint trên 14 file route**, chưa kể `GET /api/health` (khai thẳng ở
+> `server/app.js`, mục 10). Đếm lại ngày 19/10/2026; ba endpoint còn thiếu lúc đó
+> (`POST /optimization/benchmark`, `PATCH /projects/:id/permissions`, `PATCH /projects/:id/quick-edit`)
+> đã được bổ sung vào bảng:
 >
 > | Nhóm | Endpoint | Trạng thái |
 > |------|---------:|------------|
 > | `/api/auth` | 27 | đầy đủ (mục 1.1 – 1.3) |
-> | `/api/tasks` | 30 | đầy đủ (mục 3.1 – 3.4) |
-> | 10 nhóm còn lại | 61 | đầy đủ |
+> | `/api/tasks` | 33 | đầy đủ (mục 3.1 – 3.4) |
+> | 12 nhóm còn lại (gồm `jobs` và `internal`) | 75 | đầy đủ |
 >
-> Đếm lại bất cứ lúc nào — con số phải khớp 118:
+> Đếm lại bất cứ lúc nào — con số phải khớp 135:
 >
 > ```bash
 > grep -rcE "^\s*router\.(get|post|put|patch|delete)\(" server/src/routes/
@@ -30,6 +32,9 @@
 - 🔒 Protected - Cần JWT token (bất kỳ user nào đã đăng nhập)
 - 👑 Admin only - Chỉ role `admin`
 - 📋 PM+ - `admin` hoặc `project_manager`
+- 📁 PM dự án - `admin`/Owner, hoặc người là `manager` của **chính dự án đó** (không xét nhãn vai trò: thành viên
+  được đặt làm quản lý — ví dụ App Admin `work` tự tạo dự án — cũng có quyền này). Ở dự án khác — kể cả khi có tên
+  trong dự án — PM chỉ có quyền như một thành viên (theo công tắc `permissions` của dự án và vai trò trên từng việc)
 
 ---
 
@@ -137,7 +142,7 @@ cookie `rao_refresh`.
 | PUT | `/users/:id/manager` | Gán quản lý trực tiếp | 👑 |
 | PUT | `/users/:id/profile` | Sửa name/department/phone/jobTitle | 👑 |
 | PUT | `/users/:id/app-permissions` | Quyền theo phân hệ | 👑 |
-| PUT | `/users/:id/special-grants` | Quyền đặc biệt (🔑) | 👑 |
+| PUT | `/users/:id/special-grants` | Quyền đặc biệt (🔑) | 👑 + Owner |
 | PUT | `/users/:id/app-admin` | Chỉ định App Admin | 👑 + Owner |
 | PUT | `/users/:id/owner` | Cấp/hủy quyền Owner | 👑 + Owner |
 | PUT | `/users/:id/email` | Đổi email tài khoản | 👑 + Owner **hoặc** 🔑 `can_change_email` |
@@ -433,15 +438,18 @@ cả — kể cả công ty vừa tạo ra nó cũng không thấy nó trong `GE
 | GET | `/stats/summary` | Thống kê dự án (theo status, priority, tổng ngân sách) | 🔒 |
 | GET | `/` | Danh sách dự án | 🔒 |
 | GET | `/:id` | Chi tiết dự án (kèm tasks + members, tự tính lại progress) | 🔒 |
-| POST | `/` | Tạo dự án | 📋 PM+ |
-| PUT | `/:id` | Cập nhật dự án | 📋 PM+ |
-| DELETE | `/:id` | Xóa dự án | 📋 PM+ |
-| POST | `/:id/members` | Thêm thành viên | 📋 PM+ |
-| PUT | `/:id/members/:userId` | Cập nhật vai trò / allocation của thành viên | 📋 PM+ |
-| DELETE | `/:id/members/:userId` | Xóa thành viên | 📋 PM+ |
-| POST | `/:id/archive` | Lưu trữ (409 nếu còn việc mở hoặc việc lặp lại đang bật) | 📋 PM+ |
-| POST | `/:id/unarchive` | Mở lại dự án đã lưu trữ | 📋 PM+ |
-| POST | `/:id/duplicate` | Nhân bản / lưu thành mẫu / tạo từ mẫu | 📋 PM+ |
+| POST | `/` | Tạo dự án (người tạo thành `manager`) | 📋 PM+, App Admin `work`, hoặc mọi người khi công ty đặt `createProjectPermission: 'all_members'` |
+| PUT | `/:id` | Cập nhật dự án | 📁 PM dự án |
+| DELETE | `/:id` | Xóa dự án | 📁 PM dự án |
+| POST | `/:id/members` | Thêm thành viên | 📁 PM dự án |
+| PUT | `/:id/members/:userId` | Cập nhật vai trò / allocation của thành viên | 📁 PM dự án |
+| DELETE | `/:id/members/:userId` | Xóa thành viên | 📁 PM dự án |
+| POST | `/:id/archive` | Lưu trữ (409 nếu còn việc mở hoặc việc lặp lại đang bật) | 📁 PM dự án |
+| POST | `/:id/unarchive` | Mở lại dự án đã lưu trữ | 📁 PM dự án |
+| POST | `/:id/duplicate` | Nhân bản / lưu thành mẫu / tạo từ mẫu (mọi dự án trong công ty) | 📋 PM+ |
+| PATCH | `/:id/permissions` | Công tắc quyền thao tác (`permissions`), kèm `failureConfig` và `reviewConfig` | Admin/Owner hoặc PM của dự án |
+| PUT | `/:id/custom-fields` | Khai trường dữ liệu tùy chỉnh (xem bên dưới) | Admin/Owner hoặc PM của dự án |
+| PATCH | `/:id/quick-edit` | Sửa nhanh `name`, `department`, `status`, `priority`, `manager` | Admin/Owner hoặc PM của dự án |
 
 **Query filter cho `GET /`**: `status`, `priority`, `manager`, `search` (tìm trong name/code/description),
 `startDate`, `endDate` (lọc theo `startDate` của dự án), `page`, `limit`, `sort`. Mặc định chỉ trả dự án
@@ -547,10 +555,10 @@ Nhóm lớn nhất — **30 endpoint**. Mọi endpoint đều 🔒; cột Auth d
 |--------|----------|-------|------|
 | GET | `/` | Danh sách tasks | — |
 | GET | `/:id` | Chi tiết task | — |
-| POST | `/` | Tạo task | 📋 PM+ |
-| PUT | `/:id` | Cập nhật task (bao gồm gán `assignee`) | 📋 PM+ hoặc người được giao¹ |
-| PATCH | `/:id/status` | Đổi nhanh status (Kanban drag & drop) | 📋 PM+ hoặc người được giao |
-| DELETE | `/:id` | Xóa task | 📋 PM+ |
+| POST | `/` | Tạo task | 📁 PM dự án, hoặc thành viên khi dự án bật `allowMembersCreateTasks` (mặc định bật) |
+| PUT | `/:id` | Cập nhật task (bao gồm gán `assignee`) | 📁 PM dự án hoặc người được giao¹ |
+| PATCH | `/:id/status` | Đổi nhanh status (Kanban drag & drop) | 📁 PM dự án hoặc người được giao |
+| DELETE | `/:id` | Xóa task | 📁 PM dự án (người tạo / người được giao khi dự án cho phép) |
 | GET | `/stats/summary` | Thống kê task | — |
 
 ### 3.2. Vòng đời công việc (Base Wework)
@@ -599,8 +607,8 @@ Phản hồi không bao giờ có `storageKey`.
 | GET | `/excel/template` | Tải file mẫu `.xlsx` | — |
 | POST | `/excel/preview` | Xem trước dữ liệu từ file | — |
 | POST | `/excel/import` | Nhập hàng loạt vào một dự án | `canCreateTask` |
-| GET | `/reassign-preview` | Xem trước tập việc sẽ bàn giao | 📋 PM+ |
-| POST | `/bulk-reassign` | Bàn giao hàng loạt | 📋 PM+ |
+| GET | `/reassign-preview` | Xem trước tập việc sẽ bàn giao (PM: chỉ việc trong dự án mình quản lý) | 📋 PM+ |
+| POST | `/bulk-reassign` | Bàn giao hàng loạt (PM: chỉ việc trong dự án mình quản lý) | 📋 PM+ |
 
 Ba endpoint Excel nhận `multipart/form-data`, field file tên **`file`**.
 
@@ -728,7 +736,7 @@ việc đã làm dở, không quay về vạch xuất phát).
 Bắt buộc có lý do khi trả lại là có chủ ý — trả về mà không nói vì sao thì vòng sau rất dễ
 hỏng lại đúng chỗ cũ.
 
-**Ai được đánh giá**: `admin`, `project_manager`, quản lý của dự án, hoặc người có tên trong
+**Ai được đánh giá** (trừ **người thực hiện** của việc — không ai tự duyệt việc mình làm): `admin`, quản lý của dự án (PM ở dự án khác thì **không**), hoặc người có tên trong
 `task.reviewers` (thiếu thì lấy `project.reviewConfig.reviewers`).
 
 `GET /pending-review` chỉ trả những việc mà **chính người gọi** được quyền kết luận, kèm ba
@@ -1109,7 +1117,7 @@ Phòng ban cộng dồn tải/capacity của thành viên và đỏ khi > 100% h
 | Method | Endpoint | Mô tả | Auth |
 |--------|----------|-------|------|
 | GET | `/` | Danh sách phòng ban (kèm `resourceCount`) | 🔒 |
-| POST | `/` | Tạo phòng ban | 📋 PM+ |
+| POST | `/` | Tạo phòng ban | 👑, App Admin `work`, hoặc mọi người khi công ty đặt `createDepartmentPermission: 'all_members'` |
 | PUT | `/:id` | Cập nhật phòng ban | 📋 PM+ |
 | DELETE | `/:id` | Xóa phòng ban | 👑 |
 
@@ -1135,7 +1143,10 @@ Phòng ban cộng dồn tải/capacity của thành viên và đỏ khi > 100% h
 | GET | `/history` | Lịch sử tối ưu hóa (50 bản ghi mới nhất) | 🔒 |
 | GET | `/compare?ids=` | So sánh song song 2–4 phương án | 🔒 |
 | GET | `/:id` | Chi tiết một kết quả | 🔒 |
+| GET | `/readiness?projectId=` | Kiểm tra trước khi chạy: số việc, việc chưa giao, tổng giờ so với tổng năng lực, `issues`, cờ `ready` | 🔒 |
+| POST | `/benchmark` | Benchmark Studio: chạy Greedy, CSP, GA, Hybrid trên cùng dữ liệu. Body `{ datasetType: 'small'\|'medium'\|'large'\|'custom', customConfig?, useDatabaseData?, projectId? }` | 🔒 |
 | POST | `/:id/apply` | Áp dụng kết quả vào hệ thống | 📋 PM+ |
+| POST | `/:id/rollback` | Hoàn tác, khôi phục phân công cũ | 📋 PM+ |
 
 > **Ai được dùng** (`services/optimizeScope.js`): Owner, Admin, App Admin của Base Optimize+ dùng trên
 > toàn công ty. **PM** (`role: project_manager`) chỉ trên dự án có `Project.manager` là chính họ: chạy
@@ -1574,10 +1585,10 @@ Nhóm công việc trong một dự án — các cột của bảng Kanban.
 | Method | Endpoint | Mô tả | Auth |
 |--------|----------|-------|------|
 | GET | `/:projectId` | Nhóm của một dự án, sắp theo `order` | 🔒 |
-| POST | `/` | Tạo nhóm | 🔒 |
-| PUT | `/reorder` | Đổi thứ tự nhiều nhóm một lượt | 🔒 |
-| PUT | `/:id` | Sửa nhóm | 🔒 |
-| DELETE | `/:id` | Xóa nhóm | 🔒 |
+| POST | `/` | Tạo nhóm | Admin/Owner hoặc PM của dự án |
+| PUT | `/reorder` | Đổi thứ tự nhiều nhóm một lượt (403 nếu có nhóm thuộc dự án không quản lý) | Admin/Owner hoặc PM của dự án |
+| PUT | `/:id` | Sửa nhóm | Admin/Owner hoặc PM của dự án |
+| DELETE | `/:id` | Xóa nhóm | Admin/Owner hoặc PM của dự án |
 
 `PUT /reorder` khai báo **trước** `PUT /:id` trong router — đảo lại thì `/reorder` bị hiểu là
 một `:id` và không bao giờ chạy tới.
@@ -1617,10 +1628,10 @@ mảng**, nên chỉ cần gửi đúng thứ tự mong muốn, không cần t�
 |--------|----------|-------|------|
 | GET | `/` | Danh sách khuôn | 🔒 |
 | POST | `/preview` | Xem trước các mốc ngày sẽ sinh — **không** ghi gì | 🔒 |
-| POST | `/` | Tạo khuôn | 🔑 admin, PM |
-| PUT | `/:id` | Sửa khuôn | 🔑 admin, PM |
-| DELETE | `/:id` | Xóa khuôn | 🔑 admin, PM |
-| POST | `/:id/run-now` | Sinh ngay một Task từ khuôn, không chờ tới hạn | 🔑 admin, PM |
+| POST | `/` | Tạo khuôn | 📁 PM dự án |
+| PUT | `/:id` | Sửa khuôn | 📁 PM dự án |
+| DELETE | `/:id` | Xóa khuôn | 📁 PM dự án |
+| POST | `/:id/run-now` | Sinh ngay một Task từ khuôn, không chờ tới hạn | 📁 PM dự án |
 
 **POST /preview** — body `{ frequency, interval?, daysOfWeek?, dayOfMonth?, startDate, durationHours? }`.
 Trả về 10 mốc kế tiếp. Đây là endpoint **chỉ đọc**, dùng để người dùng kiểm lại cấu hình

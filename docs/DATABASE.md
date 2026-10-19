@@ -1,7 +1,7 @@
 # 🗄️ Database Schema Design
 
 > Tài liệu mô tả chi tiết schema MongoDB cho hệ thống RAO.
-> Đối chiếu trực tiếp với `server/src/models/` — **12 collections**.
+> Đối chiếu trực tiếp với `server/src/models/` — **15 collections**.
 
 > Đếm lại bất cứ lúc nào bằng `ls server/src/models/ | wc -l`. `server/src/utils/seeder.js`
 > xóa theo một mảng model duy nhất và in ra `collections.length`, nên thêm model mới mà quên

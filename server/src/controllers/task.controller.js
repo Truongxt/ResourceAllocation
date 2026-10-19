@@ -1993,11 +1993,15 @@ const getTaskReminders = async (req, res, next) => {
 
 /**
  * Người gọi có quyền kết luận kết quả công việc này không.
- * Admin và quản lý dự án luôn có; ngoài ra là danh sách người đánh giá của công
- * việc, thiếu thì lấy của dự án.
+ * Admin và quản lý dự án có; ngoài ra là danh sách người đánh giá của công việc, thiếu
+ * thì lấy của dự án. Người thực hiện thì không bao giờ — kể cả khi thuộc một trong ba nhóm đó.
  */
 const canApproveReview = (task, project, user) => {
-  if (['admin', 'project_manager'].includes(user.role)) return true;
+  // Bước duyệt cần người thứ hai: người thực hiện không tự duyệt việc mình làm, kể cả khi là
+  // admin, quản lý dự án hay có tên trong danh sách đánh giá (khớp utils/taskPermissions.js bên web).
+  const assigneeId = task?.assignee?._id || task?.assignee;
+  if (assigneeId && assigneeId.toString() === user._id.toString()) return false;
+  if (user.role === 'admin') return true;
   const managerId = project?.manager?._id || project?.manager;
   if (managerId && managerId.toString() === user._id.toString()) return true;
   return resolveReviewers(task, project).includes(user._id.toString());
@@ -2272,9 +2276,12 @@ const buildReassignFilter = ({ fromUserId, projectId, taskIds, projectScopeIds }
 /** Các dự án thuộc công ty của người đang đăng nhập. */
 const companyProjectIds = async (user) => {
   const userCompany = (user && user.companyName) || 'Công ty Công nghệ RAO';
+  // Admin bàn giao trên cả công ty; PM chỉ trên dự án mình quản lý.
+  const isAdmin = user.role === 'admin' || Boolean(user.isOwner);
   const projects = await Project.find({
     companyName:
       userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
+    ...(isAdmin ? {} : { manager: user._id }),
   }).select('_id');
   return projects.map((p) => p._id);
 };

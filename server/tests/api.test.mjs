@@ -329,21 +329,25 @@ S('4c. Phân quyền công việc');
   const memberDelete = await call('DELETE', `/tasks/${ownId}`, { token: TOK.member });
   ok(memberDelete.status === 403, 'Member xóa task của chính mình → 403');
 
-  ok((await call('PUT', `/tasks/${otherId}`, { token: TOK.pm, body: { title: 'PM đổi được' } })).status === 200,
-    'PM sửa mọi trường của task bất kỳ → 200');
-  ok((await call('DELETE', `/tasks/${otherId}`, { token: TOK.pm })).status === 200, 'PM xóa task → 200');
+  // PM chỉ có quyền của PM trên dự án mình quản lý; dự án này do admin quản lý.
+  ok((await call('PUT', `/tasks/${otherId}`, { token: TOK.pm, body: { title: 'PM đổi' } })).status === 403,
+    'PM sửa task ở dự án người khác quản lý → 403');
+  ok((await call('DELETE', `/tasks/${otherId}`, { token: TOK.pm })).status === 403, 'PM xóa task ở dự án người khác → 403');
+  ok((await call('PUT', `/tasks/${otherId}`, { token: TOK.admin, body: { title: 'Quản lý dự án đổi được' } })).status === 200,
+    'Quản lý dự án sửa mọi trường của task → 200');
+  ok((await call('DELETE', `/tasks/${otherId}`, { token: TOK.admin })).status === 200, 'Quản lý dự án xóa task → 200');
 
   const ghost = await call('PUT', '/tasks/000000000000000000000000', { token: TOK.member, body: { progress: 10 } });
   ok(ghost.status === 404, 'Member sửa task không tồn tại → 404 (không lộ thành 403)');
 
   // Đúng payload mà thao tác kéo thả trên sơ đồ Gantt gửi lên.
   const reschedule = await call('PUT', `/tasks/${ownId}`, {
-    token: TOK.pm,
+    token: TOK.admin,
     body: { startDate: '2026-09-01T00:00:00.000Z', endDate: '2026-09-10T00:00:00.000Z' },
   });
   ok(
     reschedule.status === 200 && reschedule.data.task.startDate.startsWith('2026-09-01'),
-    'PM kéo thả đổi lịch task (startDate + endDate) → 200'
+    'Quản lý dự án kéo thả đổi lịch task (startDate + endDate) → 200'
   );
 
   const memberReschedule = await call('PUT', `/tasks/${ownId}`, {

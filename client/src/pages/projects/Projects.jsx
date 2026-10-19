@@ -60,6 +60,7 @@ import {
 import dayjs from 'dayjs';
 import projectService from '../../services/projectService';
 import ProjectRowActions from '../../components/projects/ProjectRowActions';
+import { canCreateProject as canCreateProjectFor } from '../../utils/projectAccess';
 import ProjectDuplicateModal from '../../components/projects/ProjectDuplicateModal';
 import departmentService from '../../services/departmentService';
 import companySettingService from '../../services/companySettingService';
@@ -157,7 +158,6 @@ export default function Projects() {
 
   const isSystemAdmin = user?.role === 'admin' || Boolean(user?.isOwner);
   const isWeworkAdmin = Boolean(user?.appAdmins?.includes('work'));
-  const isPM = user?.role === 'project_manager';
 
   const canCreateDepartment =
     isSystemAdmin ||
@@ -168,12 +168,9 @@ export default function Projects() {
   // phân hệ xuống "Chỉ xem" thì dù vai trò có cao tới đâu cũng không ghi được,
   // vì server đã chặn bằng `requireAppPermission`. Không nhân điều kiện này vào
   // đây thì nút vẫn hiện và bấm vào chỉ để nhận 403.
-  const canCreateProject =
-    canManageModule('projects') &&
-    (isSystemAdmin ||
-      isWeworkAdmin ||
-      isPM ||
-      companySettings?.createProjectPermission === 'all_members');
+  // Luật tạo dự án dùng chung với mobile (utils/projectAccess.js), khớp server: Admin/Owner, PM
+  // và App Admin `work`; thành viên khác chỉ khi công ty cho phép mọi người tạo.
+  const canCreateProject = canManageModule('projects') && canCreateProjectFor(user, companySettings);
 
   const canManageDepartment = canCreateDepartment;
 
@@ -350,6 +347,7 @@ export default function Projects() {
   const renderProjectActions = (project) => (
     <ProjectRowActions
       project={project}
+      user={user}
       canManage={canManageModule('projects')}
       onTaskGroups={(p) => {
         setGroupProjectTarget(p);

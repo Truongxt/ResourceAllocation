@@ -96,4 +96,17 @@ S('Hình dạng dữ liệu');
   ok(custom.tasks.length === 7 && custom.resources.length === 3, 'Cấu hình tùy chỉnh giữ đúng số lượng');
 }
 
+// ══════════════════════════════════════════════
+S('Ngày mốc cố định — số đo tái tạo được bất kể ngày chạy');
+{
+  // Lịch việc quyết định việc rơi vào tuần nào, tức ràng buộc H1. Lấy "hôm nay" làm mốc thì
+  // cùng seed mà chạy hôm khác ra số khác — Bảng 4-5 của báo cáo từng không tái tạo được.
+  const baseDate = new Date('2020-01-01T00:00:00Z');
+  const d = generateBenchmarkDataset('medium', { baseDate });
+  const day = 86400000;
+  ok(d.tasks.every((t) => t.startDate >= baseDate && t.startDate - baseDate <= 15 * day),
+    'Mọi việc bắt đầu trong 15 ngày kể từ ngày mốc truyền vào',
+    `sớm nhất ${new Date(Math.min(...d.tasks.map((t) => t.startDate))).toISOString().slice(0, 10)}`);
+}
+
 summary();

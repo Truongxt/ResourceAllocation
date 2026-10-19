@@ -233,4 +233,30 @@ S('Nhân bản: phân lập công ty và quyền');
   ok(byMember.status === 403, 'Member không nhân bản được dự án', `status=${byMember.status}`);
 }
 
+S('Lưu trữ: PM chỉ trên dự án mình quản lý');
+{
+  // Lưu trữ khóa cả dự án thành chỉ đọc — PM không được làm vậy với dự án của người khác.
+  // Nhân bản thì chỉ đọc dự án nguồn nên vẫn mở: PM phải dùng được mẫu người khác tạo.
+  const pm = await login('pm@rao.com');
+  const othersProject = await mkProject('Dự án của admin');
+
+  const pmArchive = await call('POST', `/projects/${othersProject}/archive`, { token: pm });
+  ok(pmArchive.status === 403, 'PM không lưu trữ được dự án người khác quản lý', `status=${pmArchive.status}`);
+
+  await call('POST', `/projects/${othersProject}/archive`, { token: admin });
+  const pmUnarchive = await call('POST', `/projects/${othersProject}/unarchive`, { token: pm });
+  ok(pmUnarchive.status === 403, 'PM không mở lại được dự án người khác quản lý', `status=${pmUnarchive.status}`);
+
+  const pmDuplicate = await call('POST', `/projects/${othersProject}/duplicate`, { token: pm, body: { name: `PM chép ${stamp}` } });
+  ok(pmDuplicate.status === 201, 'PM vẫn nhân bản được dự án người khác', `status=${pmDuplicate.status}`);
+
+  const own = (await call('POST', '/projects', {
+    token: pm, body: { name: `Dự án của PM ${stamp}`, startDate: '2026-11-02', endDate: '2026-12-31' },
+  })).data?.project?._id;
+  const ownArchive = await call('POST', `/projects/${own}/archive`, { token: pm });
+  ok(ownArchive.status === 200, 'PM lưu trữ được dự án mình quản lý', `status=${ownArchive.status}`);
+  const ownUnarchive = await call('POST', `/projects/${own}/unarchive`, { token: pm });
+  ok(ownUnarchive.status === 200, 'PM mở lại được dự án mình quản lý', `status=${ownUnarchive.status}`);
+}
+
 process.exit(summary() ? 1 : 0);

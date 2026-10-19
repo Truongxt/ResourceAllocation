@@ -26,6 +26,7 @@ import {
 } from '@ant-design/icons';
 import taskService, { SCREEN_MAX_PAGES } from '../../services/taskService';
 import projectService from '../../services/projectService';
+import { canManageProject } from '../../utils/projectAccess';
 import { useAuth } from '../../context/AuthContext';
 import {
   ROLES,
@@ -99,9 +100,13 @@ export default function GanttChart() {
 
   const zoom = ZOOM_LEVELS.find((z) => z.key === zoomKey) || ZOOM_LEVELS[1];
 
-  // Chỉ Admin/PM sửa được ngày tháng của task — khớp với canModifyTask ở server,
-  // nơi người được giao việc chỉ được đổi status/progress/actualHours.
-  const canReschedule = user?.role === ROLES.ADMIN || user?.role === ROLES.PM;
+  // Chỉ Admin/Owner và PM **của dự án chứa việc** sửa được ngày tháng — khớp canModifyTask ở
+  // server, nơi người được giao việc chỉ được đổi status/progress/actualHours, còn PM ở dự án
+  // khác chỉ như thành viên.
+  const isAdmin = user?.role === ROLES.ADMIN || Boolean(user?.isOwner);
+  const canRescheduleTask = (task) => isAdmin
+    || canManageProject(user, projects.find((p) => p._id === String(task?.project?._id || task?.project || '')));
+  const canRescheduleAny = isAdmin || projects.some((p) => canManageProject(user, p));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -348,7 +353,7 @@ export default function GanttChart() {
   );
 
   const beginDrag = (event, task, mode) => {
-    if (!canReschedule || !task.startDate || !task.endDate) return;
+    if (!canRescheduleTask(task) || !task.startDate || !task.endDate) return;
     event.preventDefault();
     event.stopPropagation();
     dragRef.current = { task, mode, startX: event.clientX, deltaDays: 0 };
@@ -411,6 +416,7 @@ export default function GanttChart() {
     if (!original.startDate || !original.endDate) return null;
 
     const task = withPreview(original);
+    const canReschedule = canRescheduleTask(original);
     const onCriticalPath = showCritical && critical.has(task._id);
     const dragging = dragPreview?.taskId === task._id;
     // Trong lúc kéo, tooltip che mất thanh nên tạm ẩn.
@@ -562,7 +568,7 @@ export default function GanttChart() {
               <Checkbox checked={showCritical} onChange={(e) => setShowCritical(e.target.checked)}>
                 {t('gantt.showCritical') || 'Đường găng (Critical Path)'}
               </Checkbox>
-              {canReschedule && (
+              {canRescheduleAny && (
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {t('gantt.dragHint')}
                 </Text>
