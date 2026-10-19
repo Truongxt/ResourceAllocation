@@ -32,6 +32,8 @@
 - 🔒 Protected - Cần JWT token (bất kỳ user nào đã đăng nhập)
 - 👑 Admin only - Chỉ role `admin`
 - 📋 PM+ - `admin` hoặc `project_manager`
+- 📁 PM dự án - `admin`/Owner, hoặc PM là `manager` của **chính dự án đó**. Ở dự án khác — kể cả khi có tên
+  trong dự án — PM chỉ có quyền như một thành viên (theo công tắc `permissions` của dự án và vai trò trên từng việc)
 
 ---
 
@@ -552,10 +554,10 @@ Nhóm lớn nhất — **30 endpoint**. Mọi endpoint đều 🔒; cột Auth d
 |--------|----------|-------|------|
 | GET | `/` | Danh sách tasks | — |
 | GET | `/:id` | Chi tiết task | — |
-| POST | `/` | Tạo task | 📋 PM+ |
-| PUT | `/:id` | Cập nhật task (bao gồm gán `assignee`) | 📋 PM+ hoặc người được giao¹ |
-| PATCH | `/:id/status` | Đổi nhanh status (Kanban drag & drop) | 📋 PM+ hoặc người được giao |
-| DELETE | `/:id` | Xóa task | 📋 PM+ |
+| POST | `/` | Tạo task | 📁 PM dự án, hoặc thành viên khi dự án bật `allowMembersCreateTasks` (mặc định bật) |
+| PUT | `/:id` | Cập nhật task (bao gồm gán `assignee`) | 📁 PM dự án hoặc người được giao¹ |
+| PATCH | `/:id/status` | Đổi nhanh status (Kanban drag & drop) | 📁 PM dự án hoặc người được giao |
+| DELETE | `/:id` | Xóa task | 📁 PM dự án (người tạo / người được giao khi dự án cho phép) |
 | GET | `/stats/summary` | Thống kê task | — |
 
 ### 3.2. Vòng đời công việc (Base Wework)
@@ -604,8 +606,8 @@ Phản hồi không bao giờ có `storageKey`.
 | GET | `/excel/template` | Tải file mẫu `.xlsx` | — |
 | POST | `/excel/preview` | Xem trước dữ liệu từ file | — |
 | POST | `/excel/import` | Nhập hàng loạt vào một dự án | `canCreateTask` |
-| GET | `/reassign-preview` | Xem trước tập việc sẽ bàn giao | 📋 PM+ |
-| POST | `/bulk-reassign` | Bàn giao hàng loạt | 📋 PM+ |
+| GET | `/reassign-preview` | Xem trước tập việc sẽ bàn giao (PM: chỉ việc trong dự án mình quản lý) | 📋 PM+ |
+| POST | `/bulk-reassign` | Bàn giao hàng loạt (PM: chỉ việc trong dự án mình quản lý) | 📋 PM+ |
 
 Ba endpoint Excel nhận `multipart/form-data`, field file tên **`file`**.
 
@@ -733,7 +735,7 @@ việc đã làm dở, không quay về vạch xuất phát).
 Bắt buộc có lý do khi trả lại là có chủ ý — trả về mà không nói vì sao thì vòng sau rất dễ
 hỏng lại đúng chỗ cũ.
 
-**Ai được đánh giá**: `admin`, `project_manager`, quản lý của dự án, hoặc người có tên trong
+**Ai được đánh giá**: `admin`, quản lý của dự án (PM ở dự án khác thì **không**), hoặc người có tên trong
 `task.reviewers` (thiếu thì lấy `project.reviewConfig.reviewers`).
 
 `GET /pending-review` chỉ trả những việc mà **chính người gọi** được quyền kết luận, kèm ba
@@ -1114,7 +1116,7 @@ Phòng ban cộng dồn tải/capacity của thành viên và đỏ khi > 100% h
 | Method | Endpoint | Mô tả | Auth |
 |--------|----------|-------|------|
 | GET | `/` | Danh sách phòng ban (kèm `resourceCount`) | 🔒 |
-| POST | `/` | Tạo phòng ban | 📋 PM+ |
+| POST | `/` | Tạo phòng ban | 👑, App Admin `work`, hoặc mọi người khi công ty đặt `createDepartmentPermission: 'all_members'` |
 | PUT | `/:id` | Cập nhật phòng ban | 📋 PM+ |
 | DELETE | `/:id` | Xóa phòng ban | 👑 |
 

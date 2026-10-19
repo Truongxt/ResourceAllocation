@@ -41,6 +41,10 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   thành viên chỉ kiểm vai trò; nhóm công việc không kiểm gì ngoài công ty, nên cả Thành viên và Khách tạo, đổi tên,
   xóa, sắp xếp được nhóm của mọi dự án. Nay mọi thao tác quản lý dự án dùng chung một luật (`services/projectAccess.js`):
   Admin/Owner, hoặc PM của chính dự án đó. Xem nhóm vẫn mở cho cả công ty.
+- **PM toàn quyền với công việc của mọi dự án.** `taskAccess.js` cho vai trò `project_manager` đi thẳng qua 11 guard;
+  duyệt kết quả, bàn giao hàng loạt và việc lặp lại cũng chỉ kiểm vai trò. Nay PM chỉ có quyền của PM trên dự án mình
+  là `manager`; ở dự án khác — kể cả khi có tên trong đó — PM như một thành viên. Giao diện (Công việc, Gantt, chi
+  tiết dự án, `utils/taskPermissions.js`) chỉ hiện thao tác thuộc quyền theo dự án của từng việc.
 
 ---
 

@@ -124,9 +124,11 @@ export default function ProjectDetail() {
   const [taskGroups, setTaskGroups] = useState([]);
   const [taskGroupModalOpen, setTaskGroupModalOpen] = useState(false);
 
-  // Công việc: Admin và mọi PM (luật của taskAccess ở server). Quản lý dự án — nhóm công việc,
-  // thành viên, cấu hình, mở lại — chỉ Admin/Owner hoặc PM của chính dự án này.
-  const canManage = user?.role === ROLES.ADMIN || user?.role === ROLES.PM;
+  // Admin/Owner, hoặc PM của chính dự án này: toàn quyền với công việc lẫn quản lý dự án (nhóm
+  // công việc, thành viên, cấu hình, mở lại). PM ở dự án khác chỉ như thành viên — khớp server
+  // (taskAccess.js, services/projectAccess.js).
+  const canManageThisProject = canManageProject(user, project);
+  const canManage = canManageThisProject;
 
   // Base Wework: Cập nhật cài đặt phân quyền thao tác trong dự án
   const handleTogglePermission = async (key, checked) => {
@@ -198,7 +200,6 @@ export default function ProjectDetail() {
     loadTaskGroups();
   }, [load, loadStaff, loadTaskGroups]);
 
-  const canManageThisProject = canManageProject(user, project);
   const members = project?.members || [];
   const tasks = project?.tasks || [];
 

@@ -115,10 +115,10 @@ export default function TaskFilterBar({
       </Space>
 
       <Space>
-        {filters.project && (
+        {filters.project && onManageGroups && (
           <Button
             icon={<AppstoreOutlined />}
-            onClick={() => onManageGroups && onManageGroups(filters.project)}
+            onClick={() => onManageGroups(filters.project)}
             size="middle"
           >
             Nhóm công việc

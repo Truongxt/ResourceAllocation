@@ -70,6 +70,21 @@ describe('Chi tiết dự án — chỉ hiện thao tác thuộc quyền', () =>
     expect(screen.queryByRole('button', { name: 'Mở lại' })).toBeNull();
   });
 
+  it('PM ở dự án người khác: không sửa, không xóa việc giao cho người khác', async () => {
+    mocks.project = project({
+      tasks: [{
+        _id: 't1', title: 'Việc của Nam', status: 'todo', priority: 'medium',
+        assignee: { _id: 'u-m', name: 'Nam' }, createdBy: 'u-other',
+        startDate: '2026-11-02T00:00:00.000Z', endDate: '2026-11-06T00:00:00.000Z',
+      }],
+    });
+    await renderDetail();
+    await userEvent.click(screen.getByRole('tab', { name: /Công việc/ }));
+    const row = (await screen.findByText('Việc của Nam')).closest('tr');
+    expect(row.querySelector('.anticon-edit')).toBeNull();
+    expect(row.querySelector('.anticon-delete')).toBeNull();
+  });
+
   it('PM của chính dự án: đủ các thao tác', async () => {
     mocks.project = project({ manager: { _id: 'u-pm', name: 'PM' }, isArchived: true });
     await renderDetail();

@@ -79,6 +79,72 @@ S('Nhóm công việc: chỉ Admin/Owner hoặc PM của dự án');
 }
 
 // ══════════════════════════════════════════════
+// PM chỉ có quyền của PM trên dự án mình quản lý. Ở dự án khác — kể cả khi có tên trong đó —
+// PM chỉ là một thành viên: theo công tắc của dự án và vai trò trên từng việc.
+const pmId = (await call('GET', '/auth/me', { token: pm })).data?.user?._id;
+await call('POST', `/projects/${adminProject}/members`, { token: admin, body: { user: pmId, role: 'developer', allocation: 20 } });
+const mkTask = async (token, projectId, title, extra = {}) => (await call('POST', '/tasks', {
+  token,
+  body: { title: `${title} ${stamp}`, project: projectId, startDate: '2026-11-02', endDate: '2026-11-06', estimatedHours: 4, ...extra },
+})).data?.task?._id;
+
+S('Công việc ở dự án người khác: PM chỉ như thành viên');
+{
+  const othersTask = await mkTask(admin, adminProject, 'Việc admin giao Nam', { assignee: memberId });
+  ok(!!othersTask, 'Admin tạo việc trong dự án mình, giao cho Nam');
+
+  const edit = await call('PUT', `/tasks/${othersTask}`, { token: pm, body: { title: 'PM sửa việc người khác' } });
+  ok(edit.status === 403, 'PM không sửa được việc không phải của mình', `status=${edit.status}`);
+  const status = await call('PATCH', `/tasks/${othersTask}/status`, { token: pm, body: { status: 'in_progress' } });
+  ok(status.status === 403, 'PM không đổi được trạng thái việc giao cho người khác', `status=${status.status}`);
+  const del = await call('DELETE', `/tasks/${othersTask}`, { token: pm });
+  ok(del.status === 403, 'PM không xóa được việc trong dự án người khác', `status=${del.status}`);
+
+  // Là thành viên nên vẫn tạo được việc — dự án mặc định bật `allowMembersCreateTasks`.
+  const asMember = await mkTask(pm, adminProject, 'PM tạo như thành viên');
+  ok(!!asMember, 'PM tạo được việc trong dự án mình là thành viên (quyền thành viên)');
+
+  const ownTask = await mkTask(pm, pmProject, 'Việc trong dự án PM', { assignee: memberId });
+  const ownEdit = await call('PUT', `/tasks/${ownTask}`, { token: pm, body: { title: `PM sửa việc dự án mình ${stamp}` } });
+  ok(ownEdit.status === 200, 'PM sửa được mọi việc trong dự án mình', `status=${ownEdit.status}`);
+  const ownDel = await call('DELETE', `/tasks/${ownTask}`, { token: pm });
+  ok(ownDel.status === 200, 'PM xóa được việc trong dự án mình', `status=${ownDel.status}`);
+}
+
+S('Duyệt kết quả: PM không duyệt được việc ở dự án người khác');
+{
+  await call('PATCH', `/projects/${adminProject}/permissions`, { token: admin, body: { reviewConfig: { enabled: true } } });
+  const task = await mkTask(admin, adminProject, 'Việc cần duyệt', { assignee: memberId });
+  const done = await call('PATCH', `/tasks/${task}/complete`, { token: member });
+  ok(done.data?.task?.status === 'review', 'Nam báo xong → chờ duyệt', `status=${done.status} ${done.data?.task?.status}`);
+  const byPm = await call('POST', `/tasks/${task}/review`, { token: pm, body: { decision: 'approve' } });
+  ok(byPm.status === 403, 'PM không duyệt được', `status=${byPm.status}`);
+  const byAdmin = await call('POST', `/tasks/${task}/review`, { token: admin, body: { decision: 'approve' } });
+  ok(byAdmin.status === 200, 'Quản lý dự án (admin) duyệt được', `status=${byAdmin.status}`);
+}
+
+S('Bàn giao hàng loạt và việc lặp lại: PM chỉ trên dự án mình quản lý');
+{
+  const othersTask = await mkTask(admin, adminProject, 'Việc của Nam ở dự án admin', { assignee: memberId });
+  const ownTask = await mkTask(pm, pmProject, 'Việc của Nam ở dự án PM', { assignee: memberId });
+  const preview = await call('GET', `/tasks/reassign-preview?fromUserId=${memberId}`, { token: pm });
+  const ids = (preview.data?.tasks || []).map((t) => t._id);
+  ok(preview.status === 200 && ids.includes(ownTask), 'PM thấy việc của Nam trong dự án mình', `status=${preview.status}`);
+  ok(!ids.includes(othersTask), 'PM không thấy (nên không bàn giao được) việc ở dự án người khác');
+
+  const recurring = (projectId) => call('POST', '/recurring-tasks', {
+    token: pm, body: { title: `Lặp ${stamp}`, project: projectId, frequency: 'weekly', daysOfWeek: [1], startDate: '2026-11-02', durationHours: 2 },
+  });
+  const others = await recurring(adminProject);
+  ok(others.status === 403, 'PM không tạo được việc lặp lại ở dự án người khác', `status=${others.status}`);
+  const own = await recurring(pmProject);
+  ok(own.status === 201, 'PM tạo được việc lặp lại ở dự án mình', `status=${own.status}`);
+  const ownId = own.data?.recurringTask?._id;
+  const byOther = await call('DELETE', `/recurring-tasks/${ownId}`, { token: admin });
+  ok(byOther.status === 200, 'Admin xóa được việc lặp lại ở mọi dự án', `status=${byOther.status}`);
+}
+
+// ══════════════════════════════════════════════
 S('Xóa dự án mình quản lý');
 {
   const del = await call('DELETE', `/projects/${pmProject}?force=true`, { token: pm });

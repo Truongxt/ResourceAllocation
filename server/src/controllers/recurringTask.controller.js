@@ -7,6 +7,14 @@ const {
 } = require('../services/recurringTask.service');
 const { logActivity } = require('../services/activityLog.service');
 const { ARCHIVED_MESSAGE } = require('../services/projectLifecycle.service');
+const { canManageProject, MANAGE_DENIED } = require('../services/projectAccess');
+
+/** Việc lặp lại sinh việc vào dự án: chỉ Admin/Owner hoặc PM của dự án đó cấu hình được. */
+const managesProjectId = async (user, projectId) => {
+  const id = projectId?._id || projectId;
+  const project = id ? await Project.findById(id).select('manager') : null;
+  return canManageProject(user, project);
+};
 const {
   companyOf,
   stripProtected,
@@ -124,6 +132,9 @@ const createRecurringTask = async (req, res, next) => {
     if (refError) {
       return res.status(400).json({ success: false, message: refError });
     }
+    if (!(await managesProjectId(req.user, project))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
+    }
 
     const config = {
       frequency,
@@ -197,6 +208,10 @@ const updateRecurringTask = async (req, res, next) => {
     if (!item) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy cấu hình công việc lặp lại' });
     }
+    if (!(await managesProjectId(req.user, item.project))
+      || (req.body?.project && !(await managesProjectId(req.user, req.body.project)))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
+    }
 
     // Kiểm theo giá trị SAU khi sửa: đổi riêng nhóm việc cũng phải khớp dự án hiện có
     stripProtected(req.body);
@@ -250,6 +265,10 @@ const deleteRecurringTask = async (req, res, next) => {
     if (!item) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy cấu hình công việc lặp lại' });
     }
+    if (!(await managesProjectId(req.user, item.project))
+      || (req.body?.project && !(await managesProjectId(req.user, req.body.project)))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
+    }
 
     await item.deleteOne();
 
@@ -292,6 +311,10 @@ const triggerRunNow = async (req, res, next) => {
     }
     if (!item) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy cấu hình công việc lặp lại' });
+    }
+    if (!(await managesProjectId(req.user, item.project))
+      || (req.body?.project && !(await managesProjectId(req.user, req.body.project)))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
     }
 
     const target = await Project.findById(item.project).select('isArchived isTemplate');

@@ -249,8 +249,8 @@ async function fillNewProject(page, name) {
   await expect(modal).toBeVisible();
 
   await modal.locator('#name').fill(name);
-  await modal.locator('#manager').click();
-  await page.locator('.ant-select-dropdown:visible .ant-select-item-option').first().click();
+  // Giữ người quản lý mặc định là chính người tạo. Chọn người khác thì PM không còn quản lý
+  // dự án vừa tạo — không xóa được, và nút Xóa không hiện (chỉ Admin/Owner hoặc PM của dự án).
   await modal.locator('#dateRange').click();
   await page.locator('.ant-picker-dropdown:visible .ant-picker-cell-today').first().click();
   await page.locator('.ant-picker-dropdown:visible .ant-picker-cell-in-view').last().click();

@@ -17,7 +17,10 @@ const Task = require('../models/Task');
 const Project = require('../models/Project');
 const { ARCHIVED_MESSAGE } = require('../services/projectLifecycle.service');
 
-const PRIVILEGED_ROLES = ['admin', 'project_manager'];
+// Chỉ Admin (gồm Owner — Owner luôn có role admin) đi thẳng qua mọi guard. PM **không** có
+// mặt ở đây: PM chỉ có quyền của PM trên dự án mình là `manager` (nhánh `isProjectManager`
+// trong từng guard); ở dự án khác, kể cả khi có tên trong đó, PM chỉ như một thành viên.
+const PRIVILEGED_ROLES = ['admin'];
 
 // Các trường mặc định người thực hiện (Assignee) được phép tự cập nhật
 const ASSIGNEE_EDITABLE_FIELDS = ['status', 'progress', 'actualHours'];

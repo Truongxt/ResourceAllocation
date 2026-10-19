@@ -1997,7 +1997,7 @@ const getTaskReminders = async (req, res, next) => {
  * việc, thiếu thì lấy của dự án.
  */
 const canApproveReview = (task, project, user) => {
-  if (['admin', 'project_manager'].includes(user.role)) return true;
+  if (user.role === 'admin') return true;
   const managerId = project?.manager?._id || project?.manager;
   if (managerId && managerId.toString() === user._id.toString()) return true;
   return resolveReviewers(task, project).includes(user._id.toString());
@@ -2272,9 +2272,12 @@ const buildReassignFilter = ({ fromUserId, projectId, taskIds, projectScopeIds }
 /** Các dự án thuộc công ty của người đang đăng nhập. */
 const companyProjectIds = async (user) => {
   const userCompany = (user && user.companyName) || 'Công ty Công nghệ RAO';
+  // Admin bàn giao trên cả công ty; PM chỉ trên dự án mình quản lý.
+  const isAdmin = user.role === 'admin' || Boolean(user.isOwner);
   const projects = await Project.find({
     companyName:
       userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
+    ...(isAdmin ? {} : { manager: user._id }),
   }).select('_id');
   return projects.map((p) => p._id);
 };
