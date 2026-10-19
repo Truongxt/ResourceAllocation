@@ -212,7 +212,7 @@ test.describe('Báo cáo', () => {
     await expect(reportRow).toHaveCount(1, { timeout: 20_000 });
     const fromReports = (await reportRow.textContent()).match(/(\d+)h \/ \d+h/)[1];
 
-    await page.goto('/resources');
+    await page.goto('/resources?tab=resources');
     const resourceRow = page.locator('.ant-table-row').filter({ hasText: 'Trần Văn Nam' });
     await expect(resourceRow).toHaveCount(1, { timeout: 20_000 });
     const fromResources = (await resourceRow.textContent()).match(/(\d+)h \/ \d+h/)[1];

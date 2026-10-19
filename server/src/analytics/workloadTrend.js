@@ -82,8 +82,8 @@ const dailyCapacity = (resource, day) => {
 
   // Cố tình KHÔNG dùng resource.availability: đó là trạng thái hiện tại, không gắn với
   // ngày nào, nên áp nó lên cả trục thời gian sẽ bóp méo cả quá khứ lẫn tương lai.
-  const weekly = Number(resource.maxCapacity) || 40;
-  const fte = Number(resource.fte) || 1;
+  const weekly = Number(resource.maxCapacity ?? 40);
+  const fte = Number(resource.fte ?? 1);
   return (weekly * fte) / WORKING_DAYS_PER_WEEK;
 };
 

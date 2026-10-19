@@ -9,7 +9,9 @@ vi.mock('../src/context/AuthContext', async (importOriginal) => ({
   ...(await importOriginal()),
   useAuth: () => authState(),
 }));
-vi.mock('../src/services/resourceService', () => ({ default: { getAll: mocks.resources } }));
+vi.mock('../src/services/resourceService', () => ({ default: { getAll: mocks.resources,
+  getPendingEvaluations: async () => ({ data: { data: { resources: [], total: 0 } } }),
+} }));
 vi.mock('../src/services/departmentService', () => ({ default: { getAll: mocks.departments } }));
 const { default: Resources } = await import('../src/pages/resources/Resources');
 const person = (id, name, workload, availability = 'available') => ({

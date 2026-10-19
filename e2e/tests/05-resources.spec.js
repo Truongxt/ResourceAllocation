@@ -12,7 +12,8 @@ const { SEED, login, watchForProblems } = require('../support/helpers');
 test.describe('Quản lý nhân sự', () => {
   test.beforeEach(async ({ page }) => {
     await login(page, 'admin');
-    await page.goto('/resources');
+    // Mặc định trang mở tab "Năng suất & Cân bằng tải"; các bài ở đây kiểm bảng nhân sự.
+    await page.goto('/resources?tab=resources');
     await expect(page.getByRole('heading', { name: 'Quản lý Nhân sự & Phòng ban' })).toBeVisible();
   });
 
@@ -58,9 +59,9 @@ test.describe('Quản lý nhân sự', () => {
     const problems = watchForProblems(page);
 
     const nam = page.locator('.ant-table-row').filter({ hasText: 'Trần Văn Nam' });
-    await nam.getByRole('button', { name: /Matrix/ }).click();
+    await nam.getByRole('button', { name: /Đánh giá & duyệt/ }).click();
 
-    const modal = page.locator('.ant-modal').filter({ hasText: 'Skill Matrix' }).first();
+    const modal = page.locator('.ant-modal').filter({ hasText: 'Đánh Giá & Phê Duyệt Năng Lực' }).first();
     await expect(modal).toBeVisible({ timeout: 20_000 });
     await expect(modal).toContainText('Trần Văn Nam');
 

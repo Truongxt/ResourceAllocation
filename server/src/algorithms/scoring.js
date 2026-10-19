@@ -24,7 +24,7 @@ const DEFAULT_WEIGHTS = {
 };
 
 /** Capacity thực tế của một nhân sự trong tuần (giờ). */
-const capacityOf = (resource) => (resource.maxCapacity || 40) * (resource.fte || 1);
+const capacityOf = (resource) => (resource.maxCapacity ?? 40) * (resource.fte ?? 1);
 
 /** Số giờ quy ước của một task. */
 const effortOf = (task) => task.estimatedHours || 1;

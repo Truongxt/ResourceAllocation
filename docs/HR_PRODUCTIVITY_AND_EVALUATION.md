@@ -1,8 +1,16 @@
 # 📊 Tài liệu Kỹ thuật: Trực quan hóa Năng suất & Đánh giá Năng lực Nhân sự (HR Productivity & Evaluation System)
 
 > **Dành cho:** Thành viên nhóm phát triển, Quản lý dự án (PM), và Báo cáo Thầy hướng dẫn Khóa luận tốt nghiệp.  
-> **Phiên bản:** 2.1 (Cập nhật theo yêu cầu chỉnh sửa từ Thầy hướng dẫn).  
-> **Trạng thái:** ✅ Đã hoàn thành triển khai End-to-End (Database, API Backend, Web Client UI).
+> **Phiên bản:** 2.2 (điều chỉnh luồng Thành viên và góc nhìn tổng hợp ngày 07/10/2026).
+> **Trạng thái:** Đã triển khai trong mã nguồn; kiểm thử tích hợp cần MongoDB thử nghiệm.
+
+## Điểm cần đọc trước khi phát triển tiếp
+
+- **Thành viên** không vào `/resources`. Lối tự đánh giá đúng là menu **Tự đánh giá năng lực** → `/account?tab=skills`; tab này đọc `GET /api/resources/me/evaluation` theo tài khoản đăng nhập và gửi `PUT /api/resources/my-evaluation`. Nếu chưa có hồ sơ Resource, giao diện báo liên hệ quản lý, không lấy hồ sơ từ danh sách nhân sự của người khác.
+- **Admin/PM** duyệt năng lực trong `/resources` bằng `SkillsMatrixModal`. `selfLevel` chỉ là đề xuất. Kỹ năng mới chưa được duyệt không tham gia kiểm tra giao việc hoặc bộ tối ưu; kỹ năng đã có mức quản lý duyệt tiếp tục dùng mức đó cho tới lần duyệt tiếp theo.
+- **Dashboard quản lý** hiển thị toàn cảnh dự án và phòng ban trước các khối chi tiết: tổng việc hoàn thành, dự án có ngoại lệ, nhân sự quá tải/còn công suất; bảng mọi dự án trong phạm vi quyền, thanh tải phòng ban và cảnh báo san tải. Danh sách điều phối phân biệt người quá tải với người còn công suất, loại người đang nghỉ/không khả dụng và chỉ hiển thị kỹ năng chính thức/đã duyệt. `GET /api/analytics/dashboard` có `projectProgress` (tỷ lệ task `done/total`, không phải trường `Project.progress`); `GET /api/resources/productivity/summary` chỉ cho Admin/PM và dùng cùng phạm vi dữ liệu phân tích.
+- **Màu thanh chỉ nói về tải**, không đủ để kết luận năng lực/năng suất. Xanh 60–85%, vàng dưới 60% hoặc trên 85–100%, đỏ trên 100%; phòng ban còn đỏ khi từ một nửa nhân sự bị quá tải. Kết quả đúng hạn chỉ tính việc hoàn thành có cả `completedAt` và `endDate`; không có mẫu thì trả `null` và hiển thị **Chưa đủ dữ liệu**. Điểm quản lý chấm là chỉ số khác, không tự trộn với màu tải.
+- Khi san tải, quản lý phải kiểm tra kỹ năng đã duyệt, độ khó/yêu cầu kỹ năng của việc và hạn hoàn thành. Hệ thống **gợi ý/cảnh báo**, không tự giao việc chỉ dựa trên màu.
 
 ---
 
@@ -13,9 +21,9 @@ Trong quá trình bảo vệ và báo cáo tiến độ với Thầy hướng d�
 1. **Trực quan hóa Năng suất & Quá tải (Visual Productivity & Workload Management):**
    - Khi Người quản lý (Manager/PM) nhìn vào bảng điều khiển nhân sự hoặc phòng ban, phải **ngay lập tức nhận diện được** nhân sự hoặc phòng ban đó làm việc với năng suất như thế nào, có bị quá tải hay đang rảnh rỗi.
    - Thể hiện rõ ràng qua **sơ đồ cột màu sắc quy chuẩn (Xanh lá 🟢, Vàng 🟡, Đỏ 🔴)**:
-     - 🔴 **Cột màu đỏ:** Nhân viên hoặc phòng ban đang bị quá tải (vượt định mức 100% capacity) hoặc hiệu suất kém (nhiều task quá hạn/thất bại).
-     - 🟡 **Cột màu vàng:** Cần lưu ý (đang cận tải 85-100% hoặc dưới mức tải tối ưu <50%).
-     - 🟢 **Cột màu xanh lá:** Trạng thái tối ưu, năng suất cao, tải ổn định (60-85%).
+     - 🔴 **Cột màu đỏ:** Nhân viên vượt 100% công suất; phòng ban vượt 100% hoặc nhiều thành viên quá tải.
+     - 🟡 **Cột màu vàng:** Tải dưới 60% hoặc trên 85–100%.
+     - 🟢 **Cột màu xanh lá:** Tải trong khoảng 60–85%; không tự khẳng định năng suất cao.
    - **Tự động hỗ trợ điều chỉnh (San tải):** Nhìn thấy cột màu đỏ, quản lý chỉ cần bấm nút thao tác nhanh để san tải ngay các đầu việc sang các nhân sự/phòng ban khác đang có cột màu xanh/vàng.
 
 2. **Quy trình Đánh giá Năng lực Hai Chiều (Two-Way Competency Evaluation):**
@@ -127,22 +135,23 @@ Biểu đồ tại API `GET /api/resources/productivity/summary` và `GET /api/a
 
 | Mã màu | Trạng thái | Ngưỡng Tỷ lệ Tải (Utilization Rate) | Điều kiện Năng suất | Ý nghĩa & Hành động Quản lý |
 |--------|-----------|-------------------------------------|---------------------|-----------------------------|
-| 🟢 **Xanh lá** (`#10b981`) | **Tối ưu (Optimal)** | `60% <= Utilization <= 85%` | Tỷ lệ trễ hạn/thất bại <= 15% | Nhân viên/phòng ban làm việc hiệu quả, tải ổn định. Sẵn sàng nhận thêm task nếu cần. |
-| 🟡 **Vàng** (`#f59e0b`) | **Cần lưu ý (Warning)** | `Utilization < 50%` (Quá ít việc) **HOẶC** `85% < Utilization <= 100%` (Gần chạm trần) | Tỷ lệ trễ hạn 15% - 30% | Cần theo dõi: nếu non tải (<50%) thì bổ sung task; nếu gần ngưỡng tối đa (>85%) thì hạn chế giao thêm việc khó. |
-| 🔴 **Đỏ** (`#ef4444`) | **Quá tải (Overloaded)** | `Utilization > 100%` (Vượt quá 40h/tuần) | Hoặc tỷ lệ trễ hạn > 30% | **Báo động đỏ!** Quản lý cần bấm nút **"San tải việc ➔"** để chuyển ngay các task chưa hoàn thành sang nhân sự màu xanh lá. |
+| 🟢 **Xanh lá** (`#10b981`) | Tải cân bằng | `60% <= Utilization <= 85%` | Xem riêng, không quyết định màu | Có thể nhận việc nếu kỹ năng, lịch và deadline phù hợp. |
+| 🟡 **Vàng** (`#f59e0b`) | Cần chú ý | `Utilization < 60%` hoặc `85% < Utilization <= 100%` | Xem riêng | Dư công suất hoặc cận trần; kiểm tra bối cảnh trước khi giao thêm. |
+| 🔴 **Đỏ** (`#ef4444`) | Quá tải | `Utilization > 100%`; phòng ban còn đỏ khi ít nhất 1/2 người quá tải | Xem riêng | Cân nhắc san tải; không tự chuyển task. |
 
 ### Công thức tính toán:
 1. **Workload Tuần (Giờ):** Tổng thời gian làm việc ước tính của các task đang thực hiện trải trên tuần hiện tại.
 2. **Capacity Tuần (Giờ):** `maxCapacity * fte` (chuẩn 40 giờ/tuần cho 1.0 FTE).
 3. **Tỷ lệ Tải (%):** `Utilization = (Workload / Capacity) * 100%`.
-4. **Năng suất Phòng ban (%):** Trung bình trọng số của toàn bộ nhân sự trong phòng ban đó.
+4. **Đúng hạn cá nhân (%):** Số việc `done` đúng hạn chia số việc `done` có đủ `completedAt` và `endDate`. Thiếu mẫu là `null`, không phải 100%.
+5. **Đúng hạn phòng ban (%):** Trung bình các tỷ lệ cá nhân có mẫu; `null` nếu không có mẫu. Chỉ số này không đo chất lượng hay độ khó công việc.
 
 ---
 
 ## 5. Các Màn hình & Tính năng trên Giao diện (UI Walkthrough)
 
 ### 5.1. Tab "Năng suất & Cân bằng tải" (`Resources.jsx` + `WorkloadProductivityChart.jsx`)
-- **Vị trí:** Tab thứ 2 tại trang **Nhân sự** (`/resources`).
+- **Vị trí:** Tab mặc định tại trang **Nhân sự** (`/resources`) cho Admin/PM.
 - **Chế độ xem (Toggle Switch):**
   - **Theo từng Nhân sự:** Hiện từng cột đại diện cho mỗi nhân viên, kèm avatar, chức vụ, số giờ làm và % tải.
   - **Theo Phòng ban:** Gộp theo từng bộ phận (Frontend, Backend, Design, QA...), tính tổng giờ tải và tỷ lệ quá tải của cả phòng.
@@ -151,7 +160,7 @@ Biểu đồ tại API `GET /api/resources/productivity/summary` và `GET /api/a
 
 ### 5.2. Modal "Tự đánh giá Năng lực" (`SelfSkillEvaluationModal.jsx`)
 - **Dành cho:** Bất kỳ nhân sự nào đang đăng nhập.
-- **Thao tác:** Bấm nút **"Tự đánh giá năng lực"** ở góc trên danh sách nhân sự.
+- **Thao tác:** Bấm menu **"Tự đánh giá năng lực"** hoặc tab **"Năng lực của tôi"** trong Tài khoản của tôi (`/account?tab=skills`). Role Thành viên dùng được.
 - **Giao diện:**
   - Danh sách toàn bộ kỹ năng hiện có.
   - Tự chọn số sao (1 sao: Mới bắt đầu, 2 sao: Cơ bản, 3 sao: Thành thạo, 4 sao: Chuyên gia).

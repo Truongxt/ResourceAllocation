@@ -60,7 +60,7 @@ const resourceSchema = new mongoose.Schema(
         // Trạng thái đánh giá
         evaluationStatus: {
           type: String,
-          enum: ['draft', 'self_assessed', 'approved'],
+          enum: ['draft', 'self_assessed', 'approved', 'returned'],
           default: 'approved',
         },
         managerFeedback: {
@@ -68,6 +68,8 @@ const resourceSchema = new mongoose.Schema(
           trim: true,
           default: '',
         },
+        evidence: { type: String, trim: true, maxlength: 2000, default: '' },
+        submittedAt: Date,
         evaluatedAt: {
           type: Date,
         },
@@ -77,6 +79,17 @@ const resourceSchema = new mongoose.Schema(
         },
       },
     ],
+    evaluationVersion: { type: Number, default: 0 },
+    skillEvaluationHistory: [{
+      action: { type: String, enum: ['submitted', 'approved', 'returned'], required: true },
+      actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      actorName: String,
+      at: { type: Date, default: Date.now },
+      changes: [{
+        name: String, previousLevel: Number, selfLevel: Number, approvedLevel: Number,
+        feedback: String, evidence: String,
+      }],
+    }],
     // Performance & Productivity Assessment
     performanceRating: {
       type: Number, // Thang điểm 1 - 5 sao
@@ -153,10 +166,8 @@ const resourceSchema = new mongoose.Schema(
 
 // Virtual: utilization rate
 resourceSchema.virtual('utilizationRate').get(function () {
-  // fte cũng được phép bằng 0 (min: 0), không riêng maxCapacity
-  const capacity = this.maxCapacity * this.fte;
-  if (!(capacity > 0)) return 0;
-  return Math.round((this.currentWorkload / capacity) * 100);
+  if (this.maxCapacity * this.fte === 0) return this.currentWorkload > 0 ? 101 : 0;
+  return Math.round((this.currentWorkload / (this.maxCapacity * this.fte)) * 100);
 });
 
 // Virtual: is overloaded

@@ -5,7 +5,8 @@
  * ============================================================================
  */
 
-import React, { useState } from 'react';
+import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, Typography, Tag, Avatar, Space, Row, Col, Badge } from 'antd';
 import {
   UserOutlined,
@@ -18,6 +19,7 @@ import {
   AppstoreOutlined,
   BankOutlined,
   IdcardOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
@@ -29,6 +31,7 @@ import MyLeavesCard from '../../components/settings/MyLeavesCard';
 import UserDirectoryTab from '../../components/settings/UserDirectoryTab';
 import AppPermissionsTab from '../../components/settings/AppPermissionsTab';
 import GroupsTab from '../../components/settings/GroupsTab';
+import MySkillAssessmentTab from '../../components/settings/MySkillAssessmentTab';
 import './Settings.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -37,7 +40,8 @@ export default function Settings() {
   const { t } = useTranslation();
   const { user, updateProfile, changePassword } = useAuth();
   const { isDark } = useTheme();
-  const [activeTab, setActiveTab] = useState('profile');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'profile';
 
   const isAdmin = user?.role === 'admin';
   const isPM = user?.role === 'project_manager';
@@ -54,6 +58,11 @@ export default function Settings() {
         </span>
       ),
       children: <MyProfileTab user={user} updateProfile={updateProfile} />,
+    },
+    {
+      key: 'skills',
+      label: <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 600 }}><StarOutlined /> Năng lực của tôi</span>,
+      children: <MySkillAssessmentTab />,
     },
     {
       key: 'security',
@@ -137,7 +146,7 @@ export default function Settings() {
       >
         <Tabs
           activeKey={activeTab}
-          onChange={setActiveTab}
+          onChange={(key) => setSearchParams(key === 'profile' ? {} : { tab: key })}
           items={tabItems}
           size="large"
           tabBarStyle={{ marginBottom: 20 }}

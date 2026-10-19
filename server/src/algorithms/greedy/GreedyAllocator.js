@@ -59,7 +59,7 @@ class GreedyAllocator {
 
       for (let rIndex = 0; rIndex < numResources; rIndex++) {
         const resource = resources[rIndex];
-        const capacity = (resource.maxCapacity || 40) * (resource.fte || 1);
+        const capacity = (resource.maxCapacity ?? 40) * (resource.fte ?? 1);
         const skillMatch = skillMatrix[tIndex][rIndex];
 
         // Capacity utilization factor: prefer resources with available headroom

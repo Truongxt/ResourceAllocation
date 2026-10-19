@@ -30,6 +30,8 @@ const getDashboardOverview = async (req, res, next) => {
       resourceStats,
       recentOptimizations,
       recentTasks,
+      portfolioProjects,
+      portfolioTasks,
     ] = await Promise.all([
       // Projects
       Project.aggregate([
@@ -129,7 +131,57 @@ const getDashboardOverview = async (req, res, next) => {
         .populate('project', 'name code')
         .populate('assignee', 'name')
         .select('title status priority updatedAt project assignee'),
+
+      // Tổng quan toàn bộ dự án trong phạm vi quyền, không chỉ dự án gần nhất.
+      Project.find(projectMatch)
+        .select('name code status progress endDate')
+        .lean(),
+      Task.aggregate([
+        { $match: taskMatch },
+        { $group: {
+          _id: '$project',
+          total: { $sum: 1 },
+          done: { $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] } },
+          inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] } },
+          review: { $sum: { $cond: [{ $eq: ['$status', 'review'] }, 1, 0] } },
+          blocked: { $sum: { $cond: [{ $eq: ['$status', 'blocked'] }, 1, 0] } },
+          overdue: { $sum: { $cond: [{ $and: [
+            { $not: [{ $in: ['$status', ['done', 'failed']] }] },
+            { $ne: [{ $ifNull: ['$endDate', null] }, null] },
+            { $lt: ['$endDate', new Date()] },
+          ] }, 1, 0] } },
+          unassigned: { $sum: { $cond: [{ $and: [
+            { $not: [{ $in: ['$status', ['done', 'failed']] }] },
+            { $eq: [{ $ifNull: ['$assignee', null] }, null] },
+          ] }, 1, 0] } },
+        } },
+      ]),
     ]);
+
+    const portfolioTaskMap = new Map(portfolioTasks.map((row) => [String(row._id), row]));
+    const projectProgress = portfolioProjects.map((project) => {
+      const counts = portfolioTaskMap.get(String(project._id)) || {};
+      const total = counts.total || 0;
+      return {
+        _id: project._id,
+        name: project.name,
+        code: project.code,
+        status: project.status,
+        endDate: project.endDate,
+        reportedProgress: project.progress || 0,
+        taskProgress: total ? Math.round(((counts.done || 0) / total) * 100) : null,
+        total,
+        done: counts.done || 0,
+        inProgress: counts.inProgress || 0,
+        review: counts.review || 0,
+        blocked: counts.blocked || 0,
+        overdue: counts.overdue || 0,
+        unassigned: counts.unassigned || 0,
+      };
+    }).sort((a, b) =>
+      (b.overdue + b.blocked + b.unassigned) - (a.overdue + a.blocked + a.unassigned)
+      || (a.taskProgress ?? -1) - (b.taskProgress ?? -1)
+    );
 
     const ps = projectStats[0] || { total: 0, active: 0, completed: 0, planning: 0, avgProgress: 0, totalBudget: 0 };
     // SLA đánh giá nằm ở cấu hình dự án nên phải ghép bảng; gộp vào aggregate chung
@@ -194,6 +246,7 @@ const getDashboardOverview = async (req, res, next) => {
         resources: { ...rs, _id: undefined, avgUtilization, overloaded },
         recentOptimizations,
         recentTasks,
+        projectProgress,
       },
     });
   } catch (error) {
@@ -269,7 +322,7 @@ const getUtilizationBreakdown = async (req, res, next) => {
     });
 
     const breakdown = resources.map((r) => {
-      const capacity = (r.maxCapacity || 40) * (r.fte || 1);
+      const capacity = (r.maxCapacity ?? 40) * (r.fte ?? 1);
       const userId = r.user?._id?.toString();
       const assign = userId ? assignMap[userId] : null;
       const outcome = userId ? outcomeMap[userId] : null;
@@ -550,7 +603,7 @@ const getOptimizationComparison = async (req, res, next) => {
     });
 
     const rows = resources.map((r) => {
-      const capacity = (r.maxCapacity || 40) * (r.fte || 1);
+      const capacity = (r.maxCapacity ?? 40) * (r.fte ?? 1);
       const userId = r.user?._id?.toString();
       const beforeWorkload = userId in hoursByUser ? hoursByUser[userId] : (r.currentWorkload || 0);
       const after = afterByResource[r._id.toString()];

@@ -1,4 +1,5 @@
 import MetricStrip from '../../components/common/MetricStrip';
+import { ProjectsOverview } from '../../components/common/OverviewPanel';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -103,8 +104,10 @@ export default function Projects() {
 
   // Projects State
   const [projects, setProjects] = useState([]);
+  const [projectTotal, setProjectTotal] = useState(0);
   const [filters, setFilters] = useState({ search: '', status: '', priority: '', department: '' });
   const [loading, setLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState('table');
   // Vòng đời: dự án đang chạy, kho lưu trữ, hay danh sách mẫu.
@@ -176,13 +179,16 @@ export default function Projects() {
 
   const loadProjects = async () => {
     setLoading(true);
+    setOverviewError(false);
     try {
       const params = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
       if (lifecycle === 'archived') params.archived = 'true';
       if (lifecycle === 'templates') params.templates = 'true';
       const response = await projectService.getAll(params);
       setProjects(response.data.data.projects || []);
+      setProjectTotal(response.data.total ?? response.data.pagination?.total ?? response.data.data.projects?.length ?? 0);
     } catch (error) {
+      setOverviewError(true);
       message.error(error.response?.data?.message || t('projects.loadFailed') || 'Không thể tải danh sách dự án');
     } finally {
       setLoading(false);
@@ -884,6 +890,8 @@ export default function Projects() {
             { label: t('enums.projectStatus.in_progress'), value: projectStats.active },
             { label: t('enums.projectStatus.completed'), value: projectStats.completed },
           ]} />
+          <ProjectsOverview projects={projects} total={projectTotal} loading={loading} error={overviewError}
+            onProject={(id) => navigate(`/projects/${id}`)} />
           {/* Toolbar / Filters */}
           <div className="work-toolbar">
             <Row gutter={[12, 12]} align="middle">

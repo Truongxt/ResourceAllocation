@@ -209,7 +209,8 @@ test.describe('Quản lý dự án', () => {
   test('mở chi tiết một dự án thì thấy đủ các tab và số liệu của nó', async ({ page }) => {
     const problems = watchForProblems(page);
 
-    await page.getByRole('button', { name: SEED.projects[0] }).click();
+    // Khung "Tổng quan dự án" phía trên cũng có nút mang tên dự án — bấm trong bảng.
+    await page.getByRole('table').getByRole('button', { name: SEED.projects[0] }).click();
 
     await expect(page).toHaveURL(/\/projects\/[a-f0-9]{24}/, { timeout: 20_000 });
     await expect(page.getByRole('heading', { name: SEED.projects[0] })).toBeVisible({ timeout: 20_000 });
@@ -235,7 +236,7 @@ test.describe('Quản lý dự án', () => {
   });
 
   test('nút quay lại của trang chi tiết đưa về đúng danh sách', async ({ page }) => {
-    await page.getByRole('button', { name: SEED.projects[0] }).click();
+    await page.getByRole('table').getByRole('button', { name: SEED.projects[0] }).click();
     await expect(page).toHaveURL(/\/projects\/[a-f0-9]{24}/, { timeout: 20_000 });
 
     await page.getByRole('button', { name: 'Danh sách dự án' }).click();

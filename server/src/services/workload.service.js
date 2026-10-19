@@ -14,13 +14,13 @@ const { weeklyLoadOf } = require('../analytics/workloadTrend');
  * dưới 40h.
  *
  * Nay dùng lại chính phép tính của biểu đồ xu hướng (`analytics/workloadTrend.js`):
- * trải giờ của task lên các ngày làm việc rồi chỉ lấy phần rơi vào **tuần hiện tại** —
- * đúng nghĩa chữ "current" trong tên field.
+ * trải giờ của task lên các ngày làm việc rồi lấy **tuần cao điểm** của từng người.
+ * Báo cáo theo kỳ dùng workloadPeriod.js; không cộng các tuần cao điểm thành tải phòng ban.
  *
  * Giờ công của task **chưa xếp lịch** (thiếu ngày, hoặc ngày đảo ngược) không trải lên
  * trục thời gian được nên không vào `currentWorkload`; nó được đếm riêng vào
  * `unscheduledWorkload` thay vì biến mất — cùng quy ước với `excluded.unscheduledHours`
- * của biểu đồ xu hướng. `availability` vì vậy phản ánh **lịch đã xếp của tuần này**,
+ * của biểu đồ xu hướng. `availability` vì vậy phản ánh **lịch đã xếp ở tuần cao điểm**,
  * còn khối việc chưa xếp là một cảnh báo tách bạch.
  *
  * @param {Array<string|ObjectId>|string|ObjectId|null} userIds - Danh sách User ID cần tính lại, hoặc null để tính toàn bộ.
@@ -54,7 +54,7 @@ const syncResourceWorkload = async (userIds = null) => {
       resource.unscheduledWorkload = Math.round(unscheduledHours * 10) / 10;
 
       // Tính toán lại độ sẵn sàng (availability) theo tuần nặng nhất
-      const capacity = (resource.maxCapacity || 40) * (resource.fte || 1);
+      const capacity = (resource.maxCapacity ?? 40) * (resource.fte ?? 1);
       if (capacity <= 0 || peakWeekHours > capacity) {
         resource.availability = 'unavailable';
       } else if (peakWeekHours / capacity >= 0.7) {

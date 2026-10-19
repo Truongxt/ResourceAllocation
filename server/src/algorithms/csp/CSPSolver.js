@@ -285,7 +285,7 @@ class CSPSolver {
    */
   _checkCapacityConstraint(resourceIdx, resources, loads, demand) {
     const resource = resources[resourceIdx];
-    const capacity = (resource.maxCapacity || 40) * (resource.fte || 1);
+    const capacity = (resource.maxCapacity ?? 40) * (resource.fte ?? 1);
     const load = loads[resourceIdx];
 
     for (const [week, hours] of demand.weeks) {
@@ -370,7 +370,7 @@ class CSPSolver {
       const demand = weeklyDemandOf(tasks[t]);
       const needed = Math.max(demand.peakWeekHours, demand.unscheduledHours);
       return domain.filter((rIdx) => {
-        const capacity = (resources[rIdx].maxCapacity || 40) * (resources[rIdx].fte || 1);
+        const capacity = (resources[rIdx].maxCapacity ?? 40) * (resources[rIdx].fte ?? 1);
         if (needed > capacity) return false;
 
         // Người đã kín lịch vì việc ở dự án khác phải bị loại ngay từ bước lọc miền.
@@ -523,7 +523,7 @@ class CSPSolver {
   _orderCandidates(varIdx, domains, resources, loads) {
     const project = this._projectOfTask[varIdx];
     const scoreOf = (rIdx) => {
-      const capacity = (resources[rIdx].maxCapacity || 40) * (resources[rIdx].fte || 1);
+      const capacity = (resources[rIdx].maxCapacity ?? 40) * (resources[rIdx].fte ?? 1);
       const room = capacity > 0 ? Math.max(0, Math.min(1, (capacity - this._peakOf(loads[rIdx])) / capacity)) : 0;
       const sameProject = project && this._projectCounts[rIdx].get(project) ? 1 : 0;
       return SOFT_WEIGHTS.skill * this._skillMatrix[varIdx][rIdx]
@@ -589,7 +589,7 @@ class CSPSolver {
 
     // Check capacity for each resource
     resources.forEach((r, i) => {
-      const capacity = (r.maxCapacity || 40) * (r.fte || 1);
+      const capacity = (r.maxCapacity ?? 40) * (r.fte ?? 1);
       const peak = Math.round(this._peakOf(loads[i]) * 10) / 10;
       const detail = `${peak}/${capacity}h mỗi tuần`;
       if (peak <= capacity) {
@@ -660,7 +660,7 @@ class CSPSolver {
     const lines = [];
     const nameOf = (r, i) => r.userName || r.position || `Nhân sự ${i + 1}`;
     const round1 = (n) => Math.round(n * 10) / 10;
-    const capOf = (r) => (r.maxCapacity || 40) * (r.fte || 1);
+    const capOf = (r) => (r.maxCapacity ?? 40) * (r.fte ?? 1);
 
     // Ai đang bận sẵn vì việc ở nơi khác
     resources.forEach((r, i) => {

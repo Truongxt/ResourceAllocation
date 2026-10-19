@@ -19,7 +19,7 @@ test('khai trường chọn một, điền khi tạo việc, xem trong chi tiế
 
   // 1. Khai trường ở chi tiết dự án
   await page.goto('/projects');
-  await page.getByRole('button', { name: PROJECT }).click();
+  await page.getByRole('table').getByRole('button', { name: PROJECT }).click();
   await expect(page.getByRole('heading', { name: PROJECT })).toBeVisible({ timeout: 20_000 });
   await page.getByRole('tab', { name: 'Trường tùy chỉnh' }).click();
   const panel = page.getByRole('tabpanel', { name: 'Trường tùy chỉnh' });

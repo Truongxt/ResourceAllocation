@@ -47,6 +47,7 @@ import { taskStatusLabel, priorityLabel } from '../../i18n/enums';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import TaskKpiChips from './components/TaskKpiChips';
+import { TasksOverview } from '../../components/common/OverviewPanel';
 import TaskFilterBar from './components/TaskFilterBar';
 import TaskKanbanView from './components/TaskKanbanView';
 import TaskTableView from './components/TaskTableView';
@@ -81,6 +82,7 @@ export default function Tasks() {
   const projectOf = (ref) => projects.find((p) => (p._id || p.id) === String(ref?._id || ref || ''));
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [view, setView] = useState('kanban');
   const [filters, setFilters] = useState({ search: '', project: '', priority: '' });
@@ -163,11 +165,13 @@ export default function Tasks() {
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
+    setOverviewError(false);
     try {
       const { tasks: loaded, total } = await taskService.getAllPages(taskQueryParams(), SCREEN_MAX_PAGES);
       setTasks(loaded);
       setTaskTotal(total);
     } catch {
+      setOverviewError(true);
       message.error(t('tasks.loadFailed') || 'Không thể tải danh sách công việc');
     } finally {
       setLoading(false);
@@ -755,6 +759,7 @@ export default function Tasks() {
       {taskTotal > tasks.length && (
         <Alert type="warning" showIcon style={{ marginBottom: 12 }} title={t('tasks.truncated', { shown: tasks.length, total: taskTotal })} />
       )}
+      <TasksOverview tasks={tasks} total={taskTotal} loading={loading} error={overviewError} />
 
       {/* 2. Thanh lọc & tìm kiếm */}
       <TaskFilterBar

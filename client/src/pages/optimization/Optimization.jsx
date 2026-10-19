@@ -34,6 +34,7 @@ import OptimizationConfigCard from '../../components/optimization/OptimizationCo
 import OptimizationResultView from '../../components/optimization/OptimizationResultView';
 import OptimizationHistoryTable from '../../components/optimization/OptimizationHistoryTable';
 import OptimizationCompareView from '../../components/optimization/OptimizationCompareView';
+import { OptimizationOverview } from '../../components/common/OverviewPanel';
 import './Optimization.css';
 
 const { Title, Text } = Typography;
@@ -73,6 +74,7 @@ export default function Optimization() {
   // --- TRẠNG THÁI TIỀN KIỂM TRA (READINESS / PREFLIGHT) ---
   const [readiness, setReadiness] = useState(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
+  const [readinessError, setReadinessError] = useState(false);
 
   /**
    * Tải danh sách dự án cho bộ lọc
@@ -115,11 +117,12 @@ export default function Optimization() {
       return;
     }
     setReadinessLoading(true);
+    setReadinessError(false);
     try {
       const res = await optimizationService.getReadiness(params.projectId || undefined);
       setReadiness(res.data?.data || null);
     } catch {
-      // Bỏ qua lỗi kết nối
+      setReadinessError(true);
     } finally {
       setReadinessLoading(false);
     }
@@ -313,6 +316,8 @@ export default function Optimization() {
       <div className="optimization-guide" aria-label={t('workspace.allocationFlow')}>
         <span><b>1</b>{t('workspace.chooseScope')}</span><span><b>2</b>{t('workspace.reviewProposal')}</span><span><b>3</b>{t('workspace.applyAllocation')}</span>
       </div>
+      <OptimizationOverview readiness={readiness} loading={readinessLoading} error={readinessError}
+        projectName={projects.find((project) => project._id === params.projectId)?.name} />
       <Row gutter={[24, 24]}>
         {/* Cột trái: Panel cấu hình tham số */}
         <Col xs={24} lg={8}>
