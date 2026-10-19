@@ -18,8 +18,11 @@ import projectService from '../../services/projectService';
  *
  * Lưu trữ bị server từ chối (409) khi còn việc mở hoặc việc lặp lại đang bật; câu trả
  * lời đã nói rõ còn bao nhiêu, nên chỉ cần hiện nguyên văn.
+ *
+ * `canArchive` (lưu trữ / mở lại) và `canDuplicate` (nhân bản / mẫu) bỏ những mục không thuộc
+ * quyền; không còn mục nào thì không hiện nút "…".
  */
-export default function ProjectLifecycleMenu({ project, onDuplicate, onChanged }) {
+export default function ProjectLifecycleMenu({ project, canArchive = true, canDuplicate = true, onDuplicate, onChanged }) {
   const { t } = useTranslation();
 
   const archive = () =>
@@ -48,22 +51,27 @@ export default function ProjectLifecycleMenu({ project, onDuplicate, onChanged }
     }
   };
 
+  const duplicateItems = canDuplicate ? [
+    { key: 'duplicate', icon: <CopyOutlined />, label: t('projects.lifecycle.duplicate') },
+  ] : [];
   let items;
   if (project.isTemplate) {
-    items = [{ key: 'fromTemplate', icon: <FileAddOutlined />, label: t('projects.lifecycle.createFromTemplate') }];
+    items = canDuplicate
+      ? [{ key: 'fromTemplate', icon: <FileAddOutlined />, label: t('projects.lifecycle.createFromTemplate') }]
+      : [];
   } else if (project.isArchived) {
     items = [
-      { key: 'unarchive', icon: <RollbackOutlined />, label: t('projects.lifecycle.unarchive') },
-      { key: 'duplicate', icon: <CopyOutlined />, label: t('projects.lifecycle.duplicate') },
+      ...(canArchive ? [{ key: 'unarchive', icon: <RollbackOutlined />, label: t('projects.lifecycle.unarchive') }] : []),
+      ...duplicateItems,
     ];
   } else {
-    items = [
-      { key: 'duplicate', icon: <CopyOutlined />, label: t('projects.lifecycle.duplicate') },
-      { key: 'saveTemplate', icon: <SnippetsOutlined />, label: t('projects.lifecycle.saveAsTemplate') },
-      { type: 'divider' },
-      { key: 'archive', icon: <InboxOutlined />, label: t('projects.lifecycle.archive') },
-    ];
+    const copyItems = canDuplicate
+      ? [...duplicateItems, { key: 'saveTemplate', icon: <SnippetsOutlined />, label: t('projects.lifecycle.saveAsTemplate') }]
+      : [];
+    const archiveItems = canArchive ? [{ key: 'archive', icon: <InboxOutlined />, label: t('projects.lifecycle.archive') }] : [];
+    items = [...copyItems, ...(copyItems.length && archiveItems.length ? [{ type: 'divider' }] : []), ...archiveItems];
   }
+  if (!items.length) return null;
 
   const onClick = ({ key }) => {
     if (key === 'archive') archive();

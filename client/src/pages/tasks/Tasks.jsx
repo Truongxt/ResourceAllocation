@@ -60,6 +60,7 @@ import TaskExcelImportModal from '../../components/tasks/TaskExcelImportModal';
 import RecurringTaskModal from '../../components/tasks/RecurringTaskModal';
 import RemindersDrawer from '../../components/tasks/RemindersDrawer';
 import PendingReviewDrawer from '../../components/tasks/PendingReviewDrawer';
+import { canManageProject } from '../../utils/projectAccess';
 import './Tasks.css';
 
 const { Title, Text } = Typography;
@@ -824,10 +825,13 @@ export default function Tasks() {
         dependencyOptions={dependencyOptions}
         selectedProject={selectedProject}
         taskGroups={taskGroups}
-        onManageTaskGroups={(projId) => {
-          setManageGroupProjectId(projId);
-          setTaskGroupModalOpen(true);
-        }}
+        // Nhóm công việc chỉ Admin/Owner hoặc PM của dự án đang chọn quản lý được.
+        onManageTaskGroups={canManageProject(user, projects.find((p) => p._id === selectedProject))
+          ? (projId) => {
+            setManageGroupProjectId(projId);
+            setTaskGroupModalOpen(true);
+          }
+          : undefined}
         onSubmit={handleFormSubmit}
         submitting={submitting}
         t={t}

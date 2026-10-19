@@ -19,6 +19,9 @@ const { default: ProjectLifecycleMenu } = await import('../src/components/projec
 const { default: ProjectDuplicateModal } = await import('../src/components/projects/ProjectDuplicateModal');
 const { default: ProjectRowActions } = await import('../src/components/projects/ProjectRowActions');
 
+const ADMIN = { _id: 'u-admin', role: 'admin' };
+const PM = { _id: 'u-pm', role: 'project_manager' };
+const MEMBER = { _id: 'u-member', role: 'member' };
 const project = (extra = {}) => ({ _id: 'p1', name: 'Website', startDate: '2026-11-02T00:00:00.000Z', ...extra });
 const openMenu = async () => userEvent.click(screen.getByRole('button', { name: 'Thao tác khác' }));
 
@@ -87,29 +90,65 @@ describe('Cụm thao tác của một dự án', () => {
   const EDIT_BUTTONS = ['Quản lý nhóm công việc', 'Chỉnh sửa nhanh', 'Sửa', 'Xóa'];
 
   it('dự án đang chạy: đủ nút sửa, xóa và menu vòng đời', () => {
-    renderWithProviders(<ProjectRowActions project={project()} canManage />);
+    renderWithProviders(<ProjectRowActions project={project()} user={ADMIN} canManage />);
     for (const name of EDIT_BUTTONS) expect(screen.getByRole('button', { name })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Thao tác khác' })).toBeInTheDocument();
   });
 
   it('dự án lưu trữ: chỉ còn menu vòng đời', () => {
-    renderWithProviders(<ProjectRowActions project={project({ isArchived: true })} canManage />);
+    renderWithProviders(<ProjectRowActions project={project({ isArchived: true })} user={ADMIN} canManage />);
     for (const name of EDIT_BUTTONS) expect(screen.queryByRole('button', { name })).toBeNull();
     expect(screen.getByRole('button', { name: 'Thao tác khác' })).toBeInTheDocument();
   });
 
   it('quyền phân hệ "Chỉ xem": không có nút nào', () => {
-    const { container } = renderWithProviders(<ProjectRowActions project={project()} canManage={false} />);
+    const { container } = renderWithProviders(<ProjectRowActions project={project()} user={ADMIN} canManage={false} />);
     expect(container.querySelectorAll('button')).toHaveLength(0);
   });
 
   it('nút gọi lại với đúng dự án', async () => {
     const onEdit = vi.fn();
     const onQuickEdit = vi.fn();
-    renderWithProviders(<ProjectRowActions project={project()} canManage onEdit={onEdit} onQuickEdit={onQuickEdit} />);
+    renderWithProviders(<ProjectRowActions project={project()} user={ADMIN} canManage onEdit={onEdit} onQuickEdit={onQuickEdit} />);
     await userEvent.click(screen.getByRole('button', { name: 'Sửa' }));
     await userEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa nhanh' }));
     expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ _id: 'p1' }));
     expect(onQuickEdit).toHaveBeenCalledWith(expect.objectContaining({ _id: 'p1' }));
+  });
+});
+
+// Thao tác không thuộc quyền thì không hiện — không để người dùng bấm rồi nhận 403. Luật khớp
+// server (services/projectAccess.js): quản lý dự án là Admin/Owner hoặc PM của chính dự án đó;
+// nhân bản / mẫu thì mọi PM.
+describe('Chỉ hiện thao tác thuộc quyền', () => {
+  const EDIT_BUTTONS = ['Quản lý nhóm công việc', 'Chỉnh sửa nhanh', 'Sửa', 'Xóa'];
+  const othersProject = (extra = {}) => project({ manager: { _id: 'u-other' }, ...extra });
+
+  it('thành viên: không có nút nào', () => {
+    const { container } = renderWithProviders(<ProjectRowActions project={othersProject()} user={MEMBER} canManage />);
+    expect(container.querySelectorAll('button')).toHaveLength(0);
+  });
+
+  it('PM ở dự án người khác: chỉ còn nhân bản và lưu thành mẫu', async () => {
+    renderWithProviders(<ProjectRowActions project={othersProject()} user={PM} canManage />);
+    for (const name of EDIT_BUTTONS) expect(screen.queryByRole('button', { name })).toBeNull();
+    await openMenu();
+    expect(await screen.findByText('Nhân bản')).toBeInTheDocument();
+    expect(screen.getByText('Lưu thành mẫu')).toBeInTheDocument();
+    expect(screen.queryByText('Lưu trữ')).toBeNull();
+  });
+
+  it('PM ở dự án người khác đã lưu trữ: nhân bản được, không mở lại được', async () => {
+    renderWithProviders(<ProjectRowActions project={othersProject({ isArchived: true })} user={PM} canManage />);
+    await openMenu();
+    expect(await screen.findByText('Nhân bản')).toBeInTheDocument();
+    expect(screen.queryByText('Mở lại')).toBeNull();
+  });
+
+  it('PM ở dự án mình quản lý: đủ nút và lưu trữ được', async () => {
+    renderWithProviders(<ProjectRowActions project={project({ manager: 'u-pm' })} user={PM} canManage />);
+    for (const name of EDIT_BUTTONS) expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    await openMenu();
+    expect(await screen.findByText('Lưu trữ')).toBeInTheDocument();
   });
 });

@@ -350,6 +350,7 @@ export default function Projects() {
   const renderProjectActions = (project) => (
     <ProjectRowActions
       project={project}
+      user={user}
       canManage={canManageModule('projects')}
       onTaskGroups={(p) => {
         setGroupProjectTarget(p);
