@@ -67,6 +67,8 @@ check('PM', canCreateProject(PM, {}), true);
 check('thành viên, công ty chỉ cho quản trị', canCreateProject(MEMBER, { createProjectPermission: 'only_admin' }), false);
 check('thành viên, công ty cho mọi người', canCreateProject(MEMBER, { createProjectPermission: 'all_members' }), true);
 check('chưa tải cấu hình công ty', canCreateProject(MEMBER, null), false);
+check('thành viên là App Admin work: tạo được dù công ty chỉ cho quản trị', canCreateProject({ ...MEMBER, appAdmins: ['work'] }, { createProjectPermission: 'only_admin' }), true);
+check('App Admin ứng dụng khác thì không', canCreateProject({ ...MEMBER, appAdmins: ['optimize'] }, null), false);
 
 console.log(`\n${failed === 0 ? '✅' : '❌'} ${passed} đạt, ${failed} lỗi\n`);
 process.exit(failed === 0 ? 0 : 1);

@@ -32,11 +32,12 @@ export const canCreateTaskIn = (user, project) => {
 };
 
 /**
- * Tạo dự án mới — khớp `createProject` (server/src/controllers/project.controller.js): Admin/Owner
- * và PM luôn được; thành viên chỉ khi công ty đặt `createProjectPermission: 'all_members'`.
+ * Tạo dự án mới — khớp `createProject` (server/src/controllers/project.controller.js): Admin/Owner,
+ * PM và App Admin `work` luôn được; thành viên khác chỉ khi công ty đặt
+ * `createProjectPermission: 'all_members'`. Người tạo thành người quản lý dự án đó.
  */
 export const canCreateProject = (user, companySettings) => {
   if (!user) return false;
-  if (user.role === 'member' && !user.isOwner) return companySettings?.createProjectPermission === 'all_members';
-  return isAdmin(user) || user.role === 'project_manager';
+  if (isAdmin(user) || user.role === 'project_manager' || (user.appAdmins || []).includes('work')) return true;
+  return companySettings?.createProjectPermission === 'all_members';
 };

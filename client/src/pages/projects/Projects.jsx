@@ -168,8 +168,8 @@ export default function Projects() {
   // phân hệ xuống "Chỉ xem" thì dù vai trò có cao tới đâu cũng không ghi được,
   // vì server đã chặn bằng `requireAppPermission`. Không nhân điều kiện này vào
   // đây thì nút vẫn hiện và bấm vào chỉ để nhận 403.
-  // Luật tạo dự án dùng chung với mobile (utils/projectAccess.js), khớp server: Thành viên —
-  // kể cả App Admin `work` — chỉ tạo được khi công ty cho phép mọi người tạo.
+  // Luật tạo dự án dùng chung với mobile (utils/projectAccess.js), khớp server: Admin/Owner, PM
+  // và App Admin `work`; thành viên khác chỉ khi công ty cho phép mọi người tạo.
   const canCreateProject = canManageModule('projects') && canCreateProjectFor(user, companySettings);
 
   const canManageDepartment = canCreateDepartment;

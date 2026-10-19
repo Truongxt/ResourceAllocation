@@ -1,5 +1,5 @@
 const express = require('express');
-const { protect, authorize } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 const {
   getRecurringTasks,
   createRecurringTask,
@@ -15,9 +15,10 @@ router.use(protect);
 
 router.get('/', getRecurringTasks);
 router.post('/preview', previewSchedule);
-router.post('/', authorize('admin', 'project_manager'), createRecurringTask);
-router.put('/:id', authorize('admin', 'project_manager'), updateRecurringTask);
-router.delete('/:id', authorize('admin', 'project_manager'), deleteRecurringTask);
-router.post('/:id/run-now', authorize('admin', 'project_manager'), triggerRunNow);
+// Admin/Owner hoặc người quản lý của dự án — kiểm ở controller (managesProjectId).
+router.post('/', createRecurringTask);
+router.put('/:id', updateRecurringTask);
+router.delete('/:id', deleteRecurringTask);
+router.post('/:id/run-now', triggerRunNow);
 
 module.exports = router;

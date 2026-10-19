@@ -145,6 +145,50 @@ S('Bàn giao hàng loạt và việc lặp lại: PM chỉ trên dự án mình 
 }
 
 // ══════════════════════════════════════════════
+// App Admin `work` (quản trị ứng dụng Wework, do Owner cấp) tạo được dự án dù vai trò là thành
+// viên — đồng bộ với tạo phòng ban. Người tạo thành người quản lý dự án, nên quản lý được dự án
+// đó: luật gắn với dự án, không gắn với nhãn vai trò.
+S('App Admin work: tạo dự án và quản lý dự án mình tạo');
+{
+  const regC = await call('POST', '/auth/register', {
+    body: { name: 'Chủ C', email: `owner.c.${stamp}@c.com`, password: 'password123', companyName: `Công ty C perm ${stamp}` },
+  });
+  const ownerC = regC.data?.token;
+  const mkUser = async (tag) => (await call('POST', '/auth/users', {
+    token: ownerC, body: { name: `NV ${tag}`, email: `${tag}.${stamp}@c.com`, password: 'password123', role: 'member' },
+  })).data?.user?._id;
+  const workAdminId = await mkUser('workadmin');
+  const plainId = await mkUser('plain');
+  const grant = await call('PUT', `/auth/users/${workAdminId}/app-admin`, { token: ownerC, body: { appAdmins: ['work'] } });
+  ok(grant.status === 200, 'Owner cấp App Admin work cho một thành viên', `status=${grant.status}`);
+  const workAdmin = await login(`workadmin.${stamp}@c.com`);
+  const plain = await login(`plain.${stamp}@c.com`);
+
+  const blocked = await call('POST', '/projects', { token: plain, body: { name: `Thành viên thường ${stamp}`, startDate: '2026-11-02', endDate: '2026-12-31' } });
+  ok(blocked.status === 403, 'Thành viên thường không tạo được dự án (công ty để mặc định)', `status=${blocked.status}`);
+
+  const created = await call('POST', '/projects', { token: workAdmin, body: { name: `Dự án của App Admin ${stamp}`, startDate: '2026-11-02', endDate: '2026-12-31' } });
+  ok(created.status === 201, 'App Admin work tạo được dự án', `status=${created.status} ${created.message || ''}`);
+  const own = created.data?.project?._id;
+  ok(String(created.data?.project?.manager?._id || created.data?.project?.manager) === String(workAdminId), 'Người tạo là người quản lý dự án');
+
+  const edit = await call('PUT', `/projects/${own}`, { token: workAdmin, body: { description: 'Sửa dự án mình tạo' } });
+  ok(edit.status === 200, 'Người quản lý (vai trò thành viên) sửa được dự án mình', `status=${edit.status}`);
+  const addMember = await call('POST', `/projects/${own}/members`, { token: workAdmin, body: { user: plainId, role: 'developer', allocation: 30 } });
+  ok(addMember.status === 200 || addMember.status === 201, 'Thêm được thành viên vào dự án mình', `status=${addMember.status}`);
+  const recurring = await call('POST', '/recurring-tasks', {
+    token: workAdmin, body: { title: `Lặp C ${stamp}`, project: own, frequency: 'weekly', daysOfWeek: [1], startDate: '2026-11-02', durationHours: 2 },
+  });
+  ok(recurring.status === 201, 'Cấu hình được việc lặp lại trong dự án mình', `status=${recurring.status}`);
+  await call('DELETE', `/recurring-tasks/${recurring.data?.recurringTask?._id}`, { token: workAdmin });
+  const archive = await call('POST', `/projects/${own}/archive`, { token: workAdmin });
+  ok(archive.status === 200, 'Lưu trữ được dự án mình', `status=${archive.status}`);
+
+  const byPlain = await call('PUT', `/projects/${own}`, { token: plain, body: { description: 'Thành viên sửa' } });
+  ok(byPlain.status === 403 || byPlain.status === 409, 'Thành viên của dự án vẫn không sửa được dự án', `status=${byPlain.status}`);
+}
+
+// ══════════════════════════════════════════════
 S('Xóa dự án mình quản lý');
 {
   const del = await call('DELETE', `/projects/${pmProject}?force=true`, { token: pm });

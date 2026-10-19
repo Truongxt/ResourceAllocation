@@ -233,16 +233,15 @@ const createProject = async (req, res, next) => {
     const isPM = req.user?.role === 'project_manager';
     const isWeworkAdmin = req.user?.appAdmins?.includes('work');
 
+    // App Admin `work` tạo được dù vai trò là thành viên — như tạo phòng ban. Trước đây nhánh
+    // "là thành viên thì xem cấu hình" ghi đè cả App Admin, trái với chính thông báo lỗi bên dưới.
+    // Người tạo thành người quản lý dự án, nên quản lý được dự án mình tạo (services/projectAccess.js).
     let canCreate = isOwner || isAdmin || isWeworkAdmin || isPM;
 
-    // Kiểm tra cấu hình hệ thống Base Wework của công ty
-    if (!canCreate || req.user?.role === 'member') {
+    // Còn lại: theo cấu hình Base Wework của công ty
+    if (!canCreate) {
       const settings = await CompanySetting.findOne({ companyName: userCompany });
-      if (settings?.createProjectPermission === 'all_members') {
-        canCreate = true;
-      } else {
-        canCreate = false;
-      }
+      canCreate = settings?.createProjectPermission === 'all_members';
     }
 
     if (!canCreate) {

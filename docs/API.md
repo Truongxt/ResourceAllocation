@@ -32,7 +32,8 @@
 - 🔒 Protected - Cần JWT token (bất kỳ user nào đã đăng nhập)
 - 👑 Admin only - Chỉ role `admin`
 - 📋 PM+ - `admin` hoặc `project_manager`
-- 📁 PM dự án - `admin`/Owner, hoặc PM là `manager` của **chính dự án đó**. Ở dự án khác — kể cả khi có tên
+- 📁 PM dự án - `admin`/Owner, hoặc người là `manager` của **chính dự án đó** (không xét nhãn vai trò: thành viên
+  được đặt làm quản lý — ví dụ App Admin `work` tự tạo dự án — cũng có quyền này). Ở dự án khác — kể cả khi có tên
   trong dự án — PM chỉ có quyền như một thành viên (theo công tắc `permissions` của dự án và vai trò trên từng việc)
 
 ---
@@ -437,14 +438,14 @@ cả — kể cả công ty vừa tạo ra nó cũng không thấy nó trong `GE
 | GET | `/stats/summary` | Thống kê dự án (theo status, priority, tổng ngân sách) | 🔒 |
 | GET | `/` | Danh sách dự án | 🔒 |
 | GET | `/:id` | Chi tiết dự án (kèm tasks + members, tự tính lại progress) | 🔒 |
-| POST | `/` | Tạo dự án | 📋 PM+ |
-| PUT | `/:id` | Cập nhật dự án | 📋 PM của dự án, Admin |
-| DELETE | `/:id` | Xóa dự án | 📋 PM của dự án, Admin |
-| POST | `/:id/members` | Thêm thành viên | 📋 PM của dự án, Admin |
-| PUT | `/:id/members/:userId` | Cập nhật vai trò / allocation của thành viên | 📋 PM của dự án, Admin |
-| DELETE | `/:id/members/:userId` | Xóa thành viên | 📋 PM của dự án, Admin |
-| POST | `/:id/archive` | Lưu trữ (409 nếu còn việc mở hoặc việc lặp lại đang bật) | 📋 PM của dự án, Admin |
-| POST | `/:id/unarchive` | Mở lại dự án đã lưu trữ | 📋 PM của dự án, Admin |
+| POST | `/` | Tạo dự án (người tạo thành `manager`) | 📋 PM+, App Admin `work`, hoặc mọi người khi công ty đặt `createProjectPermission: 'all_members'` |
+| PUT | `/:id` | Cập nhật dự án | 📁 PM dự án |
+| DELETE | `/:id` | Xóa dự án | 📁 PM dự án |
+| POST | `/:id/members` | Thêm thành viên | 📁 PM dự án |
+| PUT | `/:id/members/:userId` | Cập nhật vai trò / allocation của thành viên | 📁 PM dự án |
+| DELETE | `/:id/members/:userId` | Xóa thành viên | 📁 PM dự án |
+| POST | `/:id/archive` | Lưu trữ (409 nếu còn việc mở hoặc việc lặp lại đang bật) | 📁 PM dự án |
+| POST | `/:id/unarchive` | Mở lại dự án đã lưu trữ | 📁 PM dự án |
 | POST | `/:id/duplicate` | Nhân bản / lưu thành mẫu / tạo từ mẫu (mọi dự án trong công ty) | 📋 PM+ |
 | PATCH | `/:id/permissions` | Công tắc quyền thao tác (`permissions`), kèm `failureConfig` và `reviewConfig` | Admin/Owner hoặc PM của dự án |
 | PUT | `/:id/custom-fields` | Khai trường dữ liệu tùy chỉnh (xem bên dưới) | Admin/Owner hoặc PM của dự án |
@@ -1627,10 +1628,10 @@ mảng**, nên chỉ cần gửi đúng thứ tự mong muốn, không cần t�
 |--------|----------|-------|------|
 | GET | `/` | Danh sách khuôn | 🔒 |
 | POST | `/preview` | Xem trước các mốc ngày sẽ sinh — **không** ghi gì | 🔒 |
-| POST | `/` | Tạo khuôn | 🔑 admin, PM |
-| PUT | `/:id` | Sửa khuôn | 🔑 admin, PM |
-| DELETE | `/:id` | Xóa khuôn | 🔑 admin, PM |
-| POST | `/:id/run-now` | Sinh ngay một Task từ khuôn, không chờ tới hạn | 🔑 admin, PM |
+| POST | `/` | Tạo khuôn | 📁 PM dự án |
+| PUT | `/:id` | Sửa khuôn | 📁 PM dự án |
+| DELETE | `/:id` | Xóa khuôn | 📁 PM dự án |
+| POST | `/:id/run-now` | Sinh ngay một Task từ khuôn, không chờ tới hạn | 📁 PM dự án |
 
 **POST /preview** — body `{ frequency, interval?, daysOfWeek?, dayOfMonth?, startDate, durationHours? }`.
 Trả về 10 mốc kế tiếp. Đây là endpoint **chỉ đọc**, dùng để người dùng kiểm lại cấu hình

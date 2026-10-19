@@ -50,8 +50,13 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   quyền. Nay mobile dùng chung luật quyền với web (`utils/projectAccess.js`, `utils/taskPermissions.js` — bản chép
   khóa bằng `shared-copies.test.mjs`). Kèm hai lỗi: nút Phê duyệt / Trả lại gửi `approved`/`rejected` (server nhận
   `approve`/`reject`) nên chưa từng chạy được; chạm nhãn trạng thái ở dạng danh sách gọi `setSelectedTask` không tồn
-  tại nên app lỗi — nay chuyển việc sang bước kế tiếp. Web: nút tạo dự án theo đúng luật server (App Admin `work` là
-  thành viên chỉ tạo được khi công ty cho phép mọi người).
+  tại nên app lỗi — nay chuyển việc sang bước kế tiếp.
+- **App Admin `work` không tạo được dự án, và người quản lý có vai trò thành viên bị 403 trên chính dự án mình.**
+  `createProject` tính quyền App Admin `work` rồi ghi đè ngay bằng nhánh "là thành viên thì xem cấu hình công ty", trái
+  với chính thông báo lỗi ("chỉ Admin & App Admin"); tạo phòng ban thì vẫn cho. Các route sửa, xóa, thành viên, lưu trữ
+  dự án và việc lặp lại còn chặn vai trò (`authorize('admin', 'project_manager')`) trước khi kiểm người quản lý. Nay App
+  Admin `work` tạo được dự án và trở thành người quản lý; các route đó chỉ kiểm "Admin/Owner hoặc người quản lý của dự
+  án", không kiểm nhãn vai trò. Nhân bản / mẫu vẫn dành cho Admin và PM.
 
 ---
 

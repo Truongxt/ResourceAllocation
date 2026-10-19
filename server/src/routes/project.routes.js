@@ -176,19 +176,21 @@ router.param('id', async (req, res, next, id) => {
   }
 });
 
-router.post('/:id/archive', authorize('admin', 'project_manager'), projectIdValidation, validate, archiveProject);
-router.post('/:id/unarchive', authorize('admin', 'project_manager'), projectIdValidation, validate, unarchiveProject);
+// Sửa, xóa, thành viên, lưu trữ: Admin/Owner hoặc người quản lý của dự án — kiểm ở controller
+// (ensureManagesProject), không kiểm nhãn vai trò. Nhân bản / mẫu vẫn dành cho Admin và PM.
+router.post('/:id/archive', projectIdValidation, validate, archiveProject);
+router.post('/:id/unarchive', projectIdValidation, validate, unarchiveProject);
 router.post('/:id/duplicate', authorize('admin', 'project_manager'), projectIdValidation, validate, duplicateProject);
 
 router.get('/stats/summary', getProjectSummary);
 router.get('/', listValidation, validate, getProjects);
 router.get('/:id', projectIdValidation, validate, getProjectById);
 router.post('/', projectValidation, validate, createProject);
-router.put('/:id', authorize('admin', 'project_manager'), projectIdValidation, updateProjectValidation, validate, updateProject);
-router.delete('/:id', authorize('admin', 'project_manager'), projectIdValidation, validate, deleteProject);
-router.post('/:id/members', authorize('admin', 'project_manager'), projectIdValidation, memberValidation, validate, addProjectMember);
-router.put('/:id/members/:userId', authorize('admin', 'project_manager'), projectIdValidation, userIdValidation, updateMemberValidation, validate, updateProjectMember);
-router.delete('/:id/members/:userId', authorize('admin', 'project_manager'), projectIdValidation, userIdValidation, validate, removeProjectMember);
+router.put('/:id', projectIdValidation, updateProjectValidation, validate, updateProject);
+router.delete('/:id', projectIdValidation, validate, deleteProject);
+router.post('/:id/members', projectIdValidation, memberValidation, validate, addProjectMember);
+router.put('/:id/members/:userId', projectIdValidation, userIdValidation, updateMemberValidation, validate, updateProjectMember);
+router.delete('/:id/members/:userId', projectIdValidation, userIdValidation, validate, removeProjectMember);
 
 // Base Wework: Cấu hình phân quyền thao tác trong dự án (Owner & PM)
 router.patch('/:id/permissions', projectIdValidation, validate, updateProjectPermissions);
