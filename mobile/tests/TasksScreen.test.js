@@ -16,8 +16,9 @@ jest.mock('../src/api/taskApi', () => ({
 }));
 jest.mock('../src/api/projectApi', () => ({ __esModule: true, default: { getAll: jest.fn() } }));
 jest.mock('../src/api/taskGroupApi', () => ({ __esModule: true, default: { getByProject: jest.fn() } }));
+const mockAuth = { user: { _id: 'u-me', role: 'member' } };
 jest.mock('../src/context/AuthContext', () => ({
-  useAuth: () => ({ user: { _id: 'u-me', role: 'member' }, canManageModule: () => true }),
+  useAuth: () => ({ user: mockAuth.user, canManageModule: () => true }),
 }));
 
 import taskApi from '../src/api/taskApi';
@@ -25,18 +26,24 @@ import projectApi from '../src/api/projectApi';
 import taskGroupApi from '../src/api/taskGroupApi';
 import TasksScreen from '../src/screens/tasks/TasksScreen';
 
+// Người dùng là thành viên của hai dự án (dự án để mặc định: thành viên được tạo việc).
+const ME = [{ user: { _id: 'u-me' }, role: 'developer' }];
 const MARKETING = {
   _id: 'p1',
   name: 'Marketing',
+  manager: { _id: 'u-pm' },
+  members: ME,
   customFields: [
     { key: 'f_aaaaaaaa', name: 'Kênh', type: 'select', options: ['Facebook', 'TikTok'], required: true, order: 0 },
     { key: 'f_bbbbbbbb', name: 'Ngày lên sóng', type: 'date', order: 1 },
   ],
 };
-const PLAIN = { _id: 'p2', name: 'Nội bộ' };
+const PLAIN = { _id: 'p2', name: 'Nội bộ', manager: { _id: 'u-pm' }, members: ME };
+const OUTSIDE = { _id: 'p3', name: 'Dự án ngoài', manager: { _id: 'u-pm' }, members: [] };
 
 let alert;
 beforeEach(() => {
+  mockAuth.user = { _id: 'u-me', role: 'member' };
   alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   taskApi.getAllPages.mockReset().mockResolvedValue({ tasks: [], total: 0 });
   taskApi.create.mockReset().mockResolvedValue({ data: { success: true } });
@@ -86,4 +93,42 @@ test('đổi sang dự án không có trường thì bỏ giá trị đã điề
   await waitFor(() => expect(taskApi.create).toHaveBeenCalled());
   expect(taskApi.create.mock.calls[0][0]).not.toHaveProperty('customValues');
   expect(taskApi.create.mock.calls[0][0].project).toBe('p2');
+});
+
+// ── Chỉ hiện thao tác thuộc quyền (utils/projectAccess.js, utils/taskPermissions.js) ──
+const task = (id, assignee, status = 'todo') => ({
+  _id: id, title: `Việc ${id}`, status, priority: 'medium',
+  assignee: { _id: assignee, name: assignee }, createdBy: 'u-pm',
+  project: { _id: 'p2', name: 'Nội bộ', manager: 'u-pm', members: ME, permissions: {} },
+});
+
+test('không tạo được việc ở dự án nào thì không có nút tạo', async () => {
+  projectApi.getAll.mockResolvedValue({ data: { data: { projects: [OUTSIDE] } } });
+  renderWithTheme(<TasksScreen navigation={{ navigate: jest.fn() }} />);
+  await waitFor(() => expect(projectApi.getAll).toHaveBeenCalled());
+  await waitFor(() => expect(taskApi.getAllPages).toHaveBeenCalled());
+  expect(screen.queryByLabelText('Tạo công việc mới')).toBeNull();
+});
+
+test('form tạo chỉ liệt kê dự án người dùng tạo việc được', async () => {
+  projectApi.getAll.mockResolvedValue({ data: { data: { projects: [PLAIN, OUTSIDE] } } });
+  await openCreate();
+  expect(screen.getByText('Nội bộ')).toBeTruthy();
+  expect(screen.queryByText('Dự án ngoài')).toBeNull();
+});
+
+test('nút chuyển trạng thái nhanh chỉ có trên việc của mình', async () => {
+  taskApi.getAllPages.mockResolvedValue({ tasks: [task('t1', 'u-me'), task('t2', 'u-other')], total: 2 });
+  renderWithTheme(<TasksScreen navigation={{ navigate: jest.fn() }} />);
+  await screen.findByText('Việc t2');
+  expect(screen.getAllByText('Bắt đầu làm ➔')).toHaveLength(1);
+});
+
+test('dạng danh sách: chạm nhãn trạng thái của việc mình thì chuyển sang bước kế tiếp', async () => {
+  taskApi.updateStatus.mockReset().mockResolvedValue({ data: { success: true } });
+  taskApi.getAllPages.mockResolvedValue({ tasks: [task('t1', 'u-me')], total: 1 });
+  renderWithTheme(<TasksScreen navigation={{ navigate: jest.fn() }} />);
+  fireEvent.press(await screen.findByLabelText('Xem dạng danh sách'));
+  fireEvent.press(await screen.findByLabelText('Chuyển sang bước kế tiếp: Việc t1'));
+  await waitFor(() => expect(taskApi.updateStatus).toHaveBeenCalledWith('t1', 'in_progress'));
 });

@@ -14,6 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import companySettingApi from '../../api/companySettingApi';
+import { canCreateProject } from '../../utils/projectAccess';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
@@ -34,7 +36,15 @@ const STATUS_FILTERS = [
 
 export default function ProjectsScreen({ navigation }) {
   const { theme } = useTheme();
-  const { canManageModule } = useAuth();
+  const { user, canManageModule } = useAuth();
+  // Thành viên chỉ tạo được dự án khi công ty cho phép mọi người tạo — cần đọc cấu hình công ty.
+  const [companySettings, setCompanySettings] = useState(null);
+  useEffect(() => {
+    companySettingApi.get()
+      .then((res) => setCompanySettings(res.data?.data?.settings || null))
+      .catch(() => setCompanySettings(null));
+  }, []);
+  const canCreate = canManageModule('projects') && canCreateProject(user, companySettings);
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -266,10 +276,11 @@ export default function ProjectsScreen({ navigation }) {
             ) : null}
           </View>
 
-          {/* Chỉ hiện khi có quyền sửa, vì server sẽ trả 403 */}
-          {canManageModule('projects') && (
+          {/* Chỉ hiện khi tạo được — luật dùng chung với web (utils/projectAccess.js), khớp server */}
+          {canCreate && (
             <TouchableOpacity
               onPress={() => setShowCreateModal(true)}
+              accessibilityLabel="Tạo dự án mới"
               style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
             >
               <Ionicons name="add" size={22} color="#ffffff" />

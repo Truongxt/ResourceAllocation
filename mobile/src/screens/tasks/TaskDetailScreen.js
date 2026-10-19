@@ -23,6 +23,7 @@ import { sortedFields, formatCustomValue } from '../../utils/customFields.js';
 import CustomFieldInputs from '../../components/tasks/CustomFieldInputs';
 import { inputsFromValues, valuesFromInputs } from '../../utils/customFieldInputs.js';
 import taskApi from '../../api/taskApi';
+import { getTaskPermissions } from '../../utils/taskPermissions';
 import {
   formatDate,
   formatDateTime,
@@ -73,8 +74,7 @@ export default function TaskDetailScreen({ route, navigation }) {
 
   const [statusModalOpen, setStatusModalOpen] = useState(false);
 
-  // Sửa trường tùy chỉnh. Server quyết ai được sửa (như tiêu đề/mô tả); ở đây chỉ ẩn nút khi
-  // chắc chắn không được: chỉ có quyền xem phân hệ Công việc, hoặc dự án đã lưu trữ.
+  // Sửa trường tùy chỉnh: cùng nhóm quyền với tiêu đề/mô tả (`canEditDetails`).
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const [customInputs, setCustomInputs] = useState({});
   const [savingCustom, setSavingCustom] = useState(false);
@@ -221,7 +221,7 @@ export default function TaskDetailScreen({ route, navigation }) {
 
   const handleApprove = async () => {
     try {
-      await taskApi.review(taskId, 'approved', 'Đã phê duyệt hoàn thành');
+      await taskApi.review(taskId, 'approve', 'Đã phê duyệt hoàn thành');
       await loadTask();
       Alert.alert('Thành công', 'Đã phê duyệt hoàn thành công việc');
     } catch (err) {
@@ -236,7 +236,7 @@ export default function TaskDetailScreen({ route, navigation }) {
     }
     setSubmittingReject(true);
     try {
-      await taskApi.review(taskId, 'rejected', rejectComment.trim());
+      await taskApi.review(taskId, 'reject', rejectComment.trim());
       setRejectModalOpen(false);
       setRejectComment('');
       await loadTask();
@@ -274,6 +274,15 @@ export default function TaskDetailScreen({ route, navigation }) {
     return { total: list.length, done, percent: Math.round((done / list.length) * 100) };
   }, [task?.checklist]);
 
+  // Chỉ hiện thao tác thuộc quyền — luật dùng chung với web (utils/taskPermissions.js), khớp
+  // server (middleware/taskAccess.js). PM ở dự án người khác chỉ như thành viên. Phân hệ Công
+  // việc chỉ xem, hoặc dự án đã lưu trữ: không có thao tác ghi nào.
+  const perms = useMemo(() => getTaskPermissions(task, task?.project, user), [task, user]);
+  const canWrite = Boolean(task) && canManageModule('tasks') && !task.project?.isArchived;
+  const canChangeStatus = canWrite && perms.canUpdateStatus;
+  const canChecklist = canWrite && perms.canManageChecklist;
+  const canMarkFailed = canWrite && perms.canMarkFailed && !['failed', 'done'].includes(task?.status);
+
   const sMeta = STATUS_MAP[task?.status] || STATUS_MAP.todo;
   const pMeta = PRIORITY_MAP[task?.priority] || PRIORITY_MAP.medium;
 
@@ -283,16 +292,21 @@ export default function TaskDetailScreen({ route, navigation }) {
         title={title || 'Chi tiết công việc'}
         showBack
         onBack={() => navigation.goBack()}
-        rightElement={
+        rightElement={canChangeStatus ? (
           <TouchableOpacity
             style={[styles.statusChangeBtn, { backgroundColor: sMeta.bg }]}
             onPress={() => setStatusModalOpen(true)}
+            accessibilityLabel="Đổi trạng thái"
           >
             <Text style={[styles.statusChangeBtnText, { color: sMeta.color }]}>
               {sMeta.label} ▾
             </Text>
           </TouchableOpacity>
-        }
+        ) : (
+          <View style={[styles.statusChangeBtn, { backgroundColor: sMeta.bg }]}>
+            <Text style={[styles.statusChangeBtnText, { color: sMeta.color }]}>{sMeta.label}</Text>
+          </View>
+        )}
       />
 
       {loading ? (
@@ -403,7 +417,7 @@ export default function TaskDetailScreen({ route, navigation }) {
                 {/* Trường tùy chỉnh của dự án */}
                 {sortedFields(task.project).length > 0 && (
                   <Card style={styles.metaCard} testID="task-custom-values">
-                    {canManageModule('tasks') && !task.project?.isArchived && (
+                    {canWrite && perms.canEditDetails && (
                       <TouchableOpacity onPress={openCustomEditor} style={styles.customEditBtn} accessibilityLabel="Sửa trường tùy chỉnh">
                         <Ionicons name="create-outline" size={16} color={theme.colors.primary} />
                         <Text style={[styles.customEditText, { color: theme.colors.primary }]}>Sửa</Text>
@@ -526,6 +540,7 @@ export default function TaskDetailScreen({ route, navigation }) {
                       <TouchableOpacity
                         style={styles.checkboxTouch}
                         onPress={() => handleToggleChecklist(item._id)}
+                        disabled={!canChecklist}
                       >
                         <Ionicons
                           name={item.isCompleted ? 'checkbox' : 'square-outline'}
@@ -545,16 +560,19 @@ export default function TaskDetailScreen({ route, navigation }) {
                         </Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity
-                        onPress={() => handleDeleteChecklist(item._id)}
-                        style={styles.deleteChecklistBtn}
-                      >
-                        <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                      </TouchableOpacity>
+                      {canChecklist && (
+                        <TouchableOpacity
+                          onPress={() => handleDeleteChecklist(item._id)}
+                          style={styles.deleteChecklistBtn}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   ))}
 
                   {/* Add checklist input */}
+                  {canChecklist && (
                   <View style={styles.addChecklistRow}>
                     <TextInput
                       style={[
@@ -584,6 +602,7 @@ export default function TaskDetailScreen({ route, navigation }) {
                       <Ionicons name="add" size={20} color="#fff" />
                     </TouchableOpacity>
                   </View>
+                  )}
                 </Card>
               </View>
             )}
@@ -621,17 +640,19 @@ export default function TaskDetailScreen({ route, navigation }) {
                     <Text style={[styles.workflowSub, { color: theme.colors.textSecondary }]}>
                       Khi hoàn thành công việc, hãy nộp số giờ làm việc thực tế và liên kết kết quả để chuyển sang bước nghiệm thu.
                     </Text>
-                    <Button
-                      title="Nộp báo cáo kết quả"
-                      onPress={() => setResultModalOpen(true)}
-                      size="md"
-                      style={{ marginTop: 12 }}
-                    />
+                    {canWrite && perms.canReportResult && (
+                      <Button
+                        title="Nộp báo cáo kết quả"
+                        onPress={() => setResultModalOpen(true)}
+                        size="md"
+                        style={{ marginTop: 12 }}
+                      />
+                    )}
                   </Card>
                 )}
 
                 {/* Reviewer / Manager actions */}
-                {task.status === 'review' && (
+                {task.status === 'review' && canWrite && perms.canReview && (
                   <Card style={[styles.workflowCard, { marginTop: 12 }]}>
                     <Text style={[styles.workflowHeading, { color: theme.colors.text }]}>
                       Duyệt & Đánh giá công việc
@@ -652,6 +673,7 @@ export default function TaskDetailScreen({ route, navigation }) {
                 )}
 
                 {/* Mark as failed action */}
+                {canMarkFailed && (
                 <Card style={[styles.workflowCard, { marginTop: 12 }]}>
                   <Text style={[styles.workflowHeading, { color: theme.colors.text }]}>
                     Trường hợp khẩn cấp / Rủi ro
@@ -664,6 +686,7 @@ export default function TaskDetailScreen({ route, navigation }) {
                     textStyle={{ color: '#ef4444' }}
                   />
                 </Card>
+                )}
               </View>
             )}
 
@@ -878,7 +901,7 @@ export default function TaskDetailScreen({ route, navigation }) {
                 </View>
 
                 <View style={styles.statusOptionsList}>
-                  {Object.entries(STATUS_MAP).map(([sKey, sVal]) => (
+                  {Object.entries(STATUS_MAP).filter(([sKey]) => sKey !== 'failed' || canMarkFailed).map(([sKey, sVal]) => (
                     <TouchableOpacity
                       key={sKey}
                       style={[

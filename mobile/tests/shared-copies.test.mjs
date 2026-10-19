@@ -1,4 +1,4 @@
-// Các file logic mobile chép nguyên từ web.
+// Các file logic mobile chép nguyên từ web (quyền dùng chung: projectAccess, taskPermissions).
 // Chạy: cd mobile && npm test
 //
 // Logic của chúng đã có bộ test riêng bên client (`client/tests/*.test.mjs`). Ở đây chỉ khóa
@@ -15,7 +15,7 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 const normalize = (s) => s.replace(/\r\n/g, '\n');
 const read = (...parts) => normalize(readFileSync(path.join(dir, ...parts), 'utf8'));
 
-const COPIES = ['optimizeScope.js', 'attachmentRules.js', 'customFields.js'];
+const COPIES = ['optimizeScope.js', 'attachmentRules.js', 'customFields.js', 'projectAccess.js', 'taskPermissions.js'];
 
 let failed = 0;
 console.log('\nBản chép từ web giống hệt bản gốc');

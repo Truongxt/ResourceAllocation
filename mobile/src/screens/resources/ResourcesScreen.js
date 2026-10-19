@@ -19,9 +19,14 @@ import Button from '../../components/common/Button';
 import WorkloadMeter from '../../components/common/WorkloadMeter';
 import EmptyState from '../../components/common/EmptyState';
 import resourceApi from '../../api/resourceApi';
+import { useAuth } from '../../context/AuthContext';
 import departmentApi from '../../api/departmentApi';
 
 export default function ResourcesScreen() {
+  const { user } = useAuth();
+  // Thêm / sửa nhân sự: Admin/Owner và PM — khớp `authorize('admin', 'project_manager')` ở server.
+  // Thành viên được cấp quyền ứng dụng Nhân sự chỉ xem.
+  const canManageResources = Boolean(user) && (user.role === 'admin' || Boolean(user.isOwner) || user.role === 'project_manager');
   const { theme } = useTheme();
 
   const [resources, setResources] = useState([]);
@@ -180,6 +185,7 @@ export default function ResourcesScreen() {
                     size="sm"
                   />
                 )}
+                {canManageResources && (
                 <TouchableOpacity
                   onPress={() => {
                     setSelectedResource(item);
@@ -191,9 +197,11 @@ export default function ResourcesScreen() {
                     setShowEditModal(true);
                   }}
                   style={{ padding: 4 }}
+                  accessibilityLabel={`Sửa nhân sự: ${displayName}`}
                 >
                   <Ionicons name="create-outline" size={17} color={theme.colors.primary} />
                 </TouchableOpacity>
+                )}
               </View>
             </View>
             <Text
@@ -306,12 +314,15 @@ export default function ResourcesScreen() {
             ) : null}
           </View>
 
-          <TouchableOpacity
-            onPress={() => setShowCreateModal(true)}
-            style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
-          >
-            <Ionicons name="add" size={22} color="#ffffff" />
-          </TouchableOpacity>
+          {canManageResources && (
+            <TouchableOpacity
+              onPress={() => setShowCreateModal(true)}
+              accessibilityLabel="Thêm nhân sự"
+              style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
+            >
+              <Ionicons name="add" size={22} color="#ffffff" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 

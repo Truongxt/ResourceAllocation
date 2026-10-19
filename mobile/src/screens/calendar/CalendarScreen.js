@@ -22,6 +22,9 @@ import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import taskApi from '../../api/taskApi';
+import { useAuth } from '../../context/AuthContext';
+import { canCreateTaskIn } from '../../utils/projectAccess';
+import { getTaskPermissions } from '../../utils/taskPermissions';
 import projectApi from '../../api/projectApi';
 import taskGroupApi from '../../api/taskGroupApi';
 import CustomFieldInputs from '../../components/tasks/CustomFieldInputs';
@@ -36,6 +39,7 @@ const DAY_SIZE = Math.floor((SCREEN_WIDTH - 32 - 12) / 7);
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
 export default function CalendarScreen({ navigation }) {
+  const { user, canManageModule } = useAuth();
   const { theme, isDark } = useTheme();
 
   const [currentMonth, setCurrentMonth] = useState(dayjs());
@@ -156,6 +160,13 @@ export default function CalendarScreen({ navigation }) {
   }, []);
 
   // Filter tasks for currently selected date
+  // Chỉ hiện thao tác thuộc quyền — luật dùng chung với web, khớp server (xem TasksScreen).
+  const canWriteTasks = canManageModule('tasks');
+  const creatableProjects = (Array.isArray(projects) ? projects : [])
+    .filter((p) => !p.isArchived && !p.isTemplate && canCreateTaskIn(user, p));
+  const canCreate = canWriteTasks && creatableProjects.length > 0;
+  const canAdvance = (item) => canWriteTasks && getTaskPermissions(item, item.project, user).canUpdateStatus;
+
   const selectedDateTasks = useMemo(() => {
     return tasks.filter((t) => isTaskOnDate(t, selectedDate));
   }, [tasks, selectedDate, isTaskOnDate]);
@@ -518,13 +529,15 @@ export default function CalendarScreen({ navigation }) {
             </View>
           </View>
 
-          <TouchableOpacity
-            onPress={() => setShowCreateModal(true)}
-            style={[styles.addBtnSmall, { backgroundColor: theme.colors.primary }]}
-          >
-            <Ionicons name="add" size={16} color="#ffffff" />
-            <Text style={styles.addBtnSmallText}>Thêm việc</Text>
-          </TouchableOpacity>
+          {canCreate && (
+            <TouchableOpacity
+              onPress={() => setShowCreateModal(true)}
+              style={[styles.addBtnSmall, { backgroundColor: theme.colors.primary }]}
+            >
+              <Ionicons name="add" size={16} color="#ffffff" />
+              <Text style={styles.addBtnSmallText}>Thêm việc</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Tasks for Selected Date */}
@@ -612,7 +625,7 @@ export default function CalendarScreen({ navigation }) {
                 </View>
 
                 {/* Quick Workflow Action */}
-                {item.status === 'todo' && (
+                {item.status === 'todo' && canAdvance(item) && (
                   <TouchableOpacity
                     onPress={() => handleQuickStatus(item._id, 'in_progress')}
                     style={[
@@ -626,7 +639,7 @@ export default function CalendarScreen({ navigation }) {
                   </TouchableOpacity>
                 )}
 
-                {item.status === 'in_progress' && (
+                {item.status === 'in_progress' && canAdvance(item) && (
                   <TouchableOpacity
                     onPress={() => handleQuickStatus(item._id, 'review')}
                     style={[
@@ -700,7 +713,7 @@ export default function CalendarScreen({ navigation }) {
                 showsHorizontalScrollIndicator={false}
                 style={styles.projectScroll}
               >
-                {(Array.isArray(projects) ? projects : []).map((p) => {
+                {creatableProjects.map((p) => {
                   const isSel = newProject === p._id;
                   return (
                     <TouchableOpacity
