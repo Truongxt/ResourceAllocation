@@ -31,6 +31,9 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 - **Admin tự cấp được quyền đổi email.** `PUT /auth/users/:id/special-grants` chỉ kiểm vai trò admin, nên Admin tự
   thêm `can_change_email` cho mình rồi đổi email người khác — thao tác vốn chỉ dành cho Owner. Nay chỉ Owner cấp
   được quyền đặc biệt (403 với Admin thường); nút cấp quyền ở tab App Admin bị khóa với người không phải Owner.
+- **Tự duyệt năng lực của chính mình.** Phạm vi duyệt của Admin là cả công ty, gồm chính họ, nên Admin (và PM có
+  tên trong dự án mình quản lý) duyệt được bản tự đánh giá của bản thân. Nay phạm vi duyệt luôn loại chính người
+  duyệt: bản của mình không vào hàng chờ của mình, duyệt hoặc trả lại trả 403.
 
 ---
 
