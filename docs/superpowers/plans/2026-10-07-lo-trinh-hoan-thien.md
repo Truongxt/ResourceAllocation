@@ -71,6 +71,10 @@ thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/9
 | Bài test `app-routing` (client) đỏ oan khi chạy cả bộ: chỉ chờ 1 giây cho Vite biên dịch chunk Dashboard | `6de20b4` |
 | Trang Công việc chỉ tải 20 dự án (gọi `GET /projects` không kèm `limit`): dự án thứ 21 trở đi mất khỏi ô lọc, ô chọn dự án | `bce63b9` |
 | Tệp đính kèm thành mồ côi trên đĩa khi ghi bản ghi DB lỗi, và khi e2e seed lại database mà giữ thư mục tệp | `be0aa20` |
+| Admin tự cấp được quyền đặc biệt `can_change_email` rồi đổi email người khác (thao tác chỉ dành cho Owner) | `41d9fc6` |
+| Admin (và PM có tên trong dự án mình quản lý) tự duyệt được bản tự đánh giá năng lực của chính mình | `db2b875` |
+| PM lưu trữ / mở lại được dự án người khác quản lý | `d7bacda` |
+| Bộ sinh dữ liệu Benchmark lấy "hôm nay" làm mốc nên `measure:csp-soft` chạy hôm khác ra số khác — Bảng 4-5 của báo cáo không tái tạo được | `aa849f4` |
 
 ### Chưa làm
 
@@ -90,7 +94,23 @@ thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/9
    được giá trị (`7b08975`), nhưng khai trường chỉ trên web.
 3. **Khi triển khai phải đặt `UPLOAD_DIR`** vào thư mục được sao lưu, không bị xóa khi deploy lại (README mục
    "Tệp đính kèm"). Sao lưu database mà thiếu thư mục này thì tệp tải về báo không còn.
-4. **Báo cáo luận văn dùng số đo cũ** — để sau cùng theo quyết định ngày 2026-10-08. `docs/build_thesis_report.py`
+4. **Báo cáo luận văn — đang sửa** (cập nhật 2026-10-19 chiều). Mọi việc của báo cáo nay theo dõi ở
+   **`docs/XAC_NHAN_BAO_CAO_19-10-2026.md`** (chưa commit): một session đối chiếu code và ghi dòng "Cần sửa trong
+   Word", một session khác sửa file `.docx` rồi ghi "Đã cập nhật vào Word". Người dùng đã chốt mọi mục theo đề
+   xuất. Còn lại:
+   - **Word chưa áp** các dòng "Cần sửa trong Word" mới của B1, B4/F3, C6, D1, D2 (thêm Bảng 4-6 so với Greedy,
+     đánh lại "Đánh giá hệ thống" thành 4-7), D5, F5 (server 1.397 ca). Danh sách ở đầu file xác nhận.
+   - **D4:** đổi ngày trên bìa (Việt, Anh) và lời cảm ơn — **chờ người dùng báo ngày nộp**.
+   - **D6:** chụp 2 màn `/resources` (tab Năng suất & Cân bằng tải; tab Chờ duyệt năng lực có bản đang chờ) —
+     chưa chụp.
+   - **E1–E4:** kiểm tay trong Word (F9 cập nhật danh mục, gạch đầu dòng/đánh số, định dạng tham chiếu [15],
+     bảng tràn/ngắt trang).
+   - **E5:** xóa 4 file báo cáo cũ (`BoSungUML_HoanChinh`, `HoanThien` — `.docx` và `.pdf`) **sau khi nộp** bản cuối.
+   - Số đo của báo cáo tái tạo được: `npm run measure:csp-soft` (Bảng 4-5) và `npm run measure:baselines`
+     (so với Greedy, ALGORITHMS.md mục 3.4) đều cố định seed và ngày mốc 08/10/2026. Bảng 4-4 (GA/Hybrid) chưa có
+     script tái tạo, nguồn duy nhất là ALGORITHMS.md mục 3.3.
+
+   Ghi chép cũ (trước 2026-10-19 chiều), giữ để tra: báo cáo luận văn dùng số đo cũ — để sau cùng theo quyết định ngày 2026-10-08. `docs/build_thesis_report.py`
    dòng 503–509 và 527 (kéo theo file `.docx`/`.pdf`) ghi "GA dừng sau 119 thế hệ, Hybrid 90, giảm ~24%". Số đúng:
    76.3 / 51.8 thế hệ dừng (Hybrid ít hơn ~32%), hội tụ 90% ở thế hệ 13.9 / 1.8. Fitness 0.8530 cả hai. Báo cáo
    cũng chưa có S1/S3, `contextSwitches`, bộ sinh dữ liệu mới, ngưỡng 0.5 của Benchmark và các bản sửa ở bảng trên.
@@ -107,6 +127,15 @@ thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/9
    `UML_*_test*`, `UML_*_preview.vpp`, `UML_embed_test.png/`, `UML_test_images/`, `VP_*`, `UML_seq_check*`,
    `UML_sample_seq.png`, `uml_preview_tonghop/`, `report_assets/check_*.png`, `report_assets/UML_export_ascii.vpp`.
    Hỏi Truongxt trước khi dọn tiếp.
+
+**Đã quyết ngày 2026-10-19** (chi tiết và câu chữ cho Word ở `docs/XAC_NHAN_BAO_CAO_19-10-2026.md`):
+
+- **Sửa code ba lỗ hổng phân quyền** thay vì để báo cáo mô tả đúng như code cũ (A3, C4, C5 — xem bảng lỗi).
+  Nhân bản / tạo từ mẫu vẫn mở cho mọi PM trong công ty, vì chỉ đọc dự án nguồn.
+- **Mục tiêu "so với phân bổ thủ công" đổi thành so với Greedy** (quy tắc phân công tay) và bổ sung thực nghiệm
+  (`d250e6e`). Kết quả bất lợi phải nói thẳng: ở cỡ medium, GA chạy một mình kém Greedy (0,697 so với 0,751).
+- Bảng 4-1 ghi **phiên bản đang cài**, không ghi khoảng trong `package.json`. Không vẽ thêm UML cho UC-TH12–14
+  (giữ ghi chú) trừ khi giảng viên yêu cầu.
 
 **Đã quyết ngày 2026-10-09:**
 
