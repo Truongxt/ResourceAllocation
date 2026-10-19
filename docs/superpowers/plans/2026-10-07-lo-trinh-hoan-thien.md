@@ -98,8 +98,12 @@ thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/9
    Từ lần gộp `main` ngày 2026-10-19 (PR #5), báo cáo còn thiếu: luồng đánh giá năng lực hai chiều (tự chấm →
    duyệt/trả lại), tải theo kỳ ở tab Năng suất & Cân bằng tải (nay là tab mặc định của trang Nhân sự), khung tổng
    quan ở Dự án/Công việc, `utilizationRate = 101` khi capacity 0. Ảnh chụp trang Nhân sự cũ cần chụp lại.
-5. **`docs/` có file thử nghiệm UML đi theo `main`** (`*.vpp~1`, `*.vpp~2`, `UML_*_test*`, `UML_*_preview*`,
-   `VP_visio_test*`, `report_assets/check_page_*.png`…). Hỏi Truongxt trước khi dọn.
+5. **`docs/` còn file thử nghiệm UML đi theo `main`**. Ngày 2026-10-19 đã xóa 13 file trùng: ảnh `UML_*_revised`/
+   `_preview` trùng byte với `report_uml_images_ascii/`, các bản sao lưu `*.vpp~1`/`~2`, bản báo cáo `BoSungUML` (đã
+   có `BoSungUML_HoanChinh`), và ảnh xem trước UC-00 trùng `UC00.png`. Còn lại các file thử, không trùng file nào:
+   `UML_*_test*`, `UML_*_preview.vpp`, `UML_embed_test.png/`, `UML_test_images/`, `VP_*`, `UML_seq_check*`,
+   `UML_sample_seq.png`, `uml_preview_tonghop/`, `report_assets/check_*.png`, `report_assets/UML_export_ascii.vpp`.
+   Hỏi Truongxt trước khi dọn tiếp.
 
 **Đã quyết ngày 2026-10-09:**
 
