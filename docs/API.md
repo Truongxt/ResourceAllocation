@@ -5,16 +5,18 @@
 > Mọi endpoint được mô tả ở đây đều đối chiếu trực tiếp với mã nguồn và **kiểm chứng bằng
 > request thật** — không viết theo suy đoán từ tên hàm.
 
-> ✅ **Đã phủ hết 118 endpoint trên 12 nhóm route.** Hai nhóm lớn nhất từng là phần thiếu
-> lớn nhất của tài liệu này, nay đã mô tả đủ:
+> ✅ **Đã phủ hết 135 endpoint trên 14 file route**, chưa kể `GET /api/health` (khai thẳng ở
+> `server/app.js`, mục 10). Đếm lại ngày 19/10/2026; ba endpoint còn thiếu lúc đó
+> (`POST /optimization/benchmark`, `PATCH /projects/:id/permissions`, `PATCH /projects/:id/quick-edit`)
+> đã được bổ sung vào bảng:
 >
 > | Nhóm | Endpoint | Trạng thái |
 > |------|---------:|------------|
 > | `/api/auth` | 27 | đầy đủ (mục 1.1 – 1.3) |
-> | `/api/tasks` | 30 | đầy đủ (mục 3.1 – 3.4) |
-> | 10 nhóm còn lại | 61 | đầy đủ |
+> | `/api/tasks` | 33 | đầy đủ (mục 3.1 – 3.4) |
+> | 12 nhóm còn lại (gồm `jobs` và `internal`) | 75 | đầy đủ |
 >
-> Đếm lại bất cứ lúc nào — con số phải khớp 118:
+> Đếm lại bất cứ lúc nào — con số phải khớp 135:
 >
 > ```bash
 > grep -rcE "^\s*router\.(get|post|put|patch|delete)\(" server/src/routes/
@@ -442,6 +444,9 @@ cả — kể cả công ty vừa tạo ra nó cũng không thấy nó trong `GE
 | POST | `/:id/archive` | Lưu trữ (409 nếu còn việc mở hoặc việc lặp lại đang bật) | 📋 PM của dự án, Admin |
 | POST | `/:id/unarchive` | Mở lại dự án đã lưu trữ | 📋 PM của dự án, Admin |
 | POST | `/:id/duplicate` | Nhân bản / lưu thành mẫu / tạo từ mẫu (mọi dự án trong công ty) | 📋 PM+ |
+| PATCH | `/:id/permissions` | Công tắc quyền thao tác (`permissions`), kèm `failureConfig` và `reviewConfig` | Admin/Owner hoặc PM của dự án |
+| PUT | `/:id/custom-fields` | Khai trường dữ liệu tùy chỉnh (xem bên dưới) | Admin/Owner hoặc PM của dự án |
+| PATCH | `/:id/quick-edit` | Sửa nhanh `name`, `department`, `status`, `priority`, `manager` | Admin/Owner hoặc PM của dự án |
 
 **Query filter cho `GET /`**: `status`, `priority`, `manager`, `search` (tìm trong name/code/description),
 `startDate`, `endDate` (lọc theo `startDate` của dự án), `page`, `limit`, `sort`. Mặc định chỉ trả dự án
@@ -1135,7 +1140,10 @@ Phòng ban cộng dồn tải/capacity của thành viên và đỏ khi > 100% h
 | GET | `/history` | Lịch sử tối ưu hóa (50 bản ghi mới nhất) | 🔒 |
 | GET | `/compare?ids=` | So sánh song song 2–4 phương án | 🔒 |
 | GET | `/:id` | Chi tiết một kết quả | 🔒 |
+| GET | `/readiness?projectId=` | Kiểm tra trước khi chạy: số việc, việc chưa giao, tổng giờ so với tổng năng lực, `issues`, cờ `ready` | 🔒 |
+| POST | `/benchmark` | Benchmark Studio: chạy Greedy, CSP, GA, Hybrid trên cùng dữ liệu. Body `{ datasetType: 'small'\|'medium'\|'large'\|'custom', customConfig?, useDatabaseData?, projectId? }` | 🔒 |
 | POST | `/:id/apply` | Áp dụng kết quả vào hệ thống | 📋 PM+ |
+| POST | `/:id/rollback` | Hoàn tác, khôi phục phân công cũ | 📋 PM+ |
 
 > **Ai được dùng** (`services/optimizeScope.js`): Owner, Admin, App Admin của Base Optimize+ dùng trên
 > toàn công ty. **PM** (`role: project_manager`) chỉ trên dự án có `Project.manager` là chính họ: chạy

@@ -18,14 +18,16 @@ Hai lớp đầu chạy trong vòng vài phút (server khoảng 6 phút, compone
 mất **12–20 phút** (đo trên máy phát triển, 1 worker: 18,8 phút ngày 09/10, 11,8 phút ngày 19/10 cho
 93 bài) vì nó khởi động thật, đăng nhập thật và chờ API thật ở từng bài.
 
-**Lần chạy trọn bộ gần nhất — 19/10/2026**, sau lần gộp `main` (PR #5), tất cả đạt:
+**Lần chạy trọn bộ gần nhất — 19/10/2026**, sau lần gộp `main` (PR #5) và ba bản sửa phân quyền
+(`41d9fc6`, `db2b875`, `d7bacda`), tất cả đạt. Server chạy lại thêm một lần sau `aa849f4`
+(ngày mốc cố định cho bộ sinh Benchmark, +1 ca):
 
 | Lớp | Kết quả |
 |-----|---------|
-| Server | 39/39 bộ, 1.381 ca |
-| Web | 7 bộ logic (123 ca) + 18 file component (92/92 ca); build production 4.248 module, 20,66 giây |
+| Server | 39/39 bộ, 1.397 ca |
+| Web | 7 bộ logic (123 ca) + 19 file component (94/94 ca); build production 4.248 module, 20,66 giây, còn cảnh báo chunk lớn hơn 500 kB (`index-*.js` 1.179,88 kB) |
 | Mobile | 4 bộ logic (68 ca) + 7 file jest (40/40 ca) |
-| E2E | 93/93 bài, 11,8 phút |
+| E2E | 93/93 bài, 13,3 phút |
 
 Chi tiết từng lớp:
 

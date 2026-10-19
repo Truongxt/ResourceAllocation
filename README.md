@@ -120,8 +120,8 @@ chủ". Muốn chuyển sang S3 thì chỉ thay `server/src/services/fileStorage
 - [Danh sách tính năng](./docs/FEATURES.md)
 - [So sánh với Jira](./docs/COMPARISON_JIRA.md) — RAO mạnh/yếu ở đâu so với Jira Software Cloud
 - [So sánh với Base Wework](./docs/COMPARISON_BASE_WEWORK.md) — còn học được gì từ Base Wework, và ba chỗ nên cải thiện trước
-- [API Documentation](./docs/API.md) — 12 nhóm route, mô tả đủ 118 endpoint
-- [Database Schema](./docs/DATABASE.md) — 12 collection
+- [API Documentation](./docs/API.md) — 14 file route, mô tả đủ 135 endpoint
+- [Database Schema](./docs/DATABASE.md) — 15 collection
 - [Thuật toán](./docs/ALGORITHMS.md)
 - [Chiến lược kiểm thử](./docs/TESTING.md) — bốn lớp test và danh sách lỗi đang được test theo dõi
 - [Thiết kế hệ thống](./docs/architecture/SYSTEM_DESIGN.md)
