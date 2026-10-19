@@ -193,8 +193,9 @@ cùng hiểu thế nào là phân công tốt. S3 không nằm trong fitness —
 lệch kỹ năng rõ rệt (0.5 × 0.35 = 0.175).
 
 Trước 08/10, thứ tự này chỉ xét chỗ trống (LCV). Đo bằng `npm run measure:csp-soft` (thư mục
-`server`): 30 bộ mỗi cỡ sinh **một lần** bằng bộ sinh hiện tại với seed cố định (chạy lại ra đúng
-số này), chạy cả hai bản trên cùng dữ liệu, trung bình trên những bộ mà **cả hai** bản cùng giải
+`server`): 30 bộ mỗi cỡ sinh **một lần** bằng bộ sinh hiện tại với seed cố định và ngày mốc cố
+định 08/10/2026 (chạy lại ngày nào cũng ra đúng số này — trước 19/10 bộ sinh lấy "hôm nay" làm
+mốc, nên số trôi theo ngày chạy), chạy cả hai bản trên cùng dữ liệu, trung bình trên những bộ mà **cả hai** bản cùng giải
 được (cột "Số cặp"). Bản "trước" chỉ khác ở thứ tự thử ứng viên. Đo ngày 08/10, sau `edd9847`:
 
 | | Khớp kỹ năng (%) | Chuyển ngữ cảnh | Fitness | Độ lệch tải σ (giờ) | Giải được | Số cặp |

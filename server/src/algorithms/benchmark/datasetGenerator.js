@@ -71,7 +71,13 @@ function getRandomSubset(array, count) {
   return shuffled.slice(0, count);
 }
 
-function generateBenchmarkDataset(scaleOrConfig = 'medium') {
+/**
+ * @param {string|object} scaleOrConfig  'small' | 'medium' | 'large' hoặc { taskCount, resourceCount }
+ * @param {{ baseDate?: Date }} [options]  Ngày mốc của lịch việc, mặc định là lúc gọi. Script đo
+ *   truyền ngày cố định: lịch quyết định việc rơi vào tuần nào (H1), nên mốc trôi theo ngày chạy
+ *   thì cùng seed vẫn ra số khác.
+ */
+function generateBenchmarkDataset(scaleOrConfig = 'medium', { baseDate: fixedBaseDate } = {}) {
   let numTasks = 100;
   let numResources = 20;
   let label = 'Quy mô Vừa (Medium Dataset)';
@@ -136,7 +142,7 @@ function generateBenchmarkDataset(scaleOrConfig = 'medium') {
 
   // 2. Generate Tasks
   const tasks = [];
-  const baseDate = new Date();
+  const baseDate = fixedBaseDate ? new Date(fixedBaseDate) : new Date();
   // Mỗi việc thuộc một trong ⌈n/10⌉ dự án — thiếu trường này thì không đo được chuyển
   // ngữ cảnh (S3), và thứ tự ứng viên của CSP không có gì để ưu tiên "cùng dự án".
   const numProjects = Math.max(1, Math.ceil(numTasks / 10));
