@@ -76,6 +76,9 @@ thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/9
 | PM lưu trữ / mở lại được dự án người khác quản lý | `d7bacda` |
 | PM sửa, xóa được dự án và thành viên của dự án người khác; ai trong công ty (cả Thành viên, Khách) cũng tạo/sửa/xóa được nhóm công việc của mọi dự án | `aa3aac3` |
 | Mobile bày nút ghi cho mọi người (đổi trạng thái, checklist, nộp kết quả, duyệt, thất bại, tạo việc, sửa/tạo dự án, thêm/sửa nhân sự); nút Phê duyệt / Trả lại gửi `approved`/`rejected` nên chưa từng chạy được; chạm nhãn trạng thái ở dạng danh sách làm app lỗi (`setSelectedTask` không tồn tại) | `56d729e` |
+| App Admin `work` không tạo được dự án; người quản lý có vai trò thành viên bị 403 trên chính dự án mình (route còn chặn theo vai trò) | `8ec776b` |
+| Người thực hiện tự duyệt được kết quả việc của mình (admin, quản lý dự án, người đánh giá) | `b127a04` |
+| Web: form tạo công việc liệt kê mọi dự án, ô chọn dự án bị khóa với thành viên được phép tạo việc | `d56b8cf` |
 | PM toàn quyền với công việc của **mọi** dự án (11 guard trong `taskAccess.js`, duyệt kết quả, bàn giao hàng loạt, việc lặp lại); giao diện hiện nút cho cả thao tác không có quyền | `752c95b`, `0f7d8bd` |
 | Bộ sinh dữ liệu Benchmark lấy "hôm nay" làm mốc nên `measure:csp-soft` chạy hôm khác ra số khác — Bảng 4-5 của báo cáo không tái tạo được | `aa849f4` |
 

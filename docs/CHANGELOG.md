@@ -57,6 +57,13 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
   dự án và việc lặp lại còn chặn vai trò (`authorize('admin', 'project_manager')`) trước khi kiểm người quản lý. Nay App
   Admin `work` tạo được dự án và trở thành người quản lý; các route đó chỉ kiểm "Admin/Owner hoặc người quản lý của dự
   án", không kiểm nhãn vai trò. Nhân bản / mẫu vẫn dành cho Admin và PM.
+- **Người thực hiện tự duyệt được kết quả việc của mình.** Web và mobile ẩn nút duyệt với người thực hiện, nhưng
+  `canApproveReview` ở server cho admin, quản lý dự án và người có tên trong danh sách đánh giá duyệt cả việc chính họ
+  làm. Nay người thực hiện không bao giờ duyệt được việc mình (403), và việc đó không nằm trong hàng chờ duyệt của họ.
+- **Web: form tạo công việc liệt kê mọi dự án.** Chọn dự án không được phép thì bấm Tạo mới nhận 403; ô chọn dự án lại
+  bị khóa với người không quản lý dự án nào, kể cả thành viên được phép tạo việc. Nay form chỉ liệt kê dự án tạo được
+  (`canCreateTaskIn`); nút Tạo công việc (đầu trang, thanh lọc, cột Kanban, chi tiết dự án) chỉ hiện khi tạo được ở ít
+  nhất một dự án, và không hiện trên dự án đã lưu trữ.
 
 ---
 
