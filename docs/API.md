@@ -439,9 +439,9 @@ cả — kể cả công ty vừa tạo ra nó cũng không thấy nó trong `GE
 | POST | `/:id/members` | Thêm thành viên | 📋 PM+ |
 | PUT | `/:id/members/:userId` | Cập nhật vai trò / allocation của thành viên | 📋 PM+ |
 | DELETE | `/:id/members/:userId` | Xóa thành viên | 📋 PM+ |
-| POST | `/:id/archive` | Lưu trữ (409 nếu còn việc mở hoặc việc lặp lại đang bật) | 📋 PM+ |
-| POST | `/:id/unarchive` | Mở lại dự án đã lưu trữ | 📋 PM+ |
-| POST | `/:id/duplicate` | Nhân bản / lưu thành mẫu / tạo từ mẫu | 📋 PM+ |
+| POST | `/:id/archive` | Lưu trữ (409 nếu còn việc mở hoặc việc lặp lại đang bật) | 📋 PM của dự án, Admin |
+| POST | `/:id/unarchive` | Mở lại dự án đã lưu trữ | 📋 PM của dự án, Admin |
+| POST | `/:id/duplicate` | Nhân bản / lưu thành mẫu / tạo từ mẫu (mọi dự án trong công ty) | 📋 PM+ |
 
 **Query filter cho `GET /`**: `status`, `priority`, `manager`, `search` (tìm trong name/code/description),
 `startDate`, `endDate` (lọc theo `startDate` của dự án), `page`, `limit`, `sort`. Mặc định chỉ trả dự án

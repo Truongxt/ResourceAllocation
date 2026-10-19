@@ -34,6 +34,9 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 - **Tự duyệt năng lực của chính mình.** Phạm vi duyệt của Admin là cả công ty, gồm chính họ, nên Admin (và PM có
   tên trong dự án mình quản lý) duyệt được bản tự đánh giá của bản thân. Nay phạm vi duyệt luôn loại chính người
   duyệt: bản của mình không vào hàng chờ của mình, duyệt hoặc trả lại trả 403.
+- **PM lưu trữ được dự án người khác quản lý.** Lưu trữ và mở lại chỉ kiểm cùng công ty. Nay PM chỉ lưu trữ / mở lại
+  dự án mình quản lý (403 với dự án khác); Admin/Owner như cũ. Nhân bản và tạo từ mẫu vẫn mở cho mọi dự án trong
+  công ty, vì chỉ đọc dự án nguồn.
 
 ---
 

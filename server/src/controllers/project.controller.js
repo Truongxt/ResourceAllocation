@@ -879,14 +879,27 @@ const loadOwnProject = async (req, res) => {
 };
 
 /**
+ * Admin/Owner, hoặc PM là người quản lý dự án; không thì gửi luôn 403 và trả `false`.
+ * Dùng cho lưu trữ / mở lại: thao tác khóa cả dự án, nên PM không làm được trên dự án
+ * người khác quản lý. Nhân bản thì không cần — chỉ đọc dự án nguồn.
+ */
+const ensureManagesProject = (req, res, project) => {
+  const isAdmin = req.user.role === 'admin' || Boolean(req.user.isOwner);
+  const isManager = project.manager && project.manager.toString() === req.user._id.toString();
+  if (isAdmin || isManager) return true;
+  res.status(403).json({ success: false, message: 'Chỉ Quản trị viên hoặc người quản lý dự án mới lưu trữ / mở lại được dự án' });
+  return false;
+};
+
+/**
  * @desc    Lưu trữ dự án — ẩn khỏi danh sách mặc định, chỉ đọc
  * @route   POST /api/projects/:id/archive
- * @access  Admin, PM
+ * @access  Admin, PM của dự án
  */
 const archiveProject = async (req, res, next) => {
   try {
     const project = await loadOwnProject(req, res);
-    if (!project) return;
+    if (!project || !ensureManagesProject(req, res, project)) return;
     if (project.isTemplate) {
       return res.status(400).json({ success: false, message: 'Dự án mẫu không lưu trữ được — xóa mẫu nếu không cần nữa' });
     }
@@ -911,12 +924,12 @@ const archiveProject = async (req, res, next) => {
 /**
  * @desc    Mở lại dự án đã lưu trữ
  * @route   POST /api/projects/:id/unarchive
- * @access  Admin, PM
+ * @access  Admin, PM của dự án
  */
 const unarchiveProject = async (req, res, next) => {
   try {
     const project = await loadOwnProject(req, res);
-    if (!project) return;
+    if (!project || !ensureManagesProject(req, res, project)) return;
     if (project.isArchived) {
       project.isArchived = false;
       project.archivedAt = null;
