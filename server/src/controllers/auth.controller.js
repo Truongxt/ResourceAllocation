@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { toSearchRegex } = require('../utils/escapeRegex');
 const User = require('../models/User');
 const Resource = require('../models/Resource');
 const Department = require('../models/Department');
@@ -13,6 +14,18 @@ const {
 const { generateEmployeeId } = require('../utils/employeeId.util');
 const { sendUserWelcomeEmail } = require('../services/email.service');
 const { logActivity } = require('../services/activityLog.service');
+const { disconnectUser } = require('../services/socket.service');
+const { companyOf, usersError } = require('../services/companyRefs.service');
+
+/**
+ * `companyName` là khóa phân lập: đổi nó là chuyển tài khoản sang công ty khác và
+ * nhìn thấy dữ liệu của công ty đó. Giao diện vẫn gửi kèm giá trị hiện tại khi lưu
+ * hồ sơ, nên chấp nhận khi trùng và chỉ từ chối khi khác.
+ */
+const companyChangeError = (requested, currentUser) =>
+  requested !== undefined && requested !== null && String(requested).trim() !== companyOf(currentUser)
+    ? 'Không thể đổi công ty của tài khoản'
+    : null;
 
 const REFRESH_COOKIE = 'rao_refresh';
 
@@ -308,13 +321,20 @@ const updateProfile = async (req, res, next) => {
   try {
     const { name, department, avatar, phone, jobTitle, companyName, manager, twoFactorEnabled } = req.body;
 
+    const refError =
+      companyChangeError(companyName, req.user) ||
+      (manager && String(manager) === String(req.user._id) ? 'Không thể tự làm quản lý trực tiếp của chính mình' : null) ||
+      (await usersError(manager, companyOf(req.user)));
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
+    }
+
     const updateData = {};
     if (name) updateData.name = name;
     if (department !== undefined) updateData.department = department;
     if (avatar !== undefined) updateData.avatar = avatar;
     if (phone !== undefined) updateData.phone = phone;
     if (jobTitle !== undefined) updateData.jobTitle = jobTitle;
-    if (companyName !== undefined) updateData.companyName = companyName;
     if (manager !== undefined) updateData.manager = manager || null;
     if (twoFactorEnabled !== undefined) updateData.twoFactorEnabled = Boolean(twoFactorEnabled);
 
@@ -416,7 +436,7 @@ const getUsers = async (req, res, next) => {
     if (req.query.department) filter.department = req.query.department;
     if (req.query.isActive !== undefined) filter.isActive = req.query.isActive === 'true';
     if (req.query.search) {
-      const regex = new RegExp(req.query.search, 'i');
+      const regex = toSearchRegex(req.query.search);
       filter.$and = [
         { companyName: userCompany },
         { $or: [{ name: regex }, { email: regex }, { phone: regex }, { jobTitle: regex }] },
@@ -454,6 +474,11 @@ const createUser = async (req, res, next) => {
         success: false,
         message: 'Email đã được sử dụng',
       });
+    }
+
+    const managerError = await usersError(manager, userCompany);
+    if (managerError) {
+      return res.status(400).json({ success: false, message: managerError });
     }
 
     const finalRole = role || 'member';
@@ -612,9 +637,10 @@ const updateUserStatus = async (req, res, next) => {
     targetUser.isActive = Boolean(isActive);
     await targetUser.save();
 
-    // Nếu vô hiệu hóa, thu hồi toàn bộ token phiên đăng nhập
+    // Nếu vô hiệu hóa, thu hồi toàn bộ token phiên đăng nhập và cắt kênh realtime
     if (!isActive) {
       await revokeAllForUser(targetUser._id);
+      disconnectUser(targetUser._id);
     }
 
     res.json({
@@ -853,11 +879,15 @@ const adminUpdateUserProfile = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Bạn không có quyền thao tác trên tài khoản của công ty khác' });
     }
 
+    const companyError = companyChangeError(companyName, targetUser);
+    if (companyError) {
+      return res.status(400).json({ success: false, message: companyError });
+    }
+
     if (name) targetUser.name = name;
     if (department !== undefined) targetUser.department = department;
     if (phone !== undefined) targetUser.phone = phone;
     if (jobTitle !== undefined) targetUser.jobTitle = jobTitle;
-    if (companyName !== undefined) targetUser.companyName = companyName;
 
     await targetUser.save();
     await targetUser.populate('manager', 'name email avatar jobTitle');

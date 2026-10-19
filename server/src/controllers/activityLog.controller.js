@@ -1,4 +1,5 @@
 const ActivityLog = require('../models/ActivityLog');
+const { toSearchRegex } = require('../utils/escapeRegex');
 const { logActivity } = require('../services/activityLog.service');
 
 const DEFAULT_COMPANY = 'Công ty Công nghệ RAO';
@@ -47,7 +48,7 @@ const getActivityLogs = async (req, res, next) => {
     }
 
     if (req.query.search) {
-      const searchRegex = new RegExp(req.query.search, 'i');
+      const searchRegex = toSearchRegex(req.query.search);
       filter.$or = [
         { description: searchRegex },
         { entityTitle: searchRegex },

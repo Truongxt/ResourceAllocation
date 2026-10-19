@@ -22,6 +22,8 @@ import EmptyState from '../../components/common/EmptyState';
 import taskApi from '../../api/taskApi';
 import projectApi from '../../api/projectApi';
 import taskGroupApi from '../../api/taskGroupApi';
+import CustomFieldInputs from '../../components/tasks/CustomFieldInputs';
+import { valuesFromInputs } from '../../utils/customFieldInputs.js';
 import {
   STATUS_MAP,
   PRIORITY_MAP,
@@ -115,6 +117,8 @@ export default function TasksScreen({ navigation }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newProject, setNewProject] = useState('');
+  // Trường tùy chỉnh của dự án đang chọn: chuỗi theo key. Đổi dự án thì bỏ (key thuộc dự án cũ).
+  const [customInputs, setCustomInputs] = useState({});
   const [projectGroups, setProjectGroups] = useState([]);
   const [selectedTaskGroup, setSelectedTaskGroup] = useState('');
   const [newPriority, setNewPriority] = useState('medium');
@@ -143,11 +147,11 @@ export default function TasksScreen({ navigation }) {
       if (scopeFilter !== 'all') params.scope = scopeFilter;
       if (timeFilter !== 'all') params.timeFilter = timeFilter;
 
-      const [tRes, pRes] = await Promise.all([
-        taskApi.getAll(params),
+      // Đi hết mọi trang: trước đây chỉ thấy 50 việc đầu (trang mặc định của server).
+      const [{ tasks: rawTasks }, pRes] = await Promise.all([
+        taskApi.getAllPages(params),
         projectApi.getAll({ limit: 50 }),
       ]);
-      const rawTasks = tRes.data?.data?.tasks || tRes.data?.tasks || (Array.isArray(tRes.data?.data) ? tRes.data.data : []);
       const rawProjects = pRes.data?.data?.projects || pRes.data?.projects || (Array.isArray(pRes.data?.data) ? pRes.data.data : []);
       setTasks(Array.isArray(rawTasks) ? rawTasks : []);
       setProjects(Array.isArray(rawProjects) ? rawProjects : []);
@@ -178,6 +182,12 @@ export default function TasksScreen({ navigation }) {
       return;
     }
 
+    const custom = valuesFromInputs(projects.find((p) => p._id === newProject), customInputs);
+    if (custom.error) {
+      Alert.alert('Thông báo', custom.error);
+      return;
+    }
+
     setCreating(true);
     try {
       await taskApi.create({
@@ -187,12 +197,14 @@ export default function TasksScreen({ navigation }) {
         priority: newPriority,
         estimatedHours: Number(newHours) || 8,
         description: newDesc.trim(),
+        ...(Object.keys(custom.values).length ? { customValues: custom.values } : {}),
       });
       Alert.alert('Thành công', 'Tạo công việc mới thành công');
       setShowCreateModal(false);
       setNewTitle('');
       setNewDesc('');
       setSelectedTaskGroup('');
+      setCustomInputs({});
       await loadTasks();
     } catch (err) {
       Alert.alert('Lỗi', err.response?.data?.message || 'Không thể tạo công việc');
@@ -580,9 +592,30 @@ export default function TasksScreen({ navigation }) {
             />
           </TouchableOpacity>
 
+          {/* Gantt View Button */}
+          <TouchableOpacity
+            accessibilityLabel="Xem tiến độ (Gantt)"
+            onPress={() => navigation.navigate('GanttScreen')}
+            style={[
+              styles.calendarNavBtn,
+              {
+                backgroundColor: theme.isDark
+                  ? 'rgba(255,255,255,0.08)'
+                  : '#e2e8f0',
+              },
+            ]}
+          >
+            <Ionicons
+              name="bar-chart-outline"
+              size={18}
+              color={theme.colors.text}
+            />
+          </TouchableOpacity>
+
           {/* Add Task Button */}
           <TouchableOpacity
             onPress={() => setShowCreateModal(true)}
+            accessibilityLabel="Tạo công việc mới"
             style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
           >
             <Ionicons name="add" size={22} color="#ffffff" />
@@ -905,7 +938,10 @@ export default function TasksScreen({ navigation }) {
                   return (
                     <TouchableOpacity
                       key={p._id}
-                      onPress={() => setNewProject(p._id)}
+                      onPress={() => {
+                        if (p._id !== newProject) setCustomInputs({});
+                        setNewProject(p._id);
+                      }}
                       style={[
                         styles.projectPill,
                         {
@@ -933,6 +969,13 @@ export default function TasksScreen({ navigation }) {
                   );
                 })}
               </ScrollView>
+
+              {/* Trường tùy chỉnh của dự án đang chọn */}
+              <CustomFieldInputs
+                project={projects.find((p) => p._id === newProject)}
+                inputs={customInputs}
+                onChange={(key, text) => setCustomInputs((prev) => ({ ...prev, [key]: text }))}
+              />
 
               {/* Task Group Select (if available) */}
               {projectGroups.length > 0 && (

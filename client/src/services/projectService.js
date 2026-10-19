@@ -27,6 +27,20 @@ const projectService = {
     });
   },
 
+  // Vòng đời: lưu trữ là chỉ đọc; nhân bản cũng là đường tạo mẫu và tạo từ mẫu.
+  archive(id) {
+    return api.post(`/projects/${id}/archive`);
+  },
+
+  unarchive(id) {
+    return api.post(`/projects/${id}/unarchive`);
+  },
+
+  // data: { name, startDate?: 'YYYY-MM-DD', asTemplate?: boolean }
+  duplicate(id, data) {
+    return api.post(`/projects/${id}/duplicate`, data);
+  },
+
   addMember(id, data) {
     return api.post(`/projects/${id}/members`, data);
   },
@@ -42,6 +56,11 @@ const projectService = {
   // Base Wework: Cập nhật cấu hình phân quyền thao tác trong dự án
   updatePermissions(id, permissions) {
     return api.patch(`/projects/${id}/permissions`, { permissions });
+  },
+
+  // Trường dữ liệu tùy chỉnh của công việc: thay cả danh sách một lần.
+  updateCustomFields(id, fields) {
+    return api.put(`/projects/${id}/custom-fields`, { fields });
   },
 
   // Cấu hình đánh dấu Thất bại và luồng Đánh giá dùng chung endpoint trên:

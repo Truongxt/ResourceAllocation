@@ -2,6 +2,9 @@ const express = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const { protect, authorize, requireAppPermission } = require('../middleware/auth');
+const mongoose = require('mongoose');
+const Project = require('../models/Project');
+const { ARCHIVED_MESSAGE } = require('../services/projectLifecycle.service');
 const {
   getProjects,
   getProjectById,
@@ -14,9 +17,15 @@ const {
   getProjectSummary,
   updateProjectPermissions,
   quickEditProject,
+  updateCustomFields,
+  archiveProject,
+  unarchiveProject,
+  duplicateProject,
 } = require('../controllers/project.controller');
 
 const router = express.Router();
+
+const PROJECT_KINDS = ['project', 'team'];
 
 const projectIdValidation = [
   param('id').isMongoId().withMessage('ID dự án không hợp lệ'),
@@ -66,8 +75,16 @@ const projectValidation = [
     .optional()
     .isIn(['low', 'medium', 'high', 'critical'])
     .withMessage('Độ ưu tiên không hợp lệ'),
-  body('startDate').notEmpty().withMessage('Ngày bắt đầu là bắt buộc').isISO8601().withMessage('Ngày bắt đầu không hợp lệ'),
-  body('endDate').notEmpty().withMessage('Ngày kết thúc là bắt buộc').isISO8601().withMessage('Ngày kết thúc không hợp lệ'),
+  body('kind').optional().isIn(PROJECT_KINDS).withMessage('Loại dự án không hợp lệ'),
+  // Phòng ban vận hành (`kind: 'team'`) chạy vô thời hạn nên không đòi ngày.
+  body('startDate')
+    .if((_, { req }) => req.body.kind !== 'team')
+    .notEmpty().withMessage('Ngày bắt đầu là bắt buộc'),
+  body('startDate').optional({ values: 'falsy' }).isISO8601().withMessage('Ngày bắt đầu không hợp lệ'),
+  body('endDate')
+    .if((_, { req }) => req.body.kind !== 'team')
+    .notEmpty().withMessage('Ngày kết thúc là bắt buộc'),
+  body('endDate').optional({ values: 'falsy' }).isISO8601().withMessage('Ngày kết thúc không hợp lệ'),
   body('budget').optional().isFloat({ min: 0 }).withMessage('Ngân sách phải lớn hơn hoặc bằng 0'),
   body('progress').optional().isFloat({ min: 0, max: 100 }).withMessage('Tiến độ phải từ 0 đến 100'),
   body('manager').optional().isMongoId().withMessage('Project Manager không hợp lệ'),
@@ -104,6 +121,7 @@ const updateProjectValidation = [
     .optional()
     .isIn(['low', 'medium', 'high', 'critical'])
     .withMessage('Độ ưu tiên không hợp lệ'),
+  body('kind').optional().isIn(PROJECT_KINDS).withMessage('Loại dự án không hợp lệ'),
   body('startDate').optional().isISO8601().withMessage('Ngày bắt đầu không hợp lệ'),
   body('endDate').optional().isISO8601().withMessage('Ngày kết thúc không hợp lệ'),
   body('budget').optional().isFloat({ min: 0 }).withMessage('Ngân sách phải lớn hơn hoặc bằng 0'),
@@ -141,6 +159,27 @@ const updateMemberValidation = [
 router.use(protect);
 router.use(requireAppPermission('projects'));
 
+// Dự án lưu trữ là CHỈ ĐỌC. Đặt ở `router.param` để route ghi thêm sau này tự được che;
+// chỉ `unarchive` và `duplicate` (chỉ đọc dự án nguồn) đi qua được. Dự án công ty khác
+// thì để controller trả 403 như cũ, không lộ trạng thái lưu trữ ra ngoài.
+router.param('id', async (req, res, next, id) => {
+  try {
+    if (req.method === 'GET' || req.path.endsWith('/unarchive') || req.path.endsWith('/duplicate') || !mongoose.isValidObjectId(id)) return next();
+    const project = await Project.findById(id).select('companyName isArchived');
+    const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
+    if (project?.isArchived && (project.companyName || 'Công ty Công nghệ RAO') === userCompany) {
+      return res.status(409).json({ success: false, message: ARCHIVED_MESSAGE });
+    }
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/:id/archive', authorize('admin', 'project_manager'), projectIdValidation, validate, archiveProject);
+router.post('/:id/unarchive', authorize('admin', 'project_manager'), projectIdValidation, validate, unarchiveProject);
+router.post('/:id/duplicate', authorize('admin', 'project_manager'), projectIdValidation, validate, duplicateProject);
+
 router.get('/stats/summary', getProjectSummary);
 router.get('/', listValidation, validate, getProjects);
 router.get('/:id', projectIdValidation, validate, getProjectById);
@@ -153,6 +192,9 @@ router.delete('/:id/members/:userId', authorize('admin', 'project_manager'), pro
 
 // Base Wework: Cấu hình phân quyền thao tác trong dự án (Owner & PM)
 router.patch('/:id/permissions', projectIdValidation, validate, updateProjectPermissions);
+
+// Trường dữ liệu tùy chỉnh của công việc (admin/Owner & quản lý dự án, kiểm trong controller)
+router.put('/:id/custom-fields', projectIdValidation, validate, updateCustomFields);
 
 // Base Wework: Chỉnh sửa nhanh (Quick Edit) dự án / phòng ban
 router.patch('/:id/quick-edit', projectIdValidation, validate, quickEditProject);

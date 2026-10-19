@@ -119,9 +119,12 @@ const reorderGroups = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'orderedIds phải là mảng' });
     }
 
+    // Lọc theo công ty: id đi trong body, chỉ lọc `_id` thì đổi được thứ tự nhóm
+    // của công ty khác
+    const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
     const bulkOps = orderedIds.map((id, index) => ({
       updateOne: {
-        filter: { _id: id },
+        filter: { _id: id, companyName: userCompany },
         update: { $set: { order: index } },
       },
     }));

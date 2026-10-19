@@ -189,9 +189,11 @@ thuần — `mobile/tests/app-permissions.test.mjs`, 21 ca. Trong đó ca đáng
 **"thiếu cấu hình = `manage`"**: chọn nhầm chiều thì mọi tài khoản cũ mở app ra thấy thanh
 tab trống trơn, mà lỗi kiểu đó không ném exception nào cả.
 
-Trên mobile, `appPermissions` ẩn tab và ẩn nút thao tác. Ba lớp còn lại (`authorize`,
-`authorizeApp`, `taskAccess`) **chưa được phản ánh trên giao diện mobile** — server vẫn chặn
-đúng, nhưng app có thể bày ra thao tác rồi nhận 403.
+Trên mobile, `appPermissions` ẩn tab và ẩn nút thao tác. `authorizeApp` (App Admin) và
+`authorize` theo vai trò cũng đã được phản ánh ở mức **tab**: Tối ưu hóa ẩn theo
+`hasAppAccess('optimize')`, Nhân sự ẩn theo `canAccessResources` — cùng quy tắc với
+`Sidebar.jsx` của web. Còn **`taskAccess`** (quyền theo từng dự án/công việc) thì chưa — server
+vẫn chặn đúng, nhưng app có thể bày ra thao tác trên một công việc rồi nhận 403.
 
 Chỉnh ở: **Cài đặt → Phân quyền Thao tác & Ứng dụng → Quyền theo Phân hệ**.
 
@@ -282,8 +284,10 @@ chạy dày nhất.
 nếu server từ chối. Server tự đặt `progress` 0/100 theo status.
 
 **Chuyển dự án** — `POST /tasks/:id/move`: kiểm dự án đích tồn tại (404) và **tiền nhiệm có
-còn hợp lệ sau khi chuyển không** (400, dùng chung `validateDependencies`). Chưa kiểm chiều
-ngược lại: task khác đang phụ thuộc *vào* nó.
+còn hợp lệ sau khi chuyển không** (400, dùng chung `validateDependencies`), cả chiều task khác
+đang phụ thuộc *vào* nó (400). Phía đích: dự án công ty khác → 403, người gọi không được tạo
+việc ở dự án đích → 403 (cùng `createDeniedReason` với `canCreateTask`), nhóm đích không thuộc
+dự án đích → 400.
 
 **Checklist** — thêm mục lấy `order = checklist.length`; xóa mục thì **đánh lại `order`** cho
 toàn bộ mục còn lại, nếu không sẽ có `order` trùng nhau.
@@ -420,7 +424,7 @@ Client đọc địa chỉ từ `VITE_SOCKET_URL`; **thiếu biến này thì m�
 
 ```bash
 npm run dev          # client :5173 + server :5000 song song
-cd server && npm test        # 20 bộ, vài phút
+cd server && npm test        # 25 bộ, vài phút
 cd client && npm test        # logic thuần + 8 file component
 cd mobile && npm test        # quy tắc quyền, node thuần, chưa cần cài gì
 npm run test:e2e             # 85 bài, 11 file, ~10 phút, Chromium thật
@@ -444,11 +448,11 @@ Chi tiết và danh sách lỗi từng lớp đã bắt được: [`TESTING.md`]
 Danh sách đầy đủ và lý do ở cuối [`FEATURES.md`](./FEATURES.md). Tóm tắt những chỗ **đang có
 thật trong code**:
 
-- **Chưa có migration cho tài khoản khách cũ** — khách tạo trước lúc tách `guestCompany` vẫn
-  mang tên đối tác trong `companyName`, nên không admin nào nhìn thấy họ nữa (họ **vẫn đăng
-  nhập được**).
-- `register()` vẫn có thể tạo User không kèm Resource (lỗi chỉ ghi console).
-- `move` task không kiểm các task đang phụ thuộc *vào* nó.
+- **Tài khoản khách cũ cần chạy migrate** — khách tạo trước lúc tách `guestCompany` vẫn mang
+  tên đối tác trong `companyName` nên không admin nào nhìn thấy họ (họ **vẫn đăng nhập được**).
+  Chạy `npm run migrate:guest-company` (khô) rồi `-- --apply` trên từng môi trường: khách thuộc
+  dự án của đúng một công ty được quy về công ty đó; khách không có dấu vết được liệt kê để
+  người chạy quyết (`--default-company=`). Database dev hiện không có khách nào như vậy.
 - `User.isGuest` vẫn chỉ là nhãn, chưa tự nối với vai trò `guest` trong dự án.
 - Chưa có bộ test nào **đếm bản ghi thật** cho `ActivityLog` và email sau lời gọi.
 - Backlog thiết kế: ảnh chụp workload định kỳ, bảng mã lỗi phía server để dịch được, ràng
@@ -456,11 +460,11 @@ thật trong code**:
 
 Riêng phần app di động:
 
-- **Giao diện mobile chưa có lớp test nào.** Chỉ logic thuần trong `utils/` kiểm được. Nhóm
-  lỗi "sai tên trường" vừa sửa sẽ tái phát theo đúng cách cũ nếu không có gì đối chiếu tên
-  trường mobile đọc với tên server trả.
-- **Lịch và Gantt chưa có trên mobile.**
-- Ba lớp quyền ngoài `appPermissions` chưa phản ánh lên giao diện mobile.
+- **Test giao diện mobile (jest-expo + RNTL) mới phủ vài màn**: Gantt, Tối ưu hóa, Benchmark, chi
+  tiết công việc (tab Tệp). Các màn khác vẫn chỉ có logic thuần trong `utils/` được kiểm, nên nhóm
+  lỗi "sai tên trường" có thể tái phát ở đó.
+- Quyền theo từng dự án/công việc (`taskAccess`) chưa phản ánh lên giao diện mobile; App Admin
+  và quyền theo vai trò thì đã có ở mức tab.
 - Mobile chưa có: việc lặp lại, nhóm việc, phụ thuộc, người theo dõi, duyệt việc, nhập/xuất
   Excel, các tab quản trị trong Cài đặt. Bảng đầy đủ ở [`FEATURES.md`](./FEATURES.md), mục
   "App di động — phủ được tới đâu".

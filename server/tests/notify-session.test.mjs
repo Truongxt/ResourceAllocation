@@ -105,6 +105,79 @@ S('Việc con sinh ra thông báo cho người phụ trách việc cha');
   ok(after === before + 1, `Người phụ trách việc cha nhận thêm 1 thông báo (${before} → ${after})`);
 }
 
+/** Thông báo mới nhất của một người theo loại (danh sách trả về mới trước). */
+const latestByType = async (token, type) => {
+  const res = await call('GET', '/notifications?limit=100', { token });
+  return (res.data?.notifications || []).find((n) => n.type === type);
+};
+
+S('Đổi deadline báo cho người thực hiện và người theo dõi');
+{
+  // Người theo dõi đã được thêm ở phần trên. PM là người thao tác nên không tự nhận.
+  const count = () => Promise.all([
+    countByType(TOK.assignee, 'task_deadline_changed'),
+    countByType(TOK.follower, 'task_deadline_changed'),
+    countByType(TOK.pm, 'task_deadline_changed'),
+  ]);
+  const before = await count();
+
+  const patch = await call('PATCH', `/tasks/${taskId}/deadline`, {
+    token: TOK.pm, body: { newEndDate: '2026-10-20', reason: 'Khách đổi yêu cầu' },
+  });
+  ok(patch.status === 200, 'PATCH /:id/deadline trả 200', `status=${patch.status}`);
+  const afterPatch = await count();
+  ok(afterPatch[0] === before[0] + 1 && afterPatch[1] === before[1] + 1,
+    'PATCH /:id/deadline: người thực hiện và người theo dõi mỗi người nhận 1', `${before} → ${afterPatch}`);
+  ok(afterPatch[2] === before[2], 'Người thao tác không tự nhận thông báo');
+  const n = await latestByType(TOK.assignee, 'task_deadline_changed');
+  ok(/20\/10\/2026/.test(n?.message || '') && /Khách đổi yêu cầu/.test(n?.message || ''),
+    'Nội dung có ngày mới và lý do', n?.message);
+
+  const put = await call('PUT', `/tasks/${taskId}`, { token: TOK.pm, body: { endDate: '2026-10-25', deadlineReason: 'Chờ duyệt thiết kế' } });
+  ok(put.status === 200, 'PUT /:id đổi endDate trả 200', `status=${put.status}`);
+  const afterPut = await count();
+  ok(afterPut[0] === afterPatch[0] + 1 && afterPut[1] === afterPatch[1] + 1,
+    'PUT /:id đổi endDate: mỗi người nhận thêm 1', `${afterPatch} → ${afterPut}`);
+
+  await call('PUT', `/tasks/${taskId}`, { token: TOK.pm, body: { endDate: '2026-10-25', title: 'Công việc nhận thông báo' } });
+  const afterSame = await count();
+  ok(afterSame[0] === afterPut[0], 'PUT lại cùng endDate thì không sinh thông báo', `${afterPut} → ${afterSame}`);
+}
+
+S('Đánh dấu Thất bại báo kèm lý do');
+{
+  await call('PATCH', `/projects/${projectId}/permissions`, {
+    token: TOK.pm, body: { failureConfig: { enabled: true, allowedRoles: [] } },
+  });
+  const failing = (await call('POST', '/tasks', {
+    token: TOK.pm,
+    body: {
+      title: 'Công việc sẽ thất bại', project: projectId, assignee: assigneeId, followers: [followerId],
+      startDate: '2026-10-05', endDate: '2026-10-15', estimatedHours: 4,
+    },
+  })).data?.task?._id;
+
+  const before = await Promise.all([
+    countByType(TOK.assignee, 'task_failed'),
+    countByType(TOK.follower, 'task_failed'),
+    countByType(TOK.assignee, 'task_status_changed'),
+  ]);
+  const res = await call('PATCH', `/tasks/${failing}/status`, {
+    token: TOK.pm, body: { status: 'failed', failureReason: 'Nhà cung cấp ngừng hợp tác' },
+  });
+  ok(res.status === 200, 'Đánh dấu Thất bại trả 200', `status=${res.status}`);
+  const after = await Promise.all([
+    countByType(TOK.assignee, 'task_failed'),
+    countByType(TOK.follower, 'task_failed'),
+    countByType(TOK.assignee, 'task_status_changed'),
+  ]);
+  ok(after[0] === before[0] + 1 && after[1] === before[1] + 1,
+    'Người thực hiện và người theo dõi mỗi người nhận 1 task_failed', `${before} → ${after}`);
+  ok(after[2] === before[2], 'Người thực hiện không nhận thêm task_status_changed cho cùng thao tác');
+  const n = await latestByType(TOK.follower, 'task_failed');
+  ok(/Nhà cung cấp ngừng hợp tác/.test(n?.message || ''), 'Nội dung có lý do thất bại', n?.message);
+}
+
 S('Phiên đăng nhập: liệt kê và thu hồi');
 {
   // Mỗi lần đăng nhập tạo một refresh token. Danh sách phiên phải thấy được nó.

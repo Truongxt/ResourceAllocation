@@ -13,7 +13,11 @@
  * Cách đo: đăng ký một công ty B hoàn toàn mới, rồi cho admin của nó thao tác lên
  * công việc của công ty A **chỉ bằng id**. Mọi đường đều phải là 403.
  */
-import { call, ok, section as S, summary } from './helpers.mjs';
+import { createRequire } from 'module';
+import { API, call, ok, section as S, summary } from './helpers.mjs';
+
+const require = createRequire(import.meta.url);
+const XLSX = require('xlsx');
 
 const stamp = Date.now();
 
@@ -282,6 +286,16 @@ S('Tối ưu hóa — cả phân hệ từng không có ranh giới');
     ok((own.data?.results || []).length > 0,
       'Nhưng A vẫn thấy lượt chạy của chính mình',
       `${(own.data?.results || []).length} bản ghi`);
+
+    // Đường so sánh thứ hai, bên analytics: đọc kết quả theo id và dựng bảng
+    // trước/sau từ danh sách nhân sự — trước đây không lọc cả hai theo công ty.
+    const anaB = await call('GET', `/analytics/optimization-comparison/${resultId}`, { token: TB });
+    ok(anaB.status === 403, 'B không xem bảng trước/sau tối ưu của A', `status=${anaB.status}`);
+
+    const anaA = await call('GET', `/analytics/optimization-comparison/${resultId}`, { token: TAdmin });
+    const names = (anaA.data?.resources || []).map((r) => r.resourceName);
+    ok(anaA.status === 200 && names.length > 0, 'A xem được bảng của mình', `status=${anaA.status}`);
+    ok(!names.includes('Chủ B'), 'Bảng của A không lòi nhân sự công ty B', names.join(', '));
   }
 }
 
@@ -396,6 +410,119 @@ S('Nhóm việc và việc lặp lại');
 
     await call('DELETE', `/recurring-tasks/${recId}`, { token: TA });
   }
+}
+
+// ══════════════════════════════════════════════
+S('Nhập Excel — ghi công việc hàng loạt vào dự án theo id');
+{
+  // `projectId` đi trong form multipart, không qua `router.param('id')` nên chốt
+  // phân lập của nhóm task không che được. Controller trước đây cũng không kiểm
+  // dự án thuộc công ty nào, cả `canCreateTask` cũng không gắn vào route này.
+  const marker = `Excel ${stamp}`;
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Tên công việc / Nhóm công việc (*)'],
+    [marker],
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Tasks');
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+  const importExcel = async (token, projectId) => {
+    const form = new FormData();
+    form.append('file', new Blob([buffer]), 'tasks.xlsx');
+    form.append('projectId', projectId);
+    const res = await fetch(`${API}/tasks/excel/import`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    return { status: res.status, ...(await res.json().catch(() => ({}))) };
+  };
+  const countMarker = async () => {
+    const r = await call('GET', `/tasks?project=${proj._id}&search=${encodeURIComponent(marker)}&limit=100`, { token: TA });
+    return (r.data?.tasks || []).filter((t) => t.title === marker).length;
+  };
+
+  const before = await countMarker();
+  const cross = await importExcel(TB, proj._id);
+  ok(cross.status === 403, 'B KHÔNG nhập được công việc vào dự án của A', `status=${cross.status}`);
+  ok((await countMarker()) === before, 'Dự án của A không mọc thêm công việc nào', `trước=${before}`);
+
+  const missing = await importExcel(TA, '000000000000000000000000');
+  ok(missing.status === 404, 'Dự án không tồn tại → 404', `status=${missing.status}`);
+
+  const own = await importExcel(TA, proj._id);
+  ok(own.status === 200 && own.data?.totalImported === 1, 'A vẫn nhập được vào dự án của mình', `status=${own.status}`);
+  const created = own.data?.tasks?.[0];
+  ok(created?.companyName === proj.companyName, 'Công việc nhập vào mang công ty của dự án',
+    `${created?.companyName} / ${proj.companyName}`);
+  if (created?._id) await call('DELETE', `/tasks/${created._id}`, { token: TA });
+
+  // Cùng công ty nhưng không thuộc dự án: `POST /tasks` chặn bằng `canCreateTask`,
+  // đường nhập Excel thì không gắn guard đó nên member vẫn ghi hàng loạt được.
+  // Dữ liệu mẫu: Lê Thị Hoa là member ECOM-01, không thuộc RAO-MOB.
+  const hoa = await call('POST', '/auth/login', { body: { email: 'hoa.le@rao.com', password: 'password123' } });
+  const mob = (projects.data?.projects || []).find((p) => p.code === 'RAO-MOB');
+  const outsider = await importExcel(hoa.data.token, mob._id);
+  ok(outsider.status === 403, 'Member ngoài dự án KHÔNG nhập Excel được', `status=${outsider.status}`);
+}
+
+// ══════════════════════════════════════════════
+S('Di chuyển công việc — dự án và nhóm ĐÍCH');
+{
+  // `canMoveTask` và chốt `router.param('id')` chỉ soi công việc NGUỒN. Dự án đích
+  // (`targetProjectId`) và nhóm đích (`targetTaskGroupId`) đi trong body — cùng loại
+  // với lỗ nhập Excel — nên trước đây không ai kiểm chúng thuộc về đâu.
+  const bProj = await call('POST', '/projects', {
+    token: TB,
+    body: { name: `Dự án B ${stamp}`, startDate: '2026-11-01', endDate: '2026-12-01' },
+  });
+  const bProjId = bProj.data?.project?._id;
+  ok(!!bProjId, 'B tạo được dự án của mình', `status=${bProj.status}`);
+
+  // Nguồn và đích phải là hai dự án KHÁC nhau: `proj` ở trên là dự án đầu danh
+  // sách, tình cờ chính là RAO-MOB — dùng nó làm nguồn thì mọi lần chuyển thành
+  // chuyển tại chỗ và bài kiểm xanh mà không kiểm gì.
+  const all = projects.data?.projects || [];
+  const ecom = all.find((p) => p.code === 'ECOM-01');
+  const mob = all.find((p) => p.code === 'RAO-MOB');
+
+  const mv = await call('POST', '/tasks', {
+    token: TA,
+    body: { title: `Chuyển ${stamp}`, project: ecom._id, startDate: '2026-11-01', endDate: '2026-11-03' },
+  });
+  const mvId = mv.data.task._id;
+
+  // Nhóm việc của một dự án khác: gắn vào thì task "thuộc" một dự án nhưng nằm
+  // trong nhóm của dự án kia.
+  const grp = await call('POST', '/task-groups', { token: TA, body: { name: `Nhóm MOB ${stamp}`, project: mob._id } });
+  const grpId = grp.data?.group?._id;
+  const wrongGroup = await call('POST', `/tasks/${mvId}/move`, { token: TA, body: { targetTaskGroupId: grpId } });
+  ok(wrongGroup.status === 400, 'Không gắn được vào nhóm việc của dự án khác', `status=${wrongGroup.status}`);
+
+  // Member là người thực hiện: qua được `canMoveTask`, nhưng không phải thành viên
+  // dự án đích — tạo việc thẳng ở đó thì bị chặn, chuyển sang thì không được dễ hơn.
+  const hoa = await call('POST', '/auth/login', { body: { email: 'hoa.le@rao.com', password: 'password123' } });
+  const hoaTask = await call('POST', '/tasks', {
+    token: TA,
+    body: { title: `Của Hoa ${stamp}`, project: ecom._id, assignee: hoa.data.user._id,
+            startDate: '2026-11-01', endDate: '2026-11-03' },
+  });
+  const outsider = await call('POST', `/tasks/${hoaTask.data.task._id}/move`, {
+    token: hoa.data.token, body: { targetProjectId: mob._id },
+  });
+  ok(outsider.status === 403, 'Member KHÔNG chuyển được việc sang dự án mình không thuộc', `status=${outsider.status}`);
+
+  const fine = await call('POST', `/tasks/${mvId}/move`, { token: TA, body: { targetProjectId: mob._id, targetTaskGroupId: grpId } });
+  ok(fine.status === 200, 'Chuyển hợp lệ trong công ty, kèm nhóm của dự án đích, vẫn chạy', `status=${fine.status}`);
+
+  // Để cuối: nếu lỗ còn đó, công việc sang hẳn công ty B và mọi bước sau của A
+  // nhận 403 vì công việc không còn là của A — các bài phía trên sẽ đỏ dây chuyền.
+  const intoB = await call('POST', `/tasks/${mvId}/move`, { token: TA, body: { targetProjectId: bProjId } });
+  ok(intoB.status === 403, 'A KHÔNG chuyển được công việc sang dự án công ty B', `status=${intoB.status}`);
+
+  for (const t of [mvId, hoaTask.data.task._id]) await call('DELETE', `/tasks/${t}`, { token: TA });
+  if (grpId) await call('DELETE', `/task-groups/${grpId}`, { token: TA });
 }
 
 process.exit(summary() ? 1 : 0);

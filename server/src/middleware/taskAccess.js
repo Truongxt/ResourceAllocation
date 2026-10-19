@@ -15,6 +15,7 @@
 
 const Task = require('../models/Task');
 const Project = require('../models/Project');
+const { ARCHIVED_MESSAGE } = require('../services/projectLifecycle.service');
 
 const PRIVILEGED_ROLES = ['admin', 'project_manager'];
 
@@ -32,7 +33,8 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
   }
 
   const isPrivileged = PRIVILEGED_ROLES.includes(user.role);
-  const isOwner = user.role === 'admin';
+  // Admin hệ thống theo role — KHÔNG phải cờ `User.isOwner` (Owner luôn có role admin).
+  const isAdmin = user.role === 'admin';
   const project = task?.project;
 
   let isProjectManager = isPrivileged;
@@ -58,7 +60,7 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
         if (memberObj.role === 'guest') isGuest = true;
       }
     }
-    if (isProjectManager || isOwner) {
+    if (isProjectManager || isAdmin) {
       isProjectMember = true;
     }
   }
@@ -85,7 +87,7 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
     task,
     project,
     isPrivileged,
-    isOwner,
+    isAdmin,
     isProjectManager,
     isCreator,
     isAssignee,
@@ -118,7 +120,7 @@ const getTaskUserContext = async (taskId, user, preloadedTask = null) => {
  */
 const guardTaskCompany = async (req, res, next, id) => {
   try {
-    const task = await Task.findById(id).select('project').populate('project', 'companyName');
+    const task = await Task.findById(id).select('project').populate('project', 'companyName isArchived');
     if (!task) return next();
 
     const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
@@ -131,6 +133,12 @@ const guardTaskCompany = async (req, res, next, id) => {
       });
     }
 
+    // Dự án lưu trữ là chỉ đọc: mọi thao tác ghi lên việc của nó (sửa, đổi trạng thái,
+    // bình luận, xóa…) dừng ở đây, kể cả với admin/PM.
+    if (req.method !== 'GET' && task.project?.isArchived) {
+      return res.status(409).json({ success: false, message: ARCHIVED_MESSAGE });
+    }
+
     return next();
   } catch (error) {
     return next(error);
@@ -138,10 +146,41 @@ const guardTaskCompany = async (req, res, next, id) => {
 };
 
 /**
- * Phân quyền Tạo mới công việc
- * - Admin & Project Manager: Có quyền tạo
- * - Thành viên dự án: Được tạo nếu dự án bật quyền allowMembersCreateTasks === true
- * - Khách: Được tạo nếu allowGuestCreateTask === true
+ * Lý do một người dùng KHÔNG được đặt công việc vào dự án này, hoặc `null` nếu được.
+ * Dùng chung cho tạo mới (`canCreateTask`) và chuyển việc sang dự án khác (`moveTask`):
+ * chuyển một công việc vào dự án cũng là thêm việc vào dự án đó.
+ *
+ * - Admin & Project Manager (theo role): được
+ * - Quản lý của chính dự án: được
+ * - Thành viên dự án: được nếu dự án bật `allowMembersCreateTasks`
+ * - Khách: được nếu `allowGuestCreateTask`
+ *
+ * Không xét công ty — đó là chốt riêng, áp cho cả admin/PM.
+ */
+const createDeniedReason = (user, project) => {
+  if (PRIVILEGED_ROLES.includes(user.role)) return null;
+
+  const managerId = project.manager?._id || project.manager;
+  if (managerId && managerId.toString() === user._id.toString()) return null;
+
+  const memberObj = (project.members || []).find((m) => {
+    const uid = m.user?._id || m.user || m;
+    return uid && uid.toString() === user._id.toString();
+  });
+  if (!memberObj) {
+    return 'Bạn không phải là thành viên của dự án này nên không có quyền tạo công việc.';
+  }
+
+  const perms = project.permissions || {};
+  if (memberObj.role === 'guest') {
+    return perms.allowGuestCreateTask ? null : 'Khách chưa được cấp quyền tạo công việc trong dự án này.';
+  }
+  // Schema mặc định bật — `allowMembersCreateTasks: true`
+  return perms.allowMembersCreateTasks ? null : 'Thành viên chưa được cấp quyền tự tạo công việc trong dự án này.';
+};
+
+/**
+ * Phân quyền Tạo mới công việc — xem `createDeniedReason`.
  */
 const canCreateTask = () => async (req, res, next) => {
   try {
@@ -149,7 +188,8 @@ const canCreateTask = () => async (req, res, next) => {
       return next();
     }
 
-    const { project: projectId } = req.body;
+    // Form nhập Excel gửi `projectId` thay vì `project`
+    const projectId = req.body.project || req.body.projectId;
     if (!projectId) {
       return res.status(400).json({ success: false, message: 'Dự án tiếp nhận công việc là bắt buộc' });
     }
@@ -159,40 +199,9 @@ const canCreateTask = () => async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
     }
 
-    const managerId = project.manager?._id || project.manager;
-    if (managerId && managerId.toString() === req.user._id.toString()) {
-      return next();
-    }
-
-    // Kiểm tra tư cách thành viên dự án
-    const memberObj = (project.members || []).find((m) => {
-      const uid = m.user?._id || m.user || m;
-      return uid && uid.toString() === req.user._id.toString();
-    });
-
-    if (!memberObj) {
-      return res.status(403).json({
-        success: false,
-        message: 'Bạn không phải là thành viên của dự án này nên không có quyền tạo công việc.',
-      });
-    }
-
-    const perms = project.permissions || {};
-    if (memberObj.role === 'guest') {
-      if (!perms.allowGuestCreateTask) {
-        return res.status(403).json({
-          success: false,
-          message: 'Khách chưa được cấp quyền tạo công việc trong dự án này.',
-        });
-      }
-    } else {
-      // Chuẩn: Thành viên được tạo nếu dự án bật phân quyền tạo việc (mặc định tắt nếu chưa cấu hình)
-      if (!perms.allowMembersCreateTasks) {
-        return res.status(403).json({
-          success: false,
-          message: 'Thành viên chưa được cấp quyền tự tạo công việc trong dự án này.',
-        });
-      }
+    const denied = createDeniedReason(req.user, project);
+    if (denied) {
+      return res.status(403).json({ success: false, message: denied });
     }
 
     next();
@@ -252,9 +261,12 @@ const canModifyTask = ({ restrictFields = false } = {}) => async (req, res, next
     // Nếu là Người thực hiện (Assignee):
     // Trường hợp restrictFields: Chỉ cho phép các trường tiến độ hợp lệ
     // trừ khi dự án đã bật quyền tương ứng
-    const allowed = [...ASSIGNEE_EDITABLE_FIELDS];
+    // `failureReason` chỉ có tác dụng khi `status` đổi sang Thất bại, mà bước đó đã có
+    // `canChangeStatusOnUpdate` chốt quyền theo `failureConfig.allowedRoles`.
+    const allowed = [...ASSIGNEE_EDITABLE_FIELDS, 'failureReason'];
     if (permissions.allowAssigneeEditTitleDesc) {
-      allowed.push('title', 'description');
+      // Trường tùy chỉnh đi cùng nhóm "nội dung" với tiêu đề/mô tả — giống `canEditDetails` bên web.
+      allowed.push('title', 'description', 'customValues');
     }
     if (permissions.allowAssigneeEditDeadline) {
       allowed.push('startDate', 'endDate', 'deadlineReason');
@@ -664,10 +676,32 @@ const canCreateSubtask = () => async (req, res, next) => {
   }
 };
 
+/**
+ * `PUT /:id` mang theo `status` — form sửa công việc luôn gửi trường này. Khi nó thật sự
+ * đổi trạng thái thì phải qua cùng chốt quyền với `PATCH /:id/status`; thiếu chốt này,
+ * người thực hiện tự đánh Thất bại được dù dự án không cho vai đó. Lưu lại form mà giữ
+ * nguyên trạng thái thì không cần.
+ */
+const canChangeStatusOnUpdate = () => {
+  const statusGuard = canUpdateTaskStatus();
+  return async (req, res, next) => {
+    try {
+      if (req.body?.status === undefined) return next();
+      const task = await Task.findById(req.params.id).select('status');
+      if (!task || task.status === req.body.status) return next();
+      return statusGuard(req, res, next);
+    } catch (error) {
+      next(error);
+    }
+  };
+};
+
 module.exports = {
   getTaskUserContext,
+  canChangeStatusOnUpdate,
   guardTaskCompany,
   canCreateTask,
+  createDeniedReason,
   canModifyTask,
   canUpdateTaskStatus,
   canCompleteTask,

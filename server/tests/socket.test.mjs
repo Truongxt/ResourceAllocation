@@ -77,6 +77,37 @@ await fetch(`${API}/notifications/${nid}/read`, { method: 'PATCH', headers: { Au
 await new Promise((r) => setTimeout(r, 1500));
 ok(readEvents.length === 1 && readEvents[0].id === nid, 'Nhận sự kiện notification:read khi đánh dấu đã đọc');
 
+// Tài khoản bị khóa: handshake trước đây chỉ verify JWT. Access token còn sống
+// tới 15 phút sau khi khóa, nên trong khoảng đó socket cũ vẫn nhận thông báo và
+// token cũ vẫn mở được socket mới.
+section('Tài khoản bị khóa mất kênh realtime');
+{
+  const hoa = await login('hoa.le@rao.com');
+  const sockHoa = io(WS, { transports: ['websocket'], reconnection: false, auth: { token: hoa.token } });
+  await new Promise((resolve) => { sockHoa.on('connect', resolve); setTimeout(resolve, 5000); });
+  ok(sockHoa.connected, 'Kết nối được trước khi bị khóa');
+
+  const kicked = new Promise((resolve) => {
+    sockHoa.on('disconnect', () => resolve(true));
+    setTimeout(() => resolve(false), 5000);
+  });
+  const lock = await call('PUT', `/auth/users/${hoa.user._id}/status`, { token: admin.token, body: { isActive: false } });
+  ok(lock.status === 200, 'Admin khóa được tài khoản', `status=${lock.status}`);
+  ok(await kicked, 'Socket đang mở bị ngắt ngay khi tài khoản bị khóa');
+
+  const reconnect = await new Promise((resolve) => {
+    const s = io(WS, { transports: ['websocket'], reconnection: false, auth: { token: hoa.token } });
+    const done = (v) => { s.close(); resolve(v); };
+    s.on('connect', () => done('connected'));
+    s.on('connect_error', (e) => done(e.message));
+    setTimeout(() => done('timeout'), 5000);
+  });
+  ok(reconnect === 'Authentication error', 'Token cũ không mở được socket mới', `(${reconnect})`);
+
+  sockHoa.close();
+  await call('PUT', `/auth/users/${hoa.user._id}/status`, { token: admin.token, body: { isActive: true } });
+}
+
 // Dọn
 await fetch(`${API}/tasks/${task.data.task._id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${admin.token}` } });
 sockMember.close();

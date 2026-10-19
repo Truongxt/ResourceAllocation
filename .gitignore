@@ -41,3 +41,6 @@ e2e/.report/
 e2e/.mongo/
 playwright-report/
 test-results/
+
+# Tệp đính kèm người dùng tải lên (UPLOAD_DIR mặc định)
+server/uploads/

@@ -1,11 +1,29 @@
 import api from './api';
 
+// Server trả tối đa 100 việc mỗi trang (mặc định 50) và cắt `limit` lớn hơn về 100, nên
+// màn nào cần đủ việc (Kanban, Gantt, lịch, tìm kiếm) phải tự đi hết các trang.
+const TASK_PAGE_SIZE = 100;
+
+/** Trần số trang cho màn hình — đủ cho 1000 việc mà không kéo cả kho mỗi lần mở. */
+export const SCREEN_MAX_PAGES = 10;
+
 const taskService = {
   getAll(params = {}) {
     return api.get('/tasks', { params });
   },
-  getCalendarTasks(params) {
-    return api.get("/tasks", { params });
+
+  /**
+   * Mọi trang của `GET /tasks`: trang đầu để biết tổng, các trang sau gọi song song.
+   * Trả `{ tasks, total }` — `total` là số việc khớp bộ lọc theo server, có thể lớn hơn
+   * `tasks.length` khi chạm `maxPages`. Xuất CSV gọi không trần.
+   */
+  async getAllPages(params = {}, maxPages = Infinity) {
+    const page = (n) => api.get('/tasks', { params: { ...params, limit: TASK_PAGE_SIZE, page: n } });
+    const first = await page(1);
+    const pages = Math.min(first.data.pagination?.pages || 1, maxPages);
+    const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => page(i + 2)));
+    const tasks = [first, ...rest].flatMap((res) => res.data.data?.tasks || []);
+    return { tasks, total: first.data.total ?? tasks.length };
   },
   getSummary(params = {}) {
     return api.get('/tasks/stats/summary', { params });
@@ -109,8 +127,9 @@ const taskService = {
   },
 
   // === Base Wework: Excel Import/Export ===
-  downloadExcelTemplate() {
-    return api.get('/tasks/excel/template', { responseType: 'blob' });
+  /** Có `projectId` thì mẫu kèm sẵn các cột trường tùy chỉnh của dự án đó. */
+  downloadExcelTemplate(projectId) {
+    return api.get('/tasks/excel/template', { responseType: 'blob', params: projectId ? { project: projectId } : {} });
   },
   previewExcel(formData) {
     return api.post('/tasks/excel/preview', formData, {

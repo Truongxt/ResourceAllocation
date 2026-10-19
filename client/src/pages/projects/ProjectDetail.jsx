@@ -43,6 +43,7 @@ import {
   CheckCircleOutlined,
   KeyOutlined,
   SafetyCertificateOutlined,
+  ProfileOutlined,
   CalendarOutlined,
   EyeOutlined,
   AppstoreOutlined,
@@ -68,6 +69,7 @@ import { projectStatusLabel, priorityLabel, taskStatusLabel } from '../../i18n/e
 import { formatCurrency } from '../../i18n/format';
 import './ProjectDetail.css';
 import { depId } from '../../utils/gantt';
+import ProjectCustomFields from '../../components/projects/ProjectCustomFields';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -677,6 +679,34 @@ export default function ProjectDetail() {
         >
           {t('projectDetail.projectList') || 'Quay lại danh sách dự án'}
         </Button>
+        {/* Dự án lưu trữ là chỉ đọc: server trả 409 cho mọi thao tác ghi, nên nói trước. */}
+        {project.isArchived && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12 }}
+            title={t('projects.lifecycle.archivedBanner')}
+            action={
+              <Button
+                size="small"
+                onClick={async () => {
+                  try {
+                    await projectService.unarchive(project._id);
+                    message.success(t('projects.lifecycle.unarchived'));
+                    load();
+                  } catch (error) {
+                    message.error(error.response?.data?.message || t('projects.lifecycle.archiveFailed'));
+                  }
+                }}
+              >
+                {t('projects.lifecycle.unarchive')}
+              </Button>
+            }
+          />
+        )}
+        {project.isTemplate && (
+          <Alert type="info" showIcon style={{ marginBottom: 12 }} title={t('projects.lifecycle.templateBanner')} />
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -814,7 +844,9 @@ export default function ProjectDetail() {
                         ) : '—'}
                       </Descriptions.Item>
                       <Descriptions.Item label={t('gantt.period') || 'Thời gian'}>
-                        {formatDate(project.startDate)} → {formatDate(project.endDate)}
+                        {project.kind === 'team'
+                          ? `${project.startDate ? `Từ ${formatDate(project.startDate)} · ` : ''}Thường xuyên (phòng ban vận hành)`
+                          : `${formatDate(project.startDate)} → ${formatDate(project.endDate)}`}
                       </Descriptions.Item>
                       <Descriptions.Item label={t('projects.budget') || 'Ngân sách'}>
                         {formatCurrency(project.budget)}
@@ -948,6 +980,25 @@ export default function ProjectDetail() {
                   />
                 )}
               </div>
+            ),
+          },
+          {
+            key: 'customFields',
+            label: (
+              <span>
+                <ProfileOutlined style={{ marginRight: 6 }} />
+                Trường tùy chỉnh
+              </span>
+            ),
+            children: (
+              <ProjectCustomFields
+                project={project}
+                onSaved={(saved) => {
+                  // Server trả dự án chưa populate quản lý/thành viên: chỉ lấy phần vừa đổi.
+                  setProject((prev) => ({ ...prev, customFields: saved.customFields }));
+                  message.success('Đã lưu trường tùy chỉnh');
+                }}
+              />
             ),
           },
           {

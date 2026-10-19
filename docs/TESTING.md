@@ -5,23 +5,24 @@ Dự án có **bốn lớp kiểm thử**, mỗi lớp trả lời một câu h�
 
 | Lớp | Thư mục | Chạy bằng | Quy mô | Trả lời câu hỏi |
 |-----|---------|-----------|--------|-----------------|
-| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 20 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
-| Component | `client/tests/` | `npm test` trong `client/` | 3 file logic + 8 file component | Component vẽ đúng, xử lý đúng sự kiện không? |
-| Logic di động | `mobile/tests/` | `npm test` trong `mobile/` | 1 bộ logic thuần | Quy tắc quyền trên app có khớp với server không? |
-| Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 85 bài / 11 file | Ghép tất cả lại thì người dùng **dùng được** không? |
+| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 37 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
+| Component | `client/tests/` | `npm test` trong `client/` | 7 file logic + 15 file component | Component vẽ đúng, xử lý đúng sự kiện không? |
+| Di động | `mobile/tests/` | `npm test` trong `mobile/` | 4 bộ logic thuần + 7 file jest | Quy tắc quyền khớp server không? Màn hình dựng đúng không? |
+| Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 93 bài / 12 file | Ghép tất cả lại thì người dùng **dùng được** không? |
 
-Lớp di động mỏng nhất và cố tình như vậy: app Expo không chạy được trong môi trường kiểm
-thử hiện tại, nên chỉ những quy tắc **thuần** — tách sẵn ra `mobile/src/utils/` — mới kiểm
-được. Phần giao diện của app vẫn chưa có lưới nào che; xem [mục cuối](#phần-mobile-còn-hở).
+Lớp di động có hai phần. Quy tắc **thuần** (tách ra `mobile/src/utils/`) chạy bằng node trần.
+Từ 08/10 có thêm test giao diện bằng `jest-expo` + `@testing-library/react-native`: dựng màn thật
+với API đã mock. Mới 5/16 màn có test giao diện; xem [mục cuối](#phần-mobile-còn-hở).
 
-Hai lớp đầu chạy trong vòng vài phút. Lớp e2e mất khoảng **10–15 phút** (đo trên máy phát
-triển, 1 worker) vì nó khởi động thật, đăng nhập thật và chờ API thật ở từng bài.
+Hai lớp đầu chạy trong vòng vài phút. Lớp e2e mất khoảng **20 phút** (đo trên máy phát
+triển, 1 worker: 18,8 phút cho 93 bài) vì nó khởi động thật, đăng nhập thật và chờ API thật ở
+từng bài.
 
 Chi tiết từng lớp:
 
-- [`server/tests/README.md`](../server/tests/README.md) — 19 bộ, gồm cả kiểm thử đơn vị cho GA/CSP/scoring
+- [`server/tests/README.md`](../server/tests/README.md) — 37 bộ, gồm cả kiểm thử đơn vị cho GA/CSP/scoring
 - [`client/tests/README.md`](../client/tests/README.md) — logic thuần chạy bằng `node`, component chạy bằng vitest
-- [`e2e/README.md`](../e2e/README.md) — 10 bộ điều khiển Chromium trên hệ thống thật
+- [`e2e/README.md`](../e2e/README.md) — 12 bộ điều khiển Chromium trên hệ thống thật
 
 ## Chạy tất cả
 
@@ -32,8 +33,9 @@ cd server && npm test
 # Lớp 2 — không cần gì
 cd client && npm test
 
-# Lớp 3 — không cần gì, cũng không cần cài node_modules của mobile
-cd mobile && npm test
+# Lớp 3 — cần `npm install` trong mobile/ (jest-expo); không cần server
+cd mobile && npm test        # node thuần + jest
+cd mobile && npm run test:ui # chỉ jest
 
 # Lớp 4 — cần MongoDB; tự khởi động client + server
 npm run test:e2e                    # ở thư mục gốc
@@ -286,7 +288,7 @@ cũng thuộc về lớp e2e**. Chỉ một hạng mục được đưa lên e2e
 | Đánh lại `order` của checklist sau khi xóa | `server/tests` | Drawer render checklist **theo thứ tự mảng**, không theo `order`. Một bài e2e nhìn vào màn hình sẽ xanh cả trước lẫn sau khi sửa — xanh giả, tệ hơn là không có test |
 | Không trả mật khẩu rõ trong response tạo User | `server/tests` | Kiểm được qua e2e (rình response trong trình duyệt) nhưng vướng đúng vấn đề rác dữ liệu như hàng thứ hai |
 
-Nguyên tắc rút ra: **lớp e2e đắt (10–15 phút/lượt) và ghi vào database dùng chung**, nên chỉ
+Nguyên tắc rút ra: **lớp e2e đắt (khoảng 20 phút/lượt) và ghi vào database dùng chung**, nên chỉ
 dành cho thứ chỉ nó mới thấy được — mối nối giữa các mảnh. Thứ gì một lớp rẻ hơn kiểm được
 đầy đủ thì để ở lớp đó; và thứ gì lớp e2e *không chứng minh được* thì đừng viết bài e2e cho
 nó, vì một bài xanh-bất-kể-code-đúng-hay-sai còn nguy hiểm hơn khoảng trống đã biết.
@@ -431,7 +433,7 @@ Bài học lặp lại đúng cái đã ghi ở trên: lớp test không chạm 
 
 ### Những gì đã che được
 
-- `mobile/tests/app-permissions.test.mjs` — 21 ca cho quy tắc quyền theo phân hệ. Quy tắc
+- `mobile/tests/app-permissions.test.mjs` — 38 ca cho quy tắc quyền theo phân hệ. Quy tắc
   được tách khỏi `AuthContext` ra `mobile/src/utils/appPermissions.js` chính là để kiểm được
   bằng Node thuần, không cần Expo.
 - Phía server, `hardening.test.mjs` thêm nhóm "Bình luận: hợp đồng dữ liệu mà màn chi tiết
@@ -442,6 +444,19 @@ Bài học lặp lại đúng cái đã ghi ở trên: lớp test không chạm 
 
 ### Những gì vẫn chưa che
 
-Giao diện mobile chưa có lớp nào: không dựng được component, không chạy được điều hướng.
+Giao diện mobile mới có test cho 5/16 màn — Gantt, Công việc, Chi tiết công việc, Tối ưu hóa,
+Benchmark — cùng component `TaskAttachments` và `taskApi.getAllPages`. 11 màn còn lại chưa có:
+Đăng nhập, Đăng ký, Dashboard, Dự án, Chi tiết dự án, Nhân sự, Lịch, Báo cáo, Nhật ký hoạt động,
+Cài đặt và modal Thông báo. Điều hướng giữa các màn cũng chưa được dựng trong test — các bài
+truyền `navigation` giả vào màn.
+
+Hai điều cần biết khi viết thêm test jest cho mobile:
+
+- `@expo/vector-icons` được mock trong `tests/setup.js`. Nạp thật thì kéo theo `expo-font` →
+  `expo-asset`, mà `expo-asset` chỉ nằm trong `node_modules/expo/node_modules` nên jest không tìm thấy.
+  App thật không bị (Metro đóng gói được, đã thử `expo export`).
+- `testTimeout` 20 giây và `asyncUtilTimeout` 5 giây: lần dựng màn đầu tiên khi cache trống mất hơn
+  5 giây, đã làm bài đầu tiên của bộ đỏ oan.
+
 Cách chắc chắn nhất để không lặp lại nhóm lỗi "sai tên trường" là cho mobile một bài test
 gọi API thật rồi đối chiếu tên trường nó đọc — rẻ hơn nhiều so với dựng cả Detox.

@@ -67,6 +67,41 @@ function validateStatusTransition({ currentStatus, nextStatus, project, failureR
 }
 
 /**
+ * Các trường phải ghi kèm một bước chuyển trạng thái đã qua `validateStatusTransition`.
+ *
+ * Dùng chung cho `PATCH /:id/status` và `PUT /:id` (form sửa công việc). Trước đây mỗi
+ * đường tự ghi, và `PUT` không ghi gì: Thất bại qua form không để lại vết, còn "Hoàn
+ * thành" ở cả hai đường đều không có `completedAt` — báo cáo kết quả mất mốc để tính
+ * đúng/trễ hạn.
+ */
+function statusChangeFields({ task, nextStatus, failureReason, userId, now = new Date() }) {
+  const fields = { status: nextStatus };
+
+  if (nextStatus === 'done') {
+    fields.progress = 100;
+    // Mốc là lúc người làm xong. Đi từ Chờ đánh giá sang thì mốc đã ghi lúc nộp: giữ
+    // nguyên, để người đánh giá duyệt chậm không biến việc đúng hạn thành trễ.
+    const submitted = task.status === 'review' && task.completedAt;
+    if (task.status !== 'done' && !submitted) fields.completedAt = now;
+  }
+  if (nextStatus === 'todo') fields.progress = 0;
+
+  if (nextStatus === 'failed') {
+    fields.failureReason = String(failureReason).trim();
+    fields.failedAt = now;
+    fields.failedBy = userId;
+  } else if (task.status === 'failed') {
+    // Mở lại việc đã đóng: xóa vết thất bại cũ, nếu không báo cáo sẽ đọc được một
+    // công việc 'đang làm' mà vẫn kèm lý do thất bại từ lần trước.
+    fields.failureReason = '';
+    fields.failedAt = null;
+    fields.failedBy = null;
+  }
+
+  return fields;
+}
+
+/**
  * Danh sách người đánh giá áp dụng cho một công việc.
  * Cấp công việc đè cấu hình dự án; không khai ở đâu cả thì rỗng, và lúc đó chỉ
  * Admin/quản lý dự án duyệt được.
@@ -93,6 +128,7 @@ module.exports = {
   TASK_STATUSES,
   CLOSED_STATUSES,
   validateStatusTransition,
+  statusChangeFields,
   resolveReviewers,
   isReviewOverdue,
 };

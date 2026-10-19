@@ -237,8 +237,13 @@ Chi tiết cơ chế từng thuật toán: xem [ALGORITHMS.md](../ALGORITHMS.md)
 └──────────┘                             └───────────────┘
 ```
 
-Socket dùng **cùng `JWT_SECRET`** với REST API. Nếu handshake không kèm token hợp lệ,
-kết nối bị từ chối với `Error('Authentication error')`.
+Socket dùng **cùng `JWT_SECRET`** với REST API. Nếu handshake không kèm token hợp lệ, hoặc
+tài khoản đã bị vô hiệu hóa (`isActive: false` — cùng điều kiện với middleware `protect`),
+kết nối bị từ chối với `Error('Authentication error')`. Khi admin vô hiệu hóa một tài khoản,
+`disconnectUser()` (`services/socket.service.js`) ngắt luôn các socket đang mở của người đó.
+
+CORS của Socket.IO và REST dùng chung một hàm (`src/config/cors.js`), nên `CLIENT_URL` nhiều
+origin có tác dụng như nhau ở cả hai.
 
 ## 6. Tech Stack Summary
 
@@ -249,17 +254,21 @@ kết nối bị từ chối với `Error('Authentication error')`.
 | **UI Icons** | **@ant-design/icons** | **6.3** | **Bộ icon chính đang dùng** |
 | Build Tool | Vite | 5.4 | Dev server + bundling |
 | Routing | React Router | 6.26 | Client-side routing |
-| HTTP Client | Axios | 1.7 | API calls |
+| HTTP Client | Axios | 1.20 | API calls |
 | **Realtime (client)** | **socket.io-client** | **4.8** | **Nhận notification real-time** |
 | Icons (phụ) | React Icons | 5.3 | Có trong dependency, ít dùng |
-| Backend Framework | Express | 4.19 | REST API |
+| Runtime | Node.js | ≥ 20 | Bắt buộc từ khi lên nodemailer 10 |
+| Backend Framework | Express | 4.22 | REST API |
 | **Realtime (server)** | **Socket.IO** | **4.8** | **WebSocket server, xác thực bằng JWT, room theo user** |
 | Database | MongoDB | 7.x | Data storage |
 | ODM | Mongoose | 8.5 | Schema + queries |
 | Auth | jsonwebtoken | 9.0 | JWT tokens |
 | Password | bcryptjs | 2.4 | Password hashing (salt 12) |
 | Validation | express-validator | 7.1 | Input validation |
-| Logging | Morgan | 1.10 | HTTP request logging |
+| Logging | Morgan | 1.12 | HTTP request logging |
+| Email | nodemailer | 10.0 | Gửi mail khi được giao việc (mặc định tắt) |
+| Upload | multer | 2.4 | Nhận file Excel tải lên (giữ trong bộ nhớ) |
+| Excel | SheetJS `xlsx` | 0.20.3 | Đọc/ghi `.xlsx`. Cài từ `cdn.sheetjs.com` — npm registry dừng ở 0.18.5, bản còn lỗ hổng prototype pollution và ReDoS |
 | **Security headers** | **helmet** | **8.3** | **nosniff, frameguard, HSTS… (CSP tắt vì API không phục vụ HTML)** |
 | **Rate limiting** | **express-rate-limit** | **8.6** | **Siết tần suất đăng nhập và API** |
 | **Config** | **dotenv** | **16.4** | **Nạp biến môi trường từ `.env`** |

@@ -1,3 +1,4 @@
+const { toSearchRegex } = require('../utils/escapeRegex');
 const { reviewScope, saveEvaluation, notifyEvaluation } = require('../services/skillEvaluation.service');
 const Resource = require('../models/Resource');
 const Task = require('../models/Task');
@@ -8,6 +9,7 @@ const mongoose = require('mongoose');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
 const { generateEmployeeId } = require('../utils/employeeId.util');
+const { stripProtected } = require('../services/companyRefs.service');
 const { getUserAnalyticsScope } = require('../services/analyticsScope.service');
 const { reportingPeriod, workloadInPeriod } = require('../analytics/workloadPeriod');
 
@@ -70,7 +72,7 @@ const getResources = async (req, res, next) => {
 
     // Skill search: ?skill=React&skillLevel=3
     if (req.query.skill) {
-      const skillFilter = { 'skills.name': new RegExp(req.query.skill, 'i') };
+      const skillFilter = { 'skills.name': toSearchRegex(req.query.skill) };
       if (req.query.skillLevel) {
         skillFilter['skills.level'] = { $gte: parseInt(req.query.skillLevel, 10) };
       }
@@ -78,7 +80,7 @@ const getResources = async (req, res, next) => {
     }
 
     if (req.query.search) {
-      const regex = new RegExp(req.query.search, 'i');
+      const regex = toSearchRegex(req.query.search);
       const matchedUsers = await User.find({
         companyName: userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
         $or: [{ name: regex }, { email: regex }],
@@ -292,7 +294,9 @@ const updateResource = async (req, res, next) => {
     }
 
     if (req.body.skills !== undefined) return res.status(400).json({ success: false, message: 'Vui lòng cập nhật năng lực qua chức năng Đánh giá & duyệt' });
-    const updateData = { ...req.body };
+    // `companyName` gửi lên trước đây chuyển được nhân sự sang công ty khác — và kéo họ
+    // vào bài toán tối ưu của công ty đó
+    const updateData = stripProtected({ ...req.body });
     delete updateData.evaluationVersion;
     delete updateData.skillEvaluationHistory;
     const newName = updateData.name;

@@ -29,9 +29,12 @@ import {
   ProjectOutlined,
   WarningOutlined,
   LineChartOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 import analyticsService from '../../services/analyticsService';
 import ExecutiveReportModal from '../../components/reports/ExecutiveReportModal';
+import PerformanceReport from '../../components/reports/PerformanceReport';
+import { downloadCsv } from '../../utils/csv';
 import { formatDayMonth } from '../../i18n/format';
 import './Reports.css';
 
@@ -131,43 +134,36 @@ export default function Reports() {
   }, [loadTrend]);
 
   const exportCSV = (type) => {
-    let csv = '';
+    // Tiêu đề cột là chuỗi i18n nối bằng dấu phẩy; tách ra để `toCsv` escape từng ô.
+    const header = (key) => t(key).split(',');
+    let rows = null;
     if (type === 'utilization' && utilData?.resources) {
-      csv = `${t('reports.csv.utilHeader')}\n`;
+      rows = [header('reports.csv.utilHeader')];
       for (const r of utilData.resources) {
         const risk = t(`reports.burnout.${r.burnoutRisk}`, { defaultValue: r.burnoutRisk });
-        csv += `"${r.name}","${r.department}","${r.position}",${r.capacity},${r.workload},${r.utilization},${risk},${r.taskCount}\n`;
+        rows.push([r.name, r.department, r.position, r.capacity, r.workload, r.utilization, risk, r.taskCount]);
       }
     } else if (type === 'projects' && taskData?.byProject) {
-      csv = `${t('reports.csv.projectHeader')}\n`;
+      rows = [header('reports.csv.projectHeader')];
       for (const p of taskData.byProject) {
-        csv += `"${p.projectName}",${p.count},${p.done},${p.totalHours},${Math.round(p.completion)}%\n`;
+        rows.push([p.projectName, p.count, p.done, p.totalHours, `${Math.round(p.completion)}%`]);
       }
     } else if (type === 'trend' && trend?.buckets?.length) {
       // Mỗi mốc thời gian một cột, để dán thẳng vào Excel rồi vẽ lại được.
-      const header = trend.buckets
-        .map((b) => bucketLabel(b, trend.granularity, t))
-        .join(',');
       const loadRow = t('reports.csv.loadRow');
       const capacityRow = t('reports.csv.capacityRow');
-      csv = `${t('reports.csv.trendHeader')},${header}\n`;
-      for (const row of trend.resources) {
-        csv += `"${row.name}",${loadRow},${row.load.join(',')}\n`;
-        csv += `"${row.name}",${capacityRow},${row.capacity.join(',')}\n`;
-      }
       const totalRow = t('reports.csv.totalRow');
-      csv += `${totalRow},${loadRow},${trend.totals.map((point) => point.load).join(',')}\n`;
-      csv += `${totalRow},${capacityRow},${trend.totals.map((point) => point.capacity).join(',')}\n`;
+      rows = [[...header('reports.csv.trendHeader'), ...trend.buckets.map((b) => bucketLabel(b, trend.granularity, t))]];
+      for (const row of trend.resources) {
+        rows.push([row.name, loadRow, ...row.load]);
+        rows.push([row.name, capacityRow, ...row.capacity]);
+      }
+      rows.push([totalRow, loadRow, ...trend.totals.map((point) => point.load)]);
+      rows.push([totalRow, capacityRow, ...trend.totals.map((point) => point.capacity)]);
     }
 
-    if (!csv) return;
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `report_${type}_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    if (!rows) return;
+    downloadCsv(`report_${type}_${new Date().toISOString().slice(0, 10)}.csv`, rows);
   };
 
   const resourceColumns = [
@@ -638,6 +634,16 @@ export default function Reports() {
                   </Space>
                 </Spin>
               ),
+            },
+            {
+              key: 'performance',
+              label: (
+                <span>
+                  <TrophyOutlined /> {t('reports.tabs.performance')}
+                </span>
+              ),
+              // Chỉ dựng khi mở tab: component tự gọi API, không cần gọi lúc trang vừa tải.
+              children: activeTab === 'performance' ? <PerformanceReport /> : null,
             },
           ]}
         />

@@ -157,4 +157,28 @@ S('Tải đem so với capacity phải là tải TUẦN');
   );
 }
 
+// ══════════════════════════════════════════════
+S('Chuyển ngữ cảnh (S3) — contextSwitches');
+{
+  const ptask = (id, project) => ({ _id: id, title: id, estimatedHours: 8, project, requiredSkills: [] });
+  const person = (id, committedTasks = []) => ({ _id: id, skills: [], maxCapacity: 40, fte: 1, committedTasks });
+  const tasks = [ptask('a', 'P1'), ptask('b', 'P1'), ptask('c', 'P2'), ptask('d', { _id: 'P3' })];
+  const people = [person('r0'), person('r1'), person('r2', [{ project: 'P9', estimatedHours: 4 }])];
+  const skill = tasks.map(() => people.map(() => 1));
+
+  // r0: P1 + P1 → 1 dự án, 0 lần chuyển. r1: P2 + P3 (dạng object) → 1. r2 rảnh nhưng có việc cam kết.
+  const m = computeMetrics([0, 0, 1, 1], tasks, people, skill);
+  ok(m.contextSwitches === 1, 'Đếm số dự án THỪA của mỗi người, nhận cả project dạng object', `=${m.contextSwitches}`);
+
+  // Giao cho r2 một việc P2: cộng dự án P9 đang cam kết → 2 dự án, 1 lần chuyển.
+  const withCommitted = computeMetrics([0, 0, 2, 1], tasks, people, skill);
+  ok(withCommitted.contextSwitches === 1, 'Tính cả dự án của tải đã cam kết', `=${withCommitted.contextSwitches}`);
+
+  const allOne = computeMetrics([0, 0, 0, 0], tasks, people, skill);
+  ok(allOne.contextSwitches === 2, 'Một người ôm 3 dự án → 2 lần chuyển', `=${allOne.contextSwitches}`);
+
+  const noProject = computeMetrics([0, 1], [ptask('x'), ptask('y')], people, [[1, 1, 1], [1, 1, 1]]);
+  ok(noProject.contextSwitches === 0, 'Việc không gắn dự án thì không tính', `=${noProject.contextSwitches}`);
+}
+
 process.exit(summary() === 0 ? 0 : 1);

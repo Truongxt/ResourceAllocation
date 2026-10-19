@@ -356,7 +356,37 @@
   .ant-btn {
     display: none !important;
   }
+  /* Chỉ trang Gantt in khổ ngang — các trang khác giữ khổ mặc định. */
+  .gantt-page {
+    page: gantt-landscape;
+    max-width: none !important;
+    /* Thanh, dải nhóm và ô màu chú giải đều vẽ bằng màu nền, mà hộp thoại in mặc định
+       bỏ màu nền — thiếu dòng này thì bản in ra một biểu đồ không có thanh nào. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .gantt-page .saas-card {
+    overflow: visible !important;
+  }
+  /* Trên màn hình trục thời gian cuộn ngang, nên phần khuất sau thanh cuộn sẽ mất khi
+     in. Bỏ cuộn để biểu đồ trải hết bề rộng thật, rồi co cả khối theo hệ số
+     `--gantt-print-zoom` mà GanttChart.jsx tính sẵn. */
   .gantt-viewport {
     border: 1px solid #ccc;
+    min-height: 0;
+    width: max-content;
+    zoom: var(--gantt-print-zoom, 1);
   }
+  .gantt-timeline-wrap {
+    flex: none;
+    overflow: visible;
+  }
+  .gantt-sidebar-body {
+    overflow: visible;
+  }
+}
+
+@page gantt-landscape {
+  size: A4 landscape;
+  margin: 10mm;
 }

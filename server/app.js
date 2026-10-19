@@ -17,11 +17,14 @@ const activityLogRoutes = require('./src/routes/activityLog.routes');
 const taskGroupRoutes = require('./src/routes/taskGroup.routes');
 const recurringTaskRoutes = require('./src/routes/recurringTask.routes');
 const companySettingRoutes = require('./src/routes/companySetting.routes');
+const jobRoutes = require('./src/routes/job.routes');
+const internalRoutes = require('./src/routes/internal.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./src/middleware/error');
 const { apiLimiter } = require('./src/middleware/rateLimit');
 const { sanitizeRequest } = require('./src/middleware/sanitize');
+const { corsOrigin } = require('./src/config/cors');
 
 const app = express();
 
@@ -30,27 +33,8 @@ const app = express();
 app.use(helmet({ contentSecurityPolicy: false }));
 
 // CORS: chỉ cho origin của client. Trước đây `cors()` mở cho mọi origin.
-// Cho phép request không kèm Origin (curl, health check của hạ tầng) đi qua.
-const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-      // Ở môi trường development, cho phép các thiết bị di động kết nối qua mạng LAN
-      if (process.env.NODE_ENV !== 'production') {
-        if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+|10\.\d+\.\d+)(:\d+)?$/.test(origin)) {
-          return callback(null, true);
-        }
-      }
-      callback(new Error(`Origin không được phép: ${origin}`));
-    },
-    credentials: true,
-  })
-);
+// Quy tắc nằm ở `config/cors.js`, dùng chung với Socket.IO.
+app.use(cors({ origin: corsOrigin, credentials: true }));
 
 app.use(morgan('dev'));
 // Refresh token đi bằng cookie httpOnly nên cần parser. Không dùng cookie ở đâu khác.
@@ -76,6 +60,9 @@ app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/task-groups', taskGroupRoutes);
 app.use('/api/recurring-tasks', recurringTaskRoutes);
 app.use('/api/company-settings', companySettingRoutes);
+app.use('/api/jobs', jobRoutes);
+// Gọi từ cron bên ngoài, khóa bằng X-Job-Secret — không qua đăng nhập. Xem internal.routes.js.
+app.use('/api/internal', internalRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

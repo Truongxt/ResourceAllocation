@@ -1205,8 +1205,9 @@ export default function UserDirectoryTab({ currentUser }) {
             </Col>
           </Row>
 
+          {/* Chỉ đọc: đổi `companyName` là chuyển nhân viên sang công ty khác — server từ chối. */}
           <Form.Item name="companyName" label="Tên công ty / Chi nhánh">
-            <Input placeholder="Tên công ty / Doanh nghiệp" />
+            <Input disabled />
           </Form.Item>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>

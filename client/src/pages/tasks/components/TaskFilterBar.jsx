@@ -18,6 +18,7 @@ import {
   PlusOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
+import { sortedFields } from '../../../utils/customFields';
 
 export default function TaskFilterBar({
   filters,
@@ -58,7 +59,8 @@ export default function TaskFilterBar({
         <Select
           placeholder={t('tasks.filterProject') || 'Tất cả dự án'}
           value={filters.project || undefined}
-          onChange={(val) => setFilters((f) => ({ ...f, project: val || '' }))}
+          // Đổi dự án thì bỏ lọc trường tùy chỉnh: `key` của chúng thuộc dự án cũ.
+          onChange={(val) => setFilters((f) => ({ ...f, project: val || '', custom: {} }))}
           allowClear
           style={{ width: 200 }}
           options={projects.map((p) => ({
@@ -66,6 +68,22 @@ export default function TaskFilterBar({
             label: `${p.code ? p.code + ' - ' : ''}${p.name}`,
           }))}
         />
+
+        {/* Lọc theo trường tùy chỉnh kiểu chọn một — chỉ khi đang xem một dự án */}
+        {sortedFields(projects.find((p) => p._id === filters.project))
+          .filter((field) => field.type === 'select')
+          .map((field) => (
+            <Select
+              key={field.key}
+              data-testid={`custom-filter-${field.key}`}
+              placeholder={field.name}
+              value={filters.custom?.[field.key] || undefined}
+              onChange={(val) => setFilters((f) => ({ ...f, custom: { ...(f.custom || {}), [field.key]: val || '' } }))}
+              allowClear
+              style={{ width: 160 }}
+              options={field.options.map((o) => ({ value: o, label: `${field.name}: ${o}` }))}
+            />
+          ))}
 
         {/* Lọc theo mức độ ưu tiên */}
         <Select

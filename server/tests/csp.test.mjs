@@ -393,4 +393,77 @@ S('H1 tính theo TUẦN, không theo tổng giờ');
     `(${result.propagation?.arcs})`);
 }
 
+// ══════════════════════════════════════════════
+// Ràng buộc mềm: thứ tự thử ứng viên = điểm có trọng số
+//   0.35 · khớp kỹ năng (S1) + 0.30 · chỗ trống (S2) + 0.15 · đã có việc cùng dự án (S3).
+// Lời giải đầu tiên tìm được được trả về luôn, nên thứ tự này CHÍNH LÀ ràng buộc mềm.
+// Ngưỡng kỹ năng 0 để không ai bị lọc — chỉ còn thứ tự quyết định.
+const soft = () => new CSPSolver({ timeout: 5000, minSkillMatchThreshold: 0 });
+const inP = (t, project) => ({ ...t, project });
+
+S('S1 — rảnh như nhau thì chọn người khớp kỹ năng hơn');
+{
+  const tasks = [needing('A', 2, 6, 'React')];
+  const people = [
+    resource('Yếu', { skills: [{ name: 'React', level: 2 }] }),
+    resource('Giỏi', { skills: [{ name: 'React', level: 4 }] }),
+  ];
+  const result = await soft().solve(tasks, people);
+  ok(assignedTo(result, 'A') === 'Giỏi', 'Chọn người khớp 100% thay vì 67%', `chọn: ${assignedTo(result, 'A')}`);
+}
+
+S('S3 — kỹ năng ngang nhau thì chọn người đã có việc cùng dự án');
+{
+  const tasks = [inP(task('A', 2, 6), 'P'), inP(task('B', 2, 6), 'P')];
+  const result = await soft().solve(tasks, [resource('R1'), resource('R2')]);
+  ok(assignedTo(result, 'A') === assignedTo(result, 'B'), 'Hai việc cùng dự án về cùng một người',
+    `A→${assignedTo(result, 'A')}, B→${assignedTo(result, 'B')}`);
+
+  // Ngữ cảnh có sẵn từ tải đã cam kết, không chỉ từ lần chạy này.
+  const committed = [{ project: 'P', estimatedHours: 8, startDate: day(2), endDate: day(6) }];
+  const one = await soft().solve([inP(task('C', 2, 6), 'P')], [resource('R1'), resource('R2', { committedTasks: committed })]);
+  ok(assignedTo(one, 'C') === 'R2', 'Người đang làm dự án đó (tải đã cam kết) được ưu tiên', `chọn: ${assignedTo(one, 'C')}`);
+}
+
+S('S2 — vẫn cân tải: khớp hơn một chút mà gần hết chỗ thì thua người rảnh hẳn');
+{
+  const small = { ...needing('A', 2, 6, 'React'), estimatedHours: 2 };
+  const busy = [{ project: 'X', estimatedHours: 36, startDate: day(2), endDate: day(6) }];
+  const people = [
+    resource('Giỏi-bận', { skills: [{ name: 'React', level: 4 }], committedTasks: busy }),
+    resource('Khá-rảnh', { skills: [{ name: 'React', level: 2 }] }),
+  ];
+  const result = await soft().solve([small], people);
+  ok(assignedTo(result, 'A') === 'Khá-rảnh', 'Chỗ trống vẫn có trọng số, không bị kỹ năng lấn hết', `chọn: ${assignedTo(result, 'A')}`);
+}
+
+// Trước đây chạm `maxIterations` cũng báo "Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc",
+// y như đã thử hết — người dùng tưởng bài toán vô nghiệm trong khi tìm kiếm chỉ bị cắt ngang.
+S('Hết ngân sách tìm kiếm khác với vô nghiệm');
+{
+  const heavy = (id) => ({ ...task(id, 2, 4), estimatedHours: 30 });
+
+  // 3 việc 30h cùng tuần, 2 người 40h: mỗi người nhận được đúng một việc → vô nghiệm thật.
+  // Từng việc riêng lẻ đều vừa, nên chỉ backtracking mới phát hiện ra.
+  const none = await solver().solve([heavy('A'), heavy('B'), heavy('C')], [resource('R1'), resource('R2')]);
+  ok(none.success === false && none.stopReason === null && none.exhaustive === true,
+    'Thử hết mà không có → exhaustive, không có stopReason', `${none.stopReason} / ${none.exhaustive}`);
+  ok(none.message === 'Không tìm thấy giải pháp thỏa mãn tất cả ràng buộc', 'Câu báo vô nghiệm giữ nguyên', none.message);
+
+  // Có nghiệm (3 việc nhẹ, 2 người) nhưng ngân sách chỉ 1 bước.
+  const cut = await new CSPSolver({ timeout: 5000, maxIterations: 1 })
+    .solve([task('A', 2, 4), task('B', 2, 4), task('C', 2, 4)], [resource('R1'), resource('R2')]);
+  ok(cut.success === false && cut.stopReason === 'maxIterations' && cut.exhaustive === false,
+    'Chạm maxIterations → stopReason, không exhaustive', `${cut.stopReason} / ${cut.exhaustive}`);
+  ok(/chưa tìm xong/.test(cut.message) && !/Không tìm thấy giải pháp thỏa mãn/.test(cut.message),
+    'Câu báo nói rõ là chưa tìm xong, không nói vô nghiệm', cut.message);
+
+  // Chạm trần thì dừng hẳn: trước đây các tầng trên vẫn thử tiếp, mỗi lần tốn thêm một bước.
+  const many = Array.from({ length: 12 }, (_, i) => heavy(`H${i}`));
+  const capped = await new CSPSolver({ timeout: 5000, maxIterations: 50 })
+    .solve(many, Array.from({ length: 6 }, (_, i) => resource(`R${i}`)));
+  ok(capped.stopReason === 'maxIterations' && capped.iterations <= 51,
+    'Dừng ngay khi chạm trần, không đếm vượt', `iterations=${capped.iterations}`);
+}
+
 process.exit(summary() === 0 ? 0 : 1);
