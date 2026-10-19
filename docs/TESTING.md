@@ -14,9 +14,18 @@ Lớp di động có hai phần. Quy tắc **thuần** (tách ra `mobile/src/uti
 Từ 08/10 có thêm test giao diện bằng `jest-expo` + `@testing-library/react-native`: dựng màn thật
 với API đã mock. Mới 5/16 màn có test giao diện; xem [mục cuối](#phần-mobile-còn-hở).
 
-Hai lớp đầu chạy trong vòng vài phút. Lớp e2e mất khoảng **20 phút** (đo trên máy phát
-triển, 1 worker: 18,8 phút cho 93 bài) vì nó khởi động thật, đăng nhập thật và chờ API thật ở
-từng bài.
+Hai lớp đầu chạy trong vòng vài phút (server khoảng 6 phút, component web khoảng 4,5 phút). Lớp e2e
+mất **12–20 phút** (đo trên máy phát triển, 1 worker: 18,8 phút ngày 09/10, 11,8 phút ngày 19/10 cho
+93 bài) vì nó khởi động thật, đăng nhập thật và chờ API thật ở từng bài.
+
+**Lần chạy trọn bộ gần nhất — 19/10/2026**, sau lần gộp `main` (PR #5), tất cả đạt:
+
+| Lớp | Kết quả |
+|-----|---------|
+| Server | 39/39 bộ, 1.381 ca |
+| Web | 7 bộ logic (123 ca) + 18 file component (92/92 ca); build production 4.248 module, 20,66 giây |
+| Mobile | 4 bộ logic (68 ca) + 7 file jest (40/40 ca) |
+| E2E | 93/93 bài, 11,8 phút |
 
 Chi tiết từng lớp:
 
@@ -288,7 +297,7 @@ cũng thuộc về lớp e2e**. Chỉ một hạng mục được đưa lên e2e
 | Đánh lại `order` của checklist sau khi xóa | `server/tests` | Drawer render checklist **theo thứ tự mảng**, không theo `order`. Một bài e2e nhìn vào màn hình sẽ xanh cả trước lẫn sau khi sửa — xanh giả, tệ hơn là không có test |
 | Không trả mật khẩu rõ trong response tạo User | `server/tests` | Kiểm được qua e2e (rình response trong trình duyệt) nhưng vướng đúng vấn đề rác dữ liệu như hàng thứ hai |
 
-Nguyên tắc rút ra: **lớp e2e đắt (khoảng 20 phút/lượt) và ghi vào database dùng chung**, nên chỉ
+Nguyên tắc rút ra: **lớp e2e đắt (12–20 phút/lượt) và ghi vào database dùng chung**, nên chỉ
 dành cho thứ chỉ nó mới thấy được — mối nối giữa các mảnh. Thứ gì một lớp rẻ hơn kiểm được
 đầy đủ thì để ở lớp đó; và thứ gì lớp e2e *không chứng minh được* thì đừng viết bài e2e cho
 nó, vì một bài xanh-bất-kể-code-đúng-hay-sai còn nguy hiểm hơn khoảng trống đã biết.
