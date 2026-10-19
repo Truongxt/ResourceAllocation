@@ -99,7 +99,7 @@ graph TB
 | **Quản lý Dự án** | Tạo, sửa, xóa tất cả dự án | Tạo mới, sửa dự án mình tạo / quản lý | Chỉ xem các dự án mình là thành viên / có task |
 | **Quản lý Công việc** | Toàn quyền CRUD trên tất cả dự án | CRUD tasks trong dự án mình quản lý | Xem task trong dự án, cập nhật tiến độ task mình được gán |
 | **Bảng Kanban** | Kéo thả, điều phối tất cả | Kéo thả tasks thuộc dự án quản lý | Kéo thả trạng thái công việc của mình |
-| **Quản lý Nhân sự** | Toàn quyền CRUD, phòng ban, lương | Xem, tra cứu danh sách, xếp kỹ năng | **Ẩn hoàn toàn** (Không hiển thị menu & Chặn truy cập) |
+| **Quản lý Nhân sự** | Toàn quyền CRUD, phòng ban, lương | Xem, tra cứu danh sách, xếp kỹ năng | **Ẩn hoàn toàn** (Không hiển thị menu & Chặn truy cập). Tự đánh giá năng lực của mình qua menu riêng, xem mục 5.3 |
 | **Chạy Tối ưu (GA/CSP)** | Toàn quyền chạy & áp dụng | Chạy tối ưu cho dự án mình quản lý | Không khả dụng |
 | **Benchmark Studio** | Toàn quyền thực nghiệm đối chứng | Chạy benchmark trên tập dữ liệu | Không khả dụng |
 | **Sơ đồ Gantt & CPM** | Xem toàn bộ, phân tích đường găng | Xem dự án mình quản lý | Xem tiến độ dự án mình tham gia |
@@ -284,6 +284,10 @@ graph LR
 - **Frontend Menu (Sidebar & Header):** Kiểm tra `user.role !== 'member'`, ẩn menu "Nhân sự", ẩn nút tạo nhân sự trong "+ Tạo mới".
 - **Frontend Routing:** Route `/resources` được bọc bởi `<ProtectedRoute roles={['admin', 'project_manager']}>`. Nếu member gõ URL trực tiếp, màn hình hiển thị trang `403 Forbidden`.
 - **Dashboard:** Lối tắt thứ 3 tự động chuyển thành **"Dự án của tôi"** thay vì "Quản lý nhân sự".
+- **Tự đánh giá năng lực:** member vẫn có menu **Tự đánh giá năng lực** → `/account?tab=skills`, đọc và gửi hồ sơ
+  của chính mình (`GET /api/resources/me/evaluation`, `PUT /api/resources/my-evaluation`), không cần quyền vào
+  `/resources`. Admin/PM duyệt hoặc trả lại ở tab **Chờ duyệt năng lực** của trang Nhân sự. Chi tiết:
+  [HR_PRODUCTIVITY_AND_EVALUATION.md](./HR_PRODUCTIVITY_AND_EVALUATION.md).
 
 ---
 

@@ -5,8 +5,8 @@ Dự án có **bốn lớp kiểm thử**, mỗi lớp trả lời một câu h�
 
 | Lớp | Thư mục | Chạy bằng | Quy mô | Trả lời câu hỏi |
 |-----|---------|-----------|--------|-----------------|
-| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 37 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
-| Component | `client/tests/` | `npm test` trong `client/` | 7 file logic + 15 file component | Component vẽ đúng, xử lý đúng sự kiện không? |
+| Đơn vị + API | `server/tests/` | `npm test` trong `server/` | 39 bộ | Server trả đúng dữ liệu, đúng mã lỗi, thuật toán tính đúng không? |
+| Component | `client/tests/` | `npm test` trong `client/` | 7 file logic + 18 file component | Component vẽ đúng, xử lý đúng sự kiện không? |
 | Di động | `mobile/tests/` | `npm test` trong `mobile/` | 4 bộ logic thuần + 7 file jest | Quy tắc quyền khớp server không? Màn hình dựng đúng không? |
 | Giao diện end-to-end | `e2e/` | `npm run test:e2e` ở gốc | 93 bài / 12 file | Ghép tất cả lại thì người dùng **dùng được** không? |
 
@@ -20,7 +20,7 @@ từng bài.
 
 Chi tiết từng lớp:
 
-- [`server/tests/README.md`](../server/tests/README.md) — 37 bộ, gồm cả kiểm thử đơn vị cho GA/CSP/scoring
+- [`server/tests/README.md`](../server/tests/README.md) — 39 bộ, gồm cả kiểm thử đơn vị cho GA/CSP/scoring
 - [`client/tests/README.md`](../client/tests/README.md) — logic thuần chạy bằng `node`, component chạy bằng vitest
 - [`e2e/README.md`](../e2e/README.md) — 12 bộ điều khiển Chromium trên hệ thống thật
 

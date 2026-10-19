@@ -6,6 +6,28 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-10-19 (gộp `main`: đánh giá năng lực hai chiều, tải theo kỳ, khung tổng quan)
+
+### Added
+
+- **Đánh giá năng lực hai chiều.** Nhân viên tự chấm kèm minh chứng ở menu **Tự đánh giá năng lực**
+  (`/account?tab=skills`); Admin/PM duyệt hoặc trả lại ở tab **Chờ duyệt năng lực** của trang Nhân sự, chỉ với
+  nhân sự trong phạm vi quản lý. Mức chính thức chỉ đổi khi duyệt; mọi bước ghi vào `skillEvaluationHistory`,
+  có thông báo cho cả hai phía, và `evaluationVersion` chặn ghi đè (409). API mới: `GET /resources/me/evaluation`,
+  `GET /resources/evaluations/pending`, `GET /resources/:id/evaluation`.
+- **Tải theo kỳ** ở tab **Năng suất & Cân bằng tải**: chọn tuần này/tuần tới hoặc khoảng ngày (tối đa 366, giờ Việt
+  Nam), bấm số giờ để xem từng việc đóng góp bao nhiêu. `GET /resources/productivity/summary` nhận `from`/`to`.
+- **Khung tổng quan** thu gọn được ở đầu trang Dự án và Công việc (`OverviewPanel`), và khung quản lý trên Dashboard.
+
+### Changed
+
+- Trang Nhân sự mở mặc định tab **Năng suất & Cân bằng tải**; bảng nhân sự ở `/resources?tab=resources`.
+- `PUT /resources/:id` từ chối `skills` (400); `PUT /resources/:id/skills` thành một lần duyệt.
+- `GET /resources/productivity/summary` chỉ dành cho Admin/PM.
+- `utilizationRate` khi capacity bằng 0 mà vẫn có việc trả `101` (quá tải) thay vì `0`.
+
+---
+
 ## [Chưa phát hành] - 2026-10-09 (báo cáo kết quả theo người, xuất công việc, thông báo, vòng đời dự án, đính kèm tệp)
 
 ### Added
