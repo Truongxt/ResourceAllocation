@@ -145,6 +145,30 @@ S('Bàn giao hàng loạt và việc lặp lại: PM chỉ trên dự án mình 
 }
 
 // ══════════════════════════════════════════════
+// Bước duyệt cần người thứ hai: người thực hiện không tự duyệt kết quả việc của chính mình, kể
+// cả khi họ là admin, quản lý dự án hay có tên trong danh sách người đánh giá. Web và mobile đã
+// ẩn nút (utils/taskPermissions.js); server phải chặn cả đường gọi thẳng API.
+S('Duyệt kết quả: người thực hiện không tự duyệt việc của mình');
+{
+  await call('PATCH', `/projects/${pmProject}/permissions`, { token: pm, body: { reviewConfig: { enabled: true, reviewers: [memberId] } } });
+  const ownWork = await mkTask(pm, pmProject, 'PM tự giao cho mình', { assignee: pmId });
+  const done = await call('PATCH', `/tasks/${ownWork}/complete`, { token: pm });
+  ok(done.data?.task?.status === 'review', 'PM báo xong việc của mình → chờ duyệt', `status=${done.status} ${done.data?.task?.status}`);
+  const queue = await call('GET', '/tasks/pending-review', { token: pm });
+  ok(queue.status === 200 && !(queue.data?.tasks || []).some((t) => t._id === ownWork), 'Việc của mình không nằm trong hàng chờ duyệt của mình');
+  const selfApprove = await call('POST', `/tasks/${ownWork}/review`, { token: pm, body: { decision: 'approve' } });
+  ok(selfApprove.status === 403, 'Quản lý dự án không tự duyệt việc mình làm', `status=${selfApprove.status}`);
+  const byReviewer = await call('POST', `/tasks/${ownWork}/review`, { token: member, body: { decision: 'approve' } });
+  ok(byReviewer.status === 200, 'Người đánh giá khác duyệt được', `status=${byReviewer.status}`);
+
+  const reviewerWork = await mkTask(pm, pmProject, 'Việc của người đánh giá', { assignee: memberId });
+  await call('PATCH', `/tasks/${reviewerWork}/complete`, { token: member });
+  const reviewerSelf = await call('POST', `/tasks/${reviewerWork}/review`, { token: member, body: { decision: 'approve' } });
+  ok(reviewerSelf.status === 403, 'Người có tên trong danh sách đánh giá cũng không tự duyệt việc mình làm', `status=${reviewerSelf.status}`);
+  await call('PATCH', `/projects/${pmProject}/permissions`, { token: pm, body: { reviewConfig: { enabled: false, reviewers: [] } } });
+}
+
+// ══════════════════════════════════════════════
 // App Admin `work` (quản trị ứng dụng Wework, do Owner cấp) tạo được dự án dù vai trò là thành
 // viên — đồng bộ với tạo phòng ban. Người tạo thành người quản lý dự án, nên quản lý được dự án
 // đó: luật gắn với dự án, không gắn với nhãn vai trò.

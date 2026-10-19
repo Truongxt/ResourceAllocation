@@ -736,7 +736,7 @@ việc đã làm dở, không quay về vạch xuất phát).
 Bắt buộc có lý do khi trả lại là có chủ ý — trả về mà không nói vì sao thì vòng sau rất dễ
 hỏng lại đúng chỗ cũ.
 
-**Ai được đánh giá**: `admin`, quản lý của dự án (PM ở dự án khác thì **không**), hoặc người có tên trong
+**Ai được đánh giá** (trừ **người thực hiện** của việc — không ai tự duyệt việc mình làm): `admin`, quản lý của dự án (PM ở dự án khác thì **không**), hoặc người có tên trong
 `task.reviewers` (thiếu thì lấy `project.reviewConfig.reviewers`).
 
 `GET /pending-review` chỉ trả những việc mà **chính người gọi** được quyền kết luận, kèm ba

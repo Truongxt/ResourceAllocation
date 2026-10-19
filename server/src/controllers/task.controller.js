@@ -1993,10 +1993,14 @@ const getTaskReminders = async (req, res, next) => {
 
 /**
  * Người gọi có quyền kết luận kết quả công việc này không.
- * Admin và quản lý dự án luôn có; ngoài ra là danh sách người đánh giá của công
- * việc, thiếu thì lấy của dự án.
+ * Admin và quản lý dự án có; ngoài ra là danh sách người đánh giá của công việc, thiếu
+ * thì lấy của dự án. Người thực hiện thì không bao giờ — kể cả khi thuộc một trong ba nhóm đó.
  */
 const canApproveReview = (task, project, user) => {
+  // Bước duyệt cần người thứ hai: người thực hiện không tự duyệt việc mình làm, kể cả khi là
+  // admin, quản lý dự án hay có tên trong danh sách đánh giá (khớp utils/taskPermissions.js bên web).
+  const assigneeId = task?.assignee?._id || task?.assignee;
+  if (assigneeId && assigneeId.toString() === user._id.toString()) return false;
   if (user.role === 'admin') return true;
   const managerId = project?.manager?._id || project?.manager;
   if (managerId && managerId.toString() === user._id.toString()) return true;
