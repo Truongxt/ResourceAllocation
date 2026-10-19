@@ -405,6 +405,36 @@ cuối** (bội số của 10) thay vì thế hệ dừng thật. "Hội tụ 90
 Kiểm thử: `cd server && npm test hybrid` (29 assertion, gồm số thế hệ, tốc độ hội tụ và cột Hybrid
 của Benchmark Studio).
 
+### 3.4 So với Greedy (mốc so sánh)
+
+Greedy gán từng việc (việc nhiều giờ trước) cho người có điểm `0.6 × khớp kỹ năng + 0.4 × phần năng
+lực còn trống` cao nhất — đúng quy tắc một người quản lý hay dùng khi phân công tay. Đo bằng
+`npm run measure:baselines` (thư mục `server`): chạy đúng bộ của Benchmark Studio trên 30 bộ mỗi cỡ,
+seed và ngày mốc cố định (08/10/2026), `Math.random` gieo seed suốt lần đo nên GA/Hybrid cũng tái
+tạo được. CSP chỉ lấy trung bình trên các bộ nó giải được. Đo ngày 19/10/2026; cột thời gian phụ
+thuộc máy:
+
+| Cỡ | Thuật toán | Fitness | Khớp kỹ năng (%) | σ tải (giờ) | Người quá tải | Chuyển ngữ cảnh | Thời gian (ms) | Số bộ |
+|---|---|---|---|---|---|---|---|---|
+| small | Greedy (mốc) | 0.767 | 94.8 | 16.8 | 1.07 | 4.0 | 1 | 30/30 |
+| small | CSP | 0.800 | 92.9 | 15.8 | 0.00 | 2.5 | 2 | 23/30 |
+| small | GA | 0.824 | 87.0 | 3.5 | 0.03 | 4.3 | 2057 | 30/30 |
+| small | Hybrid | 0.819 | 93.2 | 9.6 | 0.23 | 4.2 | 1226 | 30/30 |
+| medium | Greedy (mốc) | 0.751 | 98.0 | 34.2 | 7.77 | 54.5 | 2 | 30/30 |
+| medium | CSP | 0.828 | 94.5 | 17.3 | 0.07 | 33.9 | 28 | 14/30 |
+| medium | GA | 0.697 | 61.7 | 38.2 | 1.73 | 58.2 | 19022 | 30/30 |
+| medium | Hybrid | 0.803 | 91.7 | 36.3 | 1.60 | 58.1 | 15882 | 30/30 |
+
+- **Greedy khớp kỹ năng cao nhất nhưng làm quá tải người**: trung bình 1,07 người (small) và 7,77
+  người (medium) vượt năng lực tuần — nó chọn người giỏi nhất cho tới khi người đó ngập việc.
+- **Hybrid hơn Greedy ở cả hai cỡ** (fitness +0,052 ở cả small và medium) và giảm số người quá tải
+  còn 0,23 và 1,60.
+- **GA chạy một mình ở cỡ medium kém Greedy** (0,697): 100 việc × 20 người với 250 thế hệ không đủ để
+  GA tự học tránh người thiếu kỹ năng (khớp kỹ năng chỉ 61,7%). Đây là lý do có Hybrid: miền từ CSP
+  bỏ sẵn các cặp thiếu kỹ năng.
+- **CSP cho phương án tốt nhất khi giải được**, nhưng chỉ giải được 23/30 (small) và 14/30 (medium)
+  bộ — phần còn lại vô nghiệm theo ràng buộc cứng hoặc chạm trần tìm kiếm.
+
 ---
 
 ## 4. Metrics đánh giá
