@@ -19,14 +19,15 @@ mất **12–20 phút** (đo trên máy phát triển, 1 worker: 18,8 phút ngà
 93 bài) vì nó khởi động thật, đăng nhập thật và chờ API thật ở từng bài.
 
 **Lần chạy trọn bộ gần nhất — 19/10/2026 tối**, sau luật "PM chỉ có quyền PM trên dự án mình quản lý"
-(`aa3aac3`, `0f7d8bd`, `752c95b`) và mobile dùng chung luật quyền với web (`56d729e`), tất cả đạt:
+(`aa3aac3`, `0f7d8bd`, `752c95b`), mobile dùng chung luật quyền với web (`56d729e`) và App Admin `work` tạo được dự án
+(`8ec776b`), tất cả đạt:
 
 | Lớp | Kết quả |
 |-----|---------|
-| Server | 40/40 bộ, 1.434 ca (thêm bộ `project-permissions`) |
-| Web | 8 bộ logic (150 ca, thêm `project-access`) + 20 file component (102/102 ca); build production 4.249 module, còn cảnh báo chunk lớn hơn 500 kB |
+| Server | 40/40 bộ, 1.443 ca (thêm bộ `project-permissions`) |
+| Web | 8 bộ logic (152 ca, thêm `project-access`) + 20 file component (102/102 ca); build production 4.249 module, còn cảnh báo chunk lớn hơn 500 kB |
 | Mobile | 4 bộ logic (70 ca) + 10 file jest (59/59 ca) |
-| E2E | 93/93 bài. Lượt sau `752c95b`: 11,8 phút, không bài nào chạy lại. Lượt sau `56d729e`: 19,2 phút, `10-realtime` (thông báo giao việc) hết 45 giây ở lần đầu vì máy chậm, đạt khi chạy lại; chạy riêng spec đó không retry: đạt, 30,1 giây |
+| E2E | 93/93 bài, không bài nào chạy lại, 15,8 phút (sau `8ec776b`). Lượt trước đó (sau `56d729e`, 19,2 phút) có `10-realtime` hết 45 giây ở lần đầu vì máy chậm, đạt khi chạy lại |
 
 Chi tiết từng lớp:
 
