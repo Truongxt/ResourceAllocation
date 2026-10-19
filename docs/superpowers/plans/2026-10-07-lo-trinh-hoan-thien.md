@@ -98,6 +98,9 @@ thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/9
    Từ lần gộp `main` ngày 2026-10-19 (PR #5), báo cáo còn thiếu: luồng đánh giá năng lực hai chiều (tự chấm →
    duyệt/trả lại), tải theo kỳ ở tab Năng suất & Cân bằng tải (nay là tab mặc định của trang Nhân sự), khung tổng
    quan ở Dự án/Công việc, `utilizationRate = 101` khi capacity 0. Ảnh chụp trang Nhân sự cũ cần chụp lại.
+   Bản đang viết là `docs/218_110_Truong_Tien_TaiLieu_CapNhat_19-10-2026.docx` (sửa tay, không có script sinh):
+   Bảng 4-2 và các câu "cần chạy lại" đã cập nhật theo lần chạy lại 19/10. Mục lục hình còn dòng "Hình 4-1 Tổng
+   hợp kết quả kiểm chứng" trỏ tới hình không còn trong thân bài — mở Word, chọn tất cả, F9 để cập nhật trường.
 5. **`docs/` còn file thử nghiệm UML đi theo `main`**. Ngày 2026-10-19 đã xóa 13 file trùng: ảnh `UML_*_revised`/
    `_preview` trùng byte với `report_uml_images_ascii/`, các bản sao lưu `*.vpp~1`/`~2`, bản báo cáo `BoSungUML` (đã
    có `BoSungUML_HoanChinh`), và ảnh xem trước UC-00 trùng `UC00.png`. Còn lại các file thử, không trùng file nào:
