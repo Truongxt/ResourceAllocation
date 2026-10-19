@@ -85,6 +85,20 @@ describe('Chi tiết dự án — chỉ hiện thao tác thuộc quyền', () =>
     expect(row.querySelector('.anticon-delete')).toBeNull();
   });
 
+  it('không quản lý, không phải thành viên dự án: không có nút tạo công việc', async () => {
+    mocks.project = project();
+    await renderDetail();
+    await userEvent.click(screen.getByRole('tab', { name: /Công việc/ }));
+    expect(screen.queryByRole('button', { name: /Tạo công việc/ })).toBeNull();
+  });
+
+  it('thành viên dự án (dự án để mặc định): có nút tạo công việc', async () => {
+    mocks.project = project({ members: [...project().members, { user: { _id: 'u-pm', name: 'PM' }, role: 'developer' }] });
+    await renderDetail();
+    await userEvent.click(screen.getByRole('tab', { name: /Công việc/ }));
+    expect(await screen.findByRole('button', { name: /Tạo công việc/ })).toBeInTheDocument();
+  });
+
   it('PM của chính dự án: đủ các thao tác', async () => {
     mocks.project = project({ manager: { _id: 'u-pm', name: 'PM' }, isArchived: true });
     await renderDetail();
@@ -94,5 +108,8 @@ describe('Chi tiết dự án — chỉ hiện thao tác thuộc quyền', () =>
     expect(screen.getByRole('tab', { name: /Phân quyền thao tác/ })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('tab', { name: /Thành viên/ }));
     expect(await screen.findByRole('button', { name: /Thêm thành viên/ })).toBeInTheDocument();
+    // Dự án đã lưu trữ là chỉ đọc (server trả 409): không có nút tạo công việc, kể cả với quản lý.
+    await userEvent.click(screen.getByRole('tab', { name: /Công việc/ }));
+    expect(screen.queryByRole('button', { name: /Tạo công việc/ })).toBeNull();
   });
 });

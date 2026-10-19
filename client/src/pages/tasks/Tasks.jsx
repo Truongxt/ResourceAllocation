@@ -60,7 +60,7 @@ import TaskExcelImportModal from '../../components/tasks/TaskExcelImportModal';
 import RecurringTaskModal from '../../components/tasks/RecurringTaskModal';
 import RemindersDrawer from '../../components/tasks/RemindersDrawer';
 import PendingReviewDrawer from '../../components/tasks/PendingReviewDrawer';
-import { canManageProject } from '../../utils/projectAccess';
+import { canCreateTaskIn, canManageProject } from '../../utils/projectAccess';
 import './Tasks.css';
 
 const { Title, Text } = Typography;
@@ -147,7 +147,10 @@ export default function Tasks() {
     const perms = getTaskPermissions(task, taskProj, user);
     return perms.canEditDetails || perms.canEditDeadline || perms.canChangeAssignee || perms.canUpdateStatus;
   };
-  const canCreateAnyTask = canWriteTasks && (canManageTasks || (Array.isArray(projects) && projects.length > 0));
+  // Nút tạo việc: tạo được ở ít nhất một dự án — quản lý dự án, hoặc thành viên khi dự án cho phép
+  // (khớp createDeniedReason ở server). Form cũng chỉ liệt kê những dự án đó.
+  const canCreateAnyTask = canWriteTasks
+    && (projects || []).some((p) => !p.isArchived && !p.isTemplate && canCreateTaskIn(user, p));
 
   /**
    * Tải danh sách công việc theo bộ lọc
@@ -773,7 +776,7 @@ export default function Tasks() {
         projects={projects}
         view={view}
         setView={setView}
-        canManageTasks={canManageTasks}
+        canManageTasks={canCreateAnyTask}
         onOpenCreateModal={handleOpenCreate}
         onReload={loadTasks}
         onManageGroups={managesTaskProject(filters.project) ? (projId) => {
@@ -802,7 +805,7 @@ export default function Tasks() {
         <TaskKanbanView
           kanbanCols={kanbanCols}
           statusCols={STATUS_COLS}
-          canManageTasks={canManageTasks}
+          canManageTasks={canCreateAnyTask}
           canEditTask={canEditTask}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}

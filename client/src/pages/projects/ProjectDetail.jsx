@@ -70,7 +70,7 @@ import { formatCurrency } from '../../i18n/format';
 import './ProjectDetail.css';
 import { depId } from '../../utils/gantt';
 import ProjectCustomFields from '../../components/projects/ProjectCustomFields';
-import { canManageProject } from '../../utils/projectAccess';
+import { canCreateTaskIn, canManageProject } from '../../utils/projectAccess';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -925,7 +925,9 @@ export default function ProjectDetail() {
                         Nhóm công việc ({taskGroups.length})
                       </Button>
                     )}
-                    {(canManage || project.permissions?.allowMembersCreateTasks !== false) && (
+                    {/* Quản lý dự án, hoặc thành viên khi dự án cho phép — khớp createDeniedReason ở server.
+                        Dự án lưu trữ là chỉ đọc (409). */}
+                    {!project.isArchived && canCreateTaskIn(user, project) && (
                       <Button
                         type="primary"
                         icon={<PlusOutlined />}
