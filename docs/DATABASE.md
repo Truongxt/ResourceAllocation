@@ -217,13 +217,34 @@ Lưu trữ thông tin nhân sự kèm Skill Matrix.
   employeeId: String,         // unique sparse — HỆ THỐNG TỰ SINH: NV0001, NV0002...
   position: String,           // required
   department: String,         // Tên phòng ban — phải khớp Department.name đang isActive
+  companyName: String,        // default 'Công ty Công nghệ RAO'
   skills: [
     {
       name: String,           // required
-      level: Number,          // enum [1,2,3,4] — 1=Beginner ... 4=Expert (required)
-      yearsOfExperience: Number // default 0
+      level: Number,          // enum [1,2,3,4] — 1=Beginner ... 4=Expert (required). Mức CHÍNH THỨC, thuật toán đọc
+      yearsOfExperience: Number, // default 0
+      selfLevel: Number,      // 1-4 — nhân viên tự chấm
+      managerLevel: Number,   // 1-4 — mức quản lý đã duyệt
+      evaluationStatus: String, // 'draft' | 'self_assessed' | 'approved' | 'returned' (default 'approved')
+      evidence: String,       // minh chứng nhân viên gửi, max 2000
+      managerFeedback: String,
+      submittedAt: Date,
+      evaluatedAt: Date,
+      evaluatedBy: ObjectId → Users
     }
   ],
+  evaluationVersion: Number,  // default 0 — tăng mỗi lần gửi/duyệt/trả lại; lệch phiên bản → 409
+  skillEvaluationHistory: [
+    {
+      action: String,         // 'submitted' | 'approved' | 'returned'
+      actor: ObjectId → Users,
+      actorName: String,
+      at: Date,
+      changes: [{ name, previousLevel, selfLevel, approvedLevel, feedback, evidence }]
+    }
+  ],
+  performanceRating: Number,  // 1-5, default 4.5 — chỉ ghi khi quản lý duyệt
+  performanceNotes: String,
   maxCapacity: Number,        // Max hours/week (default 40)
   fte: Number,                // 0.0 - 1.0 (default 1.0)
   currentWorkload: Number,    // Current hours/week (default 0)
@@ -238,8 +259,13 @@ Lưu trữ thông tin nhân sự kèm Skill Matrix.
 }
 ```
 
-**Virtuals**: `utilizationRate` = `currentWorkload / (maxCapacity × fte) × 100`, `isOverloaded`
-**Indexes**: `(skills.name, skills.level)`, `availability`, `department`
+**Virtuals**: `utilizationRate` = `currentWorkload / (maxCapacity × fte) × 100`; khi `maxCapacity × fte = 0` thì
+trả `101` nếu vẫn có việc (tính là quá tải), `0` nếu không. `isOverloaded`
+**Indexes**: `(skills.name, skills.level)`, `availability`, `department`, `companyName`
+
+`skills` và lịch sử đánh giá chỉ ghi qua `services/skillEvaluation.service.js` (`saveEvaluation`); cả
+`PUT /resources/:id/skills` cũng đi qua đó như một lần duyệt. `PUT /resources/:id` từ chối `skills` và bỏ qua
+hai trường đánh giá.
 
 ---
 

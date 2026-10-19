@@ -960,12 +960,24 @@ phải tự điền 0 cho các cột còn lại.
 |--------|----------|-------|------|
 | GET | `/stats/summary` | Thống kê nhân sự (availability, department, utilization) | 🔒 |
 | POST | `/recalculate-workload` | Tính lại workload + availability cho toàn bộ nhân sự | 👑 |
+| GET | `/me/leaves` | Lịch nghỉ của chính mình (chưa có hồ sơ → mảng rỗng) | 🔒 |
+| POST | `/me/leaves` | Tự đăng ký kỳ nghỉ `{ startDate, endDate, reason }`; chưa có hồ sơ thì tạo hồ sơ mặc định | 🔒 |
+| DELETE | `/me/leaves/:leaveId` | Hủy một kỳ nghỉ của chính mình | 🔒 |
+| GET | `/productivity/summary` | Tải & năng suất theo kỳ, theo người và theo phòng ban — [xem dưới](#get-apiresourcesproductivitysummary) | 📋 PM+ |
+| GET | `/me/evaluation` | Hồ sơ đánh giá năng lực của chính mình | 🔒 |
+| PUT | `/my-evaluation` | Gửi bản tự đánh giá | 🔒 |
+| GET | `/evaluations/pending` | Hàng chờ duyệt năng lực trong phạm vi quản lý | 📋 PM+ |
+| GET | `/:id/evaluation` | Hồ sơ đánh giá của một nhân sự trong phạm vi quản lý | 📋 PM+ |
+| PUT | `/:id/manager-evaluation` | Duyệt hoặc trả lại bản tự đánh giá | 📋 PM+ |
 | GET | `/` | Danh sách nhân sự | 🔒 |
 | GET | `/:id` | Chi tiết nhân sự + danh sách task đang được gán | 🔒 |
 | POST | `/` | Thêm nhân sự | 📋 PM+ |
-| PUT | `/:id` | Cập nhật nhân sự | 📋 PM+ |
-| PUT | `/:id/skills` | Cập nhật skill matrix | 📋 PM+ |
+| PUT | `/:id` | Cập nhật nhân sự. Gửi kèm `skills` → **400**: năng lực chỉ đổi qua luồng đánh giá & duyệt | 📋 PM+ |
+| PUT | `/:id/skills` | Đường cũ, giữ để tương thích: chuyển thành **duyệt** (`manager-evaluation` với `action: 'approve'`), cùng phạm vi quản lý; mảng rỗng → 400 | 📋 PM+ |
 | DELETE | `/:id` | Xóa nhân sự | 👑 |
+
+`PUT /:id` cũng bỏ qua `companyName`, `evaluationVersion` và `skillEvaluationHistory` gửi lên: không chuyển được
+nhân sự sang công ty khác, và không sửa được lịch sử đánh giá bằng đường sửa hồ sơ thông thường.
 
 **Query filter cho `GET /`**: `department`, `availability`, `skill` (regex theo tên kỹ năng),
 `skillLevel` (1-4, lọc `>=`), `isActive`, `search` (position/department/employeeId), `page`, `limit`, `sort`.
@@ -1024,6 +1036,71 @@ Hai kỳ nghỉ liền kề nhưng không giao nhau là hợp lệ.
 ```json
 { "success": true, "data": { "resource": { ... }, "assignments": [ /* task todo/in_progress/review */ ] } }
 ```
+
+### Đánh giá năng lực hai chiều
+
+Nhân viên tự chấm → quản lý duyệt hoặc trả lại → nhân viên bổ sung rồi gửi lại. Mức **chính thức**
+(`skills[].level`, thứ thuật toán đọc) chỉ đổi khi được duyệt; kỹ năng mới tự khai chưa được duyệt thì
+không tham gia khớp kỹ năng.
+
+**`PUT /api/resources/my-evaluation`** — người đang đăng nhập gửi bản tự đánh giá của chính mình:
+
+```json
+{
+  "evaluationVersion": 3,
+  "skills": [
+    { "name": "React", "selfLevel": 4, "yearsOfExperience": 2, "evidence": "Hoàn thành module A, có test" }
+  ]
+}
+```
+
+- `skills`: 1–50 mục, tên không trùng (không phân biệt hoa thường), `selfLevel` 1–4, `evidence` ≤ 2000 ký tự.
+- Kỹ năng chuyển sang `self_assessed`; mức đã duyệt trước đó giữ ở `managerLevel` để so sánh.
+- Báo cho mọi Admin/PM có nhân sự này trong phạm vi quản lý (thông báo "Có năng lực đang chờ duyệt").
+- Chưa có hồ sơ Resource → **404**.
+
+**`PUT /api/resources/:id/manager-evaluation`** — duyệt (mặc định) hoặc trả lại:
+
+```json
+// Duyệt
+{ "evaluationVersion": 4, "skills": [{ "name": "React", "level": 3, "managerFeedback": "Đã kiểm" }],
+  "performanceRating": 4.5, "performanceNotes": "..." }
+
+// Trả lại
+{ "action": "return", "evaluationVersion": 4, "skills": [{ "name": "React", "managerFeedback": "Bổ sung kết quả test" }] }
+```
+
+- Duyệt: mỗi kỹ năng cần `level` (hoặc `managerLevel`) 1–4 → ghi vào `level`, trạng thái `approved`.
+  `performanceRating` (1–5) và `performanceNotes` chỉ được ghi khi duyệt.
+- Trả lại: mỗi kỹ năng **bắt buộc** có `managerFeedback`, và phải đang `self_assessed` → trạng thái `returned`.
+- Nhân sự ngoài phạm vi quản lý (không phải cấp dưới, không thuộc dự án mình quản lý) hoặc khác công ty → **403**.
+
+**Phạm vi quản lý** (`reviewScope`): Admin thấy mọi nhân sự đang hoạt động trong công ty; PM thấy cấp dưới trực
+tiếp (`User.manager`), thành viên các dự án mình quản lý/tạo, và hồ sơ do mình tạo.
+
+**Chống ghi đè**: mỗi lần gửi/duyệt/trả lại tăng `evaluationVersion`. Gửi kèm phiên bản cũ → **409**
+"Bản đánh giá đã thay đổi…". Mọi bước được ghi vào `skillEvaluationHistory` và gửi thông báo cho nhân viên.
+
+**`GET /api/resources/evaluations/pending?page=`** — nhân sự có ít nhất một kỹ năng `self_assessed`, 50 mục một
+trang, chờ lâu nhất trước: `{ data: { resources, total }, pagination: { page, pages } }`.
+
+### GET `/api/resources/productivity/summary`
+
+Nguồn dữ liệu của tab **Năng suất & Cân bằng tải** ở trang Nhân sự. Phạm vi theo `getUserAnalyticsScope`.
+
+**Query**: `from`, `to` dạng `YYYY-MM-DD`, phải đi cùng nhau, tối đa 366 ngày, tính theo giờ Việt Nam. Bỏ trống
+thì lấy tuần hiện tại (thứ Hai → Chủ nhật). Sai → **400**.
+
+Tải trong kỳ của mỗi người (`workloadInPeriod`):
+
+- Giờ của mỗi việc đang mở (`todo`/`in_progress`/`review`) trải đều theo ngày làm việc trong khoảng của việc; chỉ
+  phần rơi vào kỳ được tính. Việc thiếu ngày đi vào `unscheduledWorkload`, không vào tải.
+- Capacity = `maxCapacity × fte / 5 ×` số ngày làm việc trong kỳ trừ ngày nghỉ.
+- `utilizationRate = workload / capacity × 100`; capacity 0 mà vẫn có việc → `101` (quá tải).
+
+Mỗi người kèm `breakdown` (đóng góp của từng việc), `statusCode` (`red` > 100%, `yellow` < 60% hoặc > 85%,
+còn lại `green`), `onTimeRate` (chỉ tính việc hoàn thành có đủ `completedAt` và `endDate`; thiếu thì `null`).
+Phòng ban cộng dồn tải/capacity của thành viên và đỏ khi > 100% hoặc ít nhất một nửa thành viên quá tải.
 
 ---
 

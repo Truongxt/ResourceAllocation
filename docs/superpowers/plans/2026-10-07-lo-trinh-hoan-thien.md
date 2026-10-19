@@ -80,7 +80,7 @@ thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/9
 |---|-----------|-----------|
 | 10 | react-router v7 | Có chấp nhận đổi API router không |
 
-**Việc dở, chưa làm** (cập nhật 2026-10-09, theo thứ tự nên làm):
+**Việc dở, chưa làm** (cập nhật 2026-10-19, theo thứ tự nên làm):
 
 1. **Khi triển khai phải cấu hình cron và `JOB_SECRET`** (README mục "Job định kỳ"). Thiếu thì hai job không bao
    giờ chạy; Dashboard cảnh báo Owner/Admin khi có job `stale` (`ca15897`). Môi trường có dữ liệu từ trước
@@ -95,6 +95,11 @@ thuần), mobile **38 + 14 + 3 + 13** (node thuần) **+ 40** (jest), e2e **93/9
    76.3 / 51.8 thế hệ dừng (Hybrid ít hơn ~32%), hội tụ 90% ở thế hệ 13.9 / 1.8. Fitness 0.8530 cả hai. Báo cáo
    cũng chưa có S1/S3, `contextSwitches`, bộ sinh dữ liệu mới, ngưỡng 0.5 của Benchmark và các bản sửa ở bảng trên.
    Số mới của S1/S3 đã có (ALGORITHMS.md mục 2.3, `bd74ae1`).
+   Từ lần gộp `main` ngày 2026-10-19 (PR #5), báo cáo còn thiếu: luồng đánh giá năng lực hai chiều (tự chấm →
+   duyệt/trả lại), tải theo kỳ ở tab Năng suất & Cân bằng tải (nay là tab mặc định của trang Nhân sự), khung tổng
+   quan ở Dự án/Công việc, `utilizationRate = 101` khi capacity 0. Ảnh chụp trang Nhân sự cũ cần chụp lại.
+5. **`docs/` có file thử nghiệm UML đi theo `main`** (`*.vpp~1`, `*.vpp~2`, `UML_*_test*`, `UML_*_preview*`,
+   `VP_visio_test*`, `report_assets/check_page_*.png`…). Hỏi Truongxt trước khi dọn.
 
 **Đã quyết ngày 2026-10-09:**
 
