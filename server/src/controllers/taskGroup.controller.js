@@ -1,5 +1,18 @@
 const TaskGroup = require('../models/TaskGroup');
 const Project = require('../models/Project');
+const { canManageProject, MANAGE_DENIED } = require('../services/projectAccess');
+
+/**
+ * Nhóm công việc là cấu trúc của dự án: chỉ Admin/Owner hoặc PM của dự án đó tạo, sửa, xóa,
+ * sắp xếp được (`canManageProject`). Xem thì ai cùng công ty cũng được.
+ *
+ * @returns {Promise<boolean>} `true` nếu người gọi quản lý được mọi dự án chứa các nhóm này.
+ */
+const managesGroups = async (user, groups) => {
+  const projectIds = [...new Set(groups.map((g) => String(g.project)))];
+  const projects = await Project.find({ _id: { $in: projectIds } }).select('manager');
+  return projects.length === projectIds.length && projects.every((proj) => canManageProject(user, proj));
+};
 
 /**
  * @desc    Lấy danh sách nhóm công việc trong project
@@ -25,7 +38,7 @@ const getGroupsByProject = async (req, res, next) => {
 /**
  * @desc    Tạo nhóm công việc mới
  * @route   POST /api/task-groups
- * @access  Private
+ * @access  Admin/Owner, PM của dự án
  */
 const createGroup = async (req, res, next) => {
   try {
@@ -36,6 +49,9 @@ const createGroup = async (req, res, next) => {
     const proj = await Project.findOne({ _id: project, companyName: userCompany });
     if (!proj) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
+    }
+    if (!canManageProject(req.user, proj)) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
     }
 
     // Tính order tự động: lấy vị trí cuối
@@ -60,22 +76,26 @@ const createGroup = async (req, res, next) => {
 /**
  * @desc    Cập nhật nhóm công việc
  * @route   PUT /api/task-groups/:id
- * @access  Private
+ * @access  Admin/Owner, PM của dự án
  */
 const updateGroup = async (req, res, next) => {
   try {
     const { name, color, isOpen } = req.body;
     const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
 
+    const existing = await TaskGroup.findOne({ _id: req.params.id, companyName: userCompany });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nhóm công việc' });
+    }
+    if (!(await managesGroups(req.user, [existing]))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
+    }
+
     const group = await TaskGroup.findOneAndUpdate(
       { _id: req.params.id, companyName: userCompany },
       { ...(name && { name }), ...(color && { color }), ...(isOpen !== undefined && { isOpen }) },
       { new: true, runValidators: true }
     );
-
-    if (!group) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy nhóm công việc' });
-    }
 
     res.json({ success: true, data: { group }, message: 'Đã cập nhật nhóm' });
   } catch (error) {
@@ -86,16 +106,19 @@ const updateGroup = async (req, res, next) => {
 /**
  * @desc    Xóa nhóm công việc (tasks sẽ chuyển về ungroup)
  * @route   DELETE /api/task-groups/:id
- * @access  Private
+ * @access  Admin/Owner, PM của dự án
  */
 const deleteGroup = async (req, res, next) => {
   try {
     const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
-    const group = await TaskGroup.findOneAndDelete({ _id: req.params.id, companyName: userCompany });
-
+    const group = await TaskGroup.findOne({ _id: req.params.id, companyName: userCompany });
     if (!group) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy nhóm công việc' });
     }
+    if (!(await managesGroups(req.user, [group]))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
+    }
+    await group.deleteOne();
 
     // Gỡ liên kết task khỏi nhóm đã xóa
     const Task = require('../models/Task');
@@ -110,7 +133,7 @@ const deleteGroup = async (req, res, next) => {
 /**
  * @desc    Sắp xếp lại thứ tự nhóm
  * @route   PUT /api/task-groups/reorder
- * @access  Private
+ * @access  Admin/Owner, PM của dự án
  */
 const reorderGroups = async (req, res, next) => {
   try {
@@ -122,6 +145,10 @@ const reorderGroups = async (req, res, next) => {
     // Lọc theo công ty: id đi trong body, chỉ lọc `_id` thì đổi được thứ tự nhóm
     // của công ty khác
     const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
+    const groups = await TaskGroup.find({ _id: { $in: orderedIds }, companyName: userCompany }).select('project');
+    if (!(await managesGroups(req.user, groups))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
+    }
     const bulkOps = orderedIds.map((id, index) => ({
       updateOne: {
         filter: { _id: id, companyName: userCompany },

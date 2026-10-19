@@ -436,11 +436,11 @@ cả — kể cả công ty vừa tạo ra nó cũng không thấy nó trong `GE
 | GET | `/` | Danh sách dự án | 🔒 |
 | GET | `/:id` | Chi tiết dự án (kèm tasks + members, tự tính lại progress) | 🔒 |
 | POST | `/` | Tạo dự án | 📋 PM+ |
-| PUT | `/:id` | Cập nhật dự án | 📋 PM+ |
-| DELETE | `/:id` | Xóa dự án | 📋 PM+ |
-| POST | `/:id/members` | Thêm thành viên | 📋 PM+ |
-| PUT | `/:id/members/:userId` | Cập nhật vai trò / allocation của thành viên | 📋 PM+ |
-| DELETE | `/:id/members/:userId` | Xóa thành viên | 📋 PM+ |
+| PUT | `/:id` | Cập nhật dự án | 📋 PM của dự án, Admin |
+| DELETE | `/:id` | Xóa dự án | 📋 PM của dự án, Admin |
+| POST | `/:id/members` | Thêm thành viên | 📋 PM của dự án, Admin |
+| PUT | `/:id/members/:userId` | Cập nhật vai trò / allocation của thành viên | 📋 PM của dự án, Admin |
+| DELETE | `/:id/members/:userId` | Xóa thành viên | 📋 PM của dự án, Admin |
 | POST | `/:id/archive` | Lưu trữ (409 nếu còn việc mở hoặc việc lặp lại đang bật) | 📋 PM của dự án, Admin |
 | POST | `/:id/unarchive` | Mở lại dự án đã lưu trữ | 📋 PM của dự án, Admin |
 | POST | `/:id/duplicate` | Nhân bản / lưu thành mẫu / tạo từ mẫu (mọi dự án trong công ty) | 📋 PM+ |
@@ -1582,10 +1582,10 @@ Nhóm công việc trong một dự án — các cột của bảng Kanban.
 | Method | Endpoint | Mô tả | Auth |
 |--------|----------|-------|------|
 | GET | `/:projectId` | Nhóm của một dự án, sắp theo `order` | 🔒 |
-| POST | `/` | Tạo nhóm | 🔒 |
-| PUT | `/reorder` | Đổi thứ tự nhiều nhóm một lượt | 🔒 |
-| PUT | `/:id` | Sửa nhóm | 🔒 |
-| DELETE | `/:id` | Xóa nhóm | 🔒 |
+| POST | `/` | Tạo nhóm | Admin/Owner hoặc PM của dự án |
+| PUT | `/reorder` | Đổi thứ tự nhiều nhóm một lượt (403 nếu có nhóm thuộc dự án không quản lý) | Admin/Owner hoặc PM của dự án |
+| PUT | `/:id` | Sửa nhóm | Admin/Owner hoặc PM của dự án |
+| DELETE | `/:id` | Xóa nhóm | Admin/Owner hoặc PM của dự án |
 
 `PUT /reorder` khai báo **trước** `PUT /:id` trong router — đảo lại thì `/reorder` bị hiểu là
 một `:id` và không bao giờ chạy tới.

@@ -37,6 +37,10 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 - **PM lưu trữ được dự án người khác quản lý.** Lưu trữ và mở lại chỉ kiểm cùng công ty. Nay PM chỉ lưu trữ / mở lại
   dự án mình quản lý (403 với dự án khác); Admin/Owner như cũ. Nhân bản và tạo từ mẫu vẫn mở cho mọi dự án trong
   công ty, vì chỉ đọc dự án nguồn.
+- **PM sửa, xóa được dự án của PM khác; ai cũng sửa được nhóm công việc.** Sửa toàn bộ, xóa dự án và thêm / sửa / gỡ
+  thành viên chỉ kiểm vai trò; nhóm công việc không kiểm gì ngoài công ty, nên cả Thành viên và Khách tạo, đổi tên,
+  xóa, sắp xếp được nhóm của mọi dự án. Nay mọi thao tác quản lý dự án dùng chung một luật (`services/projectAccess.js`):
+  Admin/Owner, hoặc PM của chính dự án đó. Xem nhóm vẫn mở cho cả công ty.
 
 ---
 

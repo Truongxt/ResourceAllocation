@@ -9,6 +9,7 @@ const { stripProtected, usersError, departmentError } = require('../services/com
 const { archiveBlocker, cloneProject } = require('../services/projectLifecycle.service');
 const { removeAttachments } = require('../services/attachment.service');
 const { normalizeFieldDefinitions } = require('../services/customFields.service');
+const { canManageProject, MANAGE_DENIED } = require('../services/projectAccess');
 
 /** Quản lý, thành viên và phòng ban gửi lên phải cùng công ty với dự án. */
 const projectRefsError = async ({ manager, members, department }, company) => {
@@ -379,6 +380,7 @@ const updateProject = async (req, res, next) => {
         message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
+    if (!ensureManagesProject(req, res, project)) return;
 
     // `companyName` gửi lên trước đây chuyển được cả dự án sang công ty khác
     const updateData = stripProtected({ ...req.body });
@@ -553,6 +555,7 @@ const deleteProject = async (req, res, next) => {
         message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
+    if (!ensureManagesProject(req, res, project)) return;
 
     const taskCount = await Task.countDocuments({ project: req.params.id });
     if (taskCount > 0 && req.query.force !== 'true') {
@@ -609,6 +612,7 @@ const addProjectMember = async (req, res, next) => {
         message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
+    if (!ensureManagesProject(req, res, project)) return;
 
     const userToAdd = await User.findById(user);
     if (userToAdd && userToAdd.companyName && userToAdd.companyName !== userCompany && req.user.role !== 'superadmin') {
@@ -660,6 +664,7 @@ const updateProjectMember = async (req, res, next) => {
         message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
+    if (!ensureManagesProject(req, res, project)) return;
 
     const member = project.members.find((item) => item.user.toString() === req.params.userId);
     if (!member) {
@@ -705,6 +710,7 @@ const removeProjectMember = async (req, res, next) => {
         message: 'Không có quyền thao tác trên dự án của công ty khác',
       });
     }
+    if (!ensureManagesProject(req, res, project)) return;
 
     project.members = project.members.filter((member) => member.user.toString() !== req.params.userId);
     await project.save();
@@ -879,15 +885,13 @@ const loadOwnProject = async (req, res) => {
 };
 
 /**
- * Admin/Owner, hoặc PM là người quản lý dự án; không thì gửi luôn 403 và trả `false`.
- * Dùng cho lưu trữ / mở lại: thao tác khóa cả dự án, nên PM không làm được trên dự án
- * người khác quản lý. Nhân bản thì không cần — chỉ đọc dự án nguồn.
+ * Admin/Owner, hoặc PM là người quản lý dự án (`canManageProject`); không thì gửi luôn 403 và
+ * trả `false`. Dùng cho sửa, xóa, thành viên, lưu trữ / mở lại. Nhân bản thì không cần — chỉ
+ * đọc dự án nguồn, nên mọi PM dùng được mẫu người khác tạo.
  */
 const ensureManagesProject = (req, res, project) => {
-  const isAdmin = req.user.role === 'admin' || Boolean(req.user.isOwner);
-  const isManager = project.manager && project.manager.toString() === req.user._id.toString();
-  if (isAdmin || isManager) return true;
-  res.status(403).json({ success: false, message: 'Chỉ Quản trị viên hoặc người quản lý dự án mới lưu trữ / mở lại được dự án' });
+  if (canManageProject(req.user, project)) return true;
+  res.status(403).json({ success: false, message: MANAGE_DENIED });
   return false;
 };
 
