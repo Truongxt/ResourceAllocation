@@ -3,13 +3,15 @@ const User = require('../models/User');
 const Project = require('../models/Project');
 const { sendNotification } = require('./socket.service');
 
+// Never includes the reviewer's own profile: a two-way evaluation needs a second person.
 async function reviewScope(user) {
   const companyName = user.companyName || 'Công ty Công nghệ RAO';
-  if (user.role === 'admin') return { companyName, isActive: true };
+  const notSelf = { user: { $ne: user._id } };
+  if (user.role === 'admin') return { companyName, isActive: true, ...notSelf };
   const reports = await User.find({ companyName, manager: user._id }).select('_id').lean();
   const projects = await Project.find({ companyName, $or: [{ manager: user._id }, { createdBy: user._id }] }).select('members').lean();
   const users = [...reports.map((report) => report._id), ...projects.flatMap((project) => (project.members || []).map((member) => member.user))].filter(Boolean);
-  return { companyName, isActive: true, $or: [{ user: { $in: users } }, { createdBy: user._id }] };
+  return { companyName, isActive: true, ...notSelf, $or: [{ user: { $in: users } }, { createdBy: user._id }] };
 }
 
 // Keep the official level intact until a manager explicitly approves a new one.

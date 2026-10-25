@@ -186,6 +186,27 @@ function computeFitness(solution, tasks, resources, skillMatrix, maxCost, weight
  * Bộ chỉ số báo cáo cho một lời giải.
  * Lưu ý thang đo: skill match trả về theo phần trăm (0-100), fitness giữ thang 0-1.
  */
+/** Id dự án của một việc (id hoặc object đã populate), hoặc `null`. */
+const projectOf = (task) => {
+  const p = task && task.project;
+  if (!p) return null;
+  return String(p._id || p);
+};
+
+/**
+ * S3 — chuyển ngữ cảnh: Σ theo người của max(0, số dự án − 1). Tính cả dự án của tải
+ * đã cam kết, vì người đang ôm dự án khác thì nhận thêm một dự án mới cũng là chuyển.
+ * Chỉ là chỉ số đo, KHÔNG nằm trong fitness — để lịch sử fitness cũ vẫn so được.
+ */
+function computeContextSwitches(solution, tasks, resources) {
+  const projects = resources.map((r) => new Set(((r && r.committedTasks) || []).map(projectOf).filter(Boolean)));
+  solution.forEach((rIdx, t) => {
+    const p = projectOf(tasks[t]);
+    if (p && projects[rIdx]) projects[rIdx].add(p);
+  });
+  return projects.reduce((sum, set) => sum + Math.max(0, set.size - 1), 0);
+}
+
 function computeMetrics(solution, tasks, resources, skillMatrix) {
   const numResources = resources.length;
   const workloads = computeWorkloads(solution, tasks, numResources);
@@ -226,6 +247,7 @@ function computeMetrics(solution, tasks, resources, skillMatrix) {
     averageSkillMatch: Math.round((totalSkillMatch / solution.length) * 100),
     totalCost: Math.round(totalCost),
     overallocatedResources: overallocated,
+    contextSwitches: computeContextSwitches(solution, tasks, resources),
     averageUtilization: Math.round(
       resourceUtilization.reduce((s, r) => s + r.utilization, 0) / numResources
     ),
@@ -240,6 +262,7 @@ function emptyMetrics() {
     averageSkillMatch: 0,
     totalCost: 0,
     overallocatedResources: 0,
+    contextSwitches: 0,
     averageUtilization: 0,
     resourceUtilization: [],
   };
@@ -257,5 +280,7 @@ module.exports = {
   weeklyDemandOf,
   computeFitness,
   computeMetrics,
+  computeContextSwitches,
+  projectOf,
   emptyMetrics,
 };

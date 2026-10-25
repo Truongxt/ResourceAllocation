@@ -43,6 +43,7 @@ import {
   CheckCircleOutlined,
   KeyOutlined,
   SafetyCertificateOutlined,
+  ProfileOutlined,
   CalendarOutlined,
   EyeOutlined,
   AppstoreOutlined,
@@ -68,6 +69,8 @@ import { projectStatusLabel, priorityLabel, taskStatusLabel } from '../../i18n/e
 import { formatCurrency } from '../../i18n/format';
 import './ProjectDetail.css';
 import { depId } from '../../utils/gantt';
+import ProjectCustomFields from '../../components/projects/ProjectCustomFields';
+import { canCreateTaskIn, canManageProject } from '../../utils/projectAccess';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -121,7 +124,11 @@ export default function ProjectDetail() {
   const [taskGroups, setTaskGroups] = useState([]);
   const [taskGroupModalOpen, setTaskGroupModalOpen] = useState(false);
 
-  const canManage = user?.role === ROLES.ADMIN || user?.role === ROLES.PM;
+  // Admin/Owner, hoặc PM của chính dự án này: toàn quyền với công việc lẫn quản lý dự án (nhóm
+  // công việc, thành viên, cấu hình, mở lại). PM ở dự án khác chỉ như thành viên — khớp server
+  // (taskAccess.js, services/projectAccess.js).
+  const canManageThisProject = canManageProject(user, project);
+  const canManage = canManageThisProject;
 
   // Base Wework: Cập nhật cài đặt phân quyền thao tác trong dự án
   const handleTogglePermission = async (key, checked) => {
@@ -480,7 +487,7 @@ export default function ProjectDetail() {
       width: 130,
       render: (d) => <Text type="secondary" style={{ fontSize: 12 }}>{formatDate(d)}</Text>,
     },
-    ...(canManage
+    ...(canManageThisProject
       ? [{
         title: t('common.actions') || 'Thao tác',
         key: 'actions',
@@ -677,6 +684,34 @@ export default function ProjectDetail() {
         >
           {t('projectDetail.projectList') || 'Quay lại danh sách dự án'}
         </Button>
+        {/* Dự án lưu trữ là chỉ đọc: server trả 409 cho mọi thao tác ghi, nên nói trước. */}
+        {project.isArchived && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12 }}
+            title={t('projects.lifecycle.archivedBanner')}
+            action={canManageThisProject ? (
+              <Button
+                size="small"
+                onClick={async () => {
+                  try {
+                    await projectService.unarchive(project._id);
+                    message.success(t('projects.lifecycle.unarchived'));
+                    load();
+                  } catch (error) {
+                    message.error(error.response?.data?.message || t('projects.lifecycle.archiveFailed'));
+                  }
+                }}
+              >
+                {t('projects.lifecycle.unarchive')}
+              </Button>
+            ) : undefined}
+          />
+        )}
+        {project.isTemplate && (
+          <Alert type="info" showIcon style={{ marginBottom: 12 }} title={t('projects.lifecycle.templateBanner')} />
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -710,12 +745,14 @@ export default function ProjectDetail() {
             )}
           </div>
           <Space>
-            <Button
-              icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
-              onClick={() => setTaskGroupModalOpen(true)}
-            >
-              Nhóm công việc ({taskGroups.length})
-            </Button>
+            {canManageThisProject && (
+              <Button
+                icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
+                onClick={() => setTaskGroupModalOpen(true)}
+              >
+                Nhóm công việc ({taskGroups.length})
+              </Button>
+            )}
             <Button icon={<ReloadOutlined />} onClick={() => { load(); loadTaskGroups(); }}>
               {t('common.reload') || 'Tải lại'}
             </Button>
@@ -814,7 +851,9 @@ export default function ProjectDetail() {
                         ) : '—'}
                       </Descriptions.Item>
                       <Descriptions.Item label={t('gantt.period') || 'Thời gian'}>
-                        {formatDate(project.startDate)} → {formatDate(project.endDate)}
+                        {project.kind === 'team'
+                          ? `${project.startDate ? `Từ ${formatDate(project.startDate)} · ` : ''}Thường xuyên (phòng ban vận hành)`
+                          : `${formatDate(project.startDate)} → ${formatDate(project.endDate)}`}
                       </Descriptions.Item>
                       <Descriptions.Item label={t('projects.budget') || 'Ngân sách'}>
                         {formatCurrency(project.budget)}
@@ -878,13 +917,17 @@ export default function ProjectDetail() {
                     </Text>
                   </div>
                   <Space>
-                    <Button
-                      icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
-                      onClick={() => setTaskGroupModalOpen(true)}
-                    >
-                      Nhóm công việc ({taskGroups.length})
-                    </Button>
-                    {(canManage || project.permissions?.allowMembersCreateTasks !== false) && (
+                    {canManageThisProject && (
+                      <Button
+                        icon={<AppstoreOutlined style={{ color: '#3b82f6' }} />}
+                        onClick={() => setTaskGroupModalOpen(true)}
+                      >
+                        Nhóm công việc ({taskGroups.length})
+                      </Button>
+                    )}
+                    {/* Quản lý dự án, hoặc thành viên khi dự án cho phép — khớp createDeniedReason ở server.
+                        Dự án lưu trữ là chỉ đọc (409). */}
+                    {!project.isArchived && canCreateTaskIn(user, project) && (
                       <Button
                         type="primary"
                         icon={<PlusOutlined />}
@@ -923,7 +966,7 @@ export default function ProjectDetail() {
               <div className="saas-card" style={{ overflow: 'hidden', padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                   <Title level={5} style={{ margin: 0 }}>{t('projectDetail.memberList') || 'Danh sách Thành viên'}</Title>
-                  {canManage && (
+                  {canManageThisProject && (
                     <Button
                       type="primary"
                       icon={<PlusOutlined />}
@@ -948,6 +991,26 @@ export default function ProjectDetail() {
                   />
                 )}
               </div>
+            ),
+          },
+          // Cấu hình dự án: server chỉ cho Admin/Owner hoặc PM của dự án (services/projectAccess.js).
+          ...(canManageThisProject ? [{
+            key: 'customFields',
+            label: (
+              <span>
+                <ProfileOutlined style={{ marginRight: 6 }} />
+                Trường tùy chỉnh
+              </span>
+            ),
+            children: (
+              <ProjectCustomFields
+                project={project}
+                onSaved={(saved) => {
+                  // Server trả dự án chưa populate quản lý/thành viên: chỉ lấy phần vừa đổi.
+                  setProject((prev) => ({ ...prev, customFields: saved.customFields }));
+                  message.success('Đã lưu trường tùy chỉnh');
+                }}
+              />
             ),
           },
           {
@@ -990,7 +1053,7 @@ export default function ProjectDetail() {
                       </div>
                       <Switch
                         checked={Boolean(project.failureConfig?.enabled)}
-                        disabled={!canManage}
+                        disabled={!canManageThisProject}
                         onChange={(checked) => handleUpdateWorkflowConfig('failureConfig', { enabled: checked })}
                       />
                     </div>
@@ -1001,7 +1064,7 @@ export default function ProjectDetail() {
                         <Select
                           mode="multiple"
                           allowClear
-                          disabled={!canManage}
+                          disabled={!canManageThisProject}
                           style={{ width: '100%', maxWidth: 420 }}
                           placeholder="Mặc định: chỉ Quản trị viên và Quản lý dự án"
                           value={project.failureConfig?.allowedRoles || []}
@@ -1027,7 +1090,7 @@ export default function ProjectDetail() {
                       </div>
                       <Switch
                         checked={Boolean(project.reviewConfig?.enabled)}
-                        disabled={!canManage}
+                        disabled={!canManageThisProject}
                         onChange={(checked) => handleUpdateWorkflowConfig('reviewConfig', { enabled: checked })}
                       />
                     </div>
@@ -1039,7 +1102,7 @@ export default function ProjectDetail() {
                           <Select
                             mode="multiple"
                             allowClear
-                            disabled={!canManage}
+                            disabled={!canManageThisProject}
                             style={{ width: '100%', maxWidth: 420 }}
                             placeholder="Bỏ trống: chỉ Quản trị viên và Quản lý dự án duyệt"
                             value={(project.reviewConfig?.reviewers || []).map((r) => r?._id || r)}
@@ -1055,7 +1118,7 @@ export default function ProjectDetail() {
                           <InputNumber
                             min={1}
                             max={720}
-                            disabled={!canManage}
+                            disabled={!canManageThisProject}
                             value={project.reviewConfig?.slaHours ?? 24}
                             onChange={(value) => value && handleUpdateWorkflowConfig('reviewConfig', { slaHours: value })}
                           />
@@ -1084,7 +1147,7 @@ export default function ProjectDetail() {
                       </div>
                       <Switch
                         checked={Boolean(project.permissions?.allowAssigneeEditDeadline)}
-                        disabled={!canManage}
+                        disabled={!canManageThisProject}
                         onChange={(checked) => handleTogglePermission('allowAssigneeEditDeadline', checked)}
                       />
                     </div>
@@ -1098,7 +1161,7 @@ export default function ProjectDetail() {
                       </div>
                       <Switch
                         checked={project.permissions?.allowAssigneeEditTitleDesc ?? false}
-                        disabled={!canManage}
+                        disabled={!canManageThisProject}
                         onChange={(checked) => handleTogglePermission('allowAssigneeEditTitleDesc', checked)}
                       />
                     </div>
@@ -1112,7 +1175,7 @@ export default function ProjectDetail() {
                       </div>
                       <Switch
                         checked={project.permissions?.allowAssigneeReassign ?? false}
-                        disabled={!canManage}
+                        disabled={!canManageThisProject}
                         onChange={(checked) => handleTogglePermission('allowAssigneeReassign', checked)}
                       />
                     </div>
@@ -1126,7 +1189,7 @@ export default function ProjectDetail() {
                       </div>
                       <Switch
                         checked={project.permissions?.allowAssigneeDeleteTask ?? false}
-                        disabled={!canManage}
+                        disabled={!canManageThisProject}
                         onChange={(checked) => handleTogglePermission('allowAssigneeDeleteTask', checked)}
                       />
                     </div>
@@ -1149,7 +1212,7 @@ export default function ProjectDetail() {
                       </div>
                       <Switch
                         checked={project.permissions?.allowCreatorDeleteTask ?? true}
-                        disabled={!canManage}
+                        disabled={!canManageThisProject}
                         onChange={(checked) => handleTogglePermission('allowCreatorDeleteTask', checked)}
                       />
                     </div>
@@ -1163,7 +1226,7 @@ export default function ProjectDetail() {
                       </div>
                       <Switch
                         checked={project.permissions?.allowFollowerMarkDone ?? false}
-                        disabled={!canManage}
+                        disabled={!canManageThisProject}
                         onChange={(checked) => handleTogglePermission('allowFollowerMarkDone', checked)}
                       />
                     </div>
@@ -1177,7 +1240,7 @@ export default function ProjectDetail() {
                       </div>
                       <Switch
                         checked={project.permissions?.allowFollowerComment ?? true}
-                        disabled={!canManage}
+                        disabled={!canManageThisProject}
                         onChange={(checked) => handleTogglePermission('allowFollowerComment', checked)}
                       />
                     </div>
@@ -1200,7 +1263,7 @@ export default function ProjectDetail() {
                       </div>
                       <Switch
                         checked={project.permissions?.allowMembersCreateTasks ?? true}
-                        disabled={!canManage}
+                        disabled={!canManageThisProject}
                         onChange={(checked) => handleTogglePermission('allowMembersCreateTasks', checked)}
                       />
                     </div>
@@ -1214,7 +1277,7 @@ export default function ProjectDetail() {
                       </div>
                       <Switch
                         checked={project.permissions?.allowGuestCreateTask ?? false}
-                        disabled={!canManage}
+                        disabled={!canManageThisProject}
                         onChange={(checked) => handleTogglePermission('allowGuestCreateTask', checked)}
                       />
                     </div>
@@ -1222,7 +1285,7 @@ export default function ProjectDetail() {
                 </Card>
               </div>
             ),
-          },
+          }] : []),
         ]}
       />
 
@@ -1331,7 +1394,7 @@ export default function ProjectDetail() {
         dependencyOptions={(tasks || []).filter((t) => !editingTask || t._id !== editingTask._id)}
         selectedProject={id}
         taskGroups={taskGroups}
-        onManageTaskGroups={() => setTaskGroupModalOpen(true)}
+        onManageTaskGroups={canManageThisProject ? () => setTaskGroupModalOpen(true) : undefined}
         onSubmit={handleTaskFormSubmit}
         submitting={taskSubmitting}
         t={t}

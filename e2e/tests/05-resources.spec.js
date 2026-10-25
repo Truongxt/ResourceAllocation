@@ -12,7 +12,8 @@ const { SEED, login, watchForProblems } = require('../support/helpers');
 test.describe('Quản lý nhân sự', () => {
   test.beforeEach(async ({ page }) => {
     await login(page, 'admin');
-    await page.goto('/resources');
+    // Mặc định trang mở tab "Năng suất & Cân bằng tải"; các bài ở đây kiểm bảng nhân sự.
+    await page.goto('/resources?tab=resources');
     await expect(page.getByRole('heading', { name: 'Quản lý Nhân sự & Phòng ban' })).toBeVisible();
   });
 
@@ -65,8 +66,9 @@ test.describe('Quản lý nhân sự', () => {
     await expect(modal).toContainText('Trần Văn Nam');
 
     // Tên kỹ năng nằm trong ô nhập nên không đọc được qua textContent —
-    // phải lấy từ `value` của từng input.
-    const skills = await modal.getByPlaceholder('Tên kỹ năng (VD: React, Node, AI...)')
+    // phải lấy từ `value` của từng input. Chỉ khớp phần đầu của placeholder:
+    // phần ví dụ trong ngoặc đã đổi một lần và làm bài này đỏ oan.
+    const skills = await modal.getByPlaceholder('Tên kỹ năng')
       .evaluateAll((inputs) => inputs.map((i) => i.value));
     expect(skills).toEqual(expect.arrayContaining(['React', 'Node.js', 'MongoDB']));
 

@@ -24,8 +24,9 @@ import {
   CaretDownOutlined,
   CaretRightOutlined,
 } from '@ant-design/icons';
-import taskService from '../../services/taskService';
+import taskService, { SCREEN_MAX_PAGES } from '../../services/taskService';
 import projectService from '../../services/projectService';
+import { canManageProject } from '../../utils/projectAccess';
 import { useAuth } from '../../context/AuthContext';
 import {
   ROLES,
@@ -48,6 +49,13 @@ const ZOOM_LEVELS = [
 ];
 
 const GROUP_MODES = ['none', 'project', 'resource'];
+
+// Bản in: co cả biểu đồ (cột tên + trục thời gian) cho vừa bề ngang một trang A4
+// ngang. 1000px chừa chỗ cho lề nội dung trong bề ngang in được 277mm ≈ 1047px.
+// Tính từ `chartWidth` chứ không đo DOM lúc in, vì trình duyệt dàn trang in xong
+// mới có số đo — khi đó đã muộn để đổi.
+const GANTT_SIDEBAR_WIDTH = 260; // khớp `.gantt-sidebar` trong GanttChart.css
+const PRINT_TARGET_WIDTH = 1000;
 
 const UNGROUPED_KEY = '__ungrouped__';
 
@@ -92,9 +100,13 @@ export default function GanttChart() {
 
   const zoom = ZOOM_LEVELS.find((z) => z.key === zoomKey) || ZOOM_LEVELS[1];
 
-  // Chỉ Admin/PM sửa được ngày tháng của task — khớp với canModifyTask ở server,
-  // nơi người được giao việc chỉ được đổi status/progress/actualHours.
-  const canReschedule = user?.role === ROLES.ADMIN || user?.role === ROLES.PM;
+  // Chỉ Admin/Owner và PM **của dự án chứa việc** sửa được ngày tháng — khớp canModifyTask ở
+  // server, nơi người được giao việc chỉ được đổi status/progress/actualHours, còn PM ở dự án
+  // khác chỉ như thành viên.
+  const isAdmin = user?.role === ROLES.ADMIN || Boolean(user?.isOwner);
+  const canRescheduleTask = (task) => isAdmin
+    || canManageProject(user, projects.find((p) => p._id === String(task?.project?._id || task?.project || '')));
+  const canRescheduleAny = isAdmin || projects.some((p) => canManageProject(user, p));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,10 +116,10 @@ export default function GanttChart() {
       if (filters.search) params.search = filters.search;
 
       const [taskRes, projRes] = await Promise.all([
-        taskService.getAll({ ...params, limit: 100 }),
+        taskService.getAllPages(params, SCREEN_MAX_PAGES),
         projectService.getAll({ limit: 100 }),
       ]);
-      setTasks(taskRes.data.data.tasks || []);
+      setTasks(taskRes.tasks);
       setProjects(projRes.data.data.projects || []);
     } catch {
       /* ignore */
@@ -154,6 +166,7 @@ export default function GanttChart() {
   }, [timelineStart, totalDays]);
 
   const chartWidth = totalDays * zoom.dayWidth;
+  const printZoom = Math.min(1, PRINT_TARGET_WIDTH / (GANTT_SIDEBAR_WIDTH + chartWidth));
 
   // ──────────────────────────────────────────────
   // Row model: danh sách phẳng gồm hàng nhóm và hàng task, dùng chung
@@ -340,7 +353,7 @@ export default function GanttChart() {
   );
 
   const beginDrag = (event, task, mode) => {
-    if (!canReschedule || !task.startDate || !task.endDate) return;
+    if (!canRescheduleTask(task) || !task.startDate || !task.endDate) return;
     event.preventDefault();
     event.stopPropagation();
     dragRef.current = { task, mode, startX: event.clientX, deltaDays: 0 };
@@ -403,6 +416,7 @@ export default function GanttChart() {
     if (!original.startDate || !original.endDate) return null;
 
     const task = withPreview(original);
+    const canReschedule = canRescheduleTask(original);
     const onCriticalPath = showCritical && critical.has(task._id);
     const dragging = dragPreview?.taskId === task._id;
     // Trong lúc kéo, tooltip che mất thanh nên tạm ẩn.
@@ -495,7 +509,7 @@ export default function GanttChart() {
   const taskCount = rows.filter((r) => r.type === 'task').length;
 
   return (
-    <div style={{ maxWidth: 1400 }}>
+    <div className="gantt-page" style={{ maxWidth: 1400 }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
@@ -554,7 +568,7 @@ export default function GanttChart() {
               <Checkbox checked={showCritical} onChange={(e) => setShowCritical(e.target.checked)}>
                 {t('gantt.showCritical') || 'Đường găng (Critical Path)'}
               </Checkbox>
-              {canReschedule && (
+              {canRescheduleAny && (
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {t('gantt.dragHint')}
                 </Text>
@@ -585,7 +599,7 @@ export default function GanttChart() {
           {tasks.length === 0 ? (
             <Empty description={t('gantt.empty')} style={{ padding: 48 }} />
           ) : (
-            <div className="gantt-viewport">
+            <div className="gantt-viewport" style={{ '--gantt-print-zoom': printZoom }}>
               {/* Task Names Sidebar */}
               <div className="gantt-sidebar">
                 <div className="gantt-sidebar-header">

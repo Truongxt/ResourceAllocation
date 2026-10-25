@@ -43,6 +43,26 @@ ok((await call('PUT', path, { token: outsideToken, body: { skills: [{ name: skil
 const otherCompany = await call('POST', '/auth/register', { body: { name: 'Other owner', email: `owner-${Date.now()}@other.test`, password: 'password123', companyName: `Other ${Date.now()}` } });
 ok((await call('GET', `/resources/${id}/evaluation`, { token: otherCompany.data?.token })).status === 403, 'Other company cannot read history');
 ok((await call('PUT', path, { token: otherCompany.data?.token, body: { skills: [{ name: skill.name, level: 1 }] } })).status === 403, 'Other company cannot approve');
+section('No self-approval');
+// Đánh giá hai chiều cần người thứ hai xác nhận. Admin có cả công ty trong phạm vi duyệt —
+// gồm chính mình — nên phải chặn riêng trường hợp tự duyệt bản của mình.
+const adminUser = (await call('GET', '/auth/me', { token: admin })).data.user;
+const adminProfile = await call('POST', '/resources', { token: admin, body: { user: adminUser._id, position: 'Administrator', department: 'Engineering' } });
+ok(adminProfile.status === 201, 'Admin has a resource profile', adminProfile.message);
+const adminResourceId = adminProfile.data?.resource?._id;
+const selfSkill = { name: 'Self review skill', selfLevel: 4, evidence: 'Own claim', yearsOfExperience: 1 };
+result = await call('PUT', '/resources/my-evaluation', { token: admin, body: { skills: [selfSkill], evaluationVersion: 0 } });
+ok(result.status === 200, 'Admin submits own self assessment', result.message);
+const adminQueue = await call('GET', '/resources/evaluations/pending', { token: admin });
+ok(!adminQueue.data?.resources?.some(r => r._id === adminResourceId), 'Own assessment is not in own review queue');
+const selfPath = `/resources/${adminResourceId}/manager-evaluation`;
+const selfVersion = result.data?.resource?.evaluationVersion;
+const selfApprove = await call('PUT', selfPath, { token: admin, body: { evaluationVersion: selfVersion, skills: [{ name: selfSkill.name, level: 4 }] } });
+ok(selfApprove.status === 403, 'Admin cannot approve own assessment', `status=${selfApprove.status}`);
+const selfReturn = await call('PUT', selfPath, { token: admin, body: { action: 'return', evaluationVersion: selfVersion, skills: [{ name: selfSkill.name, managerFeedback: 'x' }] } });
+ok(selfReturn.status === 403, 'Admin cannot return own assessment', `status=${selfReturn.status}`);
+const own = (await call('GET', '/resources/me/evaluation', { token: admin })).data.resource;
+ok(own.skills.find(s => s.name === selfSkill.name)?.evaluationStatus === 'self_assessed', 'Own assessment still waits for someone else');
 section('Scoped period workload');
 const report = await call('GET', '/resources/productivity/summary?from=2026-10-12&to=2026-10-18', { token: admin });
 ok(report.status === 200 && report.data?.period?.from === '2026-10-12', 'Report uses requested period');

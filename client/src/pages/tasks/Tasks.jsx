@@ -19,12 +19,13 @@ import { useSearchParams } from 'react-router-dom';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Typography, Space, Segmented, Button, Form, Tabs, Tag, Modal, Input, message } from 'antd';
+import { Typography, Space, Segmented, Button, Form, Tabs, Tag, Modal, Input, Alert, message } from 'antd';
 import {
   AppstoreOutlined,
   UnorderedListOutlined,
   PlusOutlined,
   FileExcelOutlined,
+  DownloadOutlined,
   SyncOutlined,
   UserOutlined,
   SendOutlined,
@@ -34,13 +35,15 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import taskService from '../../services/taskService';
+import taskService, { SCREEN_MAX_PAGES } from '../../services/taskService';
 import projectService from '../../services/projectService';
 import resourceService from '../../services/resourceService';
 import taskGroupService from '../../services/taskGroupService';
 import { TASK_STATUSES as STATUS_COLS, ROLES } from '../../constants';
 import { depId, invalidPredecessors } from '../../utils/gantt';
 import { getTaskPermissions } from '../../utils/taskPermissions';
+import { downloadCsv } from '../../utils/csv';
+import { taskStatusLabel, priorityLabel } from '../../i18n/enums';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import TaskKpiChips from './components/TaskKpiChips';
@@ -49,15 +52,19 @@ import TaskFilterBar from './components/TaskFilterBar';
 import TaskKanbanView from './components/TaskKanbanView';
 import TaskTableView from './components/TaskTableView';
 import TaskFormModal from './components/TaskFormModal';
+import { toFormCustomValues, fromFormCustomValues } from '../../components/tasks/CustomFieldInputs';
+import { customFilterParams, customCsvColumns } from '../../utils/customFields';
 import TaskGroupManagerModal from '../../components/tasks/TaskGroupManagerModal';
 import TaskDetailDrawer from '../../components/tasks/TaskDetailDrawer';
 import TaskExcelImportModal from '../../components/tasks/TaskExcelImportModal';
 import RecurringTaskModal from '../../components/tasks/RecurringTaskModal';
 import RemindersDrawer from '../../components/tasks/RemindersDrawer';
 import PendingReviewDrawer from '../../components/tasks/PendingReviewDrawer';
+import { canCreateTaskIn, canManageProject } from '../../utils/projectAccess';
 import './Tasks.css';
 
 const { Title, Text } = Typography;
+
 
 export default function Tasks() {
   const { t } = useTranslation();
@@ -69,8 +76,11 @@ export default function Tasks() {
 
   // --- TRẠNG THÁI DỮ LIỆU ---
   const [tasks, setTasks] = useState([]);
+  // Tổng số việc khớp bộ lọc theo server — có thể lớn hơn `tasks.length` khi chạm trần.
   const [taskTotal, setTaskTotal] = useState(0);
   const [projects, setProjects] = useState([]);
+  // Dự án đầy đủ (có `customFields`) từ danh sách đã tải; `task.project` chỉ populate tên, mã.
+  const projectOf = (ref) => projects.find((p) => (p._id || p.id) === String(ref?._id || ref || ''));
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [overviewError, setOverviewError] = useState(false);
@@ -110,8 +120,12 @@ export default function Tasks() {
   const [form] = Form.useForm();
   const selectedProject = Form.useWatch('project', form);
 
-  // Phân quyền: Admin và PM có toàn quyền; Creator và Assignee sửa task của mình
-  const canManageTasks = user?.role === ROLES.ADMIN || user?.role === ROLES.PM || Boolean(user?.isOwner);
+  // Phân quyền: Admin toàn quyền; PM toàn quyền **trên dự án mình quản lý** — ở dự án khác PM chỉ
+  // như thành viên (khớp server: taskAccess.js). Creator và Assignee sửa task của mình.
+  const isAdmin = user?.role === ROLES.ADMIN || Boolean(user?.isOwner);
+  const managesTaskProject = (projectRef) => isAdmin || canManageProject(user, projectOf(projectRef));
+  // Cấp danh sách (nút Thêm công việc): quản lý được ít nhất một dự án.
+  const canManageTasks = isAdmin || projects.some((p) => canManageProject(user, p));
   const canWriteTasks = canManageModule('tasks');
   const isAssignedToMe = (task) => {
     const assigneeId = task?.assignee?._id || task?.assignee;
@@ -127,44 +141,101 @@ export default function Tasks() {
     // chặn mọi method khác GET trên /api/tasks, kể cả đường người được giao tự
     // cập nhật tiến độ. Phải chặn trước khi rơi xuống `getTaskPermissions`.
     if (!canWriteTasks) return false;
-    if (canManageTasks) return true;
+    if (managesTaskProject(task.project)) return true;
     const taskProj =
       (projects || []).find((p) => (p._id || p.id) === (task.project?._id || task.project)) || task.project;
     const perms = getTaskPermissions(task, taskProj, user);
     return perms.canEditDetails || perms.canEditDeadline || perms.canChangeAssignee || perms.canUpdateStatus;
   };
-  const canCreateAnyTask = canWriteTasks && (canManageTasks || (Array.isArray(projects) && projects.length > 0));
+  // Nút tạo việc: tạo được ở ít nhất một dự án — quản lý dự án, hoặc thành viên khi dự án cho phép
+  // (khớp createDeniedReason ở server). Form cũng chỉ liệt kê những dự án đó.
+  const canCreateAnyTask = canWriteTasks
+    && (projects || []).some((p) => !p.isArchived && !p.isTemplate && canCreateTaskIn(user, p));
 
   /**
    * Tải danh sách công việc theo bộ lọc
    */
+  // Bộ lọc đang áp dụng — dùng chung cho màn hình và cho file xuất, để file khớp đúng
+  // những gì người dùng đang lọc.
+  const taskQueryParams = useCallback(() => {
+    const { custom, ...plainFilters } = filters;
+    const params = {
+      ...Object.fromEntries(Object.entries(plainFilters).filter(([, v]) => v)),
+      ...customFilterParams(custom),
+    };
+    if (attentionStatus) params.status = attentionStatus;
+    if (unassignedOnly) params.unassigned = 'true';
+    if (attentionStatus || unassignedOnly || timeFilter === 'overdue') params.includeSubtasks = 'true';
+    if (scope !== 'all') params.scope = scope;
+    if (timeFilter !== 'all') params.timeFilter = timeFilter;
+    return params;
+  }, [filters, scope, timeFilter, attentionStatus, unassignedOnly]);
+
   const loadTasks = useCallback(async () => {
     setLoading(true);
     setOverviewError(false);
     try {
-      const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
-      if (attentionStatus) params.status = attentionStatus;
-      if (unassignedOnly) params.unassigned = 'true';
-      if (attentionStatus || unassignedOnly || timeFilter === 'overdue') params.includeSubtasks = 'true';
-      if (scope !== 'all') params.scope = scope;
-      if (timeFilter !== 'all') params.timeFilter = timeFilter;
-      const res = await taskService.getAll(params);
-      setTasks(res.data.data.tasks || []);
-      setTaskTotal(res.data.total ?? res.data.pagination?.total ?? res.data.data.tasks?.length ?? 0);
+      const { tasks: loaded, total } = await taskService.getAllPages(taskQueryParams(), SCREEN_MAX_PAGES);
+      setTasks(loaded);
+      setTaskTotal(total);
     } catch {
       setOverviewError(true);
       message.error(t('tasks.loadFailed') || 'Không thể tải danh sách công việc');
     } finally {
       setLoading(false);
     }
-  }, [filters, scope, timeFilter, attentionStatus, unassignedOnly, t]);
+  }, [taskQueryParams, t]);
+
+  /**
+   * Xuất CSV theo bộ lọc đang áp dụng. Server trả tối đa 100 việc mỗi trang (mặc định
+   * 50), nên phải đi hết các trang — lấy `tasks` đang hiện trên màn hình là thiếu việc.
+   */
+  const [exporting, setExporting] = useState(false);
+  const exportTasks = async () => {
+    setExporting(true);
+    try {
+      const { tasks: all } = await taskService.getAllPages(taskQueryParams());
+      const day = (d) => (d ? dayjs(d).format('YYYY-MM-DD') : '');
+      // Trường tùy chỉnh: một cột cho mỗi tên trường của các dự án có việc trong file.
+      const custom = customCsvColumns(all, projects);
+      const rows = [
+        [
+          ...['title', 'project', 'group', 'status', 'priority', 'assignee', 'startDate', 'endDate', 'estimatedHours', 'progress', 'completedAt']
+            .map((key) => t(`tasks.csv.${key}`)),
+          ...custom.headers,
+        ],
+        ...all.map((task) => [
+          task.title,
+          task.project?.name || '',
+          task.taskGroup?.name || '',
+          taskStatusLabel(task.status),
+          priorityLabel(task.priority),
+          task.assignee?.name || '',
+          day(task.startDate),
+          day(task.endDate),
+          task.estimatedHours ?? '',
+          task.progress ?? '',
+          task.completedAt ? dayjs(task.completedAt).format('YYYY-MM-DD HH:mm') : '',
+          ...custom.cells(task),
+        ]),
+      ];
+      downloadCsv(`cong_viec_${dayjs().format('YYYY-MM-DD')}.csv`, rows);
+      message.success(t('tasks.exported', { count: all.length }));
+    } catch {
+      message.error(t('tasks.exportFailed'));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   /**
    * Tải danh sách dự án
    */
   const loadProjects = useCallback(async () => {
     try {
-      const res = await projectService.getAll();
+      // Không truyền `limit` thì server chỉ trả 20 dự án: dự án thứ 21 trở đi biến khỏi bộ lọc,
+      // ô chọn dự án và mất luôn ô trường tùy chỉnh. 100 là trần của server.
+      const res = await projectService.getAll({ limit: 100 });
       setProjects(res.data.data.projects || []);
     } catch {
       // Bỏ qua lỗi kết nối ban đầu
@@ -257,12 +328,12 @@ export default function Tasks() {
 
   // Thống kê nhanh cho KPI chips
   const stats = useMemo(() => {
-    const total = tasks.length;
+    const total = Math.max(taskTotal, tasks.length);
     const inProgress = tasks.filter((tItem) => tItem.status === 'in_progress').length;
     const done = tasks.filter((tItem) => tItem.status === 'done').length;
     const blocked = tasks.filter((tItem) => tItem.status === 'blocked').length;
     return { total, inProgress, done, blocked };
-  }, [tasks]);
+  }, [tasks, taskTotal]);
 
   /**
    * Kéo thả công việc giữa các cột Kanban
@@ -421,6 +492,7 @@ export default function Tasks() {
         task.startDate && task.endDate
           ? [dayjs(task.startDate), dayjs(task.endDate)]
           : undefined,
+      customValues: toFormCustomValues(projectOf(task.project), task.customValues),
     });
     setModalOpen(true);
   };
@@ -463,9 +535,16 @@ export default function Tasks() {
         endDate: values.dateRange?.[1] ? values.dateRange[1].toISOString() : undefined,
       };
       delete payload.dateRange;
+      // Trường tùy chỉnh theo dự án của công việc (sửa thì dự án không đổi được qua form này).
+      const formProject = projectOf(editingTask ? editingTask.project : values.project);
+      if ((formProject?.customFields || []).length) {
+        payload.customValues = fromFormCustomValues(formProject, values.customValues);
+      } else {
+        delete payload.customValues;
+      }
 
       if (editingTask) {
-        if (!canManageTasks) {
+        if (!managesTaskProject(editingTask.project)) {
           const taskProj =
             (projects || []).find((p) => (p._id || p.id) === (editingTask.project?._id || editingTask.project)) ||
             editingTask.project;
@@ -483,6 +562,7 @@ export default function Tasks() {
           if (perms.canEditDetails) {
             if (payload.title !== undefined) filteredPayload.title = payload.title;
             if (payload.description !== undefined) filteredPayload.description = payload.description;
+            if (payload.customValues !== undefined) filteredPayload.customValues = payload.customValues;
           }
           if (perms.canChangeAssignee && payload.assignee !== undefined) {
             filteredPayload.assignee = payload.assignee;
@@ -544,6 +624,10 @@ export default function Tasks() {
             onClick={() => setExcelModalOpen(true)}
           >
             Nhập Excel
+          </Button>
+
+          <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportTasks}>
+            {t('tasks.exportCsv')}
           </Button>
 
           {/* Base Wework: Nút Việc lặp lại */}
@@ -680,6 +764,9 @@ export default function Tasks() {
       {(attentionStatus || unassignedOnly) && <div className="task-active-filter"><span>{t(attentionStatus ? 'workspace.blocked' : 'workspace.unassigned')}</span><Button size="small" onClick={() => setSearchParams({})}>{t('workspace.clearFilter')}</Button></div>}
       {/* 1. Khối KPI Chips */}
       <TaskKpiChips stats={stats} isDark={isDark} t={t} />
+      {taskTotal > tasks.length && (
+        <Alert type="warning" showIcon style={{ marginBottom: 12 }} title={t('tasks.truncated', { shown: tasks.length, total: taskTotal })} />
+      )}
       <TasksOverview tasks={tasks} total={taskTotal} loading={loading} error={overviewError} />
 
       {/* 2. Thanh lọc & tìm kiếm */}
@@ -689,13 +776,13 @@ export default function Tasks() {
         projects={projects}
         view={view}
         setView={setView}
-        canManageTasks={canManageTasks}
+        canManageTasks={canCreateAnyTask}
         onOpenCreateModal={handleOpenCreate}
         onReload={loadTasks}
-        onManageGroups={(projId) => {
+        onManageGroups={managesTaskProject(filters.project) ? (projId) => {
           setManageGroupProjectId(projId);
           setTaskGroupModalOpen(true);
-        }}
+        } : undefined}
         t={t}
       />
 
@@ -706,6 +793,7 @@ export default function Tasks() {
           loading={loading}
           canEditTask={canEditTask}
           canManageTasks={canManageTasks}
+          canDeleteTask={(task) => managesTaskProject(task.project)}
           onOpenEdit={handleOpenEdit}
           onOpenDetail={handleOpenDetail}
           onDelete={handleDelete}
@@ -717,7 +805,7 @@ export default function Tasks() {
         <TaskKanbanView
           kanbanCols={kanbanCols}
           statusCols={STATUS_COLS}
-          canManageTasks={canManageTasks}
+          canManageTasks={canCreateAnyTask}
           canEditTask={canEditTask}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
@@ -737,7 +825,7 @@ export default function Tasks() {
         onClose={() => setModalOpen(false)}
         editingTask={editingTask}
         form={form}
-        canManageTasks={canManageTasks}
+        canManageTasks={editingTask ? managesTaskProject(editingTask.project) : (selectedProject ? managesTaskProject(selectedProject) : canManageTasks)}
         currentUser={user}
         projects={projects}
         resources={resources}
@@ -745,10 +833,13 @@ export default function Tasks() {
         dependencyOptions={dependencyOptions}
         selectedProject={selectedProject}
         taskGroups={taskGroups}
-        onManageTaskGroups={(projId) => {
-          setManageGroupProjectId(projId);
-          setTaskGroupModalOpen(true);
-        }}
+        // Nhóm công việc chỉ Admin/Owner hoặc PM của dự án đang chọn quản lý được.
+        onManageTaskGroups={canManageProject(user, projects.find((p) => p._id === selectedProject))
+          ? (projId) => {
+            setManageGroupProjectId(projId);
+            setTaskGroupModalOpen(true);
+          }
+          : undefined}
         onSubmit={handleFormSubmit}
         submitting={submitting}
         t={t}

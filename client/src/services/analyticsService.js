@@ -18,6 +18,11 @@ const analyticsService = {
     return api.get('/analytics/workload-trend', { params });
   },
 
+  // params: { scope: 'me'|'subordinates'|'all', from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }
+  getPerformance(params = {}) {
+    return api.get('/analytics/performance', { params });
+  },
+
   getOptimizationComparison(id) {
     return api.get(`/analytics/optimization-comparison/${id}`);
   },

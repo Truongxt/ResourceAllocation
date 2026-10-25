@@ -117,7 +117,23 @@ S('Followers: các trường hợp bị từ chối');
 
 S('Followers: trần 50 người');
 {
-  // Trần nằm ở schema nên mọi đường ghi đều bị chặn, kể cả lúc tạo công việc.
+  // Người theo dõi phải là tài khoản thật cùng công ty (id giả hay người công ty khác
+  // đều bị từ chối), nên ranh giới 50/51 phải dựng bằng 50 tài khoản thật — dùng id
+  // giả thì bài 51 vẫn đỏ đúng nhưng vì lý do khác, và bài 50 không bao giờ xanh.
+  const admin = await call('POST', '/auth/login', { body: { email: 'admin@rao.com', password: 'password123' } });
+  const dept = (await call('GET', '/departments', { token: admin.data.token })).data.departments[0].name;
+  const stamp = Date.now();
+  const fifty = [];
+  for (let i = 0; i < 50; i++) {
+    const made = await call('POST', '/auth/users', {
+      token: admin.data.token,
+      body: { name: `Theo dõi ${i}`, email: `fol${i}.${stamp}@rao.com`, password: 'password123', role: 'member', department: dept, position: 'Dev' },
+    });
+    fifty.push(made.data?.user?._id);
+  }
+  ok(fifty.every(Boolean), 'Dựng đủ 50 tài khoản thật để theo dõi');
+
+  // Trần kiểm ở cả controller (trước bước tra người dùng) lẫn schema.
   const over = await call('POST', '/tasks', {
     token: TOK.pm,
     body: {
@@ -125,10 +141,11 @@ S('Followers: trần 50 người');
       project: projectId,
       startDate: '2026-10-05',
       endDate: '2026-10-15',
-      followers: [...Array(51)].map(fakeObjectId),
+      followers: [...fifty, followerId],
     },
   });
-  ok(over.status === 400, 'Tạo công việc với 51 người theo dõi bị chặn 400', `status=${over.status}`);
+  ok(over.status === 400 && /Tối đa 50/.test(over.message || ''),
+    'Tạo công việc với 51 người theo dõi bị chặn 400 vì vượt trần', `status=${over.status} ${over.message}`);
 
   const full = await call('POST', '/tasks', {
     token: TOK.pm,
@@ -137,7 +154,7 @@ S('Followers: trần 50 người');
       project: projectId,
       startDate: '2026-10-05',
       endDate: '2026-10-15',
-      followers: [...Array(50)].map(fakeObjectId),
+      followers: fifty,
     },
   });
   ok(full.status === 201, 'Đúng 50 người theo dõi thì vẫn tạo được', `status=${full.status}`);

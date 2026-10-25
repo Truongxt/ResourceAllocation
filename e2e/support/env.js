@@ -13,6 +13,9 @@
  *   database   ..._allocation   ..._test       ..._e2e
  */
 
+const os = require('os');
+const path = require('path');
+
 const SERVER_PORT = process.env.E2E_SERVER_PORT || '5098';
 const CLIENT_PORT = process.env.E2E_CLIENT_PORT || '5174';
 const MONGODB_URI = process.env.E2E_MONGODB_URI || 'mongodb://localhost:27017/resource_allocation_e2e';
@@ -33,6 +36,8 @@ const serverEnv = {
   CLIENT_URL: BASE_URL,
   AUTH_RATE_LIMIT_MAX: '10000',
   API_RATE_LIMIT_MAX: '100000',
+  // Tệp đính kèm tải lên trong lúc test nằm ngoài `server/uploads` của môi trường dev.
+  UPLOAD_DIR: process.env.E2E_UPLOAD_DIR || path.join(os.tmpdir(), 'rao_e2e_uploads'),
 };
 
 // Biến VITE_* phải truyền qua đây chứ không đọc từ `.env`: file đó trỏ về cổng

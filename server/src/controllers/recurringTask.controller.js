@@ -6,6 +6,41 @@ const {
   getPreviewDates,
 } = require('../services/recurringTask.service');
 const { logActivity } = require('../services/activityLog.service');
+const { ARCHIVED_MESSAGE } = require('../services/projectLifecycle.service');
+const { canManageProject, MANAGE_DENIED } = require('../services/projectAccess');
+
+/** Việc lặp lại sinh việc vào dự án: chỉ Admin/Owner hoặc PM của dự án đó cấu hình được. */
+const managesProjectId = async (user, projectId) => {
+  const id = projectId?._id || projectId;
+  const project = id ? await Project.findById(id).select('manager') : null;
+  return canManageProject(user, project);
+};
+const {
+  companyOf,
+  stripProtected,
+  usersError,
+  projectRef,
+  taskGroupError,
+} = require('../services/companyRefs.service');
+
+/**
+ * Cấu hình lặp lại **tự sinh công việc** theo lịch vào `project`, giao cho
+ * `assignee`. Trỏ các trường này sang công ty khác là ghi dữ liệu định kỳ vào đó,
+ * nên phải kiểm cả lúc tạo lẫn lúc sửa.
+ */
+const recurringRefsError = async ({ project, taskGroup, assignee, followers }, company) => {
+  if (project) {
+    const { error, project: target } = await projectRef(project, company);
+    if (error) return error;
+    // Việc lặp lại tự sinh việc mở mới — không được trỏ vào dự án đã đóng hay mẫu.
+    if (target.isArchived) return ARCHIVED_MESSAGE;
+    if (target.isTemplate) return 'Dự án mẫu không chạy việc lặp lại';
+  }
+  return (
+    (await taskGroupError(taskGroup, project)) ||
+    (await usersError([assignee, ...(Array.isArray(followers) ? followers : [])], company))
+  );
+};
 
 /**
  * Nạp một cấu hình lặp lại **trong phạm vi công ty người gọi**.
@@ -93,6 +128,14 @@ const createRecurringTask = async (req, res, next) => {
 
     const companyName = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
 
+    const refError = await recurringRefsError({ project, taskGroup, assignee, followers }, companyName);
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
+    }
+    if (!(await managesProjectId(req.user, project))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
+    }
+
     const config = {
       frequency,
       interval: Number(interval) || 1,
@@ -165,6 +208,25 @@ const updateRecurringTask = async (req, res, next) => {
     if (!item) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy cấu hình công việc lặp lại' });
     }
+    if (!(await managesProjectId(req.user, item.project))
+      || (req.body?.project && !(await managesProjectId(req.user, req.body.project)))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
+    }
+
+    // Kiểm theo giá trị SAU khi sửa: đổi riêng nhóm việc cũng phải khớp dự án hiện có
+    stripProtected(req.body);
+    const refError = await recurringRefsError(
+      {
+        project: req.body.project || item.project,
+        taskGroup: req.body.taskGroup !== undefined ? req.body.taskGroup : null,
+        assignee: req.body.assignee,
+        followers: req.body.followers,
+      },
+      companyOf(req.user)
+    );
+    if (refError) {
+      return res.status(400).json({ success: false, message: refError });
+    }
 
     Object.assign(item, req.body);
 
@@ -202,6 +264,10 @@ const deleteRecurringTask = async (req, res, next) => {
     }
     if (!item) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy cấu hình công việc lặp lại' });
+    }
+    if (!(await managesProjectId(req.user, item.project))
+      || (req.body?.project && !(await managesProjectId(req.user, req.body.project)))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
     }
 
     await item.deleteOne();
@@ -245,6 +311,15 @@ const triggerRunNow = async (req, res, next) => {
     }
     if (!item) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy cấu hình công việc lặp lại' });
+    }
+    if (!(await managesProjectId(req.user, item.project))
+      || (req.body?.project && !(await managesProjectId(req.user, req.body.project)))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
+    }
+
+    const target = await Project.findById(item.project).select('isArchived isTemplate');
+    if (target?.isArchived || target?.isTemplate) {
+      return res.status(409).json({ success: false, message: target.isArchived ? ARCHIVED_MESSAGE : 'Dự án mẫu không chạy việc lặp lại' });
     }
 
     const now = new Date();

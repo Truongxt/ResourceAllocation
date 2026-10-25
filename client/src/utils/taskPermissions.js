@@ -39,7 +39,9 @@ export function getTaskPermissions(task, project, user) {
       ? project
       : (task?.project && task.project.permissions ? task.project : (project || task?.project));
   const managerId = proj?.manager?._id || proj?.manager;
-  const isPM = isOwner || (!!managerId && managerId.toString() === userId.toString()) || user.role === 'project_manager';
+  // Vai trò PM chỉ có tác dụng trên dự án mình là `manager`; ở dự án khác PM chỉ như thành viên
+  // (khớp `PRIVILEGED_ROLES` của server/src/middleware/taskAccess.js).
+  const isPM = isOwner || (!!managerId && managerId.toString() === userId.toString());
 
   const creatorId = task?.createdBy?._id || task?.createdBy;
   const isCreator = !!creatorId && creatorId.toString() === userId.toString();

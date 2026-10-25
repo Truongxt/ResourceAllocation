@@ -18,8 +18,12 @@ import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import projectApi from '../../api/projectApi';
+import { useAuth } from '../../context/AuthContext';
+import { canCreateTaskIn, canManageProject } from '../../utils/projectAccess';
 import taskApi from '../../api/taskApi';
 import taskGroupApi from '../../api/taskGroupApi';
+import CustomFieldInputs from '../../components/tasks/CustomFieldInputs';
+import { valuesFromInputs } from '../../utils/customFieldInputs.js';
 import {
   formatDate,
   formatCurrency,
@@ -36,6 +40,7 @@ const PRIORITIES = [
 ];
 
 export default function ProjectDetailScreen({ route, navigation }) {
+  const { user, canManageModule } = useAuth();
   const { projectId, title } = route.params;
   const { theme, isDark } = useTheme();
 
@@ -57,6 +62,7 @@ export default function ProjectDetailScreen({ route, navigation }) {
   // Create Task in Project Modal
   const [createTaskModalOpen, setCreateTaskModalOpen] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
+  const [customInputs, setCustomInputs] = useState({});
   const [taskGroup, setTaskGroup] = useState('');
   const [taskPriority, setTaskPriority] = useState('medium');
   const [taskHours, setTaskHours] = useState('8');
@@ -65,13 +71,13 @@ export default function ProjectDetailScreen({ route, navigation }) {
 
   const loadProjectData = useCallback(async () => {
     try {
-      const [pRes, tRes, gRes] = await Promise.all([
+      // Đi hết mọi trang: trước đây chỉ thấy 50 việc đầu (trang mặc định của server).
+      const [pRes, { tasks: rawTasks }, gRes] = await Promise.all([
         projectApi.getById(projectId),
-        taskApi.getAll({ project: projectId }),
+        taskApi.getAllPages({ project: projectId }),
         taskGroupApi.getByProject(projectId).catch(() => ({ data: { data: [] } })),
       ]);
       const projectData = pRes.data?.data?.project || pRes.data?.data || null;
-      const rawTasks = tRes.data?.data?.tasks || tRes.data?.tasks || (Array.isArray(tRes.data?.data) ? tRes.data.data : []);
       const rawGroups = gRes.data?.data?.groups || gRes.data?.groups || (Array.isArray(gRes.data?.data) ? gRes.data.data : []);
       setProject(projectData);
       setTasks(Array.isArray(rawTasks) ? rawTasks : []);
@@ -86,6 +92,12 @@ export default function ProjectDetailScreen({ route, navigation }) {
   useEffect(() => {
     loadProjectData();
   }, [loadProjectData]);
+
+  // Chỉ hiện thao tác thuộc quyền — luật dùng chung với web, khớp server. Sửa dự án: Admin/Owner
+  // hoặc PM của chính dự án; thêm việc: quản lý dự án, hoặc thành viên khi dự án cho phép.
+  const editable = Boolean(project) && !project.isArchived;
+  const canEditProject = editable && canManageModule('projects') && canManageProject(user, project);
+  const canAddTask = editable && canManageModule('tasks') && canCreateTaskIn(user, project);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -121,6 +133,11 @@ export default function ProjectDetailScreen({ route, navigation }) {
       Alert.alert('Thông báo', 'Vui lòng nhập tên công việc');
       return;
     }
+    const custom = valuesFromInputs(project, customInputs);
+    if (custom.error) {
+      Alert.alert('Thông báo', custom.error);
+      return;
+    }
     setCreatingTask(true);
     try {
       await taskApi.create({
@@ -130,9 +147,11 @@ export default function ProjectDetailScreen({ route, navigation }) {
         priority: taskPriority,
         estimatedHours: Number(taskHours) || 8,
         description: taskDesc.trim(),
+        ...(Object.keys(custom.values).length ? { customValues: custom.values } : {}),
       });
       setCreateTaskModalOpen(false);
       setTaskTitle('');
+      setCustomInputs({});
       setTaskDesc('');
       setTaskGroup('');
       await loadProjectData();
@@ -156,20 +175,32 @@ export default function ProjectDetailScreen({ route, navigation }) {
         showBack
         onBack={() => navigation.goBack()}
         rightElement={
-          <TouchableOpacity
-            style={styles.editBtnHeader}
-            onPress={() => {
-              if (project) {
-                setEditName(project.name || '');
-                setEditCode(project.code || '');
-                setEditBudget(String(project.budget || ''));
-                setEditDesc(project.description || '');
-                setEditModalOpen(true);
-              }
-            }}
-          >
-            <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity
+              style={styles.editBtnHeader}
+              accessibilityLabel="Xem tiến độ (Gantt)"
+              onPress={() => navigation.navigate('GanttScreen', { projectId })}
+            >
+              <Ionicons name="bar-chart-outline" size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
+            {canEditProject && (
+            <TouchableOpacity
+              style={styles.editBtnHeader}
+              accessibilityLabel="Sửa dự án"
+              onPress={() => {
+                if (project) {
+                  setEditName(project.name || '');
+                  setEditCode(project.code || '');
+                  setEditBudget(String(project.budget || ''));
+                  setEditDesc(project.description || '');
+                  setEditModalOpen(true);
+                }
+              }}
+            >
+              <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
+            )}
+          </View>
         }
       />
 
@@ -359,13 +390,15 @@ export default function ProjectDetailScreen({ route, navigation }) {
                   <Text style={[styles.taskGroupsCount, { color: theme.colors.textSecondary }]}>
                     {taskGroups.length > 0 ? `📁 ${taskGroups.length} nhóm việc` : ''}
                   </Text>
-                  <TouchableOpacity
-                    style={[styles.addTaskMiniBtn, { backgroundColor: theme.colors.primary }]}
-                    onPress={() => setCreateTaskModalOpen(true)}
-                  >
-                    <Ionicons name="add" size={16} color="#fff" />
-                    <Text style={styles.addTaskMiniText}>Thêm việc</Text>
-                  </TouchableOpacity>
+                  {canAddTask && (
+                    <TouchableOpacity
+                      style={[styles.addTaskMiniBtn, { backgroundColor: theme.colors.primary }]}
+                      onPress={() => setCreateTaskModalOpen(true)}
+                    >
+                      <Ionicons name="add" size={16} color="#fff" />
+                      <Text style={styles.addTaskMiniText}>Thêm việc</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {(Array.isArray(tasks) ? tasks : []).length === 0 ? (
@@ -567,6 +600,13 @@ export default function ProjectDetailScreen({ route, navigation }) {
                 placeholderTextColor={theme.colors.textMuted}
                 value={taskTitle}
                 onChangeText={setTaskTitle}
+              />
+
+              {/* Trường tùy chỉnh của dự án */}
+              <CustomFieldInputs
+                project={project}
+                inputs={customInputs}
+                onChange={(key, text) => setCustomInputs((prev) => ({ ...prev, [key]: text }))}
               />
 
               {/* Task Groups */}

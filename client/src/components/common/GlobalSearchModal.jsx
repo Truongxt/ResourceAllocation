@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import projectService from '../../services/projectService';
-import taskService from '../../services/taskService';
+import taskService, { SCREEN_MAX_PAGES } from '../../services/taskService';
 import resourceService from '../../services/resourceService';
 
 const { Text } = Typography;
@@ -61,7 +61,8 @@ export default function GlobalSearchModal({ open, onClose }) {
     try {
       const [projRes, taskRes, resRes] = await Promise.allSettled([
         projectService.getAll(),
-        taskService.getAll(),
+        // Tìm phía client nên phải có đủ việc, không chỉ 50 việc của trang đầu.
+        taskService.getAllPages({}, SCREEN_MAX_PAGES).then((r) => ({ data: { data: { tasks: r.tasks } } })),
         resourceService.getAll(),
       ]);
       const projects = projRes.status === 'fulfilled' && projRes.value?.data ? (Array.isArray(projRes.value.data) ? projRes.value.data : projRes.value.data.data?.projects || projRes.value.data.projects || []) : [];

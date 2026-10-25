@@ -40,6 +40,8 @@ import {
   requiredSkillLevelOptions,
 } from '../../../i18n/enums';
 import { getTaskPermissions } from '../../../utils/taskPermissions';
+import { canCreateTaskIn } from '../../../utils/projectAccess';
+import CustomFieldInputs from '../../../components/tasks/CustomFieldInputs';
 
 const { TextArea } = Input;
 
@@ -88,6 +90,16 @@ export default function TaskFormModal({
     if (!editingTask) return null;
     return getTaskPermissions(editingTask, currentProj, currentUser);
   }, [editingTask, currentProj, currentUser]);
+
+  // Tạo mới: chỉ cho chọn dự án người dùng tạo việc được (khớp createDeniedReason ở server) — liệt
+  // kê dự án khác thì bấm Tạo mới chỉ để nhận 403. Sửa việc: giữ nguyên danh sách để còn hiện dự án
+  // hiện tại; đổi dự án lúc sửa là "chuyển việc", chỉ người quản lý được.
+  const projectOptions = useMemo(
+    () => (editingTask
+      ? projects
+      : (projects || []).filter((p) => !p.isArchived && !p.isTemplate && canCreateTaskIn(currentUser, p))),
+    [editingTask, projects, currentUser]
+  );
 
   const canEditDeadline = canManageTasks || (taskPerms?.canEditDeadline ?? false);
   const canEditTitleDesc = canManageTasks || (taskPerms?.canEditDetails ?? false);
@@ -190,8 +202,8 @@ export default function TaskFormModal({
             >
               <Select
                 placeholder={t('tasks.form.projectPlaceholder') || 'Chọn dự án...'}
-                disabled={!canManageTasks}
-                options={projects.map((p) => ({
+                disabled={Boolean(editingTask) && !canManageTasks}
+                options={projectOptions.map((p) => ({
                   value: p._id,
                   label: `${p.code ? p.code + ' - ' : ''}${p.name}`,
                 }))}
@@ -335,6 +347,9 @@ export default function TaskFormModal({
         <Form.Item name="description" label={t('tasks.form.description') || 'Mô tả chi tiết'}>
           <TextArea rows={3} placeholder="Mô tả công việc..." disabled={!canEditTitleDesc} />
         </Form.Item>
+
+        {/* Trường tùy chỉnh của dự án — cùng quyền sửa với tiêu đề/mô tả */}
+        <CustomFieldInputs project={currentProj} disabled={!canEditTitleDesc} />
 
         {/* Kỹ năng yêu cầu cho thuật toán tối ưu */}
         <Form.Item

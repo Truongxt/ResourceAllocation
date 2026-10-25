@@ -140,5 +140,19 @@ section('3. Chưa đăng nhập');
 }
 
 // ──────────────────────────────────────────────
+section('4. PM ở dự án người khác chỉ như thành viên');
+// ──────────────────────────────────────────────
+{
+  // Vai trò PM chỉ có tác dụng trên dự án mình là `manager` — khớp server (taskAccess.js).
+  const others = project({ manager: 'u-other', reviewConfig: { enabled: true } });
+  const perms = getTaskPermissions(task(), others, pm);
+  check('không sửa nội dung việc của người khác', perms.canEditDetails, false);
+  check('không xóa được', perms.canDelete, false);
+  check('không duyệt được', perms.canReview, false);
+  check('không đánh dấu thất bại được', perms.canMarkFailed, false);
+  check('trên dự án mình quản lý thì sửa được', getTaskPermissions(task(), project(), pm).canEditDetails, true);
+}
+
+// ──────────────────────────────────────────────
 console.log(`\n${failed === 0 ? '✅' : '❌'} ${passed} đạt, ${failed} lỗi\n`);
 process.exit(failed === 0 ? 0 : 1);

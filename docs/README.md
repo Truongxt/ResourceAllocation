@@ -91,7 +91,7 @@ ResourceAllocation/
 │       ├── controllers/       # 12 controllers
 │       ├── middleware/        # auth, error, validate, rateLimit, sanitize
 │       ├── models/            # 12 Mongoose models
-│       ├── routes/            # 12 route files, 118 endpoint (kèm validation inline)
+│       ├── routes/            # 14 route files, 135 endpoint (kèm validation inline)
 │       ├── services/          # socket, email, activityLog
 │       └── utils/             # seeder.js, cleanup.js, migrate-*.js
 ├── server/tests/              # Kiểm thử API + Socket.IO (npm test trong server/)

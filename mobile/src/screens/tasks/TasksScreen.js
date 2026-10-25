@@ -15,6 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { canCreateTaskIn } from '../../utils/projectAccess';
+import { getTaskPermissions } from '../../utils/taskPermissions';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
@@ -22,6 +24,8 @@ import EmptyState from '../../components/common/EmptyState';
 import taskApi from '../../api/taskApi';
 import projectApi from '../../api/projectApi';
 import taskGroupApi from '../../api/taskGroupApi';
+import CustomFieldInputs from '../../components/tasks/CustomFieldInputs';
+import { valuesFromInputs } from '../../utils/customFieldInputs.js';
 import {
   STATUS_MAP,
   PRIORITY_MAP,
@@ -98,6 +102,7 @@ const KANBAN_COLUMNS = [
 
 export default function TasksScreen({ navigation }) {
   const { theme, isDark } = useTheme();
+  const { user, canManageModule } = useAuth();
 
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -115,6 +120,8 @@ export default function TasksScreen({ navigation }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newProject, setNewProject] = useState('');
+  // Trường tùy chỉnh của dự án đang chọn: chuỗi theo key. Đổi dự án thì bỏ (key thuộc dự án cũ).
+  const [customInputs, setCustomInputs] = useState({});
   const [projectGroups, setProjectGroups] = useState([]);
   const [selectedTaskGroup, setSelectedTaskGroup] = useState('');
   const [newPriority, setNewPriority] = useState('medium');
@@ -143,11 +150,11 @@ export default function TasksScreen({ navigation }) {
       if (scopeFilter !== 'all') params.scope = scopeFilter;
       if (timeFilter !== 'all') params.timeFilter = timeFilter;
 
-      const [tRes, pRes] = await Promise.all([
-        taskApi.getAll(params),
+      // Đi hết mọi trang: trước đây chỉ thấy 50 việc đầu (trang mặc định của server).
+      const [{ tasks: rawTasks }, pRes] = await Promise.all([
+        taskApi.getAllPages(params),
         projectApi.getAll({ limit: 50 }),
       ]);
-      const rawTasks = tRes.data?.data?.tasks || tRes.data?.tasks || (Array.isArray(tRes.data?.data) ? tRes.data.data : []);
       const rawProjects = pRes.data?.data?.projects || pRes.data?.projects || (Array.isArray(pRes.data?.data) ? pRes.data.data : []);
       setTasks(Array.isArray(rawTasks) ? rawTasks : []);
       setProjects(Array.isArray(rawProjects) ? rawProjects : []);
@@ -178,6 +185,12 @@ export default function TasksScreen({ navigation }) {
       return;
     }
 
+    const custom = valuesFromInputs(projects.find((p) => p._id === newProject), customInputs);
+    if (custom.error) {
+      Alert.alert('Thông báo', custom.error);
+      return;
+    }
+
     setCreating(true);
     try {
       await taskApi.create({
@@ -187,12 +200,14 @@ export default function TasksScreen({ navigation }) {
         priority: newPriority,
         estimatedHours: Number(newHours) || 8,
         description: newDesc.trim(),
+        ...(Object.keys(custom.values).length ? { customValues: custom.values } : {}),
       });
       Alert.alert('Thành công', 'Tạo công việc mới thành công');
       setShowCreateModal(false);
       setNewTitle('');
       setNewDesc('');
       setSelectedTaskGroup('');
+      setCustomInputs({});
       await loadTasks();
     } catch (err) {
       Alert.alert('Lỗi', err.response?.data?.message || 'Không thể tạo công việc');
@@ -239,13 +254,16 @@ export default function TasksScreen({ navigation }) {
               )}
             </View>
           </View>
-          <TouchableOpacity onPress={() => setSelectedTask(item)}>
-            <Badge
-              label={sMeta.label}
-              color={sMeta.color}
-              bg={sMeta.bg}
-            />
-          </TouchableOpacity>
+          {canAdvance(item) && nextStatusOf(item.status) ? (
+            <TouchableOpacity
+              onPress={() => handleQuickStatus(item._id, nextStatusOf(item.status))}
+              accessibilityLabel={`Chuyển sang bước kế tiếp: ${item.title}`}
+            >
+              <Badge label={sMeta.label} color={sMeta.color} bg={sMeta.bg} />
+            </TouchableOpacity>
+          ) : (
+            <Badge label={sMeta.label} color={sMeta.color} bg={sMeta.bg} />
+          )}
         </View>
 
         {item.description ? (
@@ -324,6 +342,16 @@ export default function TasksScreen({ navigation }) {
       </Card>
     );
   };
+
+  // Chỉ hiện thao tác thuộc quyền — luật dùng chung với web, khớp server. Tạo việc: chỉ ở dự án
+  // người dùng tạo được (quản lý dự án, hoặc thành viên khi dự án cho phép). Đổi trạng thái: theo
+  // quyền trên từng việc; PM ở dự án người khác chỉ như thành viên.
+  const canWriteTasks = canManageModule('tasks');
+  const creatableProjects = (Array.isArray(projects) ? projects : [])
+    .filter((p) => !p.isArchived && !p.isTemplate && canCreateTaskIn(user, p));
+  const canCreate = canWriteTasks && creatableProjects.length > 0;
+  const canAdvance = (item) => canWriteTasks && getTaskPermissions(item, item.project, user).canUpdateStatus;
+  const nextStatusOf = (status) => KANBAN_COLUMNS.find((c) => c.key === status)?.nextStatus;
 
   const handleQuickStatus = async (taskId, nextStatus) => {
     try {
@@ -433,7 +461,7 @@ export default function TasksScreen({ navigation }) {
         </View>
 
         {/* Quick Action Button to advance status */}
-        {col.nextStatus ? (
+        {col.nextStatus && canAdvance(item) ? (
           <TouchableOpacity
             onPress={() => handleQuickStatus(item._id, col.nextStatus)}
             style={[
@@ -457,7 +485,7 @@ export default function TasksScreen({ navigation }) {
               {col.nextLabel}
             </Text>
           </TouchableOpacity>
-        ) : (
+        ) : col.nextStatus ? null : (
           <View style={styles.kanbanDoneBadge}>
             <Ionicons name="checkmark-done" size={14} color="#10b981" />
             <Text style={styles.kanbanDoneText}>Đã hoàn tất</Text>
@@ -541,6 +569,7 @@ export default function TasksScreen({ navigation }) {
 
             <TouchableOpacity
               onPress={() => setViewMode('list')}
+              accessibilityLabel="Xem dạng danh sách"
               style={[
                 styles.toggleIconBtn,
                 viewMode === 'list' && [
@@ -580,13 +609,36 @@ export default function TasksScreen({ navigation }) {
             />
           </TouchableOpacity>
 
-          {/* Add Task Button */}
+          {/* Gantt View Button */}
           <TouchableOpacity
-            onPress={() => setShowCreateModal(true)}
-            style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
+            accessibilityLabel="Xem tiến độ (Gantt)"
+            onPress={() => navigation.navigate('GanttScreen')}
+            style={[
+              styles.calendarNavBtn,
+              {
+                backgroundColor: theme.isDark
+                  ? 'rgba(255,255,255,0.08)'
+                  : '#e2e8f0',
+              },
+            ]}
           >
-            <Ionicons name="add" size={22} color="#ffffff" />
+            <Ionicons
+              name="bar-chart-outline"
+              size={18}
+              color={theme.colors.text}
+            />
           </TouchableOpacity>
+
+          {/* Add Task Button */}
+          {canCreate && (
+            <TouchableOpacity
+              onPress={() => setShowCreateModal(true)}
+              accessibilityLabel="Tạo công việc mới"
+              style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
+            >
+              <Ionicons name="add" size={22} color="#ffffff" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* 1. Scope Filter Tabs (Không gian làm việc) */}
@@ -772,19 +824,21 @@ export default function TasksScreen({ navigation }) {
                     </View>
                   </View>
 
-                  <TouchableOpacity
-                    onPress={() => {
-                      setNewTitle('');
-                      setShowCreateModal(true);
-                    }}
-                    style={styles.colAddBtn}
-                  >
-                    <Ionicons
-                      name="add"
-                      size={18}
-                      color={theme.colors.textMuted}
-                    />
-                  </TouchableOpacity>
+                  {canCreate && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setNewTitle('');
+                        setShowCreateModal(true);
+                      }}
+                      style={styles.colAddBtn}
+                    >
+                      <Ionicons
+                        name="add"
+                        size={18}
+                        color={theme.colors.textMuted}
+                      />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {/* Column Tasks List */}
@@ -900,12 +954,15 @@ export default function TasksScreen({ navigation }) {
                 showsHorizontalScrollIndicator={false}
                 style={styles.projectScroll}
               >
-                {(Array.isArray(projects) ? projects : []).map((p) => {
+                {creatableProjects.map((p) => {
                   const isSel = newProject === p._id;
                   return (
                     <TouchableOpacity
                       key={p._id}
-                      onPress={() => setNewProject(p._id)}
+                      onPress={() => {
+                        if (p._id !== newProject) setCustomInputs({});
+                        setNewProject(p._id);
+                      }}
                       style={[
                         styles.projectPill,
                         {
@@ -933,6 +990,13 @@ export default function TasksScreen({ navigation }) {
                   );
                 })}
               </ScrollView>
+
+              {/* Trường tùy chỉnh của dự án đang chọn */}
+              <CustomFieldInputs
+                project={projects.find((p) => p._id === newProject)}
+                inputs={customInputs}
+                onChange={(key, text) => setCustomInputs((prev) => ({ ...prev, [key]: text }))}
+              />
 
               {/* Task Group Select (if available) */}
               {projectGroups.length > 0 && (

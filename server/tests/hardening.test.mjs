@@ -94,6 +94,45 @@ S('Phân lập công ty: special-grants và app-admin');
   );
 }
 
+S('Chỉ Owner cấp được quyền đặc biệt');
+{
+  // Quyền đặc biệt mở ra thao tác dành riêng cho Owner (đổi email). Nếu Admin tự
+  // cấp được thì "chỉ Owner" chỉ còn trên giấy: tự cấp rồi đổi email người khác.
+  const me = await call('GET', '/auth/me', { token: TOK.admin });
+  const adminId = me.data?.user?._id;
+  ok(me.data?.user?.role === 'admin' && !me.data?.user?.isOwner, 'admin@rao.com là Admin, không phải Owner');
+
+  const selfGrant = await call('PUT', `/auth/users/${adminId}/special-grants`, {
+    token: TOK.admin,
+    body: { specialGrants: ['can_change_email'] },
+  });
+  ok(selfGrant.status === 403, 'Admin không tự cấp được quyền đặc biệt', `status=${selfGrant.status}`);
+
+  const usersA = await call('GET', '/auth/users', { token: TOK.admin });
+  const victim = (usersA.data?.users || []).find((u) => u.email === 'nam.tran@rao.com');
+  const email = await call('PUT', `/auth/users/${victim._id}/email`, {
+    token: TOK.admin,
+    body: { email: `doi.${stamp}@rao.com` },
+  });
+  ok(email.status === 403, 'Vì vậy Admin vẫn không đổi được email người khác', `status=${email.status}`);
+
+  // Owner vẫn cấp được — không chặn nhầm người có quyền.
+  const member = await call('POST', '/auth/users', {
+    token: TOK.ownerB,
+    body: { name: 'Nhân sự công ty B', email: `nv.b.${stamp}@congtyb.com` },
+  });
+  const memberId = member.data?.user?._id;
+  const ownerGrant = await call('PUT', `/auth/users/${memberId}/special-grants`, {
+    token: TOK.ownerB,
+    body: { specialGrants: ['can_change_email'] },
+  });
+  ok(
+    ownerGrant.status === 200 && (ownerGrant.data?.user?.specialGrants || []).includes('can_change_email'),
+    'Owner vẫn cấp được quyền đặc biệt cho người trong công ty',
+    `status=${ownerGrant.status}`
+  );
+}
+
 S('POST /auth/users không trả mật khẩu dạng rõ');
 {
   const res = await call('POST', '/auth/users', {

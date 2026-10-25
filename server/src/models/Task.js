@@ -166,6 +166,9 @@ const taskSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    // Giá trị trường tùy chỉnh của dự án: `key` (Project.customFields) → giá trị. Mọi đường ghi
+    // phải đi qua `mergeCustomValues` để kiểm kiểu và lựa chọn.
+    customValues: { type: Map, of: mongoose.Schema.Types.Mixed, default: undefined },
     // Base Wework: Báo cáo kết quả công việc khi hoàn thành
     resultReport: {
       summary: {

@@ -42,6 +42,7 @@ export default function OptimizationConfigCard({
   params,
   setParams,
   projects = [],
+  allowAllProjects = true,
   running = false,
   onRun,
   t,
@@ -175,10 +176,11 @@ export default function OptimizationConfigCard({
         </Text>
         <Select
           style={{ width: '100%' }}
-          placeholder={t('gantt.allProjects')}
+          // PM chỉ chạy trên dự án mình quản lý: không có lựa chọn "Tất cả dự án".
+          placeholder={allowAllProjects ? t('gantt.allProjects') : t('optimization.pickManagedProject')}
           value={params.projectId || undefined}
           onChange={(val) => setParams((p) => ({ ...p, projectId: val || '' }))}
-          allowClear
+          allowClear={allowAllProjects}
           options={projects.map((p) => ({
             value: p._id,
             label: `${p.code ? p.code + ' - ' : ''}${p.name}`,

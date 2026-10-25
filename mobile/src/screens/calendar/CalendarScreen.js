@@ -22,8 +22,13 @@ import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import taskApi from '../../api/taskApi';
+import { useAuth } from '../../context/AuthContext';
+import { canCreateTaskIn } from '../../utils/projectAccess';
+import { getTaskPermissions } from '../../utils/taskPermissions';
 import projectApi from '../../api/projectApi';
 import taskGroupApi from '../../api/taskGroupApi';
+import CustomFieldInputs from '../../components/tasks/CustomFieldInputs';
+import { valuesFromInputs } from '../../utils/customFieldInputs.js';
 import { STATUS_MAP, PRIORITY_MAP } from '../../utils/formatters';
 
 dayjs.extend(isBetween);
@@ -34,6 +39,7 @@ const DAY_SIZE = Math.floor((SCREEN_WIDTH - 32 - 12) / 7);
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
 export default function CalendarScreen({ navigation }) {
+  const { user, canManageModule } = useAuth();
   const { theme, isDark } = useTheme();
 
   const [currentMonth, setCurrentMonth] = useState(dayjs());
@@ -48,6 +54,8 @@ export default function CalendarScreen({ navigation }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newProject, setNewProject] = useState('');
+  // Trường tùy chỉnh của dự án đang chọn: chuỗi theo key. Đổi dự án thì bỏ (key thuộc dự án cũ).
+  const [customInputs, setCustomInputs] = useState({});
   const [projectGroups, setProjectGroups] = useState([]);
   const [selectedTaskGroup, setSelectedTaskGroup] = useState('');
   const [newPriority, setNewPriority] = useState('medium');
@@ -74,12 +82,12 @@ export default function CalendarScreen({ navigation }) {
       const from = currentMonth.startOf('month').subtract(7, 'day').format('YYYY-MM-DD');
       const to = currentMonth.endOf('month').add(7, 'day').format('YYYY-MM-DD');
 
-      const [tRes, pRes] = await Promise.all([
-        taskApi.getAll({ from, to, limit: 100 }),
+      // Đi hết mọi trang: trước đây `limit: 100` làm tháng có hơn 100 việc mất phần còn lại.
+      const [{ tasks: rawTasks }, pRes] = await Promise.all([
+        taskApi.getAllPages({ from, to }),
         projectApi.getAll({ limit: 50 }),
       ]);
 
-      const rawTasks = tRes.data?.data?.tasks || tRes.data?.tasks || (Array.isArray(tRes.data?.data) ? tRes.data.data : []);
       const rawProjects = pRes.data?.data?.projects || pRes.data?.projects || (Array.isArray(pRes.data?.data) ? pRes.data.data : []);
 
       setTasks(Array.isArray(rawTasks) ? rawTasks : []);
@@ -152,6 +160,13 @@ export default function CalendarScreen({ navigation }) {
   }, []);
 
   // Filter tasks for currently selected date
+  // Chỉ hiện thao tác thuộc quyền — luật dùng chung với web, khớp server (xem TasksScreen).
+  const canWriteTasks = canManageModule('tasks');
+  const creatableProjects = (Array.isArray(projects) ? projects : [])
+    .filter((p) => !p.isArchived && !p.isTemplate && canCreateTaskIn(user, p));
+  const canCreate = canWriteTasks && creatableProjects.length > 0;
+  const canAdvance = (item) => canWriteTasks && getTaskPermissions(item, item.project, user).canUpdateStatus;
+
   const selectedDateTasks = useMemo(() => {
     return tasks.filter((t) => isTaskOnDate(t, selectedDate));
   }, [tasks, selectedDate, isTaskOnDate]);
@@ -176,6 +191,11 @@ export default function CalendarScreen({ navigation }) {
       Alert.alert('Thông báo', 'Vui lòng chọn dự án');
       return;
     }
+    const custom = valuesFromInputs(projects.find((p) => p._id === newProject), customInputs);
+    if (custom.error) {
+      Alert.alert('Thông báo', custom.error);
+      return;
+    }
 
     setCreating(true);
     try {
@@ -188,11 +208,13 @@ export default function CalendarScreen({ navigation }) {
         description: newDesc.trim(),
         startDate: selectedDate.startOf('day').toISOString(),
         endDate: selectedDate.endOf('day').toISOString(),
+        ...(Object.keys(custom.values).length ? { customValues: custom.values } : {}),
       });
       setShowCreateModal(false);
       setNewTitle('');
       setNewDesc('');
       setSelectedTaskGroup('');
+      setCustomInputs({});
       await loadTasks();
       Alert.alert('Thành công', 'Đã thêm công việc vào lịch');
     } catch (err) {
@@ -507,13 +529,15 @@ export default function CalendarScreen({ navigation }) {
             </View>
           </View>
 
-          <TouchableOpacity
-            onPress={() => setShowCreateModal(true)}
-            style={[styles.addBtnSmall, { backgroundColor: theme.colors.primary }]}
-          >
-            <Ionicons name="add" size={16} color="#ffffff" />
-            <Text style={styles.addBtnSmallText}>Thêm việc</Text>
-          </TouchableOpacity>
+          {canCreate && (
+            <TouchableOpacity
+              onPress={() => setShowCreateModal(true)}
+              style={[styles.addBtnSmall, { backgroundColor: theme.colors.primary }]}
+            >
+              <Ionicons name="add" size={16} color="#ffffff" />
+              <Text style={styles.addBtnSmallText}>Thêm việc</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Tasks for Selected Date */}
@@ -601,7 +625,7 @@ export default function CalendarScreen({ navigation }) {
                 </View>
 
                 {/* Quick Workflow Action */}
-                {item.status === 'todo' && (
+                {item.status === 'todo' && canAdvance(item) && (
                   <TouchableOpacity
                     onPress={() => handleQuickStatus(item._id, 'in_progress')}
                     style={[
@@ -615,7 +639,7 @@ export default function CalendarScreen({ navigation }) {
                   </TouchableOpacity>
                 )}
 
-                {item.status === 'in_progress' && (
+                {item.status === 'in_progress' && canAdvance(item) && (
                   <TouchableOpacity
                     onPress={() => handleQuickStatus(item._id, 'review')}
                     style={[
@@ -689,12 +713,15 @@ export default function CalendarScreen({ navigation }) {
                 showsHorizontalScrollIndicator={false}
                 style={styles.projectScroll}
               >
-                {(Array.isArray(projects) ? projects : []).map((p) => {
+                {creatableProjects.map((p) => {
                   const isSel = newProject === p._id;
                   return (
                     <TouchableOpacity
                       key={p._id}
-                      onPress={() => setNewProject(p._id)}
+                      onPress={() => {
+                        if (p._id !== newProject) setCustomInputs({});
+                        setNewProject(p._id);
+                      }}
                       style={[
                         styles.projectPill,
                         {
@@ -722,6 +749,13 @@ export default function CalendarScreen({ navigation }) {
                   );
                 })}
               </ScrollView>
+
+              {/* Trường tùy chỉnh của dự án đang chọn */}
+              <CustomFieldInputs
+                project={projects.find((p) => p._id === newProject)}
+                inputs={customInputs}
+                onChange={(key, text) => setCustomInputs((prev) => ({ ...prev, [key]: text }))}
+              />
 
               <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
                 Mức độ ưu tiên

@@ -20,7 +20,8 @@ const PAGES = [
   ['/projects', 'Quản lý Dự án', 'Phòng ban (Departments)'],
   ['/tasks', 'Quản lý Công việc', 'Tất cả công việc'],
   ['/calendar', 'Tổng quan', 'Hôm nay'],
-  ['/resources', 'Quản lý Nhân sự', 'Tải công việc của nhóm'],
+  // Trang Nhân sự mở sẵn tab "Năng suất & Cân bằng tải"
+  ['/resources', 'Quản lý Nhân sự', 'Tổng quy mô nguồn lực'],
   ['/optimization', 'Tối ưu hóa Phân bổ', 'Cấu hình Thuật toán'],
   ['/benchmark', 'Tổng quan', 'Experimental Benchmark Studio'],
   ['/gantt', 'Gantt Chart', 'Sơ đồ Gantt'],

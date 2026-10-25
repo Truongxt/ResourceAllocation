@@ -12,20 +12,22 @@ const connectDB = require('./src/config/db');
 const { setIO } = require('./src/services/socket.service');
 const { getJwtSecret, assertJwtConfig } = require('./src/config/jwt');
 const { logMailStatus } = require('./src/services/email.service');
+const { corsOrigin } = require('./src/config/cors');
+const User = require('./src/models/User');
 
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: corsOrigin,
     credentials: true,
   },
 });
 
 setIO(io);
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth?.token || socket.handshake.headers.authorization?.split(' ')[1];
 
@@ -34,6 +36,15 @@ io.use((socket, next) => {
     }
 
     const decoded = jwt.verify(token, getJwtSecret());
+
+    // Cùng điều kiện với middleware `protect`: access token còn sống tới 15 phút
+    // sau khi tài khoản bị khóa, chỉ verify chữ ký thì người bị khóa vẫn mở được
+    // kênh realtime trong khoảng đó.
+    const user = await User.findById(decoded.id).select('isActive');
+    if (!user || !user.isActive) {
+      return next(new Error('Authentication error'));
+    }
+
     socket.user = { id: decoded.id };
     next();
   } catch (error) {

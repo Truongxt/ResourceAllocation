@@ -132,6 +132,16 @@ section('Quản trị ứng dụng — lớp quyền KHÁC với appPermissions'
 }
 
 // ──────────────────────────────────────────────
+section('Tối ưu hóa mở cho PM — khớp `hasAppAccess` bên web');
+{
+  // Server cho PM chạy tối ưu trên dự án mình quản lý (`3662cdd`). Mobile mà vẫn chặn thì
+  // PM có quyền nhưng không có lối vào; phạm vi dự án do `optimizeScope.js` lo.
+  check('PM vào được Tối ưu hóa', hasAppAccess({ role: 'project_manager' }, 'optimize'), true);
+  check('…nhưng không vì thế mà vào phân hệ khác', hasAppAccess({ role: 'project_manager' }, 'analytics'), false);
+  check('Member vẫn không', hasAppAccess({ role: 'member' }, 'optimize'), false);
+}
+
+// ──────────────────────────────────────────────
 section('Phân hệ Nhân sự — khớp quy tắc của Sidebar bên web');
 {
   check('PM vào được', canAccessResources({ role: 'project_manager' }), true);
