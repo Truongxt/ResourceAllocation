@@ -75,17 +75,15 @@ export default function Dashboard() {
       <header className="page-heading dashboard-header">
         <div className="dashboard-header-text">
           <div className="dashboard-header-title-row">
-            <Typography.Title level={3} style={{ margin: 0 }}>
-              {t('workspace.overview')}
+            <Typography.Title level={3} style={{ margin: 0, letterSpacing: '-0.025em', fontWeight: 600 }}>
+              {t('workspace.overview') || 'Tổng quan điều phối'}
             </Typography.Title>
-            {userName && (
-              <span className="dashboard-greeting-chip">
-                Xin chào, <strong>{userName}</strong> 👋
-              </span>
-            )}
+            <span className="dashboard-freshness-chip">
+              Thời gian thực
+            </span>
           </div>
           <p className="dashboard-header-desc">
-            Theo dõi tiến độ tổng thể, phân bổ nguồn lực và xử lý các điểm nghẽn dự án trong thời gian thực.
+            Theo dõi tiến độ dự án, tải công việc nhân sự và xử lý các điểm nghẽn điều phối nguồn lực.
           </p>
         </div>
         <Space wrap className="dashboard-header-actions">

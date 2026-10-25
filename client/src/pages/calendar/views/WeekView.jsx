@@ -32,8 +32,8 @@ const STATUS_CONFIG = {
   },
   review: {
     bg: 'rgba(139, 92, 246, 0.12)',
-    border: '#8b5cf6',
-    text: '#8b5cf6',
+    border: '#0284c7',
+    text: '#0284c7',
     label: 'Chờ duyệt',
     icon: <ClockCircleOutlined style={{ fontSize: 11 }} />,
   },
@@ -148,7 +148,7 @@ export default function WeekView({ currentDate, tasks = [], onTaskClick }) {
                     borderRadius: '50%',
                     fontSize: 14,
                     fontWeight: isToday ? 800 : 600,
-                    background: isToday ? '#6366f1' : 'transparent',
+                    background: isToday ? '#0284c7' : 'transparent',
                     color: isToday ? '#ffffff' : (isDark ? '#f8fafc' : '#0f172a'),
                     boxShadow: isToday ? '0 0 12px rgba(99, 102, 241, 0.45)' : 'none',
                   }}
@@ -267,7 +267,7 @@ export default function WeekView({ currentDate, tasks = [], onTaskClick }) {
 
                       {/* Tên dự án */}
                       {t.project && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#6366f1' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#0284c7' }}>
                           <ProjectOutlined style={{ fontSize: 10 }} />
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {t.project.name}
@@ -282,7 +282,7 @@ export default function WeekView({ currentDate, tasks = [], onTaskClick }) {
                             percent={t.progress}
                             size="small"
                             showInfo={false}
-                            strokeColor={t.progress === 100 ? '#10b981' : '#6366f1'}
+                            strokeColor={t.progress === 100 ? '#10b981' : '#0284c7'}
                             railColor={isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0'}
                           />
                         </div>
@@ -321,7 +321,7 @@ export default function WeekView({ currentDate, tasks = [], onTaskClick }) {
                               size={18}
                               icon={<UserOutlined />}
                               style={{
-                                backgroundColor: t.assignee ? '#6366f1' : '#64748b',
+                                backgroundColor: t.assignee ? '#0284c7' : '#64748b',
                                 fontSize: 10,
                               }}
                             >

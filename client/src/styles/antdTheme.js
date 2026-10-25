@@ -30,7 +30,7 @@ export const darkTheme = {
     colorSplit: 'rgba(255, 255, 255, 0.06)',
 
     // Typography
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     fontSize: 14,
     fontSizeHeading1: 28,
     fontSizeHeading2: 20,
@@ -54,9 +54,9 @@ export const darkTheme = {
   },
   components: {
     Layout: {
-      headerBg: 'rgba(18, 18, 21, 0.92)',
-      siderBg: '#0c0c0e',
-      bodyBg: '#09090b',
+      headerBg: '#10131a',
+      siderBg: '#10131a',
+      bodyBg: '#0a0c10',
       headerHeight: 56,
       headerPadding: '0 24px',
     },
@@ -186,7 +186,7 @@ export const lightTheme = {
     colorSplit: '#f1f5f9',
 
     // Typography
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     fontSize: 14,
     fontSizeHeading1: 28,
     fontSizeHeading2: 20,
@@ -210,7 +210,7 @@ export const lightTheme = {
   },
   components: {
     Layout: {
-      headerBg: 'rgba(255, 255, 255, 0.94)',
+      headerBg: '#ffffff',
       siderBg: '#ffffff',
       bodyBg: '#f8fafc',
       headerHeight: 56,

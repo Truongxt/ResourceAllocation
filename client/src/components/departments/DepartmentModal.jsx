@@ -26,14 +26,14 @@ const { Text } = Typography;
 const { TextArea } = Input;
 
 const COLOR_PRESETS = [
-  { label: 'Indigo', value: '#6366f1' },
+  { label: 'Navy', value: '#1e3a8a' },
   { label: 'Blue', value: '#3b82f6' },
   { label: 'Teal', value: '#06b6d4' },
   { label: 'Emerald', value: '#10b981' },
   { label: 'Amber', value: '#f59e0b' },
   { label: 'Orange', value: '#f97316' },
   { label: 'Rose', value: '#f43f5e' },
-  { label: 'Purple', value: '#8b5cf6' },
+  { label: 'Slate', value: '#475569' },
   { label: 'Slate', value: '#64748b' },
 ];
 
@@ -41,7 +41,7 @@ export default function DepartmentModal({ open, department, onCancel, onSuccess 
   const [form] = Form.useForm();
   const [users, setUsers] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  const [selectedColor, setSelectedColor] = useState('#6366f1');
+  const [selectedColor, setSelectedColor] = useState('#0284c7');
 
   useEffect(() => {
     if (!open) return;
@@ -69,7 +69,7 @@ export default function DepartmentModal({ open, department, onCancel, onSuccess 
     loadUsers();
 
     if (department) {
-      const color = department.color || '#6366f1';
+      const color = department.color || '#0284c7';
       setSelectedColor(color);
       form.setFieldsValue({
         name: department.name,
@@ -81,10 +81,10 @@ export default function DepartmentModal({ open, department, onCancel, onSuccess 
           : [],
       });
     } else {
-      setSelectedColor('#6366f1');
+      setSelectedColor('#0284c7');
       form.resetFields();
       form.setFieldsValue({
-        color: '#6366f1',
+        color: '#0284c7',
         managers: [],
       });
     }
@@ -186,7 +186,7 @@ export default function DepartmentModal({ open, department, onCancel, onSuccess 
               const u = opt.data.user;
               return (
                 <Space>
-                  <Avatar size="small" src={u?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                  <Avatar size="small" src={u?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                   <div>
                     <Text strong style={{ fontSize: 13, display: 'block' }}>{u?.name}</Text>
                     <Text type="secondary" style={{ fontSize: 11 }}>{u?.email}</Text>

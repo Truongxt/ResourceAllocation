@@ -51,10 +51,10 @@ const DEPENDENCY_TYPE_OPTIONS = [
 ];
 
 const TASK_DIFFICULTY_OPTIONS = [
-  { value: 'easy', label: '🟢 Dễ (Lv.1 — Junior)' },
-  { value: 'medium', label: '🟡 Vừa (Lv.2 — Tiêu chuẩn)' },
-  { value: 'hard', label: '🟠 Khó (Lv.3 — Senior)' },
-  { value: 'expert', label: '🔴 Rất khó (Lv.4 — Chuyên gia)' },
+  { value: 'easy', label: 'Dễ (Cấp 1 — Junior)' },
+  { value: 'medium', label: 'Vừa (Cấp 2 — Tiêu chuẩn)' },
+  { value: 'hard', label: 'Khó (Cấp 3 — Senior)' },
+  { value: 'expert', label: 'Rất khó (Cấp 4 — Chuyên gia)' },
 ];
 
 export default function TaskFormModal({
@@ -119,20 +119,20 @@ export default function TaskFormModal({
       (assigneeResource.utilizationRate && assigneeResource.utilizationRate > 100);
 
     let type = 'success';
-    let message = '🟢 Năng lực phù hợp với độ khó công việc';
+    let message = 'Năng lực phù hợp với độ khó công việc';
 
     if (isOverloaded) {
       type = 'error';
-      message = `🔴 Cảnh báo Quá tải: Nhân sự này đang hoạt động ở mức ${assigneeResource.utilizationRate || '>100'}% công suất. Đề xuất san tải hoặc chọn nhân sự khác đang rảnh!`;
+      message = `Cảnh báo quá tải: Nhân sự này đang hoạt động ở mức ${assigneeResource.utilizationRate || '>100'}% công suất. Đề xuất san tải hoặc chọn nhân sự khác đang rảnh!`;
     } else if (missingSkills.length > 0) {
       type = 'warning';
-      message = `⚠️ Chưa đạt kỹ năng yêu cầu đã duyệt: ${missingSkills.map((skill) => skill.name).join(', ')}. Hãy kiểm tra người được giao hoặc điều chỉnh yêu cầu.`;
+      message = `Chưa đạt kỹ năng yêu cầu đã duyệt: ${missingSkills.map((skill) => skill.name).join(', ')}. Hãy kiểm tra người được giao hoặc điều chỉnh yêu cầu.`;
     } else if (diffLevel > maxSkillLevel) {
       type = 'warning';
-      message = `⚠️ Cảnh báo Năng lực: Độ khó công việc (Level ${diffLevel}) vượt mức kỹ năng cao nhất của nhân sự (Level ${maxSkillLevel}). Cần người có kinh nghiệm kèm cặp!`;
+      message = `Cảnh báo năng lực: Độ khó công việc (Level ${diffLevel}) vượt mức kỹ năng cao nhất của nhân sự (Level ${maxSkillLevel}). Cần người có kinh nghiệm kèm cặp!`;
     } else if (maxSkillLevel >= diffLevel) {
       type = 'success';
-      message = `🟢 Phù hợp lý tưởng: Trình độ kỹ năng (Level ${maxSkillLevel}) đáp ứng trọn vẹn độ khó công việc (Level ${diffLevel}).`;
+      message = `Phù hợp lý tưởng: Trình độ kỹ năng (Level ${maxSkillLevel}) đáp ứng trọn vẹn độ khó công việc (Level ${diffLevel}).`;
     }
 
     return { type, message, isOverloaded };
@@ -217,7 +217,7 @@ export default function TaskFormModal({
                   value: r.user?._id || r.userId || r._id,
                   label: (
                     <Space>
-                      <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: r.isOverloaded ? '#ef4444' : '#6366f1' }} />
+                      <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: r.isOverloaded ? '#ef4444' : '#0284c7' }} />
                       <span>{r.user?.name || r.userName || r.position}</span>
                       <Tag color={r.isOverloaded ? 'error' : 'blue'} style={{ fontSize: 10, margin: 0 }}>
                         {r.position} {r.utilizationRate ? `(${r.utilizationRate}%)` : ''}
@@ -466,18 +466,18 @@ export default function TaskFormModal({
 
         {/* Tiến độ & Giờ công */}
         <Row gutter={16}>
-          <Col span={8}>
+          <Col xs={24} sm={8}>
             <Form.Item name="progress" label={t('tasks.form.progress') || 'Tiến độ (%)'}>
               <InputNumber min={0} max={100} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
-          <Col span={8}>
-            <Form.Item name="estimatedHours" label={t('tasks.form.estimatedHours') || 'Giờ ước tính'}>
+          <Col xs={24} sm={8}>
+            <Form.Item name="estimatedHours" label={t('tasks.form.estimatedHours')} extra={t('tasks.form.estimatedHoursHelp')}>
               <InputNumber min={0} style={{ width: '100%' }} disabled={!canManageTasks} />
             </Form.Item>
           </Col>
-          <Col span={8}>
-            <Form.Item name="actualHours" label={t('tasks.form.actualHours') || 'Giờ thực tế'}>
+          <Col xs={24} sm={8}>
+            <Form.Item name="actualHours" label={t('tasks.form.actualHours')} extra={t('tasks.form.actualHoursHelp')}>
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
@@ -502,10 +502,6 @@ export default function TaskFormModal({
               type="primary"
               htmlType="submit"
               loading={submitting}
-              style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
-              }}
             >
               {editingTask
                 ? t('common.saveChanges') || 'Lưu thay đổi'

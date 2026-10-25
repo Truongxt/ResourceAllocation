@@ -9,6 +9,7 @@ const {
   getHistory,
   compareResults,
   getResultById,
+  getResultPreview,
   applyResult,
   rollbackResult,
   runBenchmark,
@@ -52,6 +53,7 @@ router.post('/benchmark', runBenchmark);
 router.get('/history', getHistory);
 router.get('/compare', compareResults);
 router.get('/readiness', getOptimizationReadiness);
+router.get('/:id/preview', resultIdValidation, validate, getResultPreview);
 router.get('/:id', resultIdValidation, validate, getResultById);
 
 // Apply & Rollback result

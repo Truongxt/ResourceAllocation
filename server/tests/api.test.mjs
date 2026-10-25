@@ -619,6 +619,17 @@ let gaId;
   const memberApply = await call('POST', `/optimization/${gaId}/apply`, { token: TOK.member });
   ok(memberApply.status === 403, 'Member áp dụng kết quả → 403');
 
+  // A notification is sent only when the assignee actually changes. Make the
+  // seeded member's proposed task unassigned so this check does not depend on
+  // whether the stochastic algorithm retained the existing assignment.
+  const memberResource = (await call('GET', '/resources/me/evaluation', { token: TOK.member })).data?.resource;
+  const memberAssignment = g.assignments.find((a) => String(a.resource) === memberResource?._id);
+  ok(Boolean(memberAssignment), 'Phương án có công việc đề xuất cho member');
+  if (memberAssignment) {
+    const unassigned = await call('PUT', `/tasks/${memberAssignment.task}`, { token: TOK.admin, body: { assignee: null } });
+    ok(unassigned.status === 200, 'Chuẩn bị công việc thực sự đổi người khi áp dụng');
+  }
+
   const applied = await call('POST', `/optimization/${gaId}/apply`, { token: TOK.admin });
   ok(applied.status === 200 && applied.data.appliedCount > 0, 'Admin áp dụng kết quả', `(${applied.data?.appliedCount} task)`);
 

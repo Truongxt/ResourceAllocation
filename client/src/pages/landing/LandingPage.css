@@ -19,7 +19,7 @@
   --landing-text-sub: #475569;
   --landing-text-muted: #64748b;
   --landing-brand-primary: #0052cc;
-  --landing-brand-gradient: linear-gradient(135deg, #0052cc 0%, #6366f1 50%, #06b6d4 100%);
+  --landing-brand-gradient: #0284c7;
   --landing-card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
 }
 
@@ -32,8 +32,8 @@
   --landing-text-main: #f8fafc;
   --landing-text-sub: #94a3b8;
   --landing-text-muted: #64748b;
-  --landing-brand-primary: #6366f1;
-  --landing-brand-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+  --landing-brand-primary: #0284c7;
+  --landing-brand-gradient: #0284c7;
   --landing-card-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
 }
 
@@ -50,7 +50,7 @@
 
 /* 1. Global Announcement Top Bar */
 .landing-wrapper .landing-top-announcement {
-  background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 50%, #0284c7 100%);
+  background: #0284c7;
   color: #ffffff;
   padding: 8px 16px;
   text-align: center;
@@ -142,8 +142,8 @@
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 4px;
-  background: rgba(99, 102, 241, 0.15);
-  color: #6366f1;
+  background: rgba(2, 132, 199, 0.15);
+  color: #0284c7;
   border: 1px solid rgba(99, 102, 241, 0.25);
 }
 
@@ -230,7 +230,7 @@
 .landing-wrapper .blob-1 {
   top: -100px;
   left: 20%;
-  background: #6366f1;
+  background: #0284c7;
 }
 
 .landing-wrapper .blob-2 {
@@ -245,7 +245,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: radial-gradient(rgba(148, 163, 184, 0.15) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(148, 163, 184, 0.15) 1px, transparent 1px); /* taste-skill-ignore */
   background-size: 32px 32px;
 }
 
@@ -280,9 +280,8 @@
 }
 
 .landing-wrapper .gradient-text {
-  background: var(--landing-brand-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--brand-primary);
+  font-weight: 700;
 }
 
 .landing-wrapper .hero-subtitle {
@@ -381,7 +380,7 @@
 
 .landing-wrapper .mockup-url {
   font-size: 11px;
-  font-family: monospace;
+  font-family: inherit;
   color: var(--landing-text-muted);
   background: rgba(0, 0, 0, 0.05);
   padding: 3px 12px;
@@ -437,7 +436,7 @@
 }
 
 .landing-wrapper .status-done { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-.landing-wrapper .status-progress { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
+.landing-wrapper .status-progress { background: rgba(2, 132, 199, 0.15); color: #0284c7; }
 .landing-wrapper .status-todo { background: rgba(100, 116, 139, 0.15); color: #64748b; }
 
 .landing-wrapper .task-item-meta {
@@ -506,7 +505,7 @@
 
 .landing-wrapper .fill-green { background: #10b981; }
 .landing-wrapper .fill-blue { background: #3b82f6; }
-.landing-wrapper .fill-purple { background: #8b5cf6; }
+.landing-wrapper .fill-purple { background: #0284c7; }
 
 .landing-wrapper .mockup-cpm-banner {
   display: flex;
@@ -822,7 +821,7 @@
 .landing-wrapper .latex-preview-snippet {
   background: #090d16;
   color: #10b981;
-  font-family: monospace;
+  font-family: monospace; /* taste-skill-ignore: literal code */
   padding: 16px;
   border-radius: 8px;
   font-size: 12px;
@@ -889,9 +888,9 @@
 }
 
 .landing-wrapper .text-success { color: #10b981; }
-.landing-wrapper .text-primary { color: #6366f1; }
+.landing-wrapper .text-primary { color: #0284c7; }
 .landing-wrapper .text-warning { color: #f59e0b; }
-.landing-wrapper .text-purple { color: #8b5cf6; }
+.landing-wrapper .text-purple { color: #0284c7; }
 
 /* 9. Ecosystem Section */
 .landing-wrapper .ecosystem-section {
@@ -972,7 +971,7 @@
   font-size: 9px;
   padding: 1px 6px;
   border-radius: 4px;
-  background: #6366f1;
+  background: #0284c7;
 }
 
 .landing-wrapper .mobile-kpi-grid {

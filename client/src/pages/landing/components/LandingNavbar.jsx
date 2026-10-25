@@ -33,11 +33,11 @@ export default function LandingNavbar({
       {/* 1. Thanh thông báo toàn cục */}
       <div className="landing-top-announcement">
         <div className="announcement-content">
-          <Tag color="purple" className="announcement-badge">
-            Đồ Án Tốt Nghiệp 2026
-          </Tag>
+          <span className="announcement-badge">
+            Đồ án tốt nghiệp 2026
+          </span>
           <span className="announcement-text">
-            Hệ thống Quản lý Luồng Công việc Đa Dự án & Tự động Tối ưu hóa Phân bổ Nguồn lực Thông minh (RAO Studio)
+            Hệ thống Quản lý Dự án & Tự động Tối ưu hóa Phân bổ Nguồn lực (RAO Studio)
           </span>
           <a
             href="#benchmark-section"
@@ -119,7 +119,7 @@ export default function LandingNavbar({
               title="Chuyển đổi giao diện Sáng / Tối"
               style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              {isDark ? <SunOutlined style={{ color: '#fbbf24', fontSize: 16 }} /> : <MoonOutlined style={{ color: '#6366f1', fontSize: 16 }} />}
+              {isDark ? <SunOutlined style={{ color: '#fbbf24', fontSize: 16 }} /> : <MoonOutlined style={{ color: '#0284c7', fontSize: 16 }} />}
             </button>
 
             {isAuthenticated ? (

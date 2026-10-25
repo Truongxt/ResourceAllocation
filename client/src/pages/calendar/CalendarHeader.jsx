@@ -62,7 +62,7 @@ export default function CalendarHeader({
                         style={{ width: 190 }}
                         value={selectedAssignee}
                         onChange={onAssigneeChange}
-                        prefix={<UserOutlined style={{ color: '#6366f1' }} />}
+                        prefix={<UserOutlined style={{ color: '#0284c7' }} />}
                         options={resources.map((r) => ({
                             value: r.user?._id || r._id,
                             label: `${r.name || r.user?.name} (${r.position || 'Nhân sự'})`,

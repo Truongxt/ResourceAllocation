@@ -16,19 +16,19 @@
   --primitive-blue-800: #1e40af;
   --primitive-blue-900: #1e3a8a;
 
-  /* Neutral Zinc Scale (Dark Obsidian / Clean Graphite) */
-  --primitive-zinc-950: #09090b;
-  --primitive-zinc-900: #121215;
-  --primitive-zinc-850: #18181b;
-  --primitive-zinc-800: #202024;
-  --primitive-zinc-700: #27272a;
-  --primitive-zinc-600: #3f3f46;
-  --primitive-zinc-500: #52525b;
-  --primitive-zinc-400: #71717a;
-  --primitive-zinc-300: #a1a1aa;
-  --primitive-zinc-200: #d4d4d8;
-  --primitive-zinc-100: #f4f4f5;
-  --primitive-zinc-50:  #fafafa;
+  /* Neutral Scale (Dark Obsidian Slate) */
+  --primitive-zinc-950: #0a0c10;
+  --primitive-zinc-900: #10131a;
+  --primitive-zinc-850: #151923;
+  --primitive-zinc-800: #1c212e;
+  --primitive-zinc-700: #262c3d;
+  --primitive-zinc-600: #3b4359;
+  --primitive-zinc-500: #57627d;
+  --primitive-zinc-400: #818ba0;
+  --primitive-zinc-300: #a9b3c7;
+  --primitive-zinc-200: #cbd3e1;
+  --primitive-zinc-100: #e8ecf4;
+  --primitive-zinc-50:  #f8fafc;
 
   /* Neutral Slate Scale (Light Clean SaaS) */
   --primitive-slate-50:  #f8fafc;
@@ -79,46 +79,46 @@
   --motion-duration-slow: 260ms;
 
   /* ==========================================================================
-     2. SEMANTIC TOKENS - DARK THEME (Linear-style Charcoal/Zinc)
+     2. SEMANTIC TOKENS - DARK THEME (Linear/Framed-Sheet Charcoal/Navy Slate)
      ========================================================================== */
   --surface-canvas: var(--primitive-zinc-950);
-  --surface-ground: #0c0c0e;
-  --surface-card:   var(--primitive-zinc-900);
-  --surface-elevated: var(--primitive-zinc-850);
-  --surface-overlay: rgba(18, 18, 21, 0.88);
+  --surface-ground: var(--primitive-zinc-900);
+  --surface-card:   var(--primitive-zinc-850);
+  --surface-elevated: var(--primitive-zinc-800);
+  --surface-overlay: rgba(16, 19, 26, 0.94);
   --surface-hover: rgba(255, 255, 255, 0.045);
   --surface-active: rgba(37, 99, 235, 0.12);
 
-  --text-primary:   #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --text-tertiary:  #71717a;
-  --text-muted:     #52525b;
-  --text-inverse:   #09090b;
+  --text-primary:   #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-tertiary:  #64748b;
+  --text-muted:     #475569;
+  --text-inverse:   #0a0c10;
 
-  --border-subtle:    rgba(255, 255, 255, 0.08);
-  --border-highlight: rgba(255, 255, 255, 0.15);
-  --border-top-glow:  rgba(255, 255, 255, 0.08);
+  --border-subtle:    rgba(255, 255, 255, 0.07);
+  --border-highlight: rgba(255, 255, 255, 0.12);
+  --border-top-glow:  rgba(255, 255, 255, 0.07);
   --border-focus:     var(--primitive-blue-500);
 
   --brand-primary:      var(--primitive-blue-600);
   --brand-primary-hover: var(--primitive-blue-500);
-  --brand-primary-glow: rgba(37, 99, 235, 0.25);
+  --brand-primary-glow: transparent;
   --brand-accent:       var(--primitive-blue-500);
   --brand-ai:           var(--primitive-blue-500);
 
   --status-success:     var(--primitive-emerald-500);
-  --status-success-bg:  rgba(16, 185, 129, 0.1);
+  --status-success-bg:  rgba(16, 185, 129, 0.08);
   --status-warning:     var(--primitive-amber-500);
-  --status-warning-bg:  rgba(245, 158, 11, 0.1);
+  --status-warning-bg:  rgba(245, 158, 11, 0.08);
   --status-danger:      var(--primitive-rose-500);
-  --status-danger-bg:   rgba(239, 68, 68, 0.1);
+  --status-danger-bg:   rgba(239, 68, 68, 0.08);
   --status-info:        var(--primitive-sky-500);
-  --status-info-bg:     rgba(14, 165, 233, 0.1);
+  --status-info-bg:     rgba(14, 165, 233, 0.08);
 
   --shadow-card: none;
   --shadow-card-hover: none;
-  --shadow-modal:       0 20px 40px -12px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  --shadow-glow:        0 0 0 1px var(--primitive-blue-500);
+  --shadow-modal:       0 20px 40px -12px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-glow:        none;
 }
 
 /* ==========================================================================
@@ -128,15 +128,15 @@
   --surface-canvas: var(--primitive-slate-50);
   --surface-ground: #ffffff;
   --surface-card:   #ffffff;
-  --surface-elevated: #ffffff;
-  --surface-overlay: rgba(255, 255, 255, 0.94);
+  --surface-elevated: #f8fafc;
+  --surface-overlay: rgba(255, 255, 255, 0.98);
   --surface-hover: var(--primitive-slate-100);
-  --surface-active: rgba(37, 99, 235, 0.08);
+  --surface-active: rgba(37, 99, 235, 0.06);
 
   --text-primary:   #0f172a;
-  --text-secondary: #334155;
+  --text-secondary: #475569;
   --text-tertiary:  #64748b;
-  --text-muted:     #64748b;
+  --text-muted:     #94a3b8;
   --text-inverse:   #f8fafc;
 
   --border-subtle:    #e2e8f0;
@@ -146,23 +146,23 @@
 
   --brand-primary:      var(--primitive-blue-600);
   --brand-primary-hover: var(--primitive-blue-500);
-  --brand-primary-glow: rgba(37, 99, 235, 0.16);
+  --brand-primary-glow: transparent;
   --brand-accent:       var(--primitive-blue-600);
   --brand-ai:           var(--primitive-blue-600);
 
   --status-success:     var(--primitive-emerald-600);
-  --status-success-bg:  rgba(5, 150, 105, 0.08);
+  --status-success-bg:  rgba(5, 150, 105, 0.06);
   --status-warning:     var(--primitive-amber-600);
-  --status-warning-bg:  rgba(217, 119, 6, 0.08);
+  --status-warning-bg:  rgba(217, 119, 6, 0.06);
   --status-danger:      var(--primitive-rose-600);
-  --status-danger-bg:   rgba(220, 38, 38, 0.08);
+  --status-danger-bg:   rgba(220, 38, 38, 0.06);
   --status-info:        var(--primitive-sky-600);
-  --status-info-bg:     rgba(2, 132, 199, 0.08);
+  --status-info-bg:     rgba(2, 132, 199, 0.06);
 
   --shadow-card: none;
   --shadow-card-hover: none;
-  --shadow-modal:       0 20px 30px -10px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.08);
-  --shadow-glow:        0 0 0 1px var(--primitive-blue-600);
+  --shadow-modal:       0 20px 30px -10px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --shadow-glow:        none;
 }
 
 /* ==========================================================================

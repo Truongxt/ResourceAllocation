@@ -29,11 +29,8 @@ export default function LandingComparison() {
       <section id="comparison" className="comparison-section">
         <div className="landing-container">
           <div className="section-header-center">
-            <Tag color="gold" className="section-tag">
-              So sánh Đột phá
-            </Tag>
             <Title level={2} className="section-title">
-              Tại sao RAO Studio Vượt trội hơn Jira & Trello?
+              So sánh tính năng điều phối nguồn lực
             </Title>
             <Paragraph className="section-subtitle">
               Đối chiếu trực tiếp năng lực phân bổ nguồn lực và lập kế hoạch tối ưu.
@@ -47,7 +44,7 @@ export default function LandingComparison() {
                   <th className="col-feature">Năng lực Cốt lõi</th>
                   <th className="col-rao">
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <ThunderboltOutlined style={{ color: '#818cf8' }} />
+                      <ThunderboltOutlined style={{ color: 'var(--brand-primary)' }} />
                       RAO Studio (Hệ thống này)
                     </span>
                   </th>
@@ -174,24 +171,21 @@ export default function LandingComparison() {
         <div className="landing-container">
           <Row gutter={[32, 32]} align="middle">
             <Col xs={24} lg={12}>
-              <Tag color="cyan" className="section-tag">
-                Multi-Platform Ecosystem
-              </Tag>
               <Title level={2} className="section-title">
-                Hoạt động Liền mạch trên Cả Web & Mobile
+                Hoạt động nhất quán trên cả Web & Di động
               </Title>
               <Paragraph className="section-subtitle">
-                Được xây dựng với kiến trúc hiện đại, đảm bảo trải nghiệm nhất quán dù bạn đang làm việc trên máy tính văn phòng hay theo dõi tiến độ trên điện thoại di động.
+                Được xây dựng với kiến trúc hiện đại, đảm bảo trải nghiệm thống nhất dù bạn đang làm việc trên máy tính hay theo dõi tiến độ trên điện thoại.
               </Paragraph>
 
               <div className="platform-cards">
                 <div className="platform-card">
                   <div className="platform-icon">
-                    <LaptopOutlined style={{ fontSize: 24, color: '#6366f1' }} />
+                    <LaptopOutlined style={{ fontSize: 24, color: 'var(--brand-primary)' }} />
                   </div>
                   <div className="platform-text">
                     <strong>Nền tảng Web Client</strong>
-                    <span>React 18, Vite, Ant Design, Glassmorphism, Dual Theme (Sáng / Tối).</span>
+                    <span>React 18, Vite, Ant Design, Design Tokens, Giao diện Sáng / Tối.</span>
                   </div>
                 </div>
 
@@ -234,7 +228,7 @@ export default function LandingComparison() {
                     </div>
                   </div>
                   <div className="mobile-action-pill" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <ThunderboltOutlined style={{ color: '#818cf8' }} />
+                    <ThunderboltOutlined style={{ color: '#0284c7' }} />
                     <span>Tối ưu hóa Phân bổ GA & CSP</span>
                   </div>
                   <div className="mobile-action-pill" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>

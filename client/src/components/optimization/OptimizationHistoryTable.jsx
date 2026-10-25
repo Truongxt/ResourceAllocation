@@ -65,7 +65,7 @@ export default function OptimizationHistoryTable({
       title: 'Fitness',
       dataIndex: 'fitness',
       key: 'fitness',
-      render: (fitness) => <Text strong style={{ color: '#6366f1' }}>{fitness ? fitness.toFixed(4) : '—'}</Text>,
+      render: (fitness) => <Text strong style={{ color: '#0284c7' }}>{fitness ? fitness.toFixed(4) : '—'}</Text>,
     },
     {
       title: t('optimization.scale') || 'Quy mô',

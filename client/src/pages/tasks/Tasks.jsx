@@ -623,7 +623,7 @@ export default function Tasks() {
               key: 'following',
               label: (
                 <span style={{ fontWeight: 600 }}>
-                  <EyeOutlined style={{ marginRight: 6, color: '#8b5cf6' }} />
+                  <EyeOutlined style={{ marginRight: 6, color: '#0284c7' }} />
                   Việc tôi theo dõi
                 </span>
               ),

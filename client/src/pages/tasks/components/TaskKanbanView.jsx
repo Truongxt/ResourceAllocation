@@ -149,7 +149,7 @@ export default function TaskKanbanView({
                                 padding: '1px 6px',
                                 borderRadius: 4,
                                 background: 'rgba(99, 102, 241, 0.12)',
-                                color: '#818cf8',
+                                color: '#0284c7',
                                 border: '1px solid rgba(99, 102, 241, 0.25)',
                               }}
                             >
@@ -186,7 +186,7 @@ export default function TaskKanbanView({
                               <Button
                                 type="text"
                                 size="small"
-                                icon={<CopyOutlined style={{ fontSize: 12, color: '#6366f1' }} />}
+                                icon={<CopyOutlined style={{ fontSize: 12, color: '#0284c7' }} />}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onDuplicate && onDuplicate(task);
@@ -229,7 +229,7 @@ export default function TaskKanbanView({
                           <Progress
                             percent={task.progress || 0}
                             size="small"
-                            strokeColor="#6366f1"
+                            strokeColor="#0284c7"
                             railColor={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}
                           />
                         </div>
@@ -288,7 +288,7 @@ export default function TaskKanbanView({
                                 padding: '1px 5px',
                                 borderRadius: 4,
                                 background: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f5f3ff',
-                                color: '#a855f7',
+                                color: '#0284c7',
                                 border: '1px solid rgba(168, 85, 247, 0.25)',
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -348,7 +348,7 @@ export default function TaskKanbanView({
                                 padding: '1px 5px',
                                 borderRadius: 4,
                                 background: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f5f3ff',
-                                color: '#8b5cf6',
+                                color: '#0284c7',
                                 border: '1px solid rgba(168, 85, 247, 0.25)',
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -435,7 +435,7 @@ export default function TaskKanbanView({
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Avatar size={20} icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                          <Avatar size={20} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                           <Text type="secondary" style={{ fontSize: 12 }}>
                             {task.assignee?.name || t('common.unassigned') || 'Chưa gán'}
                           </Text>

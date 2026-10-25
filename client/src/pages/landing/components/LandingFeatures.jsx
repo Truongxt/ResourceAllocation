@@ -32,11 +32,8 @@ export default function LandingFeatures({ activeTab, setActiveTab }) {
     <section id="features" className="features-section">
       <div className="landing-container">
         <div className="section-header-center">
-          <Tag color="purple" className="section-tag">
-            Tính năng Vượt trội
-          </Tag>
           <Title level={2} className="section-title">
-            Bộ Công cụ Toàn diện cho Quản lý & Phân bổ Dự án
+            Bộ công cụ chuyên sâu cho quản lý & phân bổ nguồn lực
           </Title>
           <Paragraph className="section-subtitle">
             Khám phá các module chuyên sâu được xây dựng chuẩn chỉnh cho môi trường doanh nghiệp và nghiên cứu khoa học.
@@ -107,7 +104,7 @@ export default function LandingFeatures({ activeTab, setActiveTab }) {
                 <Col xs={24} lg={12}>
                   <div className="feature-visual-box visual-opt">
                     <div className="visual-card-mini">
-                      <span className="mini-icon"><ThunderboltOutlined style={{ color: '#818cf8', fontSize: 18 }} /></span>
+                      <span className="mini-icon"><ThunderboltOutlined style={{ color: '#0284c7', fontSize: 18 }} /></span>
                       <div className="mini-info">
                         <strong>400 Thế hệ Tiến hóa (Generations)</strong>
                         <span>Hội tụ điểm Fitness tối ưu 0.962 trong 18ms</span>

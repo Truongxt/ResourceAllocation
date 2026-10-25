@@ -10,6 +10,7 @@ const { runComparativeBenchmark } = require('../algorithms/benchmark/benchmarkRu
 const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
+const { loadOptimizationPreview } = require('../services/optimizationPreview.service');
 
 /** Công ty của người gọi — dùng chung cho cả phân lập lẫn phạm vi dữ liệu. */
 const companyOf = (user) => (user && user.companyName) || 'Công ty Công nghệ RAO';
@@ -687,6 +688,15 @@ const getResultById = async (req, res, next) => {
  * @route   POST /api/optimization/:id/apply
  * @access  Private (Admin, PM)
  */
+const getResultPreview = async (req, res, next) => {
+  try {
+    const result = await OptimizationResult.findById(req.params.id);
+    if (!result) return res.status(404).json({ success: false, message: 'Không tìm thấy kết quả' });
+    if (!resultBelongsTo(result, req.user)) return res.status(403).json({ success: false, message: 'Không có quyền xem kết quả tối ưu của công ty khác' });
+    res.json({ success: true, data: await loadOptimizationPreview(result) });
+  } catch (error) { next(error); }
+};
+
 const applyResult = async (req, res, next) => {
   try {
     const result = await OptimizationResult.findById(req.params.id);
@@ -713,6 +723,14 @@ const applyResult = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Kết quả này đã được áp dụng trước đó' });
     }
 
+    const preview = await loadOptimizationPreview(result);
+    if (preview.blockedCount || !preview.assignments.length) {
+      return res.status(409).json({ success: false, message: 'Công việc hoặc nhân sự không còn phù hợp. Vui lòng chạy lại tối ưu hóa.' });
+    }
+    if (req.body?.previewToken && req.body.previewToken !== preview.previewToken) {
+      return res.status(409).json({ success: false, message: 'Dữ liệu đã thay đổi từ lúc xem trước. Hãy xem lại tác động mới trước khi áp dụng.' });
+    }
+
     // Lấy thông tin các task hiện tại để lưu snapshot phân công trước khi áp dụng
     const taskIds = result.assignments.map((a) => a.task).filter(Boolean);
     const existingTasks = await Task.find({ _id: { $in: taskIds } }).select('_id assignee title');
@@ -734,6 +752,7 @@ const applyResult = async (req, res, next) => {
         const resource = await Resource.findById(assignment.resource);
         if (resource) {
           const oldAssignee = existingMap.get(assignment.task.toString()) || null;
+          if (oldAssignee?.toString() === resource.user?.toString()) continue;
           previousAssignments.push({
             task: assignment.task,
             previousAssignee: oldAssignee,
@@ -1009,6 +1028,7 @@ module.exports = {
   getHistory,
   compareResults,
   getResultById,
+  getResultPreview,
   applyResult,
   rollbackResult,
   runBenchmark,

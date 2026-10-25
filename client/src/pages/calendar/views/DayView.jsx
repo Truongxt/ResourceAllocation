@@ -34,8 +34,8 @@ const STATUS_CONFIG = {
   },
   review: {
     bg: 'rgba(139, 92, 246, 0.12)',
-    border: '#8b5cf6',
-    text: '#8b5cf6',
+    border: '#0284c7',
+    text: '#0284c7',
     label: 'Chờ duyệt',
     icon: <ClockCircleOutlined />,
   },
@@ -250,7 +250,7 @@ export default function DayView({ currentDate, tasks = [], onTaskClick }) {
                         {priority.label}
                       </Tag>
                       {t.project && (
-                        <span style={{ fontSize: 12, color: '#6366f1', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: 12, color: '#0284c7', display: 'flex', alignItems: 'center', gap: 4 }}>
                           <ProjectOutlined /> {t.project.name}
                         </span>
                       )}
@@ -278,7 +278,7 @@ export default function DayView({ currentDate, tasks = [], onTaskClick }) {
                     <Progress
                       percent={t.progress || 0}
                       size="small"
-                      strokeColor={t.progress === 100 ? '#10b981' : '#6366f1'}
+                      strokeColor={t.progress === 100 ? '#10b981' : '#0284c7'}
                       railColor={isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0'}
                     />
                     <div style={{ marginTop: 8, fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>
@@ -295,7 +295,7 @@ export default function DayView({ currentDate, tasks = [], onTaskClick }) {
                         size={36}
                         icon={<UserOutlined />}
                         style={{
-                          backgroundColor: t.assignee ? '#6366f1' : '#64748b',
+                          backgroundColor: t.assignee ? '#0284c7' : '#64748b',
                           fontWeight: 700,
                         }}
                       >

@@ -120,7 +120,7 @@ export default function QuickCreateModal({ open, onClose, defaultType = 'task', 
       onCancel={onClose}
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 700 }}>
-          <PlusOutlined style={{ color: '#6366f1' }} />
+          <PlusOutlined style={{ color: 'var(--brand-primary, #0284c7)' }} />
           <span>Tạo Mới Nhanh</span>
         </div>
       }
@@ -322,7 +322,7 @@ export default function QuickCreateModal({ open, onClose, defaultType = 'task', 
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
           <Button onClick={onClose}>Hủy</Button>
-          <Button type="primary" htmlType="submit" loading={loading} style={{ background: '#6366f1' }}>
+          <Button type="primary" htmlType="submit" loading={loading}>
             Tạo Ngay
           </Button>
         </div>

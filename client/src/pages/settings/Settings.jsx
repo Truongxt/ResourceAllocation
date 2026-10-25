@@ -98,7 +98,7 @@ export default function Settings() {
               <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 600 }}>
                 <TeamOutlined />
                 <span>Danh bạ Tài khoản (Base Directory)</span>
-                <Badge count="Admin" style={{ backgroundColor: '#7c3aed', fontSize: 10 }} />
+                <Badge count="Admin" style={{ backgroundColor: '#0284c7', fontSize: 10 }} />
               </span>
             ),
             children: <UserDirectoryTab currentUser={user} />,

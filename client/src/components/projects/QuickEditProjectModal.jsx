@@ -93,7 +93,7 @@ export default function QuickEditProjectModal({ open, project, onCancel, onSucce
     <Modal
       title={
         <Space>
-          <EditOutlined style={{ color: '#6366f1' }} />
+          <EditOutlined style={{ color: '#0284c7' }} />
           <span>Chỉnh sửa nhanh: {project?.name}</span>
         </Space>
       }
@@ -119,7 +119,7 @@ export default function QuickEditProjectModal({ open, project, onCancel, onSucce
           name="department"
           label={
             <Space>
-              <ApartmentOutlined style={{ color: '#6366f1' }} />
+              <ApartmentOutlined style={{ color: '#0284c7' }} />
               <Text strong>Phân nhóm Department</Text>
             </Space>
           }
@@ -140,7 +140,7 @@ export default function QuickEditProjectModal({ open, project, onCancel, onSucce
                         width: 10,
                         height: 10,
                         borderRadius: '50%',
-                        backgroundColor: d.color || '#6366f1',
+                        backgroundColor: d.color || '#0284c7',
                       }}
                     />
                     <span>{d.name} {d.code ? `(${d.code})` : ''}</span>
@@ -165,7 +165,7 @@ export default function QuickEditProjectModal({ open, project, onCancel, onSucce
               const u = opt.data.user;
               return (
                 <Space>
-                  <Avatar size="small" src={u?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                  <Avatar size="small" src={u?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                   <div>
                     <Text strong style={{ fontSize: 13, display: 'block' }}>{u?.name}</Text>
                     <Text type="secondary" style={{ fontSize: 11 }}>{u?.email}</Text>

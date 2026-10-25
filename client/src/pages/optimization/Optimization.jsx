@@ -129,7 +129,7 @@ export default function Optimization() {
   const handleViewResult = async (id) => {
     try {
       const res = await optimizationService.getById(id);
-      const opt = res.data?.data?.optimization || res.data?.data;
+      const opt = res.data?.data?.result || res.data?.data?.optimization || res.data?.data;
       setCurrentResult(opt);
       setActiveTab('result');
     } catch {
@@ -189,17 +189,19 @@ export default function Optimization() {
   /**
    * Áp dụng phương án phân bổ vào hệ thống thực
    */
-  const handleApply = async (id) => {
+  const handleApply = async (id, previewToken) => {
     try {
-      await optimizationService.apply(id);
+      await optimizationService.apply(id, previewToken);
       message.success(t('optimization.applySuccess') || 'Đã áp dụng kết quả phân bổ vào hệ thống');
       loadHistory();
       loadReadiness();
       if (currentResult && currentResult._id === id) {
-        setCurrentResult((prev) => ({ ...prev, isApplied: true, isRolledBack: false }));
+        setCurrentResult((prev) => prev?._id === id ? ({ ...prev, isApplied: true, isRolledBack: false }) : prev);
       }
-    } catch {
-      message.error(t('optimization.applyFailed') || 'Lỗi khi áp dụng kết quả phân bổ');
+      return true;
+    } catch (err) {
+      message.error(err.response?.data?.message || t('optimization.applyFailed') || 'Lỗi khi áp dụng kết quả phân bổ');
+      return false;
     }
   };
 
@@ -243,7 +245,7 @@ export default function Optimization() {
   if (!canAccess) {
     return (
       <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--card-bg, #1e293b)', borderRadius: 12, margin: '40px auto', maxWidth: 640 }}>
-        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, marginBottom: 16 }}>
+        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(2, 132, 199, 0.12)', color: '#0284c7', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, marginBottom: 16 }}>
           <LockOutlined />
         </div>
         <Title level={3} style={{ marginBottom: 8, color: 'var(--text-primary)' }}>

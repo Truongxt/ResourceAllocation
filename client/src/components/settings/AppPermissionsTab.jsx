@@ -222,7 +222,7 @@ export default function AppPermissionsTab() {
     }
     if (val === 'key') {
       return (
-        <Tooltip title="Được làm nếu được Owner phân quyền đặc biệt (Chìa khóa 🔑)">
+        <Tooltip title="Được làm nếu được Owner phân quyền đặc biệt (Quyền đặc biệt)">
           <Tag
             style={{
               background: 'rgba(245, 158, 11, 0.15)',
@@ -236,7 +236,7 @@ export default function AppPermissionsTab() {
             }}
           >
             <KeyOutlined style={{ marginRight: 4 }} />
-            Phân quyền (🔑)
+            Phân quyền đặc biệt
           </Tag>
         </Tooltip>
       );
@@ -302,7 +302,7 @@ export default function AppPermissionsTab() {
     {
       title: (
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 700, color: '#9333ea' }}>Quản trị cấp cao</div>
+          <div style={{ fontWeight: 700, color: '#0284c7' }}>Quản trị cấp cao</div>
           <Text type="secondary" style={{ fontSize: 11 }}>(Owner)</Text>
         </div>
       ),
@@ -468,8 +468,8 @@ export default function AppPermissionsTab() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <Badge color="#9333ea" />
-                <Text strong style={{ color: '#9333ea', fontSize: 13 }}>
+                <Badge color="#0284c7" />
+                <Text strong style={{ color: '#0284c7', fontSize: 13 }}>
                   1. Quản trị cấp cao (Owner)
                 </Text>
               </div>
@@ -623,7 +623,7 @@ export default function AppPermissionsTab() {
                   }}
                 >
                   <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
-                    📌 Chú giải ký hiệu phân quyền (Theo Base Account Standard):
+                    Chú giải ký hiệu phân quyền (Theo Base Account Standard):
                   </Text>
                   <Space size={20} wrap>
                     <Space size={6}>
@@ -642,7 +642,7 @@ export default function AppPermissionsTab() {
 
                     <Space size={6}>
                       <Tag style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#d97706', border: '1px solid #d97706', fontWeight: 700 }}>
-                        <KeyOutlined style={{ marginRight: 4 }} /> Phân quyền (🔑)
+                        <KeyOutlined style={{ marginRight: 4 }} /> Phân quyền đặc biệt
                       </Tag>
                       <Text type="secondary" style={{ fontSize: 12 }}>: Được làm nếu được Owner phân quyền đặc biệt</Text>
                     </Space>
@@ -824,7 +824,7 @@ export default function AppPermissionsTab() {
                         },
                       },
                       {
-                        title: 'Quyền chìa khóa 🔑',
+                        title: 'Quyền đặc biệt',
                         dataIndex: 'specialGrants',
                         key: 'specialGrants',
                         width: 180,
@@ -1036,7 +1036,7 @@ export default function AppPermissionsTab() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
                     <div>
                       <Title level={5} style={{ margin: '0 0 4px 0', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <ApartmentOutlined style={{ color: '#6366f1' }} />
+                        <ApartmentOutlined style={{ color: '#0284c7' }} />
                         Phân Quyền Tạo Phòng Ban & Dự Án
                       </Title>
                       <Text type="secondary" style={{ fontSize: 13 }}>
@@ -1133,7 +1133,7 @@ export default function AppPermissionsTab() {
                     }}
                   >
                     <Text strong style={{ color: '#2563eb', fontSize: 13, display: 'block', marginBottom: 4 }}>
-                      💡 NOTE CHUẨN BASE WEWORK:
+                      LƯU Ý TIÊU CHUẨN:
                     </Text>
                     <Text style={{ fontSize: 12.5, color: isDark ? '#cbd5e1' : '#334155' }}>
                       - Quản trị hệ thống (System Owner) và Quản trị ứng dụng (App Admin Wework) mặc định luôn luôn có toàn quyền tạo và quản lý phòng ban / dự án.

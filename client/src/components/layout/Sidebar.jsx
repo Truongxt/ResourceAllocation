@@ -36,34 +36,42 @@ export default function Sidebar({ collapsed, onToggle }) {
   const canAccessOptimize = Boolean(hasAppAccess ? hasAppAccess('optimize') : (user?.isOwner || user?.role === 'admin' || user?.appAdmins?.includes('optimize')));
   const canAccessResource = Boolean(user?.role !== 'member' || user?.isOwner || (hasAppAccess && hasAppAccess('resource')));
 
+  const groupLabelStyle = {
+    fontSize: 12,
+    fontWeight: 500,
+    letterSpacing: '-0.01em',
+    color: isDark ? '#71717a' : '#818ba0',
+    textTransform: 'none',
+    paddingLeft: 4,
+  };
+
   const menuItems = [
     {
       key: 'grp-overview',
       type: 'group',
       label: !collapsed ? (
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: isDark ? '#64748b' : '#94a3b8', textTransform: 'uppercase' }}>
-          {t('nav.overview') || 'TỔNG QUAN'}
+        <span style={groupLabelStyle}>
+          {t('nav.overview') || 'Tổng quan'}
         </span>
       ) : null,
       children: [
-        { key: '/dashboard', icon: <DashboardOutlined style={{ fontSize: 16 }} />, label: t('nav.dashboard') || 'Tổng quan Dashboard' },
-        // { key: '/home', icon: <GlobalOutlined style={{ fontSize: 16, color: '#06b6d4' }} />, label: 'Trang chủ (Giới thiệu)' },
+        { key: '/dashboard', icon: <DashboardOutlined style={{ fontSize: 15 }} />, label: t('nav.dashboard') || 'Tổng quan điều phối' },
       ],
     },
     {
       key: 'grp-management',
       type: 'group',
       label: !collapsed ? (
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: isDark ? '#64748b' : '#94a3b8', textTransform: 'uppercase' }}>
-          {t('nav.workspace') || 'QUẢN LÝ DỰ ÁN'}
+        <span style={groupLabelStyle}>
+          {t('nav.workspace') || 'Quản lý dự án'}
         </span>
       ) : null,
       children: [
-        { key: '/projects', icon: <ProjectOutlined style={{ fontSize: 16 }} />, label: t('nav.projects') },
-        { key: '/tasks', icon: <UnorderedListOutlined style={{ fontSize: 16 }} />, label: t('nav.tasks') },
-        { key: '/calendar', icon: <CalendarOutlined style={{ fontSize: 16 }} />, label: t('nav.calendar') || 'Lịch công việc' },
+        { key: '/projects', icon: <ProjectOutlined style={{ fontSize: 15 }} />, label: t('nav.projects') },
+        { key: '/tasks', icon: <UnorderedListOutlined style={{ fontSize: 15 }} />, label: t('nav.tasks') },
+        { key: '/calendar', icon: <CalendarOutlined style={{ fontSize: 15 }} />, label: t('nav.calendar') || 'Lịch công việc' },
         ...(canAccessResource
-          ? [{ key: '/resources', icon: <TeamOutlined style={{ fontSize: 16 }} />, label: t('nav.resources') }]
+          ? [{ key: '/resources', icon: <TeamOutlined style={{ fontSize: 15 }} />, label: t('nav.resources') }]
           : []),
       ],
     },
@@ -71,33 +79,33 @@ export default function Sidebar({ collapsed, onToggle }) {
       key: 'grp-analytics',
       type: 'group',
       label: !collapsed ? (
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: isDark ? '#64748b' : '#94a3b8', textTransform: 'uppercase' }}>
-          {t('nav.analytics') || 'TỐI ƯU & BÁO CÁO'}
+        <span style={groupLabelStyle}>
+          {t('nav.analytics') || 'Tối ưu & Phân tích'}
         </span>
       ) : null,
       children: [
         ...(canAccessOptimize
           ? [
-              { key: '/optimization', icon: <ThunderboltOutlined style={{ fontSize: 16, color: '#818cf8' }} />, label: t('nav.optimization') },
-              { key: '/benchmark', icon: <ExperimentOutlined style={{ fontSize: 16, color: '#f59e0b' }} />, label: 'Benchmark Studio' },
+              { key: '/optimization', icon: <ThunderboltOutlined style={{ fontSize: 15 }} />, label: t('nav.optimization') },
+              { key: '/benchmark', icon: <ExperimentOutlined style={{ fontSize: 15 }} />, label: 'Benchmark Studio' },
             ]
           : []),
-        { key: '/gantt', icon: <BarChartOutlined style={{ fontSize: 16 }} />, label: t('nav.gantt') },
-        { key: '/reports', icon: <FileTextOutlined style={{ fontSize: 16 }} />, label: t('nav.reports') },
+        { key: '/gantt', icon: <BarChartOutlined style={{ fontSize: 15 }} />, label: t('nav.gantt') },
+        { key: '/reports', icon: <FileTextOutlined style={{ fontSize: 15 }} />, label: t('nav.reports') },
       ],
     },
     {
       key: 'grp-system',
       type: 'group',
       label: !collapsed ? (
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: isDark ? '#64748b' : '#94a3b8', textTransform: 'uppercase' }}>
-          {t('nav.system') || 'HỆ THỐNG'}
+        <span style={groupLabelStyle}>
+          {t('nav.system') || 'Hệ thống'}
         </span>
       ) : null,
       children: [
-        { key: '/account?tab=skills', icon: <StarOutlined style={{ fontSize: 16, color: '#f59e0b' }} />, label: 'Tự đánh giá năng lực' },
-        { key: '/account', icon: <SafetyCertificateOutlined style={{ fontSize: 16, color: '#3b82f6' }} />, label: 'Base Account' },
-        { key: '/activity-logs', icon: <HistoryOutlined style={{ fontSize: 16 }} />, label: t('nav.activityLogs') },
+        { key: '/account?tab=skills', icon: <StarOutlined style={{ fontSize: 15 }} />, label: 'Tự đánh giá năng lực' },
+        { key: '/account', icon: <SafetyCertificateOutlined style={{ fontSize: 15 }} />, label: 'Tài khoản & Phân quyền' },
+        { key: '/activity-logs', icon: <HistoryOutlined style={{ fontSize: 15 }} />, label: t('nav.activityLogs') },
       ],
     },
   ];

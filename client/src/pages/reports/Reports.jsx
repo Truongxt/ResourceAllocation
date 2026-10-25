@@ -354,7 +354,7 @@ export default function Reports() {
                           </div>
                           <Progress
                             percent={Math.min(dept.avgUtil, 100)}
-                            strokeColor={dept.avgUtil > 100 ? '#ef4444' : '#6366f1'}
+                            strokeColor={dept.avgUtil > 100 ? '#ef4444' : '#0284c7'}
                             size="small"
                           />
                         </Space>
@@ -515,7 +515,7 @@ export default function Reports() {
                                             style={{
                                               width: '100%',
                                               height: `${(point.load / peak) * 100}%`,
-                                              background: over ? '#ef4444' : '#6366f1',
+                                              background: over ? '#ef4444' : '#0284c7',
                                               borderRadius: '2px 2px 0 0',
                                             }}
                                           />

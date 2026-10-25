@@ -17,6 +17,8 @@ import {
   ScheduleOutlined,
   ClockCircleOutlined,
   AimOutlined,
+  BranchesOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -93,7 +95,7 @@ export default function OptimizationPreflightView({
             </div>
             <Text type="secondary" style={{ fontSize: 13 }}>
               Phạm vi tối ưu:{' '}
-              <Text strong style={{ color: '#818cf8' }}>
+              <Text strong style={{ color: '#0284c7' }}>
                 {projectName || 'Toàn bộ dự án công ty'}
               </Text>{' '}
               • Thuật toán đang chọn:{' '}
@@ -162,11 +164,11 @@ export default function OptimizationPreflightView({
                 <Text type="secondary" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   Công việc
                 </Text>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(99, 102, 241, 0.12)', color: '#818cf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(2, 132, 199, 0.12)', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <ScheduleOutlined />
                 </div>
               </div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: '#818cf8', lineHeight: 1 }} className="tabular-nums">
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#0284c7', lineHeight: 1 }} className="tabular-nums">
                 {totalTasks}
               </div>
             </div>
@@ -326,7 +328,7 @@ export default function OptimizationPreflightView({
                     width: 24,
                     height: 24,
                     borderRadius: '50%',
-                    background: '#6366f1',
+                    background: '#0284c7',
                     color: '#fff',
                     display: 'flex',
                     alignItems: 'center',
@@ -461,15 +463,15 @@ export default function OptimizationPreflightView({
           <div
             style={{
               padding: 16,
-              borderRadius: 12,
-              background: isDark ? 'rgba(99, 102, 241, 0.06)' : '#eef2ff',
-              border: '1px solid rgba(99, 102, 241, 0.2)',
+              borderRadius: 8,
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
               height: '100%',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 18 }}>🧬</span>
-              <Text strong style={{ fontSize: 13, color: '#6366f1' }}>Genetic Algorithm (GA)</Text>
+              <BranchesOutlined style={{ fontSize: 16, color: 'var(--brand-primary)' }} />
+              <Text strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>Genetic Algorithm (GA)</Text>
             </div>
             <Text type="secondary" style={{ fontSize: 12, display: 'block', lineHeight: 1.5 }}>
               Giải thuật tiến hóa tự nhiên với đột biến và lai ghép. Phù hợp giải phóng các điểm nghẽn và tìm điểm cân bằng Pareto tốt nhất giữa chi phí, kỹ năng và tải.
@@ -481,15 +483,15 @@ export default function OptimizationPreflightView({
           <div
             style={{
               padding: 16,
-              borderRadius: 12,
-              background: isDark ? 'rgba(6, 182, 212, 0.06)' : '#ecfeff',
-              border: '1px solid rgba(6, 182, 212, 0.2)',
+              borderRadius: 8,
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
               height: '100%',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 18 }}>🧩</span>
-              <Text strong style={{ fontSize: 13, color: '#06b6d4' }}>CSP Solver</Text>
+              <ApartmentOutlined style={{ fontSize: 16, color: 'var(--status-info)' }} />
+              <Text strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>CSP Solver</Text>
             </div>
             <Text type="secondary" style={{ fontSize: 12, display: 'block', lineHeight: 1.5 }}>
               Bài toán Thỏa mãn Ràng buộc cứng. Đảm bảo 100% không phân công sai kỹ năng bắt buộc, không trùng lịch và không vượt quá số giờ tối đa cho phép.

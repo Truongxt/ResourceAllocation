@@ -24,8 +24,8 @@ const STATUS_CONFIG = {
     },
     review: {
         bg: 'rgba(139, 92, 246, 0.12)',
-        border: '#8b5cf6',
-        text: '#8b5cf6',
+        border: '#0284c7',
+        text: '#0284c7',
         icon: <ClockCircleOutlined style={{ fontSize: 11 }} />,
     },
     blocked: {
@@ -157,7 +157,7 @@ export default function MonthView({ currentDate, tasks = [], onTaskClick }) {
                                         borderRadius: '50%',
                                         fontSize: 12,
                                         fontWeight: isToday ? 800 : 600,
-                                        background: isToday ? '#6366f1' : 'transparent',
+                                        background: isToday ? '#0284c7' : 'transparent',
                                         color: isToday ? '#ffffff' : (isDark ? '#f1f5f9' : '#1e293b'),
                                         boxShadow: isToday ? '0 0 10px rgba(99, 102, 241, 0.5)' : 'none',
                                     }}
@@ -225,7 +225,7 @@ export default function MonthView({ currentDate, tasks = [], onTaskClick }) {
                                         style={{
                                             fontSize: 10,
                                             fontWeight: 700,
-                                            color: '#818cf8',
+                                            color: '#0284c7',
                                             padding: '1px 6px',
                                             cursor: 'pointer',
                                         }}

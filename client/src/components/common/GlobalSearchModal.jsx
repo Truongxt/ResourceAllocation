@@ -28,15 +28,15 @@ export default function GlobalSearchModal({ open, onClose }) {
   const { isDark } = useTheme();
 
   const staticPages = [
-    { title: 'Tổng quan Dashboard', path: '/dashboard', icon: <DashboardOutlined style={{ color: '#6366f1' }} />, category: 'Trang hệ thống' },
-    { title: 'Quản lý Dự án', path: '/projects', icon: <ProjectOutlined style={{ color: '#06b6d4' }} />, category: 'Trang hệ thống' },
-    { title: 'Bảng Công việc Kanban', path: '/tasks', icon: <CheckSquareOutlined style={{ color: '#10b981' }} />, category: 'Trang hệ thống' },
-    { title: 'Quản lý Nhân sự & Kỹ năng', path: '/resources', icon: <TeamOutlined style={{ color: '#8b5cf6' }} />, category: 'Trang hệ thống' },
-    { title: 'Tối ưu hóa Phân bổ (GA + CSP)', path: '/optimization', icon: <ThunderboltOutlined style={{ color: '#f59e0b' }} />, category: 'Trang hệ thống' },
-    { title: 'Benchmark Studio Thực nghiệm', path: '/benchmark', icon: <ExperimentOutlined style={{ color: '#ec4899' }} />, category: 'Trang hệ thống' },
-    { title: 'Sơ đồ Gantt & CPM', path: '/gantt', icon: <BarChartOutlined style={{ color: '#3b82f6' }} />, category: 'Trang hệ thống' },
-    { title: 'Báo cáo & Phân tích Tải', path: '/reports', icon: <FileTextOutlined style={{ color: '#14b8a6' }} />, category: 'Trang hệ thống' },
-    { title: 'Cài đặt Tài khoản', path: '/settings', icon: <SettingOutlined style={{ color: '#64748b' }} />, category: 'Trang hệ thống' },
+    { title: 'Tổng quan Dashboard', path: '/dashboard', icon: <DashboardOutlined style={{ color: 'var(--brand-primary)' }} />, category: 'Trang hệ thống' },
+    { title: 'Quản lý Dự án', path: '/projects', icon: <ProjectOutlined style={{ color: 'var(--text-secondary)' }} />, category: 'Trang hệ thống' },
+    { title: 'Bảng Công việc Kanban', path: '/tasks', icon: <CheckSquareOutlined style={{ color: 'var(--status-success)' }} />, category: 'Trang hệ thống' },
+    { title: 'Quản lý Nhân sự & Kỹ năng', path: '/resources', icon: <TeamOutlined style={{ color: 'var(--text-secondary)' }} />, category: 'Trang hệ thống' },
+    { title: 'Tối ưu hóa Phân bổ (GA + CSP)', path: '/optimization', icon: <ThunderboltOutlined style={{ color: 'var(--status-warning)' }} />, category: 'Trang hệ thống' },
+    { title: 'Benchmark Studio Thực nghiệm', path: '/benchmark', icon: <ExperimentOutlined style={{ color: 'var(--brand-primary)' }} />, category: 'Trang hệ thống' },
+    { title: 'Sơ đồ Gantt & CPM', path: '/gantt', icon: <BarChartOutlined style={{ color: 'var(--brand-primary)' }} />, category: 'Trang hệ thống' },
+    { title: 'Báo cáo & Phân tích Tải', path: '/reports', icon: <FileTextOutlined style={{ color: 'var(--text-secondary)' }} />, category: 'Trang hệ thống' },
+    { title: 'Cài đặt Tài khoản', path: '/settings', icon: <SettingOutlined style={{ color: 'var(--text-secondary)' }} />, category: 'Trang hệ thống' },
   ];
 
   const [query, setQuery] = useState('');
@@ -142,7 +142,7 @@ export default function GlobalSearchModal({ open, onClose }) {
           background: isDark ? '#0c121e' : '#f8fafc',
         }}
       >
-        <SearchOutlined style={{ fontSize: 18, color: '#6366f1' }} />
+        <SearchOutlined style={{ fontSize: 18, color: 'var(--brand-primary)' }} />
         <input
           autoFocus
           placeholder="Tìm nhanh trang, dự án, công việc, nhân sự... (Nhập từ khóa)"
@@ -347,11 +347,11 @@ export default function GlobalSearchModal({ open, onClose }) {
                       cursor: 'pointer',
                       transition: 'background 0.15s ease',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = isDark ? 'rgba(99, 102, 241, 0.12)' : '#f1f5f9')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = isDark ? 'rgba(37, 99, 235, 0.12)' : '#f1f5f9')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <TeamOutlined style={{ color: '#8b5cf6', fontSize: 15 }} />
+                      <TeamOutlined style={{ color: 'var(--brand-primary)', fontSize: 15 }} />
                       <Text strong style={{ fontSize: 13, color: isDark ? '#f8fafc' : '#0f172a' }}>
                         {r.user?.name || r.name || 'Nhân sự'}
                       </Text>

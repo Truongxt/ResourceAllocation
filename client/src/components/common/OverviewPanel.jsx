@@ -5,7 +5,7 @@ import { BarChartOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
 import { PROJECT_STATUSES, TASK_STATUSES, PRIORITY_OPTIONS } from '../../constants';
 import './OverviewPanel.css';
 
-const colors = ['#64748b', '#3b82f6', '#d97706', '#059669', '#dc2626', '#7c3aed'];
+const colors = ['#64748b', '#3b82f6', '#d97706', '#059669', '#dc2626', '#0284c7'];
 const number = (value) => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
 
 function statusGroups(items, definitions, field = 'status') {

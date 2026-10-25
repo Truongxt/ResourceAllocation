@@ -291,7 +291,7 @@ export default function RemindersDrawer({
       overdue: { title: 'Đã quá hạn', tasks: [], color: '#ef4444' },
       today: { title: 'Hôm nay', tasks: [], color: '#f59e0b' },
       tomorrow: { title: 'Ngày mai', tasks: [], color: '#3b82f6' },
-      thisWeek: { title: 'Tuần này', tasks: [], color: '#8b5cf6' },
+      thisWeek: { title: 'Tuần này', tasks: [], color: '#0284c7' },
       nextWeek: { title: 'Tuần tới', tasks: [], color: '#06b6d4' },
       later: { title: 'Xa hơn', tasks: [], color: '#64748b' },
     };
@@ -390,7 +390,7 @@ export default function RemindersDrawer({
                     padding: '0 6px',
                     margin: 0,
                     background: isDark ? 'rgba(99, 102, 241, 0.15)' : '#e0e7ff',
-                    color: '#6366f1',
+                    color: '#0284c7',
                     border: 'none',
                   }}
                 >
@@ -488,7 +488,7 @@ export default function RemindersDrawer({
                 onClick={() => {
                   if (onSelectTask) onSelectTask(task._id);
                 }}
-                style={{ borderRadius: 6, color: '#6366f1' }}
+                style={{ borderRadius: 6, color: '#0284c7' }}
               />
             </Tooltip>
           </Space>
@@ -508,7 +508,7 @@ export default function RemindersDrawer({
                   width: 32,
                   height: 32,
                   borderRadius: 8,
-                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  background: '#f59e0b',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -642,13 +642,13 @@ export default function RemindersDrawer({
               key: 'schedule',
               label: (
                 <Space size={6}>
-                  <ScheduleOutlined style={{ color: '#6366f1' }} />
+                  <ScheduleOutlined style={{ color: '#0284c7' }} />
                   <span>Lịch biểu</span>
                   <Badge
                     count={data.counts.total}
                     overflowCount={99}
                     style={{
-                      backgroundColor: '#6366f1',
+                      backgroundColor: '#0284c7',
                       boxShadow: 'none',
                       fontSize: 11,
                       height: 18,
@@ -818,7 +818,7 @@ export default function RemindersDrawer({
               htmlType="submit"
               loading={snoozeSubmitting}
               style={{
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                background: '#f59e0b',
                 borderColor: '#d97706',
               }}
             >

@@ -32,7 +32,7 @@ export default function LandingFooter({
           <Card className="thesis-card">
             <Row gutter={[24, 24]} align="middle">
               <Col xs={24} md={16}>
-                <Tag color="purple">Thông tin Luận văn Tốt nghiệp</Tag>
+                <span className="thesis-badge">Thông tin đồ án tốt nghiệp</span>
                 <Title level={3} className="thesis-title">
                   Đồ án Tốt nghiệp Đại học Chuyên ngành Công nghệ Thông tin
                 </Title>
@@ -41,7 +41,7 @@ export default function LandingFooter({
                 </Paragraph>
                 <div className="thesis-meta-tags">
                   <Tag color="blue">Sinh viên: Trần Xuân Trường</Tag>
-                  <Tag color="cyan">Tech Stack: React · Node.js · MongoDB · React Native Expo</Tag>
+                  <Tag>Tech Stack: React · Node.js · MongoDB · React Native Expo</Tag>
                   <Tag>Quản lý dự án và phân bổ nhân sự</Tag>
                 </div>
               </Col>
@@ -52,7 +52,6 @@ export default function LandingFooter({
                   size="large"
                   icon={<ExperimentOutlined />}
                   onClick={() => navigate('/benchmark')}
-                  className="btn-primary-glow"
                 >
                   Mở Benchmark Studio
                 </Button>

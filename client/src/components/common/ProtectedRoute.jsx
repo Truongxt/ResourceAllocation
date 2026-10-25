@@ -81,9 +81,9 @@ export default function ProtectedRoute({ children, roles, app, module }) {
         <div
           className="app-empty-state-icon"
           style={{
-            color: '#8b5cf6',
-            background: 'rgba(139, 92, 246, 0.12)',
-            borderColor: 'rgba(139, 92, 246, 0.3)',
+            color: 'var(--brand-primary)',
+            background: 'var(--surface-hover)',
+            borderColor: 'var(--border-subtle)',
             width: 72,
             height: 72,
             borderRadius: '50%',

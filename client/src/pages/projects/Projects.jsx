@@ -81,10 +81,10 @@ const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 const BASE_PROJECT_COLORS = [
-  { label: 'Tím Indigo', value: '#6366f1' },
+  { label: 'Xanh Navy', value: '#1e3a8a' },
   { label: 'Xanh ngọc (Cyan)', value: '#06b6d4' },
   { label: 'Xanh dương', value: '#3b82f6' },
-  { label: 'Tím hoa cà', value: '#8b5cf6' },
+  { label: 'Xanh Slate', value: '#475569' },
   { label: 'Xanh ngọc lục', value: '#10b981' },
   { label: 'Vàng hổ phách', value: '#f59e0b' },
   { label: 'Cam san hô', value: '#f97316' },
@@ -236,7 +236,7 @@ export default function Projects() {
       members: user?._id ? [user._id] : [],
       projectType: 'internal',
       template: 'blank',
-      color: '#6366f1',
+      color: '#0284c7',
       status: 'planning',
       priority: 'medium',
       budget: 0,
@@ -259,7 +259,7 @@ export default function Projects() {
         : [],
       projectType: project.projectType || 'internal',
       template: project.template || 'blank',
-      color: project.color || '#6366f1',
+      color: project.color || '#0284c7',
       status: project.status || 'planning',
       priority: project.priority || 'medium',
       dateRange: project.startDate && project.endDate ? [dayjs(project.startDate), dayjs(project.endDate)] : undefined,
@@ -286,7 +286,7 @@ export default function Projects() {
         members: Array.isArray(values.members) ? values.members : [],
         projectType: values.projectType || 'internal',
         template: values.template === 'blank' ? null : values.template,
-        color: values.color || '#6366f1',
+        color: values.color || '#0284c7',
         status: values.status,
         priority: values.priority,
         budget: Number(values.budget) || 0,
@@ -398,14 +398,14 @@ export default function Projects() {
                 width: 10,
                 height: 10,
                 borderRadius: '50%',
-                backgroundColor: record.color || '#6366f1',
-                boxShadow: `0 0 6px ${(record.color || '#6366f1')}60`,
+                backgroundColor: record.color || '#0284c7',
+                boxShadow: `0 0 6px ${(record.color || '#0284c7')}60`,
               }}
-              title={`Màu nhận diện: ${record.color || '#6366f1'}`}
+              title={`Màu nhận diện: ${record.color || '#0284c7'}`}
             />
             <Button
               type="link"
-              style={{ padding: 0, height: 'auto', fontSize: 14, fontWeight: 700, color: isDark ? '#a5b4fc' : '#4f46e5' }}
+              style={{ padding: 0, height: 'auto', fontSize: 14, fontWeight: 700, color: isDark ? '#a5b4fc' : '#0284c7' }}
               onClick={() => navigate(`/projects/${record._id}`)}
             >
               {text}
@@ -426,9 +426,9 @@ export default function Projects() {
                   fontWeight: 700,
                   padding: '1px 6px',
                   borderRadius: 4,
-                  background: 'rgba(99, 102, 241, 0.12)',
-                  color: '#818cf8',
-                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                  background: 'var(--surface-sunken)',
+                  color: '#0284c7',
+                  border: '1px solid var(--border-subtle)',
                 }}
               >
                 {record.code}
@@ -439,8 +439,8 @@ export default function Projects() {
                 style={{
                   borderRadius: 10,
                   border: 'none',
-                  backgroundColor: `${record.department.color || '#6366f1'}20`,
-                  color: record.department.color || '#6366f1',
+                  backgroundColor: `${record.department.color || '#0284c7'}20`,
+                  color: record.department.color || '#0284c7',
                   fontWeight: 600,
                   fontSize: 11,
                   margin: 0,
@@ -467,7 +467,7 @@ export default function Projects() {
       render: (pm) =>
         pm ? (
           <Space size={6}>
-            <Avatar size={22} src={pm.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+            <Avatar size={22} src={pm.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.2 }}>{pm.name || pm.email}</div>
               <div style={{ fontSize: 10, color: '#94a3b8' }}>{pm.jobTitle || pm.role}</div>
@@ -488,7 +488,7 @@ export default function Projects() {
           <Avatar.Group max={{ count: 3 }} size="small">
             {members.map((m, idx) => (
               <Tooltip title={m.user?.name || m.user?.email || 'Thành viên'} key={m.user?._id || idx}>
-                <Avatar src={m.user?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
+                <Avatar src={m.user?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
               </Tooltip>
             ))}
           </Avatar.Group>
@@ -506,8 +506,8 @@ export default function Projects() {
             style={{
               borderRadius: 10,
               border: 'none',
-              backgroundColor: `${dept.color || '#6366f1'}20`,
-              color: dept.color || '#6366f1',
+              backgroundColor: `${dept.color || '#0284c7'}20`,
+              color: dept.color || '#0284c7',
               fontWeight: 600,
             }}
           >
@@ -544,7 +544,7 @@ export default function Projects() {
       key: 'progress',
       width: 150,
       render: (progress = 0) => (
-        <Progress percent={progress} size="small" status={progress === 100 ? 'success' : 'active'} strokeColor="#6366f1" />
+        <Progress percent={progress} size="small" status={progress === 100 ? 'success' : 'active'} strokeColor="#0284c7" />
       ),
     },
     {
@@ -597,7 +597,7 @@ export default function Projects() {
             <Button
               type="text"
               size="small"
-              icon={<EditOutlined style={{ color: '#6366f1' }} />}
+              icon={<EditOutlined style={{ color: '#0284c7' }} />}
               onClick={() => openQuickEdit(record)}
             />
           </Tooltip>
@@ -635,8 +635,8 @@ export default function Projects() {
               width: 12,
               height: 12,
               borderRadius: '50%',
-              backgroundColor: record.color || '#6366f1',
-              boxShadow: `0 0 8px ${record.color || '#6366f1'}60`,
+              backgroundColor: record.color || '#0284c7',
+              boxShadow: `0 0 8px ${record.color || '#0284c7'}60`,
             }}
           />
           <div>
@@ -672,7 +672,7 @@ export default function Projects() {
           <Space wrap size={4}>
             {managers.map((m) => (
               <Tag key={m._id || m} style={{ borderRadius: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Avatar size={18} src={m.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                <Avatar size={18} src={m.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                 <span>{m.name || m.email}</span>
               </Tag>
             ))}
@@ -691,7 +691,7 @@ export default function Projects() {
           <Button
             type="dashed"
             size="small"
-            style={{ borderRadius: 12, fontWeight: 700, color: '#6366f1' }}
+            style={{ borderRadius: 12, fontWeight: 700, color: '#0284c7' }}
             onClick={() => {
               setFilters((prev) => ({ ...prev, department: record._id }));
               setActiveTab('projects');
@@ -738,7 +738,7 @@ export default function Projects() {
                 <Button
                   type="text"
                   size="small"
-                  icon={<EditOutlined style={{ color: '#6366f1' }} />}
+                  icon={<EditOutlined style={{ color: '#0284c7' }} />}
                   onClick={() => {
                     setEditingDepartment(record);
                     setDeptModalOpen(true);
@@ -812,8 +812,8 @@ export default function Projects() {
                 setDeptModalOpen(true);
               }}
               style={{
-                borderColor: '#6366f1',
-                color: '#6366f1',
+                borderColor: '#0284c7',
+                color: '#0284c7',
                 fontWeight: 600,
               }}
             >
@@ -909,7 +909,7 @@ export default function Projects() {
                               width: 8,
                               height: 8,
                               borderRadius: '50%',
-                              backgroundColor: d.color || '#6366f1',
+                              backgroundColor: d.color || '#0284c7',
                             }}
                           />
                           <span>{d.name}</span>
@@ -968,7 +968,7 @@ export default function Projects() {
                           flexDirection: 'column',
                           justifyContent: 'space-between',
                           height: '100%',
-                          borderLeft: `4px solid ${proj.color || '#6366f1'}`,
+                          borderLeft: `4px solid ${proj.color || '#0284c7'}`,
                         }}
                       >
                         <div>
@@ -993,8 +993,8 @@ export default function Projects() {
                                     margin: 0,
                                     fontSize: 11,
                                     border: 'none',
-                                    backgroundColor: `${proj.department.color || '#6366f1'}20`,
-                                    color: proj.department.color || '#6366f1',
+                                    backgroundColor: `${proj.department.color || '#0284c7'}20`,
+                                    color: proj.department.color || '#0284c7',
                                     fontWeight: 600,
                                   }}
                                 >
@@ -1009,9 +1009,9 @@ export default function Projects() {
                                     fontWeight: 700,
                                     padding: '2px 8px',
                                     borderRadius: 4,
-                                    background: 'rgba(99, 102, 241, 0.12)',
-                                    color: '#818cf8',
-                                    border: '1px solid rgba(99, 102, 241, 0.25)',
+                                    background: 'var(--surface-sunken)',
+                                    color: '#0284c7',
+                                    border: '1px solid var(--border-subtle)',
                                   }}
                                 >
                                   {proj.code}
@@ -1058,7 +1058,7 @@ export default function Projects() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <CrownOutlined style={{ color: '#f59e0b', fontSize: 13 }} />
                               <Text type="secondary" style={{ fontSize: 11, fontWeight: 600 }}>PM:</Text>
-                              <Avatar size={20} src={proj.manager?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                              <Avatar size={20} src={proj.manager?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                               <Text strong style={{ fontSize: 12 }}>
                                 {proj.manager?.name || 'Chưa gán'}
                               </Text>
@@ -1068,7 +1068,7 @@ export default function Projects() {
                               <Avatar.Group max={{ count: 3 }} size={20}>
                                 {proj.members.map((m, idx) => (
                                   <Tooltip title={m.user?.name || m.user?.email || 'Thành viên'} key={m.user?._id || idx}>
-                                    <Avatar src={m.user?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
+                                    <Avatar src={m.user?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                                   </Tooltip>
                                 ))}
                               </Avatar.Group>
@@ -1079,13 +1079,13 @@ export default function Projects() {
                           <div style={{ marginBottom: 16 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
                               <span style={{ color: isDark ? '#94a3b8' : '#64748b' }}>{t('gantt.progress') || 'Tiến độ'}</span>
-                              <span style={{ fontWeight: 700, color: progressVal === 100 ? '#10b981' : '#818cf8' }}>
+                              <span style={{ fontWeight: 700, color: progressVal === 100 ? '#10b981' : '#0284c7' }}>
                                 {progressVal}%
                               </span>
                             </div>
                             <Progress
                               percent={progressVal}
-                              strokeColor={progressVal === 100 ? '#10b981' : (proj.color || '#6366f1')}
+                              strokeColor={progressVal === 100 ? '#10b981' : (proj.color || '#0284c7')}
                               railColor={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}
                               showInfo={false}
                               size="small"
@@ -1127,7 +1127,7 @@ export default function Projects() {
                             type="link"
                             size="small"
                             onClick={() => navigate(`/projects/${proj._id}`)}
-                            style={{ padding: 0, fontWeight: 600, color: '#818cf8' }}
+                            style={{ padding: 0, fontWeight: 600, color: '#0284c7' }}
                           >
                             {t('common.viewDetails') || 'Chi tiết dự án'} →
                           </Button>
@@ -1148,7 +1148,7 @@ export default function Projects() {
                               <Button
                                 type="text"
                                 size="small"
-                                icon={<EditOutlined style={{ color: '#6366f1' }} />}
+                                icon={<EditOutlined style={{ color: '#0284c7' }} />}
                                 onClick={() => openQuickEdit(proj)}
                               />
                             </Tooltip>
@@ -1257,7 +1257,7 @@ export default function Projects() {
       <Modal
         title={
           <Space>
-            <ProjectOutlined style={{ color: '#6366f1' }} />
+            <ProjectOutlined style={{ color: '#0284c7' }} />
             <span style={{ fontWeight: 700 }}>
               {editingProject ? 'Chỉnh sửa dự án (Base Wework)' : 'Tạo mới dự án (Base Wework)'}
             </span>
@@ -1287,7 +1287,7 @@ export default function Projects() {
                 name="department"
                 label={
                   <Space>
-                    <ApartmentOutlined style={{ color: '#6366f1' }} />
+                    <ApartmentOutlined style={{ color: '#0284c7' }} />
                     <span style={{ fontWeight: 600 }}>Phân nhóm Department</span>
                   </Space>
                 }
@@ -1308,7 +1308,7 @@ export default function Projects() {
                               width: 8,
                               height: 8,
                               borderRadius: '50%',
-                              backgroundColor: d.color || '#6366f1',
+                              backgroundColor: d.color || '#0284c7',
                             }}
                           />
                           <span>{d.name} {d.code ? `(${d.code})` : ''}</span>
@@ -1344,7 +1344,7 @@ export default function Projects() {
                     searchKey: `${u.name} ${u.email} ${u.jobTitle || ''}`,
                     label: (
                       <Space>
-                        <Avatar size={18} src={u.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                        <Avatar size={18} src={u.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                         <span style={{ fontWeight: 600 }}>{u.name || u.email}</span>
                         <span style={{ fontSize: 11, color: '#94a3b8' }}>
                           ({u.jobTitle || u.department || u.role})
@@ -1362,7 +1362,7 @@ export default function Projects() {
             name="members"
             label={
               <Space>
-                <TeamOutlined style={{ color: '#6366f1' }} />
+                <TeamOutlined style={{ color: '#0284c7' }} />
                 <span style={{ fontWeight: 600 }}>Thành viên thực hiện dự án</span>
               </Space>
             }
@@ -1380,7 +1380,7 @@ export default function Projects() {
                 searchKey: `${u.name} ${u.email} ${u.jobTitle || ''}`,
                 label: (
                   <Space size={6}>
-                    <Avatar size={18} src={u.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
+                    <Avatar size={18} src={u.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                     <span>{u.name || u.email}</span>
                   </Space>
                 ),
@@ -1541,8 +1541,8 @@ export default function Projects() {
                 key: 'advanced',
                 label: (
                   <Space>
-                    <SettingOutlined style={{ color: '#6366f1' }} />
-                    <span style={{ fontWeight: 600, color: '#6366f1' }}>
+                    <SettingOutlined style={{ color: '#0284c7' }} />
+                    <span style={{ fontWeight: 600, color: '#0284c7' }}>
                       Cài đặt nâng cao (Mã dự án, màu sắc nhận diện, thời gian, ngân sách, mô tả...)
                     </span>
                   </Space>

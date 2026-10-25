@@ -56,7 +56,7 @@ export default function ProfileFormCard({ user, updateProfile, t }) {
   return (
     <div className="saas-card" style={{ padding: 24, height: '100%' }}>
       <Title level={5} style={{ marginBottom: 18, fontWeight: 700, display: 'flex', alignItems: 'center' }}>
-        <UserOutlined style={{ marginRight: 8, color: '#6366f1' }} />
+        <UserOutlined style={{ marginRight: 8, color: '#0284c7' }} />
         <span>{t('settings.profile') || 'Hồ sơ cá nhân'}</span>
       </Title>
 

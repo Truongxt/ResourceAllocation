@@ -66,7 +66,7 @@ export default function TaskTableView({
         return (
           <div style={{ cursor: 'pointer' }} onClick={() => onOpenDetail && onOpenDetail(record)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <Text strong style={{ fontSize: 13, color: '#4f46e5' }} className="task-title-link">
+              <Text strong style={{ fontSize: 13, color: '#0284c7' }} className="task-title-link">
                 {title}
               </Text>
               {record.taskGroup && (
@@ -145,7 +145,7 @@ export default function TaskTableView({
               )}
 
               {subtasksCount > 0 && (
-                <span style={{ fontSize: 10, color: '#a855f7', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 10, color: '#0284c7', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                   <ApartmentOutlined style={{ fontSize: 10 }} />
                   {subtasksCount}
                 </span>
@@ -221,7 +221,7 @@ export default function TaskTableView({
       render: (assignee) =>
         assignee ? (
           <Space size={8}>
-            <Avatar size={24} icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+            <Avatar size={24} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
             <Text style={{ fontSize: 13, fontWeight: 500 }}>{assignee.name}</Text>
           </Space>
         ) : (
@@ -246,7 +246,7 @@ export default function TaskTableView({
       key: 'progress',
       width: 120,
       render: (progress = 0) => (
-        <Progress percent={progress} size="small" strokeColor="#6366f1" />
+        <Progress percent={progress} size="small" strokeColor="#0284c7" />
       ),
     },
     {
@@ -261,7 +261,7 @@ export default function TaskTableView({
               <Button
                 type="text"
                 size="small"
-                icon={<CopyOutlined style={{ color: '#6366f1' }} />}
+                icon={<CopyOutlined style={{ color: '#0284c7' }} />}
                 onClick={() => onDuplicate && onDuplicate(record)}
               />
             </Tooltip>

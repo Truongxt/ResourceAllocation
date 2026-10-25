@@ -207,7 +207,7 @@ export default function RecurringTaskModal({ open, onClose, projects = [], resou
       footer={null}
       title={
         <Space>
-          <SyncOutlined style={{ color: '#6366f1', fontSize: 20 }} />
+          <SyncOutlined style={{ color: '#0284c7', fontSize: 20 }} />
           <span>Quản lý Công việc Lặp lại (Recurring Tasks) — Chuẩn Base Wework</span>
         </Space>
       }
@@ -233,7 +233,7 @@ export default function RecurringTaskModal({ open, onClose, projects = [], resou
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={() => setActiveTab('create')}
-                    style={{ background: '#6366f1' }}
+                    style={{ background: '#0284c7' }}
                   >
                     Thêm công việc lặp lại
                   </Button>
@@ -370,7 +370,7 @@ export default function RecurringTaskModal({ open, onClose, projects = [], resou
                 {previewDates.length > 0 && (
                   <Card
                     size="small"
-                    title={<span style={{ fontSize: 13, color: '#6366f1' }}>Lịch trình 10 lần sinh tự động tiếp theo:</span>}
+                    title={<span style={{ fontSize: 13, color: '#0284c7' }}>Lịch trình 10 lần sinh tự động tiếp theo:</span>}
                     style={{ marginBottom: 16, background: 'var(--bg-secondary)' }}
                   >
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -389,7 +389,7 @@ export default function RecurringTaskModal({ open, onClose, projects = [], resou
                     type="primary"
                     htmlType="submit"
                     loading={submitting}
-                    style={{ background: '#6366f1' }}
+                    style={{ background: '#0284c7' }}
                   >
                     Lưu thiết lập lặp lại
                   </Button>

@@ -20,6 +20,8 @@ const PORT = process.env.TEST_PORT || '5099';
 const DB = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/resource_allocation_test';
 
 const SUITES = [
+  { name: 'optimization-preview', file: 'optimization-preview.test.mjs', label: 'Proposal workload comparison' },
+  { name: 'optimization-preview-api', file: 'optimization-preview-api.test.mjs', label: 'Proposal scope and freshness' },
   { name: 'workload-period', file: 'workload-period.test.mjs', label: 'Period capacity and assessment transitions' },
   { name: 'resource-workflows', file: 'resource-workflows.test.mjs', label: 'Workload period and evaluation workflow' },
   // Bộ đơn vị, không cần server lẫn database — chạy trước để lỗi thuật toán lộ ra sớm.

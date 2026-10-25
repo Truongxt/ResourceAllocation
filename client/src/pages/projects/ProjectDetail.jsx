@@ -437,7 +437,7 @@ export default function ProjectDetail() {
       key: 'user',
       render: (_, record) => (
         <Space>
-          <Avatar src={record.user?.avatar || undefined} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
+          <Avatar src={record.user?.avatar || undefined} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
           <div>
             <Text strong style={{ display: 'block', fontSize: 13 }}>
               {record.user?.name || t('projectDetail.unknownUser') || 'Thành viên'}
@@ -467,7 +467,7 @@ export default function ProjectDetail() {
         <Progress
           percent={allocation}
           size="small"
-          strokeColor="#6366f1"
+          strokeColor="#0284c7"
           status={allocation > 100 ? 'exception' : 'normal'}
           format={(p) => `${p}%`}
         />
@@ -510,7 +510,7 @@ export default function ProjectDetail() {
       key: 'title',
       render: (title, record) => (
         <div style={{ cursor: 'pointer' }} onClick={() => handleOpenDetail(record)}>
-          <Text strong style={{ fontSize: 13, color: '#6366f1' }}>{title}</Text>
+          <Text strong style={{ fontSize: 13, color: '#0284c7' }}>{title}</Text>
           {record.taskGroup?.name && (
             <Tag color={record.taskGroup.color || 'blue'} style={{ marginLeft: 6, fontSize: 10, borderRadius: 4 }}>
               {record.taskGroup.name}
@@ -547,7 +547,7 @@ export default function ProjectDetail() {
       render: (assignee) =>
         assignee ? (
           <Space size={6}>
-            <Avatar size="small" src={assignee.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+            <Avatar size="small" src={assignee.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
             <Text style={{ fontSize: 13 }}>{assignee.name}</Text>
           </Space>
         ) : (
@@ -570,7 +570,7 @@ export default function ProjectDetail() {
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
-              <CalendarOutlined style={{ color: isOverdue ? '#ef4444' : '#6366f1', fontSize: 11 }} />
+              <CalendarOutlined style={{ color: isOverdue ? '#ef4444' : '#0284c7', fontSize: 11 }} />
               {hasStart && (
                 <Text type="secondary" style={{ fontSize: 11 }}>
                   {dayjs(record.startDate).format('DD/MM/YYYY HH:mm')} →{' '}
@@ -604,7 +604,7 @@ export default function ProjectDetail() {
       dataIndex: 'progress',
       key: 'progress',
       width: 120,
-      render: (progress = 0) => <Progress percent={progress} size="small" strokeColor="#6366f1" />,
+      render: (progress = 0) => <Progress percent={progress} size="small" strokeColor="#0284c7" />,
     },
     {
       title: t('common.actions') || 'Thao tác',
@@ -622,7 +622,7 @@ export default function ProjectDetail() {
               <Button
                 type="text"
                 size="small"
-                icon={<EyeOutlined style={{ color: '#6366f1' }} />}
+                icon={<EyeOutlined style={{ color: '#0284c7' }} />}
                 onClick={() => handleOpenDetail(record)}
               />
             </Tooltip>
@@ -673,7 +673,7 @@ export default function ProjectDetail() {
           type="text"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/projects')}
-          style={{ paddingLeft: 0, marginBottom: 8, color: '#818cf8', fontWeight: 600 }}
+          style={{ paddingLeft: 0, marginBottom: 8, color: '#0284c7', fontWeight: 600 }}
         >
           {t('projectDetail.projectList') || 'Quay lại danh sách dự án'}
         </Button>
@@ -689,7 +689,7 @@ export default function ProjectDetail() {
                     padding: '2px 8px',
                     borderRadius: 4,
                     background: 'rgba(99, 102, 241, 0.12)',
-                    color: '#818cf8',
+                    color: '#0284c7',
                     border: '1px solid rgba(99, 102, 241, 0.25)',
                   }}
                 >
@@ -734,7 +734,7 @@ export default function ProjectDetail() {
               <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
                 {t('projectDetail.projectProgress') || 'Tiến độ dự án'}
               </Text>
-              <div style={{ fontSize: 24, fontWeight: 600, color: '#818cf8' }} className="tabular-nums">
+              <div style={{ fontSize: 24, fontWeight: 600, color: '#0284c7' }} className="tabular-nums">
                 {project.progress || 0}%
               </div>
             </div>
@@ -807,7 +807,7 @@ export default function ProjectDetail() {
                       <Descriptions.Item label={t('projectDetail.manager') || 'Quản lý dự án (PM)'}>
                         {project.manager ? (
                           <Space size={6}>
-                            <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                            <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                             <span>{project.manager.name}</span>
                             <Text type="secondary" style={{ fontSize: 12 }}>({project.manager.email})</Text>
                           </Space>
@@ -836,13 +836,13 @@ export default function ProjectDetail() {
                     <Space orientation="vertical" style={{ width: '100%' }} size="middle">
                       <div>
                         <Text type="secondary" style={{ fontSize: 12 }}>{t('projectDetail.overallProgress') || 'Tiến độ tổng thể'}</Text>
-                        <Progress percent={project.progress || 0} strokeColor="#6366f1" status={project.progress === 100 ? 'success' : 'active'} />
+                        <Progress percent={project.progress || 0} strokeColor="#0284c7" status={project.progress === 100 ? 'success' : 'active'} />
                       </div>
                       <Row gutter={16}>
                         <Col span={12}>
                           <div style={{ padding: 12, borderRadius: 8, background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc' }}>
                             <Text type="secondary" style={{ fontSize: 11, fontWeight: 600 }}>{t('projectDetail.estimatedHours') || 'Ước tính'}</Text>
-                            <div style={{ fontSize: 20, fontWeight: 600, color: '#818cf8' }} className="tabular-nums">{taskStats.totalEstimated}h</div>
+                            <div style={{ fontSize: 20, fontWeight: 600, color: '#0284c7' }} className="tabular-nums">{taskStats.totalEstimated}h</div>
                           </div>
                         </Col>
                         <Col span={12}>
@@ -965,14 +965,14 @@ export default function ProjectDetail() {
                   showIcon
                   icon={<KeyOutlined />}
                   message="Phân quyền đối với thao tác trong công việc (Chuẩn Base Wework)"
-                  description="Cấu hình các quyền hạn bổ sung (tương ứng với biểu tượng chìa khóa 🔑) cho người thực hiện, người theo dõi và thành viên trong dự án này."
+                  description="Cấu hình các quyền hạn bổ sung (tương ứng với chìa khóa phân quyền) cho người thực hiện, người theo dõi và thành viên trong dự án này."
                 />
 
                 {/* Luồng công việc: Thất bại & Đánh giá kết quả */}
                 <Card
                   title={(
                     <Space>
-                      <KeyOutlined style={{ color: '#8b5cf6' }} />
+                      <KeyOutlined style={{ color: '#0284c7' }} />
                       <Text strong>Luồng công việc</Text>
                     </Space>
                   )}
@@ -1070,7 +1070,7 @@ export default function ProjectDetail() {
 
                 {/* Group 1: Quyền hạn của Người thực hiện (Assignee) */}
                 <Card
-                  title={<Space><KeyOutlined style={{ color: '#6366f1' }} /><Text strong>Quyền hạn của Người thực hiện (Assignee)</Text></Space>}
+                  title={<Space><KeyOutlined style={{ color: '#0284c7' }} /><Text strong>Quyền hạn của Người thực hiện (Assignee)</Text></Space>}
                   className="saas-card"
                   size="small"
                 >
@@ -1238,7 +1238,7 @@ export default function ProjectDetail() {
           {editingMember ? (
             <Form.Item label={t('projectDetail.member') || 'Thành viên'}>
               <Space>
-                <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                 <Text strong>{editingMember.user?.name}</Text>
               </Space>
             </Form.Item>

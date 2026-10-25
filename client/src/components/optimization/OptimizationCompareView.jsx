@@ -82,7 +82,7 @@ export default function OptimizationCompareView({ benchmark, loading = false, t 
             style={{ fontSize: 13, color: isBest ? '#10b981' : undefined }}
           >
             {formatMetric(row.values[index], row, t)}
-            {isBest && ' ★'}
+            {isBest && ' (Tốt nhất)'}
           </Text>
         );
       },

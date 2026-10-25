@@ -56,7 +56,7 @@ export default function OptimizationConfigCard({
     <div className="saas-card" style={{ padding: 20 }}>
       {/* Tiêu đề panel */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <SettingOutlined style={{ fontSize: 17, color: '#6366f1' }} />
+        <SettingOutlined style={{ fontSize: 17, color: '#0284c7' }} />
         <Title level={5} style={{ margin: 0, fontWeight: 700 }}>
           {t('optimization.configTitle') || 'Cấu hình Thuật toán'}
         </Title>
@@ -76,7 +76,7 @@ export default function OptimizationConfigCard({
             marginBottom: 8,
           }}
         >
-          <ControlOutlined style={{ color: '#818cf8' }} />
+          <ControlOutlined style={{ color: '#0284c7' }} />
           <span>{t('optimization.presetTitle') || 'Cấu hình mẫu (Presets)'}</span>
         </Text>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -130,7 +130,7 @@ export default function OptimizationConfigCard({
           </Button>
           <Button
             size="small"
-            icon={<StarOutlined style={{ color: '#6366f1' }} />}
+            icon={<StarOutlined style={{ color: '#0284c7' }} />}
             onClick={() =>
               setParams((p) => ({
                 ...p,
@@ -274,13 +274,13 @@ export default function OptimizationConfigCard({
                 <div style={{ width: `${(wWorkload / totalWeight) * 100}%`, background: '#3b82f6' }} title="Tải" />
                 <div style={{ width: `${(wSkill / totalWeight) * 100}%`, background: '#10b981' }} title="Kỹ năng" />
                 <div style={{ width: `${(wCost / totalWeight) * 100}%`, background: '#f59e0b' }} title="Chi phí" />
-                <div style={{ width: `${(wOverload / totalWeight) * 100}%`, background: '#a855f7' }} title="Chống quá tải" />
+                <div style={{ width: `${(wOverload / totalWeight) * 100}%`, background: '#ef4444' }} title="Chống quá tải" />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
                 <span style={{ color: '#3b82f6' }}>● Tải {Math.round((wWorkload / totalWeight) * 100)}%</span>
                 <span style={{ color: '#10b981' }}>● Skill {Math.round((wSkill / totalWeight) * 100)}%</span>
                 <span style={{ color: '#f59e0b' }}>● Phí {Math.round((wCost / totalWeight) * 100)}%</span>
-                <span style={{ color: '#a855f7' }}>● Quá tải {Math.round((wOverload / totalWeight) * 100)}%</span>
+                <span style={{ color: '#ef4444' }}>● Quá tải {Math.round((wOverload / totalWeight) * 100)}%</span>
               </div>
             </div>
           )}
@@ -337,7 +337,7 @@ export default function OptimizationConfigCard({
           <div style={{ marginBottom: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 12 }}>{t('optimization.weightOverload') || 'Tránh quá tải (Overload Penalty)'}</Text>
-              <Text strong style={{ fontSize: 12, color: '#a855f7' }}>{params.overallocationWeight}</Text>
+              <Text strong style={{ fontSize: 12, color: '#ef4444' }}>{params.overallocationWeight}</Text>
             </div>
             <Slider
               min={0}

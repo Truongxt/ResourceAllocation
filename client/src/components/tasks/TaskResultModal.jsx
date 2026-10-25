@@ -72,7 +72,7 @@ export default function TaskResultModal({ open, onClose, task, onSuccess }) {
           name="summary"
           label={
             <Space>
-              <FileTextOutlined style={{ color: '#6366f1' }} />
+              <FileTextOutlined style={{ color: '#0284c7' }} />
               <span style={{ fontWeight: 600 }}>Tóm tắt kết quả thực hiện</span>
             </Space>
           }
@@ -173,7 +173,7 @@ export default function TaskResultModal({ open, onClose, task, onSuccess }) {
             htmlType="submit"
             loading={submitting}
             style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              background: '#10b981',
               borderColor: '#10b981',
               fontWeight: 600,
             }}

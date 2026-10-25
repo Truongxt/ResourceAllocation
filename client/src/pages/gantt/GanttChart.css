@@ -101,7 +101,7 @@
 
 .gantt-header-cell.today {
   background: rgba(99, 102, 241, 0.14);
-  color: var(--color-primary, #6366f1);
+  color: var(--brand-primary, #0284c7);
   font-weight: 700;
 }
 

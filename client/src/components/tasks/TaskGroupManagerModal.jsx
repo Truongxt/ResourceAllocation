@@ -30,12 +30,12 @@ const { Text } = Typography;
 
 const COLOR_PRESETS = [
   { color: '#3b82f6', label: 'Xanh dương' },
-  { color: '#6366f1', label: 'Tím chàm' },
+  { color: '#1e3a8a', label: 'Xanh Navy' },
   { color: '#10b981', label: 'Xanh lá' },
   { color: '#f59e0b', label: 'Hổ phách' },
   { color: '#ef4444', label: 'Đỏ' },
   { color: '#ec4899', label: 'Hồng' },
-  { color: '#8b5cf6', label: 'Tím hoa cà' },
+  { color: '#475569', label: 'Xanh Slate' },
   { color: '#06b6d4', label: 'Xanh lơ' },
   { color: '#64748b', label: 'Xám chì' },
 ];

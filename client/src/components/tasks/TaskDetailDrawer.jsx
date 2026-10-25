@@ -45,7 +45,7 @@ const STATUS_MAP = {
   review: { label: 'Đánh giá', color: '#f59e0b', bg: '#fffbeb' },
   done: { label: 'Hoàn thành', color: '#10b981', bg: '#ecfdf5' },
   blocked: { label: 'Bị chặn', color: '#ef4444', bg: '#fef2f2' },
-  failed: { label: 'Thất bại', color: '#7c3aed', bg: '#f5f3ff' },
+  failed: { label: 'Thất bại', color: '#e11d48', bg: '#fff1f2' },
 };
 
 const PRIORITY_MAP = {
@@ -582,10 +582,10 @@ export default function TaskDetailDrawer({
           </div>
         </InfoCard>
 
-        <InfoCard icon={<ClockCircleOutlined />} label="Ước lượng / Thực tế" isDark={isDark}>
-          <Text style={{ fontSize: 13 }}>
-            {task.estimatedHours || 0}h / {task.actualHours || 0}h
-          </Text>
+        <InfoCard icon={<ClockCircleOutlined />} label="Tổng giờ của công việc" isDark={isDark}>
+          <div><Text style={{ fontSize: 13 }}>Ước tính: <strong>{task.estimatedHours || 0}h</strong> cho toàn bộ công việc</Text></div>
+          <div><Text style={{ fontSize: 13 }}>Thực tế đã ghi nhận: <strong>{task.actualHours || 0}h</strong></Text></div>
+          <Text type="secondary" style={{ fontSize: 12 }}>Giờ ước tính được chia theo lịch công việc để tính tải từng tuần.</Text>
         </InfoCard>
 
         <InfoCard icon={<ApartmentOutlined />} label="Nhóm công việc" isDark={isDark}>
@@ -812,7 +812,7 @@ export default function TaskDetailDrawer({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <ApartmentOutlined style={{ color: '#6366f1', fontSize: 18 }} />
+              <ApartmentOutlined style={{ color: '#0284c7', fontSize: 18 }} />
               <Text strong style={{ fontSize: 14 }}>
                 Công việc con ({subtasks.length})
               </Text>
@@ -828,7 +828,7 @@ export default function TaskDetailDrawer({
             onClick={handleOpenCreateSubtask}
             style={{
               borderRadius: 8,
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              background: 'var(--brand-primary, #0284c7)',
               fontWeight: 600,
               boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
             }}
@@ -841,14 +841,14 @@ export default function TaskDetailDrawer({
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px dashed ${borderColor}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Tiến độ hoàn thành: <strong style={{ color: subtasksProgressPercent === 100 ? '#10b981' : '#6366f1' }}>{subtasksCompletedCount}/{subtasks.length}</strong> ({subtasksProgressPercent}%)
+                Tiến độ hoàn thành: <strong style={{ color: subtasksProgressPercent === 100 ? '#10b981' : '#0284c7' }}>{subtasksCompletedCount}/{subtasks.length}</strong> ({subtasksProgressPercent}%)
               </Text>
             </div>
             <Progress
               percent={subtasksProgressPercent}
               size="small"
               strokeColor={{
-                '0%': '#6366f1',
+                '0%': '#0284c7',
                 '100%': '#10b981',
               }}
             />
@@ -901,7 +901,7 @@ export default function TaskDetailDrawer({
                       <Button
                         type="text"
                         size="small"
-                        icon={<EditOutlined style={{ fontSize: 13, color: '#6366f1' }} />}
+                        icon={<EditOutlined style={{ fontSize: 13, color: '#0284c7' }} />}
                         onClick={() => handleOpenEditSubtask(sub)}
                       />
                     </Tooltip>
@@ -965,7 +965,7 @@ export default function TaskDetailDrawer({
                     <span style={{
                       fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
                       background: sub.progress === 100 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.12)',
-                      color: sub.progress === 100 ? '#10b981' : '#6366f1',
+                      color: sub.progress === 100 ? '#10b981' : '#0284c7',
                     }}>
                       {sub.progress}%
                     </span>
@@ -1002,7 +1002,7 @@ export default function TaskDetailDrawer({
             onClick={handleOpenCreateSubtask}
             style={{
               borderRadius: 8,
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              background: 'var(--brand-primary, #0284c7)',
               fontWeight: 600,
             }}
           >
@@ -1114,7 +1114,7 @@ export default function TaskDetailDrawer({
             icon={<CheckCircleOutlined />}
             onClick={() => setResultModalOpen(true)}
             style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              background: '#10b981',
               borderColor: '#10b981',
               fontWeight: 600,
             }}
@@ -1238,7 +1238,7 @@ export default function TaskDetailDrawer({
           <ApartmentOutlined style={{ marginRight: 4 }} />
           Công việc con
           {subtasks.length > 0 && (
-            <Badge count={subtasks.length} style={{ backgroundColor: '#8b5cf6', marginLeft: 6, fontSize: 10 }} />
+            <Badge count={subtasks.length} style={{ backgroundColor: '#0284c7', marginLeft: 6, fontSize: 10 }} />
           )}
         </span>
       ),
@@ -1334,7 +1334,7 @@ export default function TaskDetailDrawer({
                     style={{
                       borderRadius: 8,
                       fontSize: 12,
-                      background: task.status === 'done' ? undefined : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      background: task.status === 'done' ? undefined : '#10b981',
                       borderColor: '#10b981',
                     }}
                   >
@@ -1435,7 +1435,7 @@ export default function TaskDetailDrawer({
               <Alert
                 type="error"
                 showIcon
-                style={{ marginTop: 8, marginBottom: 12, borderRadius: 10, borderColor: '#7c3aed' }}
+                style={{ marginTop: 8, marginBottom: 12, borderRadius: 10, borderColor: '#0284c7' }}
                 message={`Công việc thất bại${task.failedBy?.name ? ` — đánh dấu bởi ${task.failedBy.name}` : ''}`}
                 description={(
                   <span style={{ fontSize: 13 }}>

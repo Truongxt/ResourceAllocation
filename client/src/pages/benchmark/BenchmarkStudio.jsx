@@ -190,7 +190,7 @@ export default function BenchmarkStudio() {
           key: 'fitness',
           metric: (
             <Space size={6}>
-              <AimOutlined style={{ color: '#6366f1' }} />
+              <AimOutlined style={{ color: '#0284c7' }} />
               <span>Điểm Fitness tổng hợp</span>
             </Space>
           ),
@@ -279,7 +279,7 @@ export default function BenchmarkStudio() {
       <div className="benchmark-header">
         <div>
           <Title level={2} className="benchmark-title">
-            <ExperimentOutlined style={{ marginRight: 10, color: 'var(--brand-primary, #6366f1)' }} />
+            <ExperimentOutlined style={{ marginRight: 10, color: 'var(--brand-primary, #0284c7)' }} />
             Experimental Benchmark Studio
           </Title>
           <Paragraph className="benchmark-subtitle">
@@ -293,7 +293,7 @@ export default function BenchmarkStudio() {
         className="benchmark-config-card"
         title={
           <Space size={8}>
-            <DatabaseOutlined style={{ color: '#6366f1' }} />
+            <DatabaseOutlined style={{ color: '#0284c7' }} />
             <span>1. Chọn Tập Dữ liệu Thử nghiệm (Test Dataset)</span>
           </Space>
         }
@@ -519,7 +519,7 @@ export default function BenchmarkStudio() {
               <Card
                 title={
                   <Space size={8}>
-                    <FileTextOutlined style={{ color: '#818cf8' }} />
+                    <FileTextOutlined style={{ color: '#0284c7' }} />
                     <span>Tóm tắt Kết luận Thực nghiệm cho Luận văn</span>
                   </Space>
                 }

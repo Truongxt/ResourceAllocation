@@ -30,7 +30,6 @@ import {
   Progress,
 } from 'antd';
 import {
-  CheckOutlined,
   CheckCircleOutlined,
   RollbackOutlined,
   WarningOutlined,
@@ -41,6 +40,7 @@ import {
 } from '@ant-design/icons';
 import { formatNumber } from '../../i18n/format';
 import OptimizationPreflightView from './OptimizationPreflightView';
+import OptimizationProposalPreview from './OptimizationProposalPreview';
 
 const { Text } = Typography;
 
@@ -70,6 +70,8 @@ export default function OptimizationResultView({
     );
   }
 
+  const showPreview = currentResult.status === 'completed' && !currentResult.isApplied && !currentResult.isRolledBack;
+
   // Cấu hình các cột cho bảng phân công chi tiết
   const assignmentColumns = [
     {
@@ -95,7 +97,7 @@ export default function OptimizationResultView({
       key: 'resourceName',
       render: (name, r) => (
         <Space size={6}>
-          <UserOutlined style={{ color: '#818cf8' }} />
+          <UserOutlined style={{ color: '#0284c7' }} />
           <Text strong>{name || r.resource?.user?.name || r.resource?.position || '—'}</Text>
         </Space>
       ),
@@ -133,19 +135,23 @@ export default function OptimizationResultView({
 
   return (
     <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+      {showPreview && (
+        <OptimizationProposalPreview key={currentResult._id} resultId={currentResult._id} onApply={onApply}
+          constraintViolations={currentResult.constraintReport?.violated || 0} />
+      )}
       {/* Khối thẻ KPI tổng quan */}
       <Row gutter={[16, 16]}>
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card hoverable styles={{ body: { padding: '16px' } }}>
             <Statistic
               title={t('optimization.fitnessScore') || 'Điểm thích nghi'}
               value={currentResult.fitness ? (currentResult.fitness).toFixed(4) : '—'}
-              valueStyle={{ color: '#6366f1', fontWeight: 700 }}
+              valueStyle={{ color: '#0284c7', fontWeight: 700 }}
             />
           </Card>
         </Col>
 
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card hoverable styles={{ body: { padding: '16px' } }}>
             <Statistic
               title={t('optimization.totalCost') || 'Tổng chi phí'}
@@ -157,7 +163,7 @@ export default function OptimizationResultView({
           </Card>
         </Col>
 
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card hoverable styles={{ body: { padding: '16px' } }}>
             <Statistic
               title={t('optimization.avgSkillMatch') || 'Khớp kỹ năng TB'}
@@ -172,7 +178,7 @@ export default function OptimizationResultView({
           </Card>
         </Col>
 
-        <Col span={6}>
+        <Col xs={24} sm={12} xl={6}>
           <Card hoverable styles={{ body: { padding: '16px' } }}>
             <Statistic
               title={t('optimization.workloadVariance') || 'Độ lệch tải (StdDev)'}
@@ -194,7 +200,7 @@ export default function OptimizationResultView({
           size="small"
           title={
             <Space size={8}>
-              <RiseOutlined style={{ color: '#818cf8' }} />
+              <RiseOutlined style={{ color: '#0284c7' }} />
               <span>{t('optimization.convergenceChart') || 'Quá trình tiến hóa & hội tụ giải thuật (GA)'}</span>
             </Space>
           }
@@ -252,17 +258,7 @@ export default function OptimizationResultView({
               <RollbackOutlined /> Đã hoàn tác phân bổ
             </Tag>
           ) : !currentResult.isApplied ? (
-            <Popconfirm
-              title={t('optimization.applyConfirm') || 'Áp dụng phương án này?'}
-              description={t('optimization.applyConfirmDb') || 'Người thực hiện của các công việc trong hệ thống sẽ được cập nhật.'}
-              onConfirm={() => onApply(currentResult._id)}
-              okText={t('common.confirm') || 'Xác nhận'}
-              cancelText={t('common.cancel') || 'Hủy'}
-            >
-              <Button type="primary" icon={<CheckOutlined />} size="large">
-                {t('optimization.applyThis') || 'Áp dụng phương án này'}
-              </Button>
-            </Popconfirm>
+            <Tag>{t('optimizationReview.notApplied')}</Tag>
           ) : (
             <Space>
               <Tag color="success" style={{ padding: '6px 12px', fontSize: 13 }}>
@@ -361,14 +357,14 @@ export default function OptimizationResultView({
       )}
 
       {/* Bảng chi tiết phân công công việc */}
-      <Card title={t('optimization.assignmentDetail') || 'Chi tiết phân công công việc'} styles={{ body: { padding: 0 } }}>
+      {!showPreview && <Card title={t('optimization.assignmentDetail') || 'Chi tiết phân công công việc'} styles={{ body: { padding: 0 } }}>
         <Table
           columns={assignmentColumns}
           dataSource={currentResult.assignments || []}
           rowKey={(r, idx) => r.taskId || r.task || idx}
           pagination={{ pageSize: 8 }}
         />
-      </Card>
+      </Card>}
     </Space>
   );
 }

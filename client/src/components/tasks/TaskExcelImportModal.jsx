@@ -258,7 +258,7 @@ export default function TaskExcelImportModal({ open, onClose, projects = [], onI
               style={{ padding: '24px 0' }}
             >
               <p className="ant-upload-drag-icon">
-                <InboxOutlined style={{ color: '#6366f1', fontSize: 44 }} />
+                <InboxOutlined style={{ color: '#0284c7', fontSize: 44 }} />
               </p>
               <p className="ant-upload-text" style={{ fontWeight: 600 }}>
                 Kéo thả file Excel vào đây hoặc click để chọn file
@@ -320,7 +320,7 @@ export default function TaskExcelImportModal({ open, onClose, projects = [], onI
                 disabled={!selectedProject || previewItems.length === 0}
                 onClick={handleConfirmImport}
                 style={{
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  
                   fontWeight: 600,
                 }}
               >

@@ -74,7 +74,7 @@ export default function ExecutiveReportModal({ open, onClose, utilData, taskData
         }}
       >
         <Space>
-          <FilePdfOutlined style={{ color: '#4f46e5', fontSize: 18 }} />
+          <FilePdfOutlined style={{ color: '#0284c7', fontSize: 18 }} />
           <span style={{ fontWeight: 700, fontSize: 15 }}>
             Báo Cáo Tổng Hợp Dự Án & Phân Bổ Nguồn Lực
           </span>
@@ -85,7 +85,7 @@ export default function ExecutiveReportModal({ open, onClose, utilData, taskData
             icon={<PrinterOutlined />}
             onClick={handlePrint}
             style={{
-              background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
+              background: '#0284c7',
               fontWeight: 600,
             }}
           >
