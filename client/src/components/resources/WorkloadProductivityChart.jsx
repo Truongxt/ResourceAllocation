@@ -395,7 +395,7 @@ export default function WorkloadProductivityChart({
                         borderRadius: 10,
                         border: isRed ? '1.5px solid #fecaca' : '1px solid #e2e8f0',
                         background: isRed ? '#fff5f5' : '#ffffff',
-                        transition: 'all 0.2s ease',
+                        transition: 'border-color 160ms var(--ease-out), background-color 160ms var(--ease-out)',
                       }}
                     >
                       {/* Top Info Row */}

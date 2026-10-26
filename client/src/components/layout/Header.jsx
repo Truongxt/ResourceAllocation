@@ -288,7 +288,7 @@ export default function Header({ collapsed }) {
             background: isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9',
             border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
             cursor: 'pointer',
-            transition: 'all 0.2s ease',
+            transition: 'border-color 160ms var(--ease-out), background-color 160ms var(--ease-out)',
             userSelect: 'none',
           }}
           className="header-search-trigger"
@@ -410,7 +410,7 @@ export default function Header({ collapsed }) {
                 background: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
                 border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
                 color: isDark ? '#fbbf24' : 'var(--text-primary)',
-                transition: 'all 0.2s ease',
+                transition: 'background-color 160ms var(--ease-out), border-color 160ms var(--ease-out)',
                 padding: 0,
               }}
             >
@@ -437,7 +437,7 @@ export default function Header({ collapsed }) {
                 color: remindersBadgeCount > 0 ? '#f43f5e' : (isDark ? '#cbd5e1' : '#334155'),
                 position: 'relative',
                 padding: 0,
-                transition: 'all 0.2s ease',
+                transition: 'background-color 160ms var(--ease-out), border-color 160ms var(--ease-out)',
               }}
             >
               <Badge
@@ -494,7 +494,7 @@ export default function Header({ collapsed }) {
                 borderRadius: 20,
                 background: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
                 border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
-                transition: 'all 0.2s ease',
+                transition: 'background-color 160ms var(--ease-out), border-color 160ms var(--ease-out)',
               }}
             >
               <Avatar

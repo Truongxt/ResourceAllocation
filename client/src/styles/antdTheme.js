@@ -47,6 +47,13 @@ export const darkTheme = {
     controlHeight: 36,
     controlHeightLG: 40,
     controlHeightSM: 28,
+    // Motion Tokens (Emil Kowalski Design Engineering Standards)
+    motionDurationFast: '0.12s',
+    motionDurationMid: '0.18s',
+    motionDurationSlow: '0.24s',
+    motionEaseInOut: 'cubic-bezier(0.77, 0, 0.175, 1)',
+    motionEaseOut: 'cubic-bezier(0.23, 1, 0.32, 1)',
+
 
     // Shadows: Physical Real-World Shadows (Zero Neon Glow)
     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.07)',
@@ -203,6 +210,13 @@ export const lightTheme = {
     controlHeight: 36,
     controlHeightLG: 40,
     controlHeightSM: 28,
+    // Motion Tokens (Emil Kowalski Design Engineering Standards)
+    motionDurationFast: '0.12s',
+    motionDurationMid: '0.18s',
+    motionDurationSlow: '0.24s',
+    motionEaseInOut: 'cubic-bezier(0.77, 0, 0.175, 1)',
+    motionEaseOut: 'cubic-bezier(0.23, 1, 0.32, 1)',
+
 
     // Shadows
     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',

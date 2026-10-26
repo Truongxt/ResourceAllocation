@@ -254,7 +254,7 @@ export default function BenchmarkStudio() {
           key: 'contextSwitches',
           metric: (
             <Space size={6}>
-              <TeamOutlined style={{ color: '#8b5cf6' }} />
+              <TeamOutlined style={{ color: 'var(--brand-primary, #0284c7)' }} />
               <span>Chuyển ngữ cảnh (S3)</span>
             </Space>
           ),

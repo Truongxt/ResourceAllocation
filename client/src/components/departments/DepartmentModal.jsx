@@ -213,7 +213,7 @@ export default function DepartmentModal({ open, department, onCancel, onSuccess 
                     cursor: 'pointer',
                     border: active ? '3px solid #ffffff' : '2px solid transparent',
                     boxShadow: active ? `0 0 0 2px ${p.value}` : 'none',
-                    transition: 'all 0.2s',
+                    transition: 'background-color 160ms var(--ease-out), border-color 160ms var(--ease-out)',
                   }}
                   title={p.label}
                 />

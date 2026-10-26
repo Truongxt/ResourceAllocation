@@ -167,3 +167,14 @@
 .sidebar-collapsed .sidebar-nav-link.active::before {
   display: none;
 }
+
+
+.sidebar-nav-link:active {
+  transform: scale(0.98);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.sidebar-toggle:active {
+  transform: scale(0.95);
+  transition: transform var(--duration-press) var(--ease-out);
+}

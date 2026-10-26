@@ -236,7 +236,7 @@ export default function WeekView({ currentDate, tasks = [], onTaskClick }) {
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 6,
-                        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                        transition: 'transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out)',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'translateY(-2px)';

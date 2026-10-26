@@ -128,7 +128,7 @@ export default function TaskKanbanView({
                       style={{
                         padding: '12px 14px',
                         cursor: 'pointer',
-                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        transition: 'border-color 160ms var(--ease-out), background-color 160ms var(--ease-out)',
                       }}
                     >
                       {/* Huy hiệu dự án, Nhóm công việc & Độ ưu tiên */}

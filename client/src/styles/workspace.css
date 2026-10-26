@@ -48,7 +48,7 @@
 .skip-link { position: fixed; top: -60px; left: 16px; z-index: 1200; background: var(--surface-card); padding: 12px; color: var(--text-primary); }
 .skip-link:focus { top: 8px; }
 :where(button, a, input, select, [tabindex]):focus-visible { outline: 2px solid var(--border-focus); outline-offset: 3px; }
-.spinner { width: 24px; height: 24px; border: 2px solid var(--border-subtle); border-top-color: var(--brand-primary); border-radius: 50%; animation: workspace-spin .8s linear infinite; }
+.spinner { width: 24px; height: 24px; border: 2px solid var(--border-subtle); border-top-color: var(--brand-primary); border-radius: 50%; animation: workspace-spin .6s linear infinite; }
 @keyframes workspace-spin { to { transform: rotate(360deg); } }
 @media (max-width: 1000px) {
   .workspace-header .header-search-trigger { display: none !important; }

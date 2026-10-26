@@ -133,7 +133,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'background-color 160ms var(--ease-out), color 160ms var(--ease-out)',
       }}
       theme={isDark ? 'dark' : 'light'}
     >

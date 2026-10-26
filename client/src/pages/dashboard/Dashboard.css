@@ -329,7 +329,7 @@
   background: var(--surface-card);
   color: var(--text-primary);
   text-decoration: none;
-  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .attention-row.has-issue {
@@ -430,7 +430,7 @@
   border-radius: 8px;
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
-  transition: all 140ms ease;
+  transition: background-color 140ms cubic-bezier(0.23, 1, 0.32, 1), border-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .recent-task-row:hover {
@@ -829,4 +829,27 @@
     justify-content: space-between;
     padding-top: 4px;
   }
+}
+
+
+.dashboard-kpi-card {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: emilStaggerIn var(--duration-modal, 240ms) var(--ease-out) forwards;
+}
+.dashboard-kpi-card:nth-child(1) { animation-delay: 0ms; }
+.dashboard-kpi-card:nth-child(2) { animation-delay: 40ms; }
+.dashboard-kpi-card:nth-child(3) { animation-delay: 80ms; }
+.dashboard-kpi-card:nth-child(4) { animation-delay: 120ms; }
+
+.attention-row:active {
+  transform: scale(0.98);
+}
+
+.recent-task-row:active {
+  transform: scale(0.99);
+}
+
+.btn-dashboard-cta:active {
+  transform: scale(0.97);
 }

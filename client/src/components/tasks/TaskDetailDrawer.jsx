@@ -204,7 +204,7 @@ function TaskDetailTabBar({ activeKey, onChange, items }) {
                 background: isActive ? 'var(--surface-active, rgba(37, 99, 235, 0.08))' : 'transparent',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                transition: 'all 150ms cubic-bezier(0.16, 1, 0.3, 1)',
+                transition: 'background-color 150ms var(--ease-out), border-color 150ms var(--ease-out)',
                 borderBottom: isActive ? '2px solid var(--brand-primary, #2563eb)' : '2px solid transparent',
                 userSelect: 'none',
               }}
@@ -672,7 +672,7 @@ export default function TaskDetailDrawer({
             background: item.isCompleted ? (isDark ? 'rgba(16, 185, 129, 0.1)' : '#ecfdf5') : subtleBg,
             border: `1px solid ${item.isCompleted ? '#10b98130' : borderColor}`,
             marginBottom: 8,
-            transition: 'all 0.2s ease',
+            transition: 'background-color 160ms var(--ease-out), border-color 160ms var(--ease-out)',
           }}
         >
           <Checkbox
@@ -896,7 +896,7 @@ export default function TaskDetailDrawer({
                 background: isDone ? (isDark ? 'rgba(16, 185, 129, 0.08)' : '#ecfdf5') : cardBg,
                 border: `1px solid ${isDone ? '#10b98130' : borderColor}`,
                 marginBottom: 10,
-                transition: 'all 0.2s ease',
+                transition: 'background-color 160ms var(--ease-out), border-color 160ms var(--ease-out)',
               }}
             >
               <Checkbox

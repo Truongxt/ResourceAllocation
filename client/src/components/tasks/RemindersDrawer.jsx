@@ -346,7 +346,7 @@ export default function RemindersDrawer({
           boxShadow: isDark
             ? '0 2px 8px rgba(0, 0, 0, 0.2)'
             : '0 2px 8px rgba(0, 0, 0, 0.04)',
-          transition: 'all 0.2s ease',
+          transition: 'border-color 160ms var(--ease-out), background-color 160ms var(--ease-out)',
           cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column',

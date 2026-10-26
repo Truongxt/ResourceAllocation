@@ -216,7 +216,7 @@ export default function DayView({ currentDate, tasks = [], onTaskClick }) {
                   padding: '16px 20px',
                   borderLeft: `5px solid ${cfg.border}`,
                   cursor: 'pointer',
-                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                  transition: 'transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out)',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)';

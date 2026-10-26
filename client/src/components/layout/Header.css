@@ -455,3 +455,18 @@
 .toast-close:hover {
   color: var(--text-primary);
 }
+
+
+.header-icon-btn:active {
+  transform: scale(0.94);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.header-user:active {
+  transform: scale(0.98);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.header-search-trigger:active {
+  transform: scale(0.98);
+}

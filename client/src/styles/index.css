@@ -165,7 +165,7 @@ body {
   padding: 16px 20px;
   position: relative;
   overflow: hidden;
-  transition: all var(--transition-fast);
+  transition: border-color var(--duration-dropdown) var(--ease-out), box-shadow var(--duration-dropdown) var(--ease-out);
 }
 
 .bento-card:hover {
@@ -455,3 +455,142 @@ body {
   scrollbar-width: none;
 }
 
+
+
+/* ==========================================================================
+   Emil Kowalski Design Engineering Standards
+   ========================================================================== */
+
+/* 1. Tactile Button Press Feedback (scale(0.97) on :active) */
+.ant-btn,
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+.btn-interactive {
+  transition: transform var(--duration-press) var(--ease-out),
+              background-color var(--duration-press) var(--ease-out),
+              border-color var(--duration-press) var(--ease-out),
+              color var(--duration-press) var(--ease-out),
+              opacity var(--duration-press) var(--ease-out) !important;
+}
+
+.ant-btn:active,
+button:active:not(:disabled),
+[role="button"]:active:not([aria-disabled="true"]),
+.btn-interactive:active {
+  transform: scale(0.97) !important;
+}
+
+/* 2. Physicality: Never animate from zero dimensions, start from scale(0.95) with opacity */
+.ant-modal-content {
+  animation-duration: var(--duration-modal) !important;
+  animation-timing-function: var(--ease-out) !important;
+  transform-origin: center !important;
+}
+
+.ant-drawer-content-wrapper {
+  animation-timing-function: var(--ease-drawer) !important;
+}
+
+/* 3. Origin-Aware Popovers & Tooltips (scale from trigger, not center) */
+.ant-popover,
+.ant-tooltip,
+.ant-dropdown {
+  transform-origin: var(--radix-popover-content-transform-origin, var(--transform-origin, top center));
+}
+
+/* 4. Touch Device Hover Gating (prevent sticky hover on mobile) */
+@media (hover: hover) and (pointer: fine) {
+  .saas-card:hover,
+  .bento-card:hover {
+    transition: border-color var(--duration-dropdown) var(--ease-out), box-shadow var(--duration-dropdown) var(--ease-out);
+  }
+}
+
+/* 5. Accessibility: prefers-reduced-motion (keep subtle fade, remove drastic movement) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* ==========================================================================
+   Emil Kowalski Animation Enhancements (High-Craft Polish)
+   ========================================================================== */
+
+/* 1. Snappy & Crisp Ant Design Tabs */
+.ant-tabs-ink-bar {
+  transition: width var(--duration-dropdown) var(--ease-out),
+              left var(--duration-dropdown) var(--ease-out),
+              transform var(--duration-dropdown) var(--ease-out) !important;
+}
+
+.ant-tabs-tab {
+  transition: color var(--duration-press) var(--ease-out),
+              background-color var(--duration-press) var(--ease-out),
+              transform var(--duration-press) var(--ease-out) !important;
+}
+
+.ant-tabs-tab:active {
+  transform: scale(0.98) !important;
+}
+
+/* 2. Responsive Ant Design Progress Bar Fill */
+.ant-progress-bg {
+  transition: width var(--duration-modal) var(--ease-out) !important;
+}
+
+/* 3. Dropdowns & Select Popovers */
+.ant-select-dropdown,
+.ant-dropdown-menu {
+  animation-duration: var(--duration-dropdown) !important;
+  animation-timing-function: var(--ease-out) !important;
+}
+
+.ant-select-item {
+  transition: background-color var(--duration-press) var(--ease-out),
+              color var(--duration-press) var(--ease-out) !important;
+}
+
+/* 4. Table Row Active & Hover Polish */
+.ant-table-tbody > tr {
+  transition: background-color var(--duration-press) var(--ease-out) !important;
+}
+
+.clickable-row:active {
+  transform: scale(0.995);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+/* 5. Fast & Crisp Spinner Perception */
+.ant-spin-dot {
+  animation-duration: 0.7s !important;
+}
+
+/* 6. Staggered Group Entrance Utility */
+.stagger-item {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: emilStaggerIn var(--duration-modal) var(--ease-out) forwards;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0ms; }
+.stagger-item:nth-child(2) { animation-delay: 35ms; }
+.stagger-item:nth-child(3) { animation-delay: 70ms; }
+.stagger-item:nth-child(4) { animation-delay: 105ms; }
+.stagger-item:nth-child(5) { animation-delay: 140ms; }
+.stagger-item:nth-child(6) { animation-delay: 175ms; }
+.stagger-item:nth-child(7) { animation-delay: 210ms; }
+.stagger-item:nth-child(8) { animation-delay: 245ms; }
+
+@keyframes emilStaggerIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
