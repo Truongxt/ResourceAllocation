@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Dropdown, Modal, message } from 'antd';
+import { Button, Dropdown, Modal, DatePicker, Typography, Space, message } from 'antd';
 import {
   CopyOutlined,
   EllipsisOutlined,
@@ -7,12 +8,15 @@ import {
   InboxOutlined,
   RollbackOutlined,
   SnippetsOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import projectService from '../../services/projectService';
 
+const { Text } = Typography;
+
 /**
  * Thao tác vòng đời trên một dự án. Mục hiện ra tùy dự án đang ở đâu:
- *   - đang chạy:  Nhân bản, Lưu thành mẫu, Lưu trữ
+ *   - đang chạy:  Chuyển loại, Nhân bản, Lưu thành mẫu, Lưu trữ
  *   - lưu trữ:    Mở lại, Nhân bản
  *   - mẫu:        Tạo dự án từ mẫu
  *
@@ -24,6 +28,9 @@ import projectService from '../../services/projectService';
  */
 export default function ProjectLifecycleMenu({ project, canArchive = true, canDuplicate = true, onDuplicate, onChanged }) {
   const { t } = useTranslation();
+  const [convertModalOpen, setConvertModalOpen] = useState(false);
+  const [dateRange, setDateRange] = useState(null);
+  const [converting, setConverting] = useState(false);
 
   const archive = () =>
     Modal.confirm({
@@ -51,6 +58,53 @@ export default function ProjectLifecycleMenu({ project, canArchive = true, canDu
     }
   };
 
+  const handleConvertKind = () => {
+    if (project.kind === 'team') {
+      // Chuyển Phòng ban => Dự án: cần nhập thời hạn
+      setDateRange(null);
+      setConvertModalOpen(true);
+    } else {
+      // Chuyển Dự án => Phòng ban
+      Modal.confirm({
+        title: `Chuyển dự án "${project.name}" thành Phòng ban?`,
+        content: 'Theo chuẩn Base Wework (Bài 63), khi chuyển thành Phòng ban, hệ thống sẽ gỡ ngày kết thúc và theo dõi công việc thường nhật vô thời hạn.',
+        okText: 'Chuyển thành Phòng ban',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            await projectService.convertKind(project._id, { targetKind: 'team' });
+            message.success('Đã chuyển thành Phòng ban thành công');
+            onChanged?.();
+          } catch (error) {
+            message.error(error.response?.data?.message || 'Lỗi khi chuyển loại');
+          }
+        },
+      });
+    }
+  };
+
+  const submitTeamToProject = async () => {
+    if (!dateRange || !dateRange[0] || !dateRange[1]) {
+      message.warning('Vui lòng chọn ngày bắt đầu và ngày kết thúc cho dự án');
+      return;
+    }
+    setConverting(true);
+    try {
+      await projectService.convertKind(project._id, {
+        targetKind: 'project',
+        startDate: dateRange[0].toISOString(),
+        endDate: dateRange[1].toISOString(),
+      });
+      message.success('Đã chuyển thành Dự án có thời hạn thành công (Base Wework Bài 63)');
+      setConvertModalOpen(false);
+      onChanged?.();
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Lỗi khi chuyển loại');
+    } finally {
+      setConverting(false);
+    }
+  };
+
   const duplicateItems = canDuplicate ? [
     { key: 'duplicate', icon: <CopyOutlined />, label: t('projects.lifecycle.duplicate') },
   ] : [];
@@ -68,20 +122,55 @@ export default function ProjectLifecycleMenu({ project, canArchive = true, canDu
     const copyItems = canDuplicate
       ? [...duplicateItems, { key: 'saveTemplate', icon: <SnippetsOutlined />, label: t('projects.lifecycle.saveAsTemplate') }]
       : [];
+    const convertItem = {
+      key: 'convertKind',
+      icon: <SwapOutlined />,
+      label: project.kind === 'team' ? 'Chuyển thành Dự án có thời hạn' : 'Chuyển thành Phòng ban',
+    };
     const archiveItems = canArchive ? [{ key: 'archive', icon: <InboxOutlined />, label: t('projects.lifecycle.archive') }] : [];
-    items = [...copyItems, ...(copyItems.length && archiveItems.length ? [{ type: 'divider' }] : []), ...archiveItems];
+    items = [convertItem, ...(copyItems.length ? copyItems : []), ...(archiveItems.length ? [{ type: 'divider' }, ...archiveItems] : [])];
   }
   if (!items.length) return null;
 
   const onClick = ({ key }) => {
     if (key === 'archive') archive();
     else if (key === 'unarchive') unarchive();
+    else if (key === 'convertKind') handleConvertKind();
     else onDuplicate?.(key, project);
   };
 
   return (
-    <Dropdown menu={{ items, onClick }} trigger={['click']}>
-      <Button type="text" size="small" icon={<EllipsisOutlined />} aria-label={t('projects.lifecycle.more')} />
-    </Dropdown>
+    <>
+      <Dropdown menu={{ items, onClick }} trigger={['click']}>
+        <Button type="text" size="small" icon={<EllipsisOutlined />} aria-label={t('projects.lifecycle.more')} />
+      </Dropdown>
+
+      <Modal
+        open={convertModalOpen}
+        onCancel={() => setConvertModalOpen(false)}
+        title={
+          <Space>
+            <SwapOutlined style={{ color: '#2563eb' }} />
+            <span>Chuyển thành Dự án có thời hạn (Base Wework Bài 63)</span>
+          </Space>
+        }
+        okText="Xác nhận chuyển loại"
+        cancelText="Hủy"
+        onOk={submitTeamToProject}
+        confirmLoading={converting}
+      >
+        <div style={{ marginTop: 12 }}>
+          <Text style={{ display: 'block', marginBottom: 12, color: 'var(--text-secondary)' }}>
+            Theo quy tắc Base Wework, Dự án cần có ngày bắt đầu và kết thúc cụ thể để đo lường tiến độ và cảnh báo chậm hạn. Vui lòng thiết lập thời hạn cho dự án <strong>"{project.name}"</strong>:
+          </Text>
+          <DatePicker.RangePicker
+            format="DD/MM/YYYY"
+            style={{ width: '100%' }}
+            value={dateRange}
+            onChange={setDateRange}
+          />
+        </div>
+      </Modal>
+    </>
   );
 }

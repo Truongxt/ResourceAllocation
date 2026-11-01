@@ -246,10 +246,38 @@ export default function TaskTableView({
       title: t('gantt.progress') || 'Tiến độ',
       dataIndex: 'progress',
       key: 'progress',
-      width: 120,
-      render: (progress = 0) => (
-        <Progress percent={progress} size="small" strokeColor="#0284c7" />
-      ),
+      width: 140,
+      render: (progress = 0, record) => {
+        let planned = null;
+        let isDelayed = false;
+        if (record.startDate && record.endDate) {
+          const now = Date.now();
+          const start = new Date(record.startDate).getTime();
+          const end = new Date(record.endDate).getTime();
+          if (end > start) {
+            planned = now <= start ? 0 : now >= end ? 100 : Math.round(((now - start) / (end - start)) * 100);
+            if (record.status !== 'done' && record.status !== 'completed' && progress < planned - 5) {
+              isDelayed = true;
+            }
+          }
+        }
+
+        return (
+          <div>
+            <Progress percent={progress} size="small" strokeColor={isDelayed ? '#ef4444' : '#0284c7'} />
+            {planned !== null && (
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                <span>KH: {planned}%</span>
+                {isDelayed && (
+                  <Tag color="error" style={{ fontSize: 9, margin: 0, padding: '0 3px', lineHeight: '14px' }}>
+                    Chậm {planned - progress}%
+                  </Tag>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: t('common.actions') || 'Thao tác',

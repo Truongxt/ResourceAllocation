@@ -70,6 +70,25 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    twoFactorSecret: {
+      type: String,
+      select: false,
+    },
+    twoFactorTempSecret: {
+      type: String,
+      select: false,
+    },
+    twoFactorBackupCodes: {
+      type: [
+        {
+          codeHash: String,
+          used: { type: Boolean, default: false },
+          usedAt: Date,
+        },
+      ],
+      select: false,
+      default: [],
+    },
     appPermissions: {
       type: Object,
       default: () => ({
@@ -78,6 +97,18 @@ const userSchema = new mongoose.Schema(
         calendar: 'view',
         optimization: 'view',
         reports: 'view',
+      }),
+    },
+    emailPreferences: {
+      type: Object,
+      default: () => ({
+        task_assigned: true,
+        task_review: true,
+        task_failed: true,
+        task_deadline: true,
+        optimization_applied: true,
+        project_member_added: true,
+        daily_digest: false,
       }),
     },
     lastLoginAt: {
@@ -134,10 +165,13 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Remove password from JSON output
+// Remove password and 2FA secrets from JSON output
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.twoFactorSecret;
+  delete obj.twoFactorTempSecret;
+  delete obj.twoFactorBackupCodes;
   return obj;
 };
 

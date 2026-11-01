@@ -1,5 +1,5 @@
 import { Suspense, lazy, useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './styles/workspace.css';
 import { Layout } from 'antd';
 import { useAuth } from './context/AuthContext';
@@ -30,13 +30,7 @@ const { Content } = Layout;
 
 function FullPageSpinner() {
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100dvh',
-      background: 'var(--bg-primary, #0f172a)',
-    }}>
+    <div className="app-loading-screen">
       <div className="spinner" />
     </div>
   );
@@ -44,18 +38,14 @@ function FullPageSpinner() {
 
 function ContentSpinner() {
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 'calc(100vh - 200px)',
-    }}>
+    <div className="app-content-spinner">
       <div className="spinner" />
     </div>
   );
 }
 
 function AppLayout({ children }) {
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => window.matchMedia('(max-width: 767px)').matches);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px)');
@@ -71,7 +61,7 @@ function AppLayout({ children }) {
         className="app-main"
         style={{
           marginLeft: collapsed ? 72 : 240,
-          transition: 'margin-left 0.2s ease',
+          transition: 'margin-left var(--motion-duration-base) var(--ease-out)',
           minHeight: '100vh',
           background: 'var(--bg-primary, #0f172a)',
         }}
@@ -89,7 +79,11 @@ function AppLayout({ children }) {
         >
           {/* Ranh giới Suspense nằm trong Content nên khi đổi trang chỉ vùng nội
               dung hiện spinner; sidebar và header không chớp mất rồi hiện lại. */}
-          <Suspense fallback={<ContentSpinner />}>{children}</Suspense>
+          <Suspense fallback={<ContentSpinner />}>
+            <div className="app-page-transition" key={`${location.pathname}${location.search}`}>
+              {children}
+            </div>
+          </Suspense>
         </Content>
       </Layout>
     </Layout>

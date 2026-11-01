@@ -3,9 +3,12 @@ import dayjs from 'dayjs';
 import { sortedFields } from '../../utils/customFields';
 
 /** `customValues` của công việc → giá trị cho Form (ngày thành dayjs). */
-export function toFormCustomValues(project, values = {}) {
+export function toFormCustomValues(project, values = {}, target = 'task') {
   const form = {};
-  sortedFields(project).forEach((field) => {
+  const fields = sortedFields(project).filter((f) =>
+    target === 'all' ? true : target === 'result' ? f.target === 'result' : f.target !== 'result'
+  );
+  fields.forEach((field) => {
     const value = values?.[field.key];
     if (value === undefined || value === null) return;
     // Ngày lưu là nửa đêm UTC: lấy phần YYYY-MM-DD, đừng để múi giờ máy dời sang hôm trước.
@@ -18,9 +21,12 @@ export function toFormCustomValues(project, values = {}) {
  * Giá trị Form → `customValues` gửi server. Chỉ các trường của dự án đang chọn (đổi dự án giữa
  * chừng thì ô của dự án cũ còn trong state của form); ô trống gửi `null` để xóa giá trị cũ.
  */
-export function fromFormCustomValues(project, formValues = {}) {
+export function fromFormCustomValues(project, formValues = {}, target = 'task') {
   const values = {};
-  sortedFields(project).forEach((field) => {
+  const fields = sortedFields(project).filter((f) =>
+    target === 'all' ? true : target === 'result' ? f.target === 'result' : f.target !== 'result'
+  );
+  fields.forEach((field) => {
     const value = formValues?.[field.key];
     if (value === undefined || value === null || value === '') values[field.key] = null;
     else values[field.key] = field.type === 'date' ? dayjs(value).format('YYYY-MM-DD') : value;
@@ -29,8 +35,11 @@ export function fromFormCustomValues(project, formValues = {}) {
 }
 
 /** Các ô trường tùy chỉnh của dự án trong form tạo/sửa công việc. */
-export default function CustomFieldInputs({ project, disabled = false }) {
-  const fields = sortedFields(project);
+export default function CustomFieldInputs({ project, target = 'task', disabled = false, fieldsOverride }) {
+  const allFields = fieldsOverride || sortedFields(project);
+  const fields = allFields.filter((f) =>
+    target === 'all' ? true : target === 'result' ? f.target === 'result' : f.target !== 'result'
+  );
   if (!fields.length) return null;
 
   return (

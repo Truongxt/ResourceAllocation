@@ -21,12 +21,13 @@ import {
   SendOutlined, UnorderedListOutlined,
   TeamOutlined, CalendarOutlined, FlagOutlined, ApartmentOutlined,
   CloseOutlined, EyeOutlined, CopyOutlined, HistoryOutlined, FileDoneOutlined,
-  LinkOutlined, LeftOutlined, RightOutlined, PaperClipOutlined,
+  LinkOutlined, LeftOutlined, RightOutlined, PaperClipOutlined, ArrowUpOutlined,
 } from '@ant-design/icons';
 import { useTheme } from '../../context/ThemeContext';
 import taskService from '../../services/taskService';
 import SubtaskFormModal from './SubtaskFormModal';
 import TaskResultModal from './TaskResultModal';
+import DuplicateTaskModal from './DuplicateTaskModal';
 import TaskWorkflowActions from './TaskWorkflowActions';
 import TaskAttachments from './TaskAttachments';
 import { sortedFields, formatCustomValue } from '../../utils/customFields';
@@ -276,22 +277,24 @@ export default function TaskDetailDrawer({
   // Followers
   const [followerSelectVisible, setFollowerSelectVisible] = useState(false);
 
-  // Base Wework: Báo cáo kết quả & Gia hạn deadline
+  // Base Wework: Báo cáo kết quả & Gia hạn deadline & Nhân bản
   const [resultModalOpen, setResultModalOpen] = useState(false);
   const [deadlineModalOpen, setDeadlineModalOpen] = useState(false);
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [newDeadlineDate, setNewDeadlineDate] = useState(null);
   const [deadlineReason, setDeadlineReason] = useState('');
   const [updatingDeadline, setUpdatingDeadline] = useState(false);
 
-  // Nhân bản công việc
-  const handleDuplicateTask = async () => {
-    if (!task) return;
+  // Chuyển công việc con thành công việc cha độc lập (Base Wework Bài 85)
+  const handlePromoteSubtask = async (subtaskId) => {
     try {
-      await taskService.duplicate(task._id);
-      message.success('Đã nhân bản công việc thành công!');
+      await taskService.promoteSubtask(subtaskId);
+      message.success('Đã chuyển thành công việc cha độc lập thành công!');
+      await loadTask();
+      await loadSubtasks();
       if (onTaskUpdated) onTaskUpdated();
-    } catch {
-      message.error('Lỗi khi nhân bản công việc');
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Lỗi khi chuyển thành công việc cha');
     }
   };
 
@@ -920,6 +923,21 @@ export default function TaskDetailDrawer({
                     {sub.title}
                   </Text>
                   <Space size={4}>
+                    <Tooltip title="Chuyển thành công việc cha độc lập (Base Wework Bài 85)">
+                      <Popconfirm
+                        title="Chuyển thành công việc cha độc lập?"
+                        description="Công việc con này sẽ được tách thành một đầu việc độc lập ngang hàng trong dự án, giữ nguyên toàn bộ dữ liệu."
+                        okText="Chuyển đổi"
+                        cancelText="Hủy"
+                        onConfirm={() => handlePromoteSubtask(sub._id)}
+                      >
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<ArrowUpOutlined style={{ fontSize: 13, color: '#10b981' }} />}
+                        />
+                      </Popconfirm>
+                    </Tooltip>
                     <Tooltip title="Chỉnh sửa chi tiết">
                       <Button
                         type="text"
@@ -1111,6 +1129,35 @@ export default function TaskDetailDrawer({
                     <span>{link.title || link.url}</span>
                   </a>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Base Wework (Bài 77): Tiêu chí kết quả nghiệm thu tùy chỉnh */}
+          {task.resultReport.customValues && Object.keys(task.resultReport.customValues).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6, color: '#0284c7' }}>
+                Tiêu chí kết quả nghiệm thu (Base Wework - Bài 77):
+              </Text>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
+                {(task.project?.customFields || [])
+                  .filter((f) => f.target === 'result' && task.resultReport.customValues[f.key] !== undefined && task.resultReport.customValues[f.key] !== null)
+                  .map((f) => (
+                    <div
+                      key={f.key}
+                      style={{
+                        padding: '6px 10px',
+                        background: isDark ? 'rgba(255,255,255,0.04)' : '#f8fafc',
+                        borderRadius: 6,
+                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0'}`,
+                      }}
+                    >
+                      <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{f.name}</Text>
+                      <Text strong style={{ fontSize: 12.5 }}>
+                        {formatCustomValue(f, task.resultReport.customValues[f.key])}
+                      </Text>
+                    </div>
+                  ))}
               </div>
             </div>
           )}
@@ -1380,21 +1427,14 @@ export default function TaskDetailDrawer({
 
               {/* Nhân bản công việc (Chỉ Người giao, QLDA, Owner) */}
               {perms.canDuplicate && (
-                <Tooltip title="Nhân bản công việc">
-                  <Popconfirm
-                    title="Nhân bản công việc này?"
-                    description="Sao chép toàn bộ checklist và công việc con sang bản mới."
-                    onConfirm={handleDuplicateTask}
-                    okText="Nhân bản"
-                    cancelText="Hủy"
-                  >
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<CopyOutlined />}
-                      style={{ borderRadius: 8 }}
-                    />
-                  </Popconfirm>
+                <Tooltip title="Nhân bản công việc (Base Wework Bài 52 & 53)">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CopyOutlined />}
+                    style={{ borderRadius: 8 }}
+                    onClick={() => setDuplicateModalOpen(true)}
+                  />
                 </Tooltip>
               )}
 
@@ -1436,6 +1476,53 @@ export default function TaskDetailDrawer({
           </div>
         ) : (
           <>
+            {/* Banner Công việc con (Base Wework Bài 85) */}
+            {task.parentTask && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
+                  border: `1px solid ${isDark ? '#1e40af' : '#bfdbfe'}`,
+                  borderRadius: 10,
+                  marginTop: 8,
+                  marginBottom: 12,
+                }}
+              >
+                <Space size={8}>
+                  <ApartmentOutlined style={{ color: '#2563eb', fontSize: 16 }} />
+                  <div>
+                    <Text style={{ fontSize: 12, color: '#64748b', display: 'block' }}>Công việc con thuộc:</Text>
+                    <Text strong style={{ fontSize: 13, color: isDark ? '#93c5fd' : '#1d4ed8' }}>
+                      {task.parentTask.title || 'Công việc cha'}
+                    </Text>
+                  </div>
+                </Space>
+                <Popconfirm
+                  title="Chuyển thành công việc cha độc lập?"
+                  description="Công việc con này sẽ được tách thành một đầu việc độc lập ngang hàng trong dự án (Base Wework Bài 85)."
+                  okText="Tách việc cha"
+                  cancelText="Hủy"
+                  onConfirm={async () => {
+                    try {
+                      await taskService.promoteSubtask(task._id);
+                      message.success('Đã chuyển thành công việc cha độc lập!');
+                      await loadTask();
+                      if (onTaskUpdated) onTaskUpdated();
+                    } catch (err) {
+                      message.error(err.response?.data?.message || 'Lỗi khi chuyển thành công việc cha');
+                    }
+                  }}
+                >
+                  <Button size="small" type="primary" ghost icon={<ArrowUpOutlined />} style={{ borderRadius: 6 }}>
+                    Chuyển thành việc cha
+                  </Button>
+                </Popconfirm>
+              </div>
+            )}
+
             {/* Vết của luồng công việc: đang chờ ai, vì sao bị trả lại, vì sao thất bại */}
             {task.status === 'review' && (
               <Alert
@@ -1610,6 +1697,16 @@ export default function TaskDetailDrawer({
         </div>
       </div>
     </Modal>
+
+    {/* Modal Nhân bản công việc chuẩn Base Wework (Bài 52) */}
+    <DuplicateTaskModal
+      open={duplicateModalOpen}
+      onClose={() => setDuplicateModalOpen(false)}
+      task={task}
+      onSuccess={() => {
+        if (onTaskUpdated) onTaskUpdated();
+      }}
+    />
   </>
   );
 }

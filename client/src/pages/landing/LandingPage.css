@@ -1183,3 +1183,27 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Final cascade: the visual-system rules live last so legacy section rules
+   cannot pull the landing page back toward the older rainbow SaaS treatment. */
+.landing-wrapper { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.landing-wrapper.theme-light { --landing-bg: #f4f7fb; --landing-surface: rgba(251,252,255,.88); --landing-elevated: #ffffff; --landing-border: #e4eaf2; --landing-brand-primary: #2563eb; --landing-brand-gradient: #2563eb; --landing-card-shadow: 0 22px 52px -32px rgba(35, 53, 84, .32); }
+.landing-wrapper.theme-dark { --landing-bg: #0a1020; --landing-surface: rgba(14,23,41,.88); --landing-elevated: #17263d; --landing-border: rgba(191,211,242,.1); --landing-brand-primary: #60a5fa; --landing-brand-gradient: #3b82f6; --landing-card-shadow: 0 28px 60px -34px rgba(0,0,0,.8); }
+.landing-wrapper { background-image: radial-gradient(circle at 85% -10%, rgba(59,130,246,.12), transparent 32rem), radial-gradient(circle at 7% 54%, rgba(14,165,233,.06), transparent 28rem); }
+.landing-wrapper .landing-header { background: var(--landing-surface); box-shadow: 0 12px 32px -28px rgba(13, 29, 54, .42); backdrop-filter: blur(18px) saturate(130%); }
+.landing-wrapper .brand-icon-box { border-radius: 12px; box-shadow: 0 13px 28px -18px rgba(37,99,235,.72); }
+.landing-wrapper .brand-badge, .landing-wrapper .announcement-badge { border-radius: 5px; }
+.landing-wrapper .landing-top-announcement { background: #12223b; }
+.landing-wrapper .hero-section { padding-block: clamp(72px, 10vw, 130px) clamp(88px, 11vw, 150px); text-align: left; }
+.landing-wrapper .hero-container { max-width: 1180px; }
+.landing-wrapper .hero-main-title { max-width: 16ch; letter-spacing: -.055em; text-wrap: balance; }
+.landing-wrapper .hero-subtitle { max-width: 55ch; }
+.landing-wrapper .hero-cta-group, .landing-wrapper .hero-trust-badges { justify-content: flex-start; }
+.landing-wrapper .hero-glow-blob { opacity: .12; filter: blur(100px); }
+.landing-wrapper .blob-2 { background: #0ea5e9; }
+.landing-wrapper .hero-mockup-window, .landing-wrapper .feature-detail-card, .landing-wrapper .platform-card, .landing-wrapper .thesis-card, .landing-wrapper .sandbox-card { border-radius: 20px; border-color: var(--landing-border); box-shadow: var(--landing-card-shadow); }
+.landing-wrapper .feature-detail-card, .landing-wrapper .platform-card, .landing-wrapper .thesis-card { transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out), border-color 180ms var(--ease-out); }
+.landing-wrapper .section-title, .landing-wrapper .cta-title { letter-spacing: -.045em; text-wrap: balance; }
+.landing-wrapper .feature-tab-btn, .landing-wrapper .tab-pill { border-radius: 9px; }
+@media (hover: hover) and (pointer: fine) { .landing-wrapper .feature-detail-card:hover, .landing-wrapper .platform-card:hover, .landing-wrapper .thesis-card:hover { transform: translateY(-3px); box-shadow: 0 28px 54px -34px rgba(35,53,84,.44); } }
+@media (max-width: 760px) { .landing-wrapper .hero-section { text-align: center; } .landing-wrapper .hero-main-title, .landing-wrapper .hero-subtitle { margin-inline: auto; } .landing-wrapper .hero-cta-group, .landing-wrapper .hero-trust-badges { justify-content: center; } }

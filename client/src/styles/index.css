@@ -594,3 +594,162 @@ button:active:not(:disabled),
     transform: translateY(0);
   }
 }
+
+/* ========================================================================
+   Workspace visual system — a calm, tangible layer shared by every module.
+   ======================================================================== */
+html { background: var(--surface-canvas); scroll-behavior: smooth; }
+
+body {
+  background-color: var(--surface-canvas);
+  background-image:
+    radial-gradient(circle at 82% -14%, rgba(59, 130, 246, 0.12), transparent 28rem),
+    radial-gradient(circle at -8% 36%, rgba(14, 165, 233, 0.055), transparent 24rem);
+  background-attachment: fixed;
+}
+
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(circle at 82% -14%, rgba(59, 130, 246, 0.10), transparent 30rem),
+    radial-gradient(circle at -8% 40%, rgba(14, 165, 233, 0.045), transparent 25rem);
+}
+
+#root { min-height: 100dvh; isolation: isolate; }
+
+.app-loading-screen,
+.app-content-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.app-loading-screen { min-height: 100dvh; }
+.app-content-spinner { min-height: calc(100dvh - 200px); }
+
+.app-main { position: relative; background: transparent !important; }
+.app-main::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.34;
+  background-image: radial-gradient(rgba(148, 163, 184, 0.18) 0.6px, transparent 0.7px);
+  background-size: 15px 15px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 72%);
+}
+
+[data-theme="light"] .app-main::before { opacity: 0.18; }
+
+.app-page-transition {
+  min-width: 0;
+  animation: workspace-page-enter 220ms var(--ease-out) both;
+}
+
+@keyframes workspace-page-enter {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.workspace-content h1,
+.workspace-content h2,
+.workspace-content h3,
+.workspace-content h4,
+.workspace-content .ant-typography {
+  text-wrap: balance;
+}
+
+.workspace-content .ant-card,
+.saas-card,
+.bento-card {
+  border-color: var(--border-subtle) !important;
+  border-radius: var(--card-radius) !important;
+  box-shadow: var(--shadow-card) !important;
+  overflow: clip;
+}
+
+.workspace-content .ant-card-head {
+  min-height: 58px;
+  padding-inline: 20px;
+  border-bottom-color: var(--border-subtle) !important;
+}
+
+.workspace-content .ant-card-head-title {
+  padding-block: 16px;
+  font-weight: 650;
+  letter-spacing: -0.018em;
+}
+
+.workspace-content .ant-card-body { padding: 20px; }
+
+.workspace-content .ant-input,
+.workspace-content .ant-input-affix-wrapper,
+.workspace-content .ant-select-selector,
+.workspace-content .ant-picker,
+.workspace-content .ant-input-number {
+  border-radius: var(--radius-md) !important;
+}
+
+.workspace-content .ant-input,
+.workspace-content .ant-input-affix-wrapper,
+.workspace-content .ant-select-selector,
+.workspace-content .ant-picker,
+.workspace-content .ant-input-number,
+.workspace-header .header-search-trigger {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035) inset;
+}
+
+.workspace-content .ant-tabs-nav::before { border-bottom-color: var(--border-subtle); }
+.workspace-content .ant-tabs-tab {
+  border-radius: 8px 8px 0 0;
+  font-weight: 550;
+}
+
+.workspace-content .ant-table-wrapper .ant-table {
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.025) inset;
+}
+
+.workspace-content .ant-table-thead > tr > th:first-child { border-start-start-radius: 13px; }
+.workspace-content .ant-table-thead > tr > th:last-child { border-start-end-radius: 13px; }
+.workspace-content .ant-table-thead > tr > th { padding-block: 13px; font-weight: 650 !important; }
+.workspace-content .ant-table-tbody > tr > td { padding-block: 13px; }
+
+.ant-btn-primary {
+  box-shadow: var(--shadow-glow) !important;
+  font-weight: 650;
+}
+
+.ant-btn-default,
+.ant-btn-dashed { border-color: var(--border-subtle); }
+
+.ant-modal-content,
+.ant-drawer-content,
+.ant-dropdown .ant-dropdown-menu,
+.ant-select-dropdown,
+.ant-popover-inner {
+  box-shadow: var(--shadow-modal) !important;
+}
+
+.ant-modal-content,
+.ant-drawer-content { border: 1px solid var(--border-subtle); }
+.ant-drawer-header { border-bottom-color: var(--border-subtle) !important; }
+
+@media (hover: hover) and (pointer: fine) {
+  .workspace-content .ant-card.ant-card-hoverable:hover,
+  .saas-card-interactive:hover,
+  .bento-card-interactive:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-highlight) !important;
+    box-shadow: var(--shadow-card-hover) !important;
+  }
+
+  .workspace-content .ant-btn:not(:disabled):hover { transform: translateY(-1px); }
+  .workspace-content .ant-table-tbody > tr:hover > td { background: var(--surface-hover) !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-page-transition { animation: none; }
+}

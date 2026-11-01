@@ -13,11 +13,20 @@ const TYPE_OPTIONS = [
   { value: 'date', label: 'Ngày' },
   { value: 'select', label: 'Chọn một' },
 ];
+const TARGET_OPTIONS = [
+  { value: 'task', label: 'Thông tin công việc' },
+  { value: 'result', label: 'Kết quả nghiệm thu (Bài 77)' },
+];
 const typeLabel = (type) => TYPE_OPTIONS.find((o) => o.value === type)?.label || type;
 
 const idOf = (value) => String((value && value._id) || value || '');
 let draftSeq = 0;
-const toDraft = (field) => ({ ...field, options: field.options || [], draftId: field.key || `new-${(draftSeq += 1)}` });
+const toDraft = (field) => ({
+  ...field,
+  options: field.options || [],
+  target: field.target || 'task',
+  draftId: field.key || `new-${(draftSeq += 1)}`,
+});
 
 /**
  * Tab "Trường tùy chỉnh" của chi tiết dự án: khai thêm trường cho công việc của dự án.
@@ -57,12 +66,13 @@ export default function ProjectCustomFields({ project, onSaved }) {
     setSaving(true);
     setError('');
     try {
-      const fields = draft.map(({ key, name, type, options, required }) => ({
+      const fields = draft.map(({ key, name, type, options, required, target }) => ({
         key,
         name,
         type,
         options: type === 'select' ? options : [],
         required: Boolean(required),
+        target: target === 'result' ? 'result' : 'task',
       }));
       const res = await projectService.updateCustomFields(project._id, fields);
       onSaved?.(res.data.data.project);
@@ -85,6 +95,17 @@ export default function ProjectCustomFields({ project, onSaved }) {
         dataSource={fields}
         columns={[
           { title: 'Tên trường', dataIndex: 'name', key: 'name' },
+          {
+            title: 'Áp dụng cho',
+            dataIndex: 'target',
+            key: 'target',
+            render: (target) =>
+              target === 'result' ? (
+                <Tag color="green">Kết quả nghiệm thu</Tag>
+              ) : (
+                <Tag color="blue">Thông tin công việc</Tag>
+              ),
+          },
           { title: 'Kiểu', dataIndex: 'type', key: 'type', render: typeLabel },
           { title: 'Lựa chọn', dataIndex: 'options', key: 'options', render: (options) => (options || []).map((o) => <Tag key={o}>{o}</Tag>) },
           { title: 'Bắt buộc', dataIndex: 'required', key: 'required', render: (required) => (required ? 'Có' : '') },
@@ -120,6 +141,12 @@ export default function ProjectCustomFields({ project, onSaved }) {
             disabled={Boolean(field.key)}
             onChange={(type) => update(field.draftId, { type })}
             style={{ width: 120 }}
+          />
+          <Select
+            value={field.target || 'task'}
+            options={TARGET_OPTIONS}
+            onChange={(target) => update(field.draftId, { target })}
+            style={{ width: 185 }}
           />
           {field.type === 'select' && (
             <Select

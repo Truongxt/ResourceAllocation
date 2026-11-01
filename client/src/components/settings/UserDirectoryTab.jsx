@@ -224,14 +224,23 @@ export default function UserDirectoryTab({ currentUser }) {
   };
 
   // 5. Vô hiệu hóa 2FA
-  const handleDisable2FA = async (record) => {
-    try {
-      await authService.disableUser2FA(record._id);
-      message.success(`Đã vô hiệu hóa bảo mật 2 lớp cho ${record.name}`);
-      loadUsers();
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Lỗi khi vô hiệu hóa 2FA');
-    }
+  const handleDisable2FA = (record) => {
+    Modal.confirm({
+      title: 'Vô hiệu hóa 2FA cho tài khoản này?',
+      content: `Bạn có chắc muốn tắt bảo mật 2 lớp cho ${record.name}? Người này sẽ chỉ cần mật khẩu để đăng nhập.`,
+      okText: 'Tắt 2FA',
+      okType: 'danger',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          await authService.disableUser2FA(record._id);
+          message.success(`Đã vô hiệu hóa bảo mật 2 lớp cho ${record.name}`);
+          loadUsers();
+        } catch (err) {
+          message.error(err.response?.data?.message || 'Lỗi khi vô hiệu hóa 2FA');
+        }
+      },
+    });
   };
 
   // 6. Đổi mật khẩu

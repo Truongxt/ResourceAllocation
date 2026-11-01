@@ -853,3 +853,19 @@
 .btn-dashboard-cta:active {
   transform: scale(0.97);
 }
+
+/* Command-center depth: metrics can be scanned quickly without looking like a
+   repeated wall of cards. The coloured line denotes category, not decoration. */
+.dashboard-header { margin-bottom: 28px; }
+.dashboard-header-title-row h2, .dashboard-header-title-row h3 { letter-spacing: -.045em; }
+.dashboard-freshness-chip { border-radius: 7px; background: var(--surface-elevated); }
+.dashboard-kpi-card { border-radius: var(--radius-lg); border-top-width: 2px; box-shadow: var(--shadow-card); }
+.dashboard-kpi-card:nth-child(1) { border-top-color: var(--brand-primary); }
+.dashboard-kpi-card:nth-child(2) { border-top-color: var(--status-info); }
+.dashboard-kpi-card:nth-child(3) { border-top-color: var(--status-warning); }
+.dashboard-kpi-card:nth-child(4) { border-top-color: var(--status-success); }
+.dashboard-kpi-card:hover { box-shadow: var(--shadow-card-hover); }
+.dashboard-work-grid > .ant-card, .dashboard-detail-grid > .ant-card { box-shadow: var(--shadow-card); }
+.attention-row, .recent-task-row, .hours-metric-tile { border-radius: 12px; }
+.management-summary-grid > div { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.management-department-track { height: 12px; background: color-mix(in srgb, var(--surface-elevated) 78%, transparent); }

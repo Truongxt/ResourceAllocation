@@ -12,11 +12,11 @@ export const darkTheme = {
     colorError: '#ef4444',
 
     // Backgrounds: Clean Zinc / Obsidian Slate
-    colorBgLayout: '#09090b',
-    colorBgContainer: '#121215',
-    colorBgElevated: '#18181b',
-    colorBgSpotlight: '#27272a',
-    colorBgMask: 'rgba(9, 9, 11, 0.85)',
+    colorBgLayout: '#0a1020',
+    colorBgContainer: '#121e32',
+    colorBgElevated: '#17263d',
+    colorBgSpotlight: '#1d304d',
+    colorBgMask: 'rgba(7, 12, 24, 0.72)',
 
     // Text: High Contrast Visual Hierarchy
     colorText: '#f4f4f5',
@@ -38,9 +38,9 @@ export const darkTheme = {
     fontSizeHeading4: 14,
 
     // Border Radius: Restrained & Modern
-    borderRadius: 6,
-    borderRadiusLG: 8,
-    borderRadiusSM: 6,
+    borderRadius: 10,
+    borderRadiusLG: 16,
+    borderRadiusSM: 8,
     borderRadiusXS: 4,
 
     // Control Heights
@@ -56,14 +56,14 @@ export const darkTheme = {
 
 
     // Shadows: Physical Real-World Shadows (Zero Neon Glow)
-    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.07)',
-    boxShadowSecondary: '0 4px 16px -2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.12)',
+    boxShadow: '0 16px 34px -26px rgba(0, 0, 0, 0.82), 0 1px 0 rgba(255, 255, 255, 0.035) inset',
+    boxShadowSecondary: '0 28px 60px -28px rgba(0, 0, 0, 0.86), 0 0 0 1px rgba(255, 255, 255, 0.1)',
   },
   components: {
     Layout: {
-      headerBg: '#10131a',
-      siderBg: '#10131a',
-      bodyBg: '#0a0c10',
+      headerBg: '#0e1729',
+      siderBg: '#0e1729',
+      bodyBg: '#0a1020',
       headerHeight: 56,
       headerPadding: '0 24px',
     },
@@ -80,13 +80,13 @@ export const darkTheme = {
       itemHeight: 36,
     },
     Card: {
-      colorBgContainer: '#121215',
-      colorBorderSecondary: 'rgba(255, 255, 255, 0.08)',
-      paddingLG: 16,
+      colorBgContainer: '#121e32',
+      colorBorderSecondary: 'rgba(191, 211, 242, 0.10)',
+      paddingLG: 20,
     },
     Table: {
-      colorBgContainer: '#121215',
-      headerBg: '#0c0c0e',
+      colorBgContainer: '#121e32',
+      headerBg: '#0e1729',
       headerColor: '#a1a1aa',
       rowHoverBg: 'rgba(255, 255, 255, 0.035)',
       borderColor: 'rgba(255, 255, 255, 0.06)',
@@ -94,20 +94,20 @@ export const darkTheme = {
       fontSize: 13,
     },
     Modal: {
-      contentBg: '#121215',
-      headerBg: '#121215',
+      contentBg: '#121e32',
+      headerBg: '#121e32',
       titleColor: '#f4f4f5',
       boxShadow: '0 20px 40px -12px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.1)',
     },
     Input: {
-      colorBgContainer: '#18181b',
+      colorBgContainer: '#17263d',
       colorBorder: 'rgba(255, 255, 255, 0.1)',
       activeBorderColor: '#2563eb',
       hoverBorderColor: '#3b82f6',
     },
     Select: {
-      colorBgContainer: '#18181b',
-      colorBgElevated: '#18181b',
+      colorBgContainer: '#17263d',
+      colorBgElevated: '#17263d',
       colorBorder: 'rgba(255, 255, 255, 0.1)',
       optionSelectedBg: 'rgba(37, 99, 235, 0.15)',
     },
@@ -122,7 +122,7 @@ export const darkTheme = {
     },
     Button: {
       primaryShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.2)',
-      defaultBg: '#18181b',
+      defaultBg: '#17263d',
       defaultBorderColor: 'rgba(255, 255, 255, 0.1)',
       defaultColor: '#f4f4f5',
       defaultHoverBg: '#27272a',
@@ -175,7 +175,7 @@ export const lightTheme = {
     colorError: '#dc2626',
 
     // Backgrounds: Clean Crisp Slate
-    colorBgLayout: '#f8fafc',
+    colorBgLayout: '#f4f7fb',
     colorBgContainer: '#ffffff',
     colorBgElevated: '#ffffff',
     colorBgSpotlight: '#0f172a',
@@ -201,9 +201,9 @@ export const lightTheme = {
     fontSizeHeading4: 14,
 
     // Border Radius
-    borderRadius: 6,
-    borderRadiusLG: 8,
-    borderRadiusSM: 6,
+    borderRadius: 10,
+    borderRadiusLG: 16,
+    borderRadiusSM: 8,
     borderRadiusXS: 4,
 
     // Control Heights
@@ -219,14 +219,14 @@ export const lightTheme = {
 
 
     // Shadows
-    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
-    boxShadowSecondary: '0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+    boxShadow: '0 14px 32px -28px rgba(35, 53, 84, 0.42), 0 1px 2px rgba(35, 53, 84, 0.04)',
+    boxShadowSecondary: '0 28px 60px -26px rgba(26, 42, 68, 0.28), 0 0 0 1px rgba(23, 41, 68, 0.08)',
   },
   components: {
     Layout: {
-      headerBg: '#ffffff',
-      siderBg: '#ffffff',
-      bodyBg: '#f8fafc',
+      headerBg: '#fbfcff',
+      siderBg: '#fbfcff',
+      bodyBg: '#f4f7fb',
       headerHeight: 56,
       headerPadding: '0 24px',
     },
@@ -244,8 +244,8 @@ export const lightTheme = {
     },
     Card: {
       colorBgContainer: '#ffffff',
-      colorBorderSecondary: '#e2e8f0',
-      paddingLG: 16,
+      colorBorderSecondary: '#e4eaf2',
+      paddingLG: 20,
     },
     Table: {
       colorBgContainer: '#ffffff',

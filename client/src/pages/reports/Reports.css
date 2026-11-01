@@ -1,4 +1,7 @@
 /* ===== Reports Print Styles ===== */
+.reports-page .ant-card, .reports-page .ant-statistic { box-shadow: var(--shadow-card); }
+.reports-page .ant-card { border-radius: var(--radius-lg); }
+.reports-page .ant-statistic-content { font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
 @media print {
   body {
     background: #ffffff !important;

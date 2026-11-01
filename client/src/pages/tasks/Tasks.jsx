@@ -60,6 +60,7 @@ import TaskExcelImportModal from '../../components/tasks/TaskExcelImportModal';
 import RecurringTaskModal from '../../components/tasks/RecurringTaskModal';
 import RemindersDrawer from '../../components/tasks/RemindersDrawer';
 import PendingReviewDrawer from '../../components/tasks/PendingReviewDrawer';
+import DuplicateTaskModal from '../../components/tasks/DuplicateTaskModal';
 import { canCreateTaskIn, canManageProject } from '../../utils/projectAccess';
 import './Tasks.css';
 
@@ -116,6 +117,7 @@ export default function Tasks() {
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [reviewQueueOpen, setReviewQueueOpen] = useState(false);
   const [pendingReviewCount, setPendingReviewCount] = useState(0);
+  const [duplicatingTask, setDuplicatingTask] = useState(null);
 
   const [form] = Form.useForm();
   const selectedProject = Form.useWatch('project', form);
@@ -513,14 +515,8 @@ export default function Tasks() {
   /**
    * Nhân bản công việc (Base Wework)
    */
-  const handleDuplicateTask = async (task) => {
-    try {
-      await taskService.duplicate(task._id);
-      message.success(t('tasks.duplicated') || 'Đã nhân bản công việc thành công');
-      loadTasks();
-    } catch {
-      message.error(t('tasks.duplicateFailed') || 'Không thể nhân bản công việc');
-    }
+  const handleDuplicateTask = (task) => {
+    setDuplicatingTask(task);
   };
 
   /**
@@ -949,6 +945,15 @@ export default function Tasks() {
           }
           loadTasks();
         }}
+      />
+
+      {/* 10. Modal Nhân bản công việc chuẩn Base Wework (Bài 52 & 53) */}
+      <DuplicateTaskModal
+        open={!!duplicatingTask}
+        onClose={() => setDuplicatingTask(null)}
+        task={duplicatingTask}
+        projects={projects}
+        onSuccess={loadTasks}
       />
     </div>
   );

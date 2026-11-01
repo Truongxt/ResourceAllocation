@@ -18,9 +18,12 @@ const {
   updateProjectPermissions,
   quickEditProject,
   updateCustomFields,
+  convertProjectKind,
   archiveProject,
   unarchiveProject,
   duplicateProject,
+  previewProjectReassign,
+  bulkReassignProjects,
 } = require('../controllers/project.controller');
 
 const router = express.Router();
@@ -183,6 +186,8 @@ router.post('/:id/unarchive', projectIdValidation, validate, unarchiveProject);
 router.post('/:id/duplicate', authorize('admin', 'project_manager'), projectIdValidation, validate, duplicateProject);
 
 router.get('/stats/summary', getProjectSummary);
+router.get('/reassign-preview', authorize('admin', 'project_manager'), previewProjectReassign);
+router.post('/bulk-reassign', authorize('admin', 'project_manager'), bulkReassignProjects);
 router.get('/', listValidation, validate, getProjects);
 router.get('/:id', projectIdValidation, validate, getProjectById);
 router.post('/', projectValidation, validate, createProject);
@@ -197,6 +202,15 @@ router.patch('/:id/permissions', projectIdValidation, validate, updateProjectPer
 
 // Trường dữ liệu tùy chỉnh của công việc (admin/Owner & quản lý dự án, kiểm trong controller)
 router.put('/:id/custom-fields', projectIdValidation, validate, updateCustomFields);
+
+// Base Wework: Chuyển loại dự án <-> phòng ban (Bài 63)
+router.patch(
+  '/:id/convert-kind',
+  projectIdValidation,
+  body('targetKind').isIn(PROJECT_KINDS).withMessage('Loại đích không hợp lệ'),
+  validate,
+  convertProjectKind
+);
 
 // Base Wework: Chỉnh sửa nhanh (Quick Edit) dự án / phòng ban
 router.patch('/:id/quick-edit', projectIdValidation, validate, quickEditProject);

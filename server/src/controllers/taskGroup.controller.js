@@ -1,5 +1,6 @@
 const TaskGroup = require('../models/TaskGroup');
 const Project = require('../models/Project');
+const Task = require('../models/Task');
 const { canManageProject, MANAGE_DENIED } = require('../services/projectAccess');
 
 /**
@@ -15,7 +16,7 @@ const managesGroups = async (user, groups) => {
 };
 
 /**
- * @desc    Lấy danh sách nhóm công việc trong project
+ * @desc    Lấy danh sách nhóm công việc trong project kèm thống kê tiến độ (Bài 25, 40)
  * @route   GET /api/task-groups/:projectId
  * @access  Private
  */
@@ -29,7 +30,65 @@ const getGroupsByProject = async (req, res, next) => {
       .sort('order')
       .populate('createdBy', 'name avatar');
 
-    res.json({ success: true, data: { groups } });
+    // Thống kê tiến độ theo nhóm công việc (chỉ tính việc cấp gốc để tránh double-weighting)
+    const rootTasks = await Task.find({
+      project: req.params.projectId,
+      parentTask: { $in: [null, undefined] },
+      status: { $ne: 'failed' },
+    }).select('taskGroup status progress');
+
+    const groupMap = {};
+    let ungroupedTotal = 0;
+    let ungroupedDone = 0;
+    let ungroupedInProgress = 0;
+
+    for (const task of rootTasks) {
+      if (!task.taskGroup) {
+        ungroupedTotal++;
+        if (task.status === 'done') ungroupedDone++;
+        else if (task.status === 'in_progress' || task.status === 'review') ungroupedInProgress++;
+      } else {
+        const gid = String(task.taskGroup);
+        if (!groupMap[gid]) {
+          groupMap[gid] = { totalTasks: 0, completedTasks: 0, inProgressTasks: 0, progressSum: 0 };
+        }
+        groupMap[gid].totalTasks++;
+        if (task.status === 'done') {
+          groupMap[gid].completedTasks++;
+          groupMap[gid].progressSum += 100;
+        } else {
+          if (task.status === 'in_progress' || task.status === 'review') groupMap[gid].inProgressTasks++;
+          groupMap[gid].progressSum += (task.progress || 0);
+        }
+      }
+    }
+
+    const enrichedGroups = groups.map((g) => {
+      const stats = groupMap[String(g._id)] || { totalTasks: 0, completedTasks: 0, inProgressTasks: 0, progressSum: 0 };
+      const progress = stats.totalTasks > 0 ? Math.round(stats.progressSum / stats.totalTasks) : 0;
+      return {
+        ...g.toObject(),
+        totalTasks: stats.totalTasks,
+        completedTasks: stats.completedTasks,
+        inProgressTasks: stats.inProgressTasks,
+        progress,
+      };
+    });
+
+    const ungroupedStats = {
+      totalTasks: ungroupedTotal,
+      completedTasks: ungroupedDone,
+      inProgressTasks: ungroupedInProgress,
+      progress: ungroupedTotal > 0 ? Math.round((ungroupedDone / ungroupedTotal) * 100) : 0,
+    };
+
+    res.json({
+      success: true,
+      data: {
+        groups: enrichedGroups,
+        ungroupedStats,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -163,10 +222,41 @@ const reorderGroups = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Đóng / Mở nhóm công việc (Bài 60)
+ * @route   PATCH /api/task-groups/:id/toggle-open
+ * @access  Admin/Owner, PM của dự án
+ */
+const toggleGroupOpen = async (req, res, next) => {
+  try {
+    const userCompany = req.user?.companyName || 'Công ty Công nghệ RAO';
+    const existing = await TaskGroup.findOne({ _id: req.params.id, companyName: userCompany });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nhóm công việc' });
+    }
+    if (!(await managesGroups(req.user, [existing]))) {
+      return res.status(403).json({ success: false, message: MANAGE_DENIED });
+    }
+
+    const nextState = req.body.isOpen !== undefined ? Boolean(req.body.isOpen) : !existing.isOpen;
+    existing.isOpen = nextState;
+    await existing.save();
+
+    res.json({
+      success: true,
+      data: { group: existing },
+      message: existing.isOpen ? 'Đã mở nhóm công việc' : 'Đã tạm đóng nhóm công việc',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getGroupsByProject,
   createGroup,
   updateGroup,
   deleteGroup,
   reorderGroups,
+  toggleGroupOpen,
 };

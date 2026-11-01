@@ -30,6 +30,7 @@ const SUITES = [
   { name: 'workload-period', file: 'workload-period.test.mjs', label: 'Period capacity and assessment transitions' },
   { name: 'resource-workflows', file: 'resource-workflows.test.mjs', label: 'Workload period and evaluation workflow' },
   // Bộ đơn vị, không cần server lẫn database — chạy trước để lỗi thuật toán lộ ra sớm.
+  { name: 'twoFactor', file: 'twoFactor.test.mjs', label: 'Bảo mật 2 lớp TOTP và Backup Codes' },
   { name: 'scoring', file: 'scoring.test.mjs', label: 'Thang điểm dùng chung' },
   { name: 'csp', file: 'csp.test.mjs', label: 'CSP — ràng buộc H3/H4' },
   { name: 'hybrid', file: 'hybrid.test.mjs', label: 'Hybrid — bàn giao CSP → GA' },

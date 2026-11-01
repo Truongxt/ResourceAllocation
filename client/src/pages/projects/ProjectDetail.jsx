@@ -56,6 +56,7 @@ import taskGroupService from '../../services/taskGroupService';
 import TaskDetailDrawer from '../../components/tasks/TaskDetailDrawer';
 import TaskFormModal from '../tasks/components/TaskFormModal';
 import TaskGroupManagerModal from '../../components/tasks/TaskGroupManagerModal';
+import ProjectLifecycleMenu from '../../components/projects/ProjectLifecycleMenu';
 import { getTaskPermissions } from '../../utils/taskPermissions';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -123,6 +124,10 @@ export default function ProjectDetail() {
   // Task Group management state
   const [taskGroups, setTaskGroups] = useState([]);
   const [taskGroupModalOpen, setTaskGroupModalOpen] = useState(false);
+  const [selectedTaskGroupId, setSelectedTaskGroupId] = useState(null);
+
+  // Base Wework: Báo cáo tiến độ Kế hoạch vs Thực tế (Bài 86)
+  const [progressMetrics, setProgressMetrics] = useState(null);
 
   // Admin/Owner, hoặc PM của chính dự án này: toàn quyền với công việc lẫn quản lý dự án (nhóm
   // công việc, thành viên, cấu hình, mở lại). PM ở dự án khác chỉ như thành viên — khớp server
@@ -167,7 +172,8 @@ export default function ProjectDetail() {
     setLoadError('');
     try {
       const res = await projectService.getById(id);
-      setProject(res.data.data.project);
+      setProject(res.data?.data?.project || res.data?.data);
+      setProgressMetrics(res.data?.data?.progressMetrics || null);
     } catch (error) {
       setLoadError(error.response?.data?.message || t('projectDetail.loadFailed') || 'Không thể tải chi tiết dự án');
     } finally {
@@ -610,8 +616,38 @@ export default function ProjectDetail() {
       title: t('gantt.progress') || 'Tiến độ',
       dataIndex: 'progress',
       key: 'progress',
-      width: 120,
-      render: (progress = 0) => <Progress percent={progress} size="small" strokeColor="#0284c7" />,
+      width: 140,
+      render: (progress = 0, record) => {
+        let planned = null;
+        let isDelayed = false;
+        if (record.startDate && record.endDate) {
+          const now = Date.now();
+          const start = new Date(record.startDate).getTime();
+          const end = new Date(record.endDate).getTime();
+          if (end > start) {
+            planned = now <= start ? 0 : now >= end ? 100 : Math.round(((now - start) / (end - start)) * 100);
+            if (record.status !== 'done' && progress < planned - 5) {
+              isDelayed = true;
+            }
+          }
+        }
+
+        return (
+          <div>
+            <Progress percent={progress} size="small" strokeColor={isDelayed ? '#ef4444' : '#0284c7'} />
+            {planned !== null && (
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                <span>KH: {planned}%</span>
+                {isDelayed && (
+                  <Tag color="error" style={{ fontSize: 9, margin: 0, padding: '0 3px', lineHeight: '14px' }}>
+                    Chậm {planned - progress}%
+                  </Tag>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: t('common.actions') || 'Thao tác',
@@ -756,6 +792,14 @@ export default function ProjectDetail() {
             <Button icon={<ReloadOutlined />} onClick={() => { load(); loadTaskGroups(); }}>
               {t('common.reload') || 'Tải lại'}
             </Button>
+            {canManageThisProject && (
+              <ProjectLifecycleMenu
+                project={project}
+                canArchive={canManageThisProject}
+                canDuplicate={canManageThisProject}
+                onChanged={load}
+              />
+            )}
           </Space>
         </div>
       </div>
@@ -771,8 +815,22 @@ export default function ProjectDetail() {
               <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
                 {t('projectDetail.projectProgress') || 'Tiến độ dự án'}
               </Text>
-              <div style={{ fontSize: 24, fontWeight: 600, color: '#0284c7' }} className="tabular-nums">
-                {project.progress || 0}%
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <div style={{ fontSize: 24, fontWeight: 600, color: '#0284c7' }} className="tabular-nums">
+                  {project.progress || 0}%
+                </div>
+                {progressMetrics && (
+                  <Tag
+                    color={progressMetrics.scheduleStatus === 'delayed' ? 'error' : progressMetrics.scheduleStatus === 'ahead' ? 'blue' : 'success'}
+                    style={{ fontSize: 10, margin: 0, padding: '0 5px', borderRadius: 4 }}
+                  >
+                    {progressMetrics.scheduleStatus === 'delayed'
+                      ? `Chậm ${Math.abs(progressMetrics.variance)}%`
+                      : progressMetrics.scheduleStatus === 'ahead'
+                      ? `Vượt ${progressMetrics.variance}%`
+                      : 'Đúng hạn'}
+                  </Tag>
+                )}
               </div>
             </div>
           </div>
@@ -898,6 +956,82 @@ export default function ProjectDetail() {
                           strokeColor="#10b981"
                         />
                       </div>
+
+                      {/* Báo cáo tiến độ dự án: Kế hoạch vs Thực tế (Bài 86) */}
+                      {progressMetrics && (
+                        <div
+                          style={{
+                            marginTop: 8,
+                            padding: 14,
+                            borderRadius: 8,
+                            border: `1px solid ${isDark ? '#27272a' : '#e2e8f0'}`,
+                            background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                            <Text strong style={{ fontSize: 12 }}>
+                              Tiến độ Kế hoạch vs Thực tế (Bài 86)
+                            </Text>
+                            <Tag
+                              color={
+                                progressMetrics.scheduleStatus === 'delayed'
+                                  ? 'error'
+                                  : progressMetrics.scheduleStatus === 'ahead'
+                                  ? 'blue'
+                                  : 'success'
+                              }
+                              style={{ margin: 0 }}
+                            >
+                              {progressMetrics.scheduleStatus === 'delayed'
+                                ? `Chậm tiến độ (${Math.abs(progressMetrics.variance)}%)`
+                                : progressMetrics.scheduleStatus === 'ahead'
+                                ? `Vượt tiến độ (${progressMetrics.variance}%)`
+                                : 'Đúng tiến độ'}
+                            </Tag>
+                          </div>
+
+                          <div style={{ marginBottom: 10 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
+                              <Text type="secondary">Tiến độ thực tế hiện tại</Text>
+                              <span style={{ fontWeight: 600, color: '#0284c7' }}>{progressMetrics.actualProgress}%</span>
+                            </div>
+                            <Progress percent={progressMetrics.actualProgress} strokeColor="#0284c7" size="small" />
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2, marginTop: 6 }}>
+                              <Text type="secondary">Kế hoạch lẽ ra phải đạt tới hôm nay</Text>
+                              <span style={{ fontWeight: 600, color: '#f59e0b' }}>{progressMetrics.plannedProgress}%</span>
+                            </div>
+                            <Progress percent={progressMetrics.plannedProgress} strokeColor="#f59e0b" size="small" />
+                          </div>
+
+                          <Row gutter={8} style={{ fontSize: 11, paddingTop: 8, borderTop: `1px dashed ${isDark ? '#3f3f46' : '#e2e8f0'}` }}>
+                            <Col span={8}>
+                              <Text type="secondary" style={{ display: 'block', fontSize: 10 }}>Chỉ số SPI:</Text>
+                              <Text strong style={{ color: progressMetrics.spi >= 1 ? '#10b981' : '#ef4444' }}>
+                                {progressMetrics.spi}
+                              </Text>
+                            </Col>
+                            <Col span={8}>
+                              <Text type="secondary" style={{ display: 'block', fontSize: 10 }}>Độ lệch tiến độ:</Text>
+                              <Text strong style={{ color: progressMetrics.daysDiff < 0 ? '#ef4444' : '#10b981' }}>
+                                {progressMetrics.daysDiff < 0
+                                  ? `Chậm ~${Math.abs(progressMetrics.daysDiff)} ngày`
+                                  : progressMetrics.daysDiff > 0
+                                  ? `Vượt ~${progressMetrics.daysDiff} ngày`
+                                  : 'Đúng hạn'}
+                              </Text>
+                            </Col>
+                            <Col span={8}>
+                              <Text type="secondary" style={{ display: 'block', fontSize: 10 }}>Dự kiến xong:</Text>
+                              <Text strong>
+                                {progressMetrics.estimatedFinishDate
+                                  ? dayjs(progressMetrics.estimatedFinishDate).format('DD/MM/YYYY')
+                                  : '—'}
+                              </Text>
+                            </Col>
+                          </Row>
+                        </div>
+                      )}
                     </Space>
                   </div>
                 </Col>
@@ -942,12 +1076,76 @@ export default function ProjectDetail() {
                     )}
                   </Space>
                 </div>
+
+                {/* Thanh theo dõi tiến độ theo Nhóm công việc / Milestone (Bài 25, 40, 60) */}
+                {taskGroups.length > 0 && (
+                  <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 12, marginBottom: 16 }}>
+                    <div
+                      onClick={() => setSelectedTaskGroupId(null)}
+                      style={{
+                        cursor: 'pointer',
+                        padding: '8px 14px',
+                        borderRadius: 8,
+                        border: !selectedTaskGroupId ? '1.5px solid #0284c7' : '1px solid var(--border-color, #e2e8f0)',
+                        background: !selectedTaskGroupId ? (isDark ? 'rgba(2, 132, 199, 0.15)' : '#f0f9ff') : 'transparent',
+                        minWidth: 120,
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>Tất cả nhóm</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{tasks.length} công việc</div>
+                    </div>
+                    {taskGroups.map((g) => {
+                      const isSelected = selectedTaskGroupId === g._id;
+                      return (
+                        <div
+                          key={g._id}
+                          onClick={() => setSelectedTaskGroupId(isSelected ? null : g._id)}
+                          style={{
+                            cursor: 'pointer',
+                            padding: '8px 14px',
+                            borderRadius: 8,
+                            border: isSelected ? `1.5px solid ${g.color || '#3b82f6'}` : '1px solid var(--border-color, #e2e8f0)',
+                            background: isSelected ? (isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff') : 'transparent',
+                            minWidth: 160,
+                            opacity: g.isOpen === false ? 0.65 : 1,
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: g.color || '#3b82f6' }}>{g.name}</span>
+                            {g.isOpen === false && (
+                              <Tag color="default" style={{ fontSize: 9, margin: 0, padding: '0 4px', lineHeight: '14px' }}>
+                                Đóng
+                              </Tag>
+                            )}
+                          </div>
+                          <Progress
+                            percent={g.progress || 0}
+                            size="small"
+                            strokeColor={g.color || '#3b82f6'}
+                            style={{ margin: '3px 0' }}
+                          />
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{g.completedTasks || 0}/{g.totalTasks || 0} việc</span>
+                            <span style={{ fontWeight: 600 }}>{g.progress || 0}%</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {tasks.length === 0 ? (
                   <Empty description={t('projectDetail.noTasks') || 'Chưa có công việc'} style={{ padding: 48 }} />
                 ) : (
                   <Table
                     rowKey="_id"
-                    dataSource={tasks}
+                    dataSource={
+                      selectedTaskGroupId
+                        ? tasks.filter((t) => (t.taskGroup?._id || t.taskGroup) === selectedTaskGroupId)
+                        : tasks
+                    }
                     columns={taskColumns}
                     pagination={{ pageSize: 10, hideOnSinglePage: true }}
                     onRow={(record) => ({

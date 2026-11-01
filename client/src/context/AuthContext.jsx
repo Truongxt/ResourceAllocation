@@ -57,12 +57,43 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       const response = await authService.login(credentials);
+      // Nếu tài khoản yêu cầu bước 2 (2FA)
+      if (response.requires2FA) {
+        return {
+          success: true,
+          requires2FA: true,
+          tempToken: response.tempToken,
+          email: response.email,
+        };
+      }
+
       const { user: loggedInUser, token } = response.data;
       setToken(token);
       setUser(loggedInUser);
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.message || i18n.t('auth.loginFailed');
+      setError(message);
+      return { success: false, message };
+    }
+  }, []);
+
+  // Xác thực bước 2FA khi đăng nhập
+  const verify2FALogin = useCallback(async (tempToken, code) => {
+    setError(null);
+    try {
+      const response = await authService.verify2FALogin(tempToken, code);
+      const { user: loggedInUser, token } = response.data;
+      setToken(token);
+      setUser(loggedInUser);
+      return {
+        success: true,
+        usedBackupCode: response.usedBackupCode,
+        remainingBackupCodes: response.remainingBackupCodes,
+        message: response.message,
+      };
+    } catch (err) {
+      const message = err.response?.data?.message || 'Mã xác thực không đúng';
       setError(message);
       return { success: false, message };
     }
@@ -176,6 +207,7 @@ export function AuthProvider({ children }) {
     getToken,
     register,
     login,
+    verify2FALogin,
     logout,
     updateProfile,
     changePassword,

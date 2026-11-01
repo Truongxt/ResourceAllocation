@@ -6,6 +6,15 @@ const { authLimiter } = require('../middleware/rateLimit');
 const {
   register,
   login,
+  verify2FALogin,
+  get2FAStatus,
+  setup2FA,
+  enable2FA,
+  disable2FA,
+  regenerateBackupCodes,
+  getEmailPreferences,
+  updateEmailPreferences,
+  sendTestEmail,
   getMe,
   updateProfile,
   changePassword,
@@ -110,6 +119,7 @@ const changePasswordValidation = [
 // Public routes — siết tần suất vì đây là chỗ duy nhất thử sai hàng loạt có giá trị
 router.post('/register', authLimiter, registerValidation, validate, register);
 router.post('/login', authLimiter, loginValidation, validate, login);
+router.post('/2fa/verify', authLimiter, verify2FALogin);
 
 // Làm mới và đăng xuất chỉ cần cookie, không cần access token
 router.post('/refresh', refresh);
@@ -123,6 +133,18 @@ router.put('/profile', protect, updateProfileValidation, validate, updateProfile
 router.put('/password', protect, changePasswordValidation, validate, changePassword);
 router.get('/sessions', protect, getSessions);
 router.delete('/sessions/:id', protect, revokeSession);
+
+// Two-Factor Authentication (2FA) cá nhân
+router.get('/2fa/status', protect, get2FAStatus);
+router.post('/2fa/setup', protect, setup2FA);
+router.post('/2fa/enable', protect, enable2FA);
+router.post('/2fa/disable', protect, disable2FA);
+router.post('/2fa/regenerate-backup-codes', protect, regenerateBackupCodes);
+
+// Tùy chọn thông báo qua Email (Email Notification Preferences)
+router.get('/email-preferences', protect, getEmailPreferences);
+router.put('/email-preferences', protect, updateEmailPreferences);
+router.post('/test-email', protect, sendTestEmail);
 
 // Admin only (Quản lý tài khoản toàn hệ thống - Base Account)
 router.get('/users', protect, authorize('admin'), getUsers);

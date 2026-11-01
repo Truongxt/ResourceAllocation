@@ -203,7 +203,7 @@ const authService = {
   },
 
   /**
-   * Vô hiệu hóa bảo mật 2 lớp cho tài khoản
+   * Vô hiệu hóa bảo mật 2 lớp cho tài khoản (Admin/Owner)
    */
   disableUser2FA: async (id) => {
     const response = await api.put(`/auth/users/${id}/disable-2fa`);
@@ -215,6 +215,86 @@ const authService = {
    */
   adminUpdateUserProfile: async (id, profileData) => {
     const response = await api.put(`/auth/users/${id}/profile`, profileData);
+    return response.data;
+  },
+
+  // ----------------------------------------------------
+  // TWO-FACTOR AUTHENTICATION (2FA) API
+  // ----------------------------------------------------
+
+  /**
+   * Lấy trạng thái 2FA và số lượng mã dự phòng còn lại
+   */
+  get2FAStatus: async () => {
+    const response = await api.get('/auth/2fa/status');
+    return response.data;
+  },
+
+  /**
+   * Khởi tạo thiết lập 2FA (lấy secret + QR code)
+   */
+  setup2FA: async () => {
+    const response = await api.post('/auth/2fa/setup');
+    return response.data;
+  },
+
+  /**
+   * Kích hoạt 2FA với mã OTP 6 số
+   */
+  enable2FA: async (code) => {
+    const response = await api.post('/auth/2fa/enable', { code });
+    return response.data;
+  },
+
+  /**
+   * Tắt 2FA cá nhân (yêu cầu mật khẩu hoặc OTP)
+   */
+  disable2FA: async ({ password, code }) => {
+    const response = await api.post('/auth/2fa/disable', { password, code });
+    return response.data;
+  },
+
+  /**
+   * Tạo lại 10 mã dự phòng mới (yêu cầu mật khẩu hoặc OTP)
+   */
+  regenerateBackupCodes: async ({ password, code }) => {
+    const response = await api.post('/auth/2fa/regenerate-backup-codes', { password, code });
+    return response.data;
+  },
+
+  /**
+   * Xác thực 2FA khi đăng nhập (TOTP hoặc mã dự phòng)
+   */
+  verify2FALogin: async (tempToken, code) => {
+    const response = await api.post('/auth/2fa/verify', { tempToken, code });
+    return response.data;
+  },
+
+  // ----------------------------------------------------
+  // EMAIL NOTIFICATION PREFERENCES API
+  // ----------------------------------------------------
+
+  /**
+   * Lấy cấu hình tùy chọn nhận email
+   */
+  getEmailPreferences: async () => {
+    const response = await api.get('/auth/email-preferences');
+    return response.data;
+  },
+
+  /**
+   * Cập nhật tùy chọn nhận email
+   */
+  updateEmailPreferences: async (emailPreferences) => {
+    const response = await api.put('/auth/email-preferences', { emailPreferences });
+    return response.data;
+  },
+
+  /**
+   * Gửi email thử nghiệm (Test Email)
+   */
+  sendTestEmail: async () => {
+    const response = await api.post('/auth/test-email');
     return response.data;
   },
 };

@@ -93,3 +93,14 @@
 .kanban-task-card:active {
   transform: scale(0.98) !important;
 }
+
+/* Column tinting gives the board rhythm without adding a second brand colour. */
+.kanban-column-antd { border-radius: 16px; background: color-mix(in srgb, var(--surface-card) 92%, var(--surface-elevated)); box-shadow: var(--shadow-card); }
+.kanban-column-header-antd { padding: 15px 16px; background: transparent; }
+.kanban-column-antd:nth-child(1) { border-top: 2px solid var(--text-muted); }
+.kanban-column-antd:nth-child(2) { border-top: 2px solid var(--status-info); }
+.kanban-column-antd:nth-child(3) { border-top: 2px solid var(--brand-primary); }
+.kanban-column-antd:nth-child(4) { border-top: 2px solid var(--status-warning); }
+.kanban-column-antd:nth-child(5) { border-top: 2px solid var(--status-success); }
+.kanban-task-card { box-shadow: var(--shadow-card) !important; }
+@media (hover: hover) and (pointer: fine) { .kanban-task-card:hover { box-shadow: var(--shadow-card-hover) !important; } }

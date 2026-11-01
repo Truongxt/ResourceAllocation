@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Project = require('../models/Project');
 const { toSearchRegex } = require('../utils/escapeRegex');
 const Task = require('../models/Task');
@@ -216,9 +217,65 @@ const getProjectById = async (req, res, next) => {
       });
     }
 
+    // Tính toán chỉ số Kế hoạch vs Thực tế (Bài 86: Wework - Báo cáo tiến độ dự án)
+    let progressMetrics = null;
+    if (project.kind === 'project' && project.startDate && project.endDate) {
+      const now = new Date();
+      const start = new Date(project.startDate);
+      const end = new Date(project.endDate);
+      const totalDuration = end.getTime() - start.getTime();
+
+      let plannedProgress = 0;
+      if (totalDuration > 0) {
+        if (now <= start) {
+          plannedProgress = 0;
+        } else if (now >= end) {
+          plannedProgress = 100;
+        } else {
+          const elapsed = now.getTime() - start.getTime();
+          plannedProgress = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
+        }
+      }
+
+      const actualProgress = project.progress || 0;
+      const variance = actualProgress - plannedProgress; // > 0: vượt, < 0: chậm
+      const spi = plannedProgress > 0
+        ? Math.round((actualProgress / plannedProgress) * 100) / 100
+        : (actualProgress > 0 ? 1.0 : 0);
+
+      let scheduleStatus = 'on_schedule';
+      if (variance < -5) {
+        scheduleStatus = 'delayed'; // Chậm tiến độ
+      } else if (variance > 5) {
+        scheduleStatus = 'ahead'; // Vượt tiến độ
+      }
+
+      let estimatedFinishDate = null;
+      if (actualProgress > 0 && actualProgress < 100 && totalDuration > 0) {
+        const elapsedMs = Math.max(now.getTime() - start.getTime(), 1);
+        const requiredTotalMs = (elapsedMs / actualProgress) * 100;
+        estimatedFinishDate = new Date(start.getTime() + requiredTotalMs);
+      } else if (actualProgress === 100) {
+        estimatedFinishDate = now;
+      }
+
+      const oneDay = 24 * 60 * 60 * 1000;
+      const daysDiff = Math.round(variance * (totalDuration / (100 * oneDay)));
+
+      progressMetrics = {
+        plannedProgress,
+        actualProgress,
+        variance,
+        spi,
+        scheduleStatus,
+        daysDiff,
+        estimatedFinishDate,
+      };
+    }
+
     res.json({
       success: true,
-      data: { project },
+      data: { project, progressMetrics },
     });
   } catch (error) {
     next(error);
@@ -1046,8 +1103,276 @@ const updateCustomFields = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Chuyển loại Dự án <-> Phòng ban (Base Wework - Bài 63)
+ * @route   PATCH /api/projects/:id/convert-kind
+ * @access  Private (Admin / Project Manager)
+ */
+const convertProjectKind = async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy dự án' });
+    }
+
+    if (!ensureManagesProject(req, res, project)) return;
+
+    const { targetKind, startDate, endDate } = req.body;
+    if (!['project', 'team'].includes(targetKind)) {
+      return res.status(400).json({ success: false, message: 'Loại đích không hợp lệ (phải là project hoặc team)' });
+    }
+
+    if (project.kind === targetKind) {
+      return res.status(400).json({
+        success: false,
+        message: `Dự án này hiện đã là ${targetKind === 'team' ? 'Phòng ban' : 'Dự án'}`,
+      });
+    }
+
+    const updateData = { kind: targetKind };
+
+    if (targetKind === 'team') {
+      // Chuyển Dự án => Phòng ban:
+      // Gỡ bỏ ngày kết thúc, reset progress tổng
+      updateData.$unset = { endDate: 1 };
+      updateData.progress = 0;
+    } else {
+      // Chuyển Phòng ban => Dự án:
+      // Bắt buộc cần startDate và endDate
+      const newStart = startDate || project.startDate || new Date();
+      const newEnd = endDate;
+      if (!newEnd) {
+        return res.status(400).json({
+          success: false,
+          message: 'Khi chuyển thành Dự án có thời hạn, ngày kết thúc (deadline) là bắt buộc',
+        });
+      }
+      if (new Date(newStart) > new Date(newEnd)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ngày kết thúc phải sau ngày bắt đầu',
+        });
+      }
+      updateData.startDate = newStart;
+      updateData.endDate = newEnd;
+    }
+
+    const updated = await Project.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: false,
+    })
+      .populate('manager', 'name email role avatar department')
+      .populate('members.user', 'name email role avatar department')
+      .populate('department', 'name code color');
+
+    // Nếu chuyển sang dự án có hạn, tính lại tiến độ
+    if (targetKind === 'project') {
+      const rootTasks = await Task.find({
+        project: project._id,
+        parentTask: { $in: [null, undefined] },
+        status: { $ne: 'failed' },
+      }).select('progress status');
+      if (rootTasks.length > 0) {
+        const total = rootTasks.reduce((sum, t) => sum + (t.status === 'done' ? 100 : (t.progress || 0)), 0);
+        const progress = Math.round(total / rootTasks.length);
+        updated.progress = progress;
+        await Project.findByIdAndUpdate(project._id, { progress });
+      }
+    }
+
+    logActivity({
+      req,
+      action: 'CONVERT_PROJECT_KIND',
+      entityType: 'project',
+      entityId: project._id,
+      entityTitle: project.name,
+      description: `${req.user.name} đã chuyển loại "${project.name}" từ ${project.kind === 'team' ? 'Phòng ban' : 'Dự án'} sang ${targetKind === 'team' ? 'Phòng ban vận hành' : 'Dự án có thời hạn'}`,
+      details: { fromKind: project.kind, toKind: targetKind },
+    });
+
+    res.json({
+      success: true,
+      data: { project: updated },
+      message: `Đã chuyển loại thành ${targetKind === 'team' ? 'Phòng ban' : 'Dự án'} thành công (Base Wework Bài 63)`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Xem trước các dự án/phòng ban của nhân sự để bàn giao vai trò (Bài 75)
+ * @route   GET /api/projects/reassign-preview
+ * @access  Admin, Project Manager
+ */
+const previewProjectReassign = async (req, res, next) => {
+  try {
+    const { fromUserId } = req.query;
+    if (!fromUserId || !mongoose.Types.ObjectId.isValid(fromUserId)) {
+      return res.status(400).json({ success: false, message: 'Thiếu hoặc sai ID nhân sự' });
+    }
+
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    const companyFilter = {
+      companyName: userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
+    };
+
+    // Tìm các dự án mà fromUserId là Quản lý
+    const managedProjects = await Project.find({
+      ...companyFilter,
+      manager: fromUserId,
+    }).select('_id name code kind status progress startDate endDate');
+
+    // Tìm các dự án mà fromUserId là Thành viên (không phải manager)
+    const memberProjects = await Project.find({
+      ...companyFilter,
+      manager: { $ne: fromUserId },
+      'members.user': fromUserId,
+    }).select('_id name code kind status progress startDate endDate members');
+
+    res.json({
+      success: true,
+      data: {
+        managedProjects,
+        memberProjects,
+        total: managedProjects.length + memberProjects.length,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Bàn giao vai trò hàng loạt trong Dự án / Phòng ban (Bài 75)
+ * @route   POST /api/projects/bulk-reassign
+ * @access  Admin, Project Manager
+ */
+const bulkReassignProjects = async (req, res, next) => {
+  try {
+    const { fromUserId, toUserId, projectIds, actionType, reason } = req.body;
+
+    if (!fromUserId || !mongoose.Types.ObjectId.isValid(fromUserId)) {
+      return res.status(400).json({ success: false, message: 'Thiếu hoặc sai người bàn giao' });
+    }
+    if (!Array.isArray(projectIds) || !projectIds.length) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn ít nhất một dự án' });
+    }
+    if (!actionType || !['replace_manager', 'demote_to_member', 'remove_member', 'replace_member'].includes(actionType)) {
+      return res.status(400).json({ success: false, message: 'Loại tác vụ không hợp lệ' });
+    }
+    if (['replace_manager', 'replace_member', 'demote_to_member'].includes(actionType)) {
+      if (!toUserId || !mongoose.Types.ObjectId.isValid(toUserId)) {
+        return res.status(400).json({ success: false, message: 'Vui lòng chọn nhân sự thay thế' });
+      }
+      if (String(fromUserId) === String(toUserId)) {
+        return res.status(400).json({ success: false, message: 'Người bàn giao và người nhận phải khác nhau' });
+      }
+    }
+
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    const query = {
+      _id: { $in: projectIds },
+      companyName: userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
+    };
+
+    const projects = await Project.find(query);
+    if (!projects.length) {
+      return res.status(400).json({ success: false, message: 'Không tìm thấy dự án phù hợp để thao tác' });
+    }
+
+    let affectedCount = 0;
+
+    for (const project of projects) {
+      let changed = false;
+
+      if (actionType === 'replace_manager') {
+        if (String(project.manager) === String(fromUserId)) {
+          project.manager = toUserId;
+          // Đảm bảo PM mới cũng có trong members
+          if (!project.members.some((m) => String(m.user) === String(toUserId))) {
+            project.members.push({ user: toUserId, role: 'lead', allocation: 100 });
+          }
+          changed = true;
+        }
+      } else if (actionType === 'demote_to_member') {
+        if (String(project.manager) === String(fromUserId)) {
+          project.manager = toUserId;
+          // Hạ người cũ xuống member
+          if (!project.members.some((m) => String(m.user) === String(fromUserId))) {
+            project.members.push({ user: fromUserId, role: 'developer', allocation: 50 });
+          }
+          // Đảm bảo PM mới có trong members
+          if (!project.members.some((m) => String(m.user) === String(toUserId))) {
+            project.members.push({ user: toUserId, role: 'lead', allocation: 100 });
+          }
+          changed = true;
+        }
+      } else if (actionType === 'remove_member') {
+        const prevLen = project.members.length;
+        project.members = project.members.filter((m) => String(m.user) !== String(fromUserId));
+        if (project.members.length !== prevLen) changed = true;
+
+        if (String(project.manager) === String(fromUserId)) {
+          if (toUserId) {
+            project.manager = toUserId;
+            if (!project.members.some((m) => String(m.user) === String(toUserId))) {
+              project.members.push({ user: toUserId, role: 'lead', allocation: 100 });
+            }
+            changed = true;
+          }
+        }
+      } else if (actionType === 'replace_member') {
+        let memberReplaced = false;
+        project.members = project.members.map((m) => {
+          if (String(m.user) === String(fromUserId)) {
+            memberReplaced = true;
+            return { user: toUserId, role: m.role || 'developer', allocation: m.allocation || 100, joinedAt: m.joinedAt };
+          }
+          return m;
+        });
+        if (memberReplaced) changed = true;
+        if (String(project.manager) === String(fromUserId)) {
+          project.manager = toUserId;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        await project.save();
+        affectedCount++;
+      }
+    }
+
+    logActivity({
+      req,
+      action: 'BULK_PROJECT_REASSIGN',
+      entityType: 'project',
+      entityId: projects[0]._id,
+      entityTitle: `${affectedCount} dự án/phòng ban`,
+      description: `${req.user.name} đã thực hiện tác vụ hàng loạt trên ${affectedCount} dự án/phòng ban (${actionType})`,
+      details: {
+        fromUserId: String(fromUserId),
+        toUserId: toUserId ? String(toUserId) : null,
+        projectIds: projects.map((p) => String(p._id)),
+        actionType,
+        reason: reason || '',
+      },
+    });
+
+    res.json({
+      success: true,
+      data: { affectedCount },
+      message: `Đã cập nhật vai trò trên ${affectedCount} dự án/phòng ban (Base Wework Bài 75)`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   updateCustomFields,
+  convertProjectKind,
   duplicateProject,
   archiveProject,
   unarchiveProject,
@@ -1062,4 +1387,6 @@ module.exports = {
   getProjectSummary,
   updateProjectPermissions,
   quickEditProject,
+  previewProjectReassign,
+  bulkReassignProjects,
 };

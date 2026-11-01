@@ -10,6 +10,7 @@
 const JobRun = require('../models/JobRun');
 const { generatePendingRecurringTasks } = require('./recurringTask.service');
 const { takeWorkloadSnapshots } = require('./workloadSnapshot.service');
+const { sendAllDailyDigests } = require('./email.service');
 
 const JOBS = {
   'recurring-tasks': {
@@ -23,6 +24,12 @@ const JOBS = {
     schedule: 'mỗi ngày',
     staleAfterHours: 30,
     run: takeWorkloadSnapshots,
+  },
+  'daily-digest': {
+    description: 'Gửi email tổng hợp đầu ngày cho người dùng bật tùy chọn',
+    schedule: 'mỗi ngày (sáng)',
+    staleAfterHours: 30,
+    run: sendAllDailyDigests,
   },
 };
 

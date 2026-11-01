@@ -31,6 +31,9 @@ const projectService = {
   archive(id) {
     return api.post(`/projects/${id}/archive`);
   },
+  convertKind(id, data) {
+    return api.patch(`/projects/${id}/convert-kind`, data);
+  },
 
   unarchive(id) {
     return api.post(`/projects/${id}/unarchive`);
@@ -72,6 +75,15 @@ const projectService = {
   // Base Wework: Chỉnh sửa nhanh (Quick Edit) dự án / phòng ban
   quickUpdate(id, data) {
     return api.patch(`/projects/${id}/quick-edit`, data);
+  },
+
+  // Base Wework: Tác vụ hàng loạt & Bàn giao vai trò Dự án / Phòng ban (Bài 75)
+  previewReassign(params) {
+    return api.get('/projects/reassign-preview', { params });
+  },
+
+  bulkReassign(data) {
+    return api.post('/projects/bulk-reassign', data);
   },
 };
 

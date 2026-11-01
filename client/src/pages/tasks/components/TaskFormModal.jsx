@@ -11,7 +11,7 @@
  *     4. Giờ ước tính, giờ thực tế, tiến độ (%), và khoảng thời gian thực hiện (RangePicker).
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Modal,
   Form,
@@ -80,6 +80,7 @@ export default function TaskFormModal({
   const selectedAssigneeId = Form.useWatch('assignee', form);
   const selectedDifficulty = Form.useWatch('difficulty', form) || 'medium';
   const selectedRequiredSkills = Form.useWatch('requiredSkills', form) || [];
+  const [isMultiAssign, setIsMultiAssign] = useState(false);
 
   const currentProj = useMemo(() => {
     const projId = selectedProject || editingTask?.project?._id || editingTask?.project;
@@ -220,25 +221,88 @@ export default function TaskFormModal({
         {/* Phân công nhân sự, Độ ưu tiên & Độ khó công việc */}
         <Row gutter={16}>
           <Col span={10}>
-            <Form.Item name="assignee" label={t('projectDetail.assignee') || 'Phân công nhân sự'}>
-              <Select
-                placeholder={t('tasks.form.assigneePlaceholder') || 'Chọn nhân sự phụ trách...'}
-                allowClear
-                disabled={!canChangeAssignee}
-                options={resources.map((r) => ({
-                  value: r.user?._id || r.userId || r._id,
-                  label: (
-                    <Space>
-                      <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: r.isOverloaded ? '#ef4444' : '#0284c7' }} />
-                      <span>{r.user?.name || r.userName || r.position}</span>
-                      <Tag color={r.isOverloaded ? 'error' : 'blue'} style={{ fontSize: 10, margin: 0 }}>
-                        {r.position} {r.utilizationRate ? `(${r.utilizationRate}%)` : ''}
-                      </Tag>
-                    </Space>
-                  ),
-                }))}
-              />
-            </Form.Item>
+            {isMultiAssign && !editingTask ? (
+              <Form.Item
+                name="assignees"
+                label={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <span>Giao nhiều người (Base Wework)</span>
+                    <Button
+                      type="link"
+                      size="small"
+                      style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                      onClick={() => {
+                        setIsMultiAssign(false);
+                        form.setFieldsValue({ assignees: undefined });
+                      }}
+                    >
+                      ← Giao 1 người
+                    </Button>
+                  </div>
+                }
+                rules={[{ required: true, message: 'Vui lòng chọn ít nhất 1 nhân sự' }]}
+                extra="Hệ thống sẽ tự động tạo việc riêng cho từng người."
+              >
+                <Select
+                  mode="multiple"
+                  placeholder="Tick chọn các nhân sự..."
+                  allowClear
+                  maxTagCount="responsive"
+                  options={resources.map((r) => ({
+                    value: r.user?._id || r.userId || r._id,
+                    label: (
+                      <Space>
+                        <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: r.isOverloaded ? '#ef4444' : '#0284c7' }} />
+                        <span>{r.user?.name || r.userName || r.position}</span>
+                        <Tag color={r.isOverloaded ? 'error' : 'blue'} style={{ fontSize: 10, margin: 0 }}>
+                          {r.position} {r.utilizationRate ? `(${r.utilizationRate}%)` : ''}
+                        </Tag>
+                      </Space>
+                    ),
+                  }))}
+                />
+              </Form.Item>
+            ) : (
+              <Form.Item
+                name="assignee"
+                label={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <span>{t('projectDetail.assignee') || 'Phân công nhân sự'}</span>
+                    {!editingTask && (
+                      <Button
+                        type="link"
+                        size="small"
+                        style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                        onClick={() => {
+                          setIsMultiAssign(true);
+                          form.setFieldsValue({ assignee: undefined });
+                        }}
+                      >
+                        + Giao nhiều người
+                      </Button>
+                    )}
+                  </div>
+                }
+              >
+                <Select
+                  placeholder={t('tasks.form.assigneePlaceholder') || 'Chọn nhân sự phụ trách...'}
+                  allowClear
+                  disabled={!canChangeAssignee}
+                  options={resources.map((r) => ({
+                    value: r.user?._id || r.userId || r._id,
+                    label: (
+                      <Space>
+                        <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: r.isOverloaded ? '#ef4444' : '#0284c7' }} />
+                        <span>{r.user?.name || r.userName || r.position}</span>
+                        <Tag color={r.isOverloaded ? 'error' : 'blue'} style={{ fontSize: 10, margin: 0 }}>
+                          {r.position} {r.utilizationRate ? `(${r.utilizationRate}%)` : ''}
+                        </Tag>
+                      </Space>
+                    ),
+                  }))}
+                />
+              </Form.Item>
+            )}
           </Col>
           <Col span={7}>
             <Form.Item name="priority" label={t('common.priority') || 'Độ ưu tiên'} rules={[{ required: true }]}>

@@ -13,6 +13,7 @@ import {
   SafetyCertificateOutlined,
   CheckCircleFilled,
   LockOutlined,
+  MailOutlined,
   CalendarOutlined,
   TeamOutlined,
   ApartmentOutlined,
@@ -32,6 +33,7 @@ import UserDirectoryTab from '../../components/settings/UserDirectoryTab';
 import AppPermissionsTab from '../../components/settings/AppPermissionsTab';
 import GroupsTab from '../../components/settings/GroupsTab';
 import MySkillAssessmentTab from '../../components/settings/MySkillAssessmentTab';
+import EmailPreferencesTab from '../../components/settings/EmailPreferencesTab';
 import './Settings.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -79,6 +81,16 @@ export default function Settings() {
           updateProfile={updateProfile}
         />
       ),
+    },
+    {
+      key: 'notifications',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 600 }}>
+          <MailOutlined />
+          <span>Tùy chọn Email</span>
+        </span>
+      ),
+      children: <EmailPreferencesTab user={user} />,
     },
     {
       key: 'leaves',

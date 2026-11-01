@@ -113,6 +113,15 @@
   background: var(--bg-card-hover);
 }
 
+/* Project cards use hierarchy rather than a wall of identical containers. */
+.projects-toolbar { border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface-overlay); box-shadow: var(--shadow-card); }
+.project-stat { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.project-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.project-card:nth-child(3n + 1) { border-top: 2px solid color-mix(in srgb, var(--brand-primary) 65%, transparent); }
+.project-card:nth-child(3n + 2) { border-top: 2px solid color-mix(in srgb, var(--status-info) 55%, transparent); }
+.project-card:nth-child(3n + 3) { border-top: 2px solid color-mix(in srgb, var(--status-success) 50%, transparent); }
+@media (hover: hover) and (pointer: fine) { .project-card:hover { box-shadow: var(--shadow-card-hover); } }
+
 .project-card-top {
   display: flex;
   justify-content: space-between;
