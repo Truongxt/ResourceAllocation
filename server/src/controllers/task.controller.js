@@ -2836,4 +2836,6 @@ module.exports = {
   reviewTask,
   getPendingReviews,
   previewReassign,
-  
+  bulkReassign,
+};
+
