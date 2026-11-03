@@ -6,6 +6,25 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-11-03 (ranh giới đăng ký, 2FA và truy vấn công việc)
+
+### Fixed
+
+- Đăng ký công khai chỉ tạo công ty mới, bắt buộc tên công ty và từ chối chọn `role`.
+  Kiểm tra dữ liệu tenant cũ và giữ tên nguyên tử qua chỉ mục unique của `CompanySetting`
+  để hai request không cùng nhận quyền Owner. Dọn reservation khi tạo User/Resource lỗi
+  và dữ liệu đã được dọn thành công. Mobile bổ sung tên công ty bắt buộc.
+- REST và Socket.IO dùng chung kiểm tra access token HS256 có `purpose: 'access'`;
+  token chờ 2FA không thể đọc hồ sơ, đổi mật khẩu hoặc mở socket. Access token cũ cần
+  refresh/đăng nhập lại; refresh token hiện có không bị đổi định dạng.
+- Danh sách và thống kê công việc luôn giao với dự án thuộc công ty người gọi. Scope
+  cá nhân, người được giao, dự án, ngày và tìm kiếm không ghi đè được ranh giới này.
+- Thêm ba bộ hồi quy `registration-boundary`, `token-boundary`, `task-list-scope` và
+  kiểm thử form đăng ký mobile. Fixture ma trận quyền dùng Admin tạo nhân sự thay vì
+  dựa vào đường đăng ký công khai gia nhập công ty mặc định.
+
+---
+
 ## [Chưa phát hành] - 2026-10-19 (gộp `main`: đánh giá năng lực hai chiều, tải theo kỳ, khung tổng quan)
 
 ### Added

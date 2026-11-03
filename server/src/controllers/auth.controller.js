@@ -3,6 +3,8 @@ const { toSearchRegex } = require('../utils/escapeRegex');
 const User = require('../models/User');
 const Resource = require('../models/Resource');
 const Department = require('../models/Department');
+const CompanySetting = require('../models/CompanySetting');
+const { reserveCompanyName } = require('../services/companyRegistration.service');
 const RefreshToken = require('../models/RefreshToken');
 const { getJwtSecret, getAccessTokenExpire, getRefreshTokenDays } = require('../config/jwt');
 const {
@@ -39,7 +41,7 @@ const REFRESH_COOKIE = 'rao_refresh';
  * Generate JWT Token (access token — ngắn hạn, không thu hồi được)
  */
 const generateToken = (id) => {
-  return jwt.sign({ id }, getJwtSecret(), {
+  return jwt.sign({ id, purpose: 'access' }, getJwtSecret(), {
     expiresIn: getAccessTokenExpire(),
   });
 };
@@ -110,12 +112,13 @@ const issueSession = async (res, req, user) => {
  * @access  Public
  */
 const register = async (req, res, next) => {
+  let companyReservation;
+  let user;
   try {
     const {
       name,
       email,
       password,
-      role,
       phone,
       companyName,
       jobTitle,
@@ -133,42 +136,22 @@ const register = async (req, res, next) => {
       });
     }
 
-    // Khi người dùng đăng ký Demo Doanh Nghiệp (có companyName):
-    // Họ chính là Quản trị cấp cao (Owner) & Admin hệ thống của công ty đó!
-    let userRole = role;
-    let isOwner = false;
-    const finalCompanyName = (companyName && companyName.trim()) ? companyName.trim() : 'Công ty Công nghệ RAO';
+    const finalCompanyName = companyName.trim();
+    companyReservation = await reserveCompanyName(finalCompanyName);
 
-    if (companyName && companyName.trim()) {
-      userRole = 'admin';
-      isOwner = true;
-    } else if (!userRole) {
-      if (
-        jobTitle &&
-        (jobTitle.includes('CEO') ||
-          jobTitle.includes('Giám đốc') ||
-          jobTitle.includes('Manager') ||
-          jobTitle.includes('Quản lý'))
-      ) {
-        userRole = 'project_manager';
-      } else {
-        userRole = 'member';
-      }
-    }
-
-    // Create user
-    const user = await User.create({
+    // Owner belongs only to the newly reserved company; role is never client-selected.
+    user = await User.create({
       name,
       email,
       password,
-      role: userRole,
+      role: 'admin',
       phone,
       companyName: finalCompanyName,
       jobTitle,
       companySize,
       interestedProduct,
       location,
-      isOwner,
+      isOwner: true,
     });
 
     // Tự động tạo hồ sơ nhân sự mặc định cho tài khoản mới trong công ty đó
@@ -187,13 +170,7 @@ const register = async (req, res, next) => {
       await Resource.create({
         user: user._id,
         employeeId,
-        position:
-          jobTitle ||
-          (userRole === 'project_manager'
-            ? 'Project Manager'
-            : userRole === 'admin'
-            ? 'Quản trị viên'
-            : 'Developer'),
+        position: jobTitle || 'Quản trị viên',
         department: departmentName,
         companyName: finalCompanyName,
         maxCapacity: 40,
@@ -215,9 +192,13 @@ const register = async (req, res, next) => {
       //
       // Xóa User vừa tạo là thao tác bù có phạm vi rất hẹp: nó được tạo vài mili
       // giây trước, trong cùng request này, chưa có gì trỏ tới nó.
-      await User.deleteOne({ _id: user._id }).catch((cleanupErr) => {
-        console.error('Không dọn được User mồ côi sau khi tạo Resource hỏng:', cleanupErr.message);
-      });
+      try {
+        await User.deleteOne({ _id: user._id });
+        await CompanySetting.deleteOne({ _id: companyReservation._id });
+      } catch (cleanupErr) {
+        // Keep the reservation if cleanup is uncertain: never let a retry join a leftover tenant.
+        console.error('Không dọn được đăng ký sau khi tạo Resource hỏng:', cleanupErr.message);
+      }
 
       return res.status(500).json({
         success: false,
@@ -236,6 +217,11 @@ const register = async (req, res, next) => {
       },
     });
   } catch (error) {
+    if (companyReservation && !user) {
+      await CompanySetting.deleteOne({ _id: companyReservation._id }).catch((cleanupErr) => {
+        console.error('Không giải phóng được tên công ty sau đăng ký lỗi:', cleanupErr.message);
+      });
+    }
     next(error);
   }
 };

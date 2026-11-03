@@ -21,6 +21,7 @@ export default function RegisterScreen({ navigation }) {
   const { theme } = useTheme();
 
   const [name, setName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -31,6 +32,10 @@ export default function RegisterScreen({ navigation }) {
       Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ họ tên, email và mật khẩu');
       return;
     }
+    if (!companyName.trim()) {
+      Alert.alert('Thông báo', 'Vui lòng nhập tên công ty mới');
+      return;
+    }
     if (password !== confirmPassword) {
       Alert.alert('Thông báo', 'Mật khẩu xác nhận không khớp');
       return;
@@ -39,6 +44,7 @@ export default function RegisterScreen({ navigation }) {
     try {
       const res = await register({
         name: name.trim(),
+        companyName: companyName.trim(),
         email: email.trim(),
         password,
       });
@@ -66,7 +72,7 @@ export default function RegisterScreen({ navigation }) {
             Tạo tài khoản mới
           </Text>
           <Text style={[styles.formSub, { color: theme.colors.textSecondary }]}>
-            Tham gia nền tảng tối ưu hóa phân bổ nguồn lực RAO
+            Đăng ký để tạo công ty mới. Để tham gia công ty đã có, vui lòng liên hệ quản trị viên của công ty để được tạo tài khoản.
           </Text>
 
           {/* Name */}
@@ -95,6 +101,36 @@ export default function RegisterScreen({ navigation }) {
                 placeholderTextColor={theme.colors.textMuted}
                 value={name}
                 onChangeText={setName}
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+              Tên công ty mới (bắt buộc)
+            </Text>
+            <View
+              style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: theme.colors.inputBg,
+                  borderColor: theme.colors.inputBorder,
+                },
+              ]}
+            >
+              <Ionicons
+                name="business-outline"
+                size={18}
+                color={theme.colors.textMuted}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={[styles.input, { color: theme.colors.text }]}
+                accessibilityLabel="Tên công ty mới (bắt buộc)"
+                placeholder="Nhập tên công ty mới"
+                placeholderTextColor={theme.colors.textMuted}
+                value={companyName}
+                onChangeText={setCompanyName}
               />
             </View>
           </View>

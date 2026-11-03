@@ -187,7 +187,6 @@ const getTasks = async (req, res, next) => {
     // `cf_<key>=<giá trị>`: lọc theo trường tùy chỉnh. Kiểm `key` trước khi ghép vào đường dẫn.
     const custom = customValueFilter(req.query);
     if (custom.error) return res.status(400).json({ success: false, message: custom.error });
-    const filter = { ...custom.filter };
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
 
     const companyProjects = await Project.find({
@@ -195,9 +194,20 @@ const getTasks = async (req, res, next) => {
     }).select('_id');
     const companyProjectIds = companyProjects.map((p) => p._id);
 
-    if (req.user && (req.user.role === 'admin' || req.user.isOwner)) {
-      filter.project = { $in: companyProjectIds };
-    } else {
+    // Tenant, scope và bộ lọc tùy chọn phải giao nhau; không nhánh nào được ghi đè quyền.
+    const filter = { ...custom.filter, $and: [{ project: { $in: companyProjectIds } }] };
+    const scope = req.query.scope || 'all';
+    if (scope === 'my_tasks') {
+      filter.$and.push({ assignee: req.user._id });
+    } else if (scope === 'assigned_by_me') {
+      filter.$and.push({ createdBy: req.user._id });
+    } else if (scope === 'following') {
+      filter.$and.push({ followers: req.user._id });
+    } else if (scope === 'subordinates') {
+      const subordinates = await User.find({ manager: req.user._id }).select('_id');
+      const subIds = subordinates.map((s) => s._id);
+      filter.$and.push({ assignee: { $in: subIds } });
+    } else if (!(req.user.role === 'admin' || req.user.isOwner)) {
       const accessibleProjects = await Project.find({
         _id: { $in: companyProjectIds },
         $or: [
@@ -209,11 +219,11 @@ const getTasks = async (req, res, next) => {
       }).select('_id');
       const projectIds = accessibleProjects.map((p) => p._id);
 
-      filter.$or = [
+      filter.$and.push({ $or: [
         { project: { $in: projectIds } },
         { assignee: req.user._id },
         { createdBy: req.user._id },
-      ];
+      ] });
     }
 
     // Lọc theo date
@@ -230,36 +240,8 @@ const getTasks = async (req, res, next) => {
         ]
       }
 
-      // ghép vô filter
-
-      if (filter.$and) {
-        filter.$and.push(dateOverLapCondition)
-      } else if (filter.$or) {
-        filter.$and = [{ $or: filter.$or }, dateOverLapCondition];
-        delete filter.$or;
-      }
-      else {
-        filter.$and = [dateOverLapCondition];
-      }
+      filter.$and.push(dateOverLapCondition);
     }
-    // Base Wework: Lọc theo phạm vi cá nhân (scope)
-    const scope = req.query.scope || 'all';
-    if (scope === 'my_tasks') {
-      filter.assignee = req.user._id;
-      delete filter.$or;
-    } else if (scope === 'assigned_by_me') {
-      filter.createdBy = req.user._id;
-      delete filter.$or;
-    } else if (scope === 'following') {
-      filter.followers = req.user._id;
-      delete filter.$or;
-    } else if (scope === 'subordinates') {
-      const subordinates = await User.find({ manager: req.user._id }).select('_id');
-      const subIds = subordinates.map((s) => s._id);
-      filter.assignee = { $in: subIds };
-      delete filter.$or;
-    }
-    // Khi scope === 'all', giữ nguyên filter.$or đã thiết lập theo dự án và công ty phía trên
 
     // Base Wework: Lọc thời gian nhanh (timeFilter)
     if (req.query.timeFilter) {
@@ -299,32 +281,19 @@ const getTasks = async (req, res, next) => {
         });
       }
 
-      if (filter.$or) {
-        filter.$and = filter.$and || [];
-        filter.$and.push({ $or: filter.$or }, { project: req.query.project });
-        delete filter.$or;
-      } else {
-        filter.project = req.query.project;
-      }
+      filter.$and.push({ project: req.query.project });
     }
     if (req.query.status) filter.status = req.query.status;
     if (req.query.priority) filter.priority = req.query.priority;
-    if (req.query.assignee) filter.assignee = req.query.assignee;
+    if (req.query.assignee) filter.$and.push({ assignee: req.query.assignee });
     if (req.query.unassigned === 'true') {
-      filter.$and = [...(filter.$and || []), { assignee: null }, { status: { $ne: 'done' } }];
+      filter.$and.push({ assignee: null }, { status: { $ne: 'done' } });
     }
 
     if (req.query.search) {
       const regex = toSearchRegex(req.query.search);
       const searchOr = [{ title: regex }, { description: regex }];
-      if (filter.$and) {
-        filter.$and.push({ $or: searchOr });
-      } else if (filter.$or) {
-        filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
-        delete filter.$or;
-      } else {
-        filter.$or = searchOr;
-      }
+      filter.$and.push({ $or: searchOr });
     }
 
     // Không hiển thị công việc con ra ngoài bảng chính trừ khi có chỉ định
@@ -339,7 +308,7 @@ const getTasks = async (req, res, next) => {
     if (!req.query.project) {
       const inactive = await inactiveProjectIds(companyProjectScope(userCompany));
       if (inactive.length) {
-        filter.$and = [...(filter.$and || []), { project: { $nin: inactive } }];
+        filter.$and.push({ project: { $nin: inactive } });
       }
     }
 
@@ -1049,7 +1018,6 @@ const deleteTask = async (req, res, next) => {
  */
 const getTaskSummary = async (req, res, next) => {
   try {
-    const filter = {};
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
 
     const companyProjects = await Project.find({
@@ -1057,9 +1025,9 @@ const getTaskSummary = async (req, res, next) => {
     }).select('_id');
     const companyProjectIds = companyProjects.map((p) => p._id);
 
-    if (req.user && req.user.role === 'admin') {
-      filter.project = { $in: companyProjectIds };
-    } else {
+    // Chốt tenant độc lập với quyền theo người/dự án và mọi bộ lọc tùy chọn.
+    const filter = { $and: [{ project: { $in: companyProjectIds } }] };
+    if (!(req.user && req.user.role === 'admin')) {
       const accessibleProjects = await Project.find({
         _id: { $in: companyProjectIds },
         $or: [
@@ -1070,28 +1038,21 @@ const getTaskSummary = async (req, res, next) => {
       }).select('_id');
       const projectIds = accessibleProjects.map((p) => p._id);
 
-      filter.$or = [
+      filter.$and.push({ $or: [
         { project: { $in: projectIds } },
         { assignee: req.user._id },
         { createdBy: req.user._id },
-      ];
+      ] });
     }
 
-
     if (req.query.project) {
-      if (filter.$or) {
-        filter.$and = [
-          { $or: filter.$or },
-          { project: req.query.project },
-        ];
-        delete filter.$or;
-      } else {
-        filter.project = req.query.project;
-      }
+      // Aggregate không tự cast chuỗi query sang ObjectId như Task.find.
+      const projectIds = companyProjectIds.filter((id) => id.toString() === req.query.project.toString());
+      filter.$and.push({ project: { $in: projectIds } });
     } else {
       // Cùng luật với `getTasks`: mẫu và dự án lưu trữ không nằm trong số liệu mặc định.
       const inactive = await inactiveProjectIds(companyProjectScope(userCompany));
-      if (inactive.length) filter.$and = [...(filter.$and || []), { project: { $nin: inactive } }];
+      if (inactive.length) filter.$and.push({ project: { $nin: inactive } });
     }
 
     if (!req.query.includeSubtasks) {

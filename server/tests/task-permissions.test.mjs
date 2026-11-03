@@ -2,7 +2,7 @@
 // Kiểm tra tất cả các trường hợp theo tài liệu hướng dẫn:
 // https://help.base.vn/support/solutions/articles/63000273353-base-wework-ph%C3%A2n-quy%E1%BB%81n-thao-t%C3%A1c-trong-wework
 
-import { call, ok, section as S, summary } from './helpers.mjs';
+import { call, login, ok, section as S, summary } from './helpers.mjs';
 
 const TOK = {};
 let projectId;
@@ -25,17 +25,21 @@ S('Base Wework: Chuẩn bị dữ liệu và Đăng nhập');
 
   // Tạo thêm 1 member làm follower và 1 member làm outsider
   const rnd = Date.now();
-  const followerUser = await call('POST', '/auth/register', {
-    body: { name: 'Follower User', email: `follower_${rnd}@rao.com`, password: 'password123' }
+  const followerEmail = `follower_${rnd}@rao.com`;
+  const followerUser = await call('POST', '/auth/users', {
+    token: TOK.admin,
+    body: { name: 'Follower User', email: followerEmail, password: 'password123', role: 'member' }
   });
   followerMemberId = followerUser.data?.user?._id;
-  TOK.follower = followerUser.data?.token;
+  TOK.follower = await login(followerEmail);
 
-  const outsiderUser = await call('POST', '/auth/register', {
-    body: { name: 'Outsider User', email: `outsider_${rnd}@rao.com`, password: 'password123' }
+  const outsiderEmail = `outsider_${rnd}@rao.com`;
+  const outsiderUser = await call('POST', '/auth/users', {
+    token: TOK.admin,
+    body: { name: 'Outsider User', email: outsiderEmail, password: 'password123', role: 'member' }
   });
   outsiderMemberId = outsiderUser.data?.user?._id;
-  TOK.outsider = outsiderUser.data?.token;
+  TOK.outsider = await login(outsiderEmail);
 
   ok(!!TOK.admin && !!TOK.pm && !!TOK.member && !!TOK.follower && !!TOK.outsider, 'Đăng nhập đủ các vai trò thử nghiệm');
 }

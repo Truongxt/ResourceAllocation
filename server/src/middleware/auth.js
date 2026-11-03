@@ -1,6 +1,5 @@
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { getJwtSecret } = require('../config/jwt');
+const { verifyAccessToken } = require('../config/jwt');
 
 /**
  * Middleware: Xác thực JWT token
@@ -21,7 +20,7 @@ const protect = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, getJwtSecret());
+    const decoded = verifyAccessToken(token);
     
     // Get user from token
     const user = await User.findById(decoded.id);

@@ -65,11 +65,14 @@ const registerValidation = [
     .isLength({ min: 6 })
     .withMessage('Mật khẩu phải có ít nhất 6 ký tự'),
   body('role')
-    .optional()
-    .isIn(['admin', 'project_manager', 'member'])
-    .withMessage('Role không hợp lệ'),
+    .not().exists()
+    .withMessage('Không thể chọn vai trò khi đăng ký công ty'),
   body('phone').optional().trim(),
-  body('companyName').optional().trim(),
+  body('companyName')
+    .isString().withMessage('Tên công ty phải là chuỗi').bail()
+    .trim()
+    .notEmpty().withMessage('Tên công ty là bắt buộc')
+    .isLength({ max: 200 }).withMessage('Tên công ty không vượt quá 200 ký tự'),
   body('jobTitle').optional().trim(),
   body('companySize').optional().trim(),
   body('interestedProduct').optional().trim(),
