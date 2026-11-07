@@ -14,9 +14,10 @@
  *     7. Thao tác Sửa / Xóa
  */
 
-import { Table, Tag, Space, Avatar, Typography, Progress, Tooltip, Button, Popconfirm } from 'antd';
+import { Table, Tag, Space, Avatar, Typography, Progress, Tooltip, Button, Popconfirm, Grid, Dropdown } from 'antd';
 import {
   UserOutlined,
+  MoreOutlined,
   EditOutlined,
   DeleteOutlined,
   CheckSquareOutlined,
@@ -52,11 +53,14 @@ export default function TaskTableView({
   onOpenDeadline,
   t,
 }) {
+  const screens = Grid.useBreakpoint();
+  const isMobile = Boolean(screens.xs);
   const tableColumns = [
     {
       title: t('tasks.titleColumn') || 'Tiêu đề công việc',
       dataIndex: 'title',
       key: 'title',
+      width: isMobile ? undefined : 300,
       render: (title, record) => {
         const checklistDone = (record.checklist || []).filter((c) => c.completed).length;
         const checklistTotal = (record.checklist || []).length;
@@ -66,11 +70,11 @@ export default function TaskTableView({
         const hasResult = !!(record.resultReport?.summary || (record.resultReport?.deliverableLinks && record.resultReport.deliverableLinks.length > 0));
 
         return (
-          <div style={{ cursor: 'pointer' }} onClick={() => onOpenDetail && onOpenDetail(record)}>
+          <div className="task-title-cell">
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <Text strong style={{ fontSize: 13, color: '#0284c7' }} className="task-title-link">
+              <button type="button" className="task-title-link" onClick={() => onOpenDetail?.(record)}>
                 {title}
-              </Text>
+              </button>
               {record.taskGroup && (
                 <span
                   style={{
@@ -78,8 +82,8 @@ export default function TaskTableView({
                     fontWeight: 600,
                     padding: '1px 6px',
                     borderRadius: 4,
-                    background: '#eff6ff',
-                    color: record.taskGroup.color || '#3b82f6',
+                    background: 'var(--surface-hover)',
+                    color: 'var(--text-secondary)',
                     border: `1px solid ${record.taskGroup.color ? record.taskGroup.color + '40' : 'rgba(59, 130, 246, 0.25)'}`,
                   }}
                 >
@@ -125,7 +129,7 @@ export default function TaskTableView({
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+            <div className="task-secondary-meta" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
               {record.project && (
                 <Text type="secondary" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <FolderOutlined style={{ fontSize: 11 }} /> {record.project.name}
@@ -160,6 +164,13 @@ export default function TaskTableView({
                 </span>
               )}
             </div>
+            {isMobile && <div className="task-mobile-details">
+              <div className="task-mobile-status">{tableColumns.find((col) => col.key === 'status').render(record.status)}{tableColumns.find((col) => col.key === 'priority').render(record.priority)}</div>
+              <div>{tableColumns.find((col) => col.key === 'assignee').render(record.assignee)}</div>
+              <div>{tableColumns.find((col) => col.key === 'endDate').render(record.endDate, record)}</div>
+              <div aria-label="Tiến độ">{tableColumns.find((col) => col.key === 'progress').render(record.progress, record)}</div>
+              <div className="task-mobile-actions">{tableColumns.find((col) => col.key === 'actions').render(null, record)}</div>
+            </div>}
           </div>
         );
       },
@@ -168,7 +179,7 @@ export default function TaskTableView({
       title: t('common.status') || 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
-      width: 140,
+      width: 120,
       render: (status) => (
         <Tag color={STATUS_COLORS[status]} style={{ borderRadius: 10 }}>
           {taskStatusLabel(status)}
@@ -179,7 +190,7 @@ export default function TaskTableView({
       title: t('common.priority') || 'Độ ưu tiên',
       dataIndex: 'priority',
       key: 'priority',
-      width: 110,
+      width: 100,
       render: (priority) => (
         <Tag
           color={PRIORITY_OPTIONS.find((p) => p.value === priority)?.color || 'default'}
@@ -219,7 +230,7 @@ export default function TaskTableView({
       title: t('projectDetail.assignee') || 'Người thực hiện',
       dataIndex: 'assignee',
       key: 'assignee',
-      width: 170,
+      width: 160,
       render: (assignee) =>
         assignee ? (
           <Space size={8}>
@@ -235,6 +246,7 @@ export default function TaskTableView({
     {
       title: t('projectDetail.hoursColumn') || 'Ước tính / Thực tế',
       key: 'hours',
+      responsive: ['xxl'],
       width: 130,
       render: (_, r) => (
         <Text type="secondary" style={{ fontSize: 12 }} className="tabular-nums">
@@ -246,6 +258,7 @@ export default function TaskTableView({
       title: t('gantt.progress') || 'Tiến độ',
       dataIndex: 'progress',
       key: 'progress',
+      responsive: ['xxl'],
       width: 140,
       render: (progress = 0, record) => {
         let planned = null;
@@ -282,19 +295,17 @@ export default function TaskTableView({
     {
       title: t('common.actions') || 'Thao tác',
       key: 'actions',
-      width: 110,
+      width: 120,
       align: 'right',
       render: (_, record) => (
         <Space size={4}>
-          {canEditTask(record) && (
-            <Tooltip title="Nhân bản công việc">
-              <Button
-                type="text"
-                size="small"
-                icon={<CopyOutlined style={{ color: '#0284c7' }} />}
-                onClick={() => onDuplicate && onDuplicate(record)}
-              />
-            </Tooltip>
+          {(canEditTask(record) || onOpenDeadline) && (
+            <Dropdown trigger={['click']} menu={{ items: [
+              ...(canEditTask(record) ? [{ key: 'duplicate', label: 'Nhân bản công việc', icon: <CopyOutlined />, onClick: () => onDuplicate?.(record) }] : []),
+              ...(onOpenDeadline ? [{ key: 'deadline', label: 'Gia hạn thời hạn', icon: <ClockCircleOutlined />, onClick: () => onOpenDeadline(record) }] : []),
+            ] }}>
+              <Button type="text" aria-label={`Thao tác khác: ${record.title}`} icon={<MoreOutlined />} />
+            </Dropdown>
           )}
           {canEditTask(record) && (
             <Tooltip title={t('common.edit') || 'Sửa'}>
@@ -302,20 +313,12 @@ export default function TaskTableView({
                 type="text"
                 size="small"
                 icon={<EditOutlined />}
+                aria-label={`Sửa: ${record.title}`}
                 onClick={() => onOpenEdit(record)}
               />
             </Tooltip>
           )}
-          {onOpenDeadline && (
-            <Tooltip title="Gia hạn thời hạn (Deadline)">
-              <Button
-                type="text"
-                size="small"
-                icon={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
-                onClick={() => onOpenDeadline(record)}
-              />
-            </Tooltip>
-          )}
+
           {(canDeleteTask ? canDeleteTask(record) : canManageTasks) && (
             <Tooltip title={t('common.delete') || 'Xóa'}>
               <Popconfirm
@@ -325,7 +328,7 @@ export default function TaskTableView({
                 cancelText={t('common.cancel') || 'Hủy'}
                 okButtonProps={{ danger: true }}
               >
-                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                <Button type="text" size="small" danger aria-label={`Xóa: ${record.title}`} icon={<DeleteOutlined />} />
               </Popconfirm>
             </Tooltip>
           )}
@@ -335,9 +338,10 @@ export default function TaskTableView({
   ];
 
   return (
-    <div className="saas-card" style={{ overflow: 'hidden' }}>
+    <div className="saas-card task-table-surface" style={{ overflow: 'hidden' }}>
       <Table
-        columns={tableColumns}
+        columns={tableColumns.map((column) => column.key === 'title' ? column : { ...column, responsive: column.responsive || ['sm'] })}
+        scroll={isMobile ? undefined : { x: screens.xxl ? 1270 : 1000 }}
         dataSource={tasks}
         rowKey="_id"
         loading={loading}

@@ -19,10 +19,11 @@ import { useSearchParams } from 'react-router-dom';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Typography, Space, Segmented, Button, Form, Tabs, Tag, Modal, Input, Alert, message } from 'antd';
+import { Typography, Space, Button, Form, Tabs, Tag, Modal, Input, Alert, Empty, Dropdown, message } from 'antd';
 import {
   AppstoreOutlined,
-  UnorderedListOutlined,
+  MoreOutlined,
+
   PlusOutlined,
   FileExcelOutlined,
   DownloadOutlined,
@@ -43,7 +44,7 @@ import { TASK_STATUSES as STATUS_COLS, ROLES } from '../../constants';
 import { depId, invalidPredecessors } from '../../utils/gantt';
 import { getTaskPermissions } from '../../utils/taskPermissions';
 import { downloadCsv } from '../../utils/csv';
-import { taskStatusLabel, priorityLabel } from '../../i18n/enums';
+import { taskStatusLabel, priorityLabel, priorityOptions } from '../../i18n/enums';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import TaskKpiChips from './components/TaskKpiChips';
@@ -582,21 +583,16 @@ export default function Tasks() {
     }
   };
 
+  const hasActiveFilters = Boolean(filters.search || filters.project || filters.priority
+    || Object.values(filters.custom || {}).some(Boolean) || scope !== 'all'
+    || timeFilter !== 'all' || attentionStatus || unassignedOnly);
+
   return (
-    <div style={{ maxWidth: 1440, margin: '0 auto' }}>
+    <div className="workspace-page tasks-page">
       {/* Tiêu đề trang */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 20,
-          flexWrap: 'wrap',
-          gap: 16,
-        }}
-      >
+      <div className="page-heading">
         <div>
-          <Title level={3} style={{ margin: '0 0 4px 0', fontWeight: 800, letterSpacing: '-0.02em' }}>
+          <Title level={3}>
             {t('pageTitle./tasks') || 'Quản lý Công việc'}
           </Title>
           <Text type="secondary" style={{ fontSize: 13 }}>
@@ -604,35 +600,16 @@ export default function Tasks() {
           </Text>
         </div>
 
-        <Space size="middle" wrap>
-          <Segmented
-            value={view}
-            onChange={setView}
-            options={[
-              { value: 'kanban', icon: <AppstoreOutlined />, label: 'Kanban' },
-              { value: 'list', icon: <UnorderedListOutlined />, label: t('tasks.listView') || 'Danh sách' },
-            ]}
-          />
-
-          {/* Base Wework: Nút Nhập từ Excel */}
-          <Button
-            icon={<FileExcelOutlined style={{ color: '#10b981' }} />}
-            onClick={() => setExcelModalOpen(true)}
-          >
-            Nhập Excel
-          </Button>
-
+        <Space className="task-page-actions" size="small" wrap>
           <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportTasks}>
             {t('tasks.exportCsv')}
           </Button>
-
-          {/* Base Wework: Nút Việc lặp lại */}
-          <Button
-            icon={<SyncOutlined style={{ color: 'var(--brand-primary)' }} />}
-            onClick={() => setRecurringModalOpen(true)}
-          >
-            Việc lặp lại
-          </Button>
+          <Dropdown trigger={['click']} menu={{ items: [
+            { key: 'import', label: 'Nhập Excel', icon: <FileExcelOutlined />, onClick: () => setExcelModalOpen(true) },
+            { key: 'recurring', label: 'Việc lặp lại', icon: <SyncOutlined />, onClick: () => setRecurringModalOpen(true) },
+          ] }}>
+            <Button icon={<MoreOutlined />}>Công cụ</Button>
+          </Dropdown>
 
           {/* Base Wework: Hàng đợi đánh giá kết quả */}
           {pendingReviewCount > 0 && (
@@ -763,17 +740,17 @@ export default function Tasks() {
       {taskTotal > tasks.length && (
         <Alert type="warning" showIcon style={{ marginBottom: 12 }} title={t('tasks.truncated', { shown: tasks.length, total: taskTotal })} />
       )}
-      <TasksOverview tasks={tasks} total={taskTotal} loading={loading} error={overviewError} />
+      <TasksOverview tasks={tasks} total={taskTotal} loading={loading} error={overviewError} initialExpanded={false} />
 
       {/* 2. Thanh lọc & tìm kiếm */}
       <TaskFilterBar
         filters={filters}
+        priorityOptions={priorityOptions()}
+        loading={loading}
         setFilters={setFilters}
         projects={projects}
         view={view}
         setView={setView}
-        canManageTasks={canCreateAnyTask}
-        onOpenCreateModal={handleOpenCreate}
         onReload={loadTasks}
         onManageGroups={managesTaskProject(filters.project) ? (projId) => {
           setManageGroupProjectId(projId);
@@ -783,7 +760,31 @@ export default function Tasks() {
       />
 
       {/* 3. Nội dung xem: Danh sách bảng hoặc Bảng Kanban */}
-      {view === 'list' ? (
+      {overviewError && (
+        <Alert
+          type="error"
+          showIcon
+          className="task-load-error"
+          title="Không thể tải danh sách công việc"
+          description={tasks.length ? 'Dữ liệu đang hiển thị có thể chưa được cập nhật. Hãy thử tải lại.' : 'Kiểm tra kết nối và thử tải lại để xem công việc.'}
+          action={<Button onClick={loadTasks} loading={loading}>Thử lại</Button>}
+        />
+      )}
+      {!loading && !overviewError && tasks.length === 0 ? (
+        <div className="task-empty-state saas-card">
+          <Empty description={hasActiveFilters
+            ? 'Không có công việc khớp với bộ lọc'
+            : 'Chưa có công việc nào'} />
+          {hasActiveFilters ? (
+            <Button onClick={() => {
+              setFilters({ search: '', project: '', priority: '' });
+              setScope('all');
+              setTimeFilter('all');
+              setSearchParams({});
+            }}>Xóa tất cả bộ lọc</Button>
+          ) : canCreateAnyTask && <p className="task-empty-hint">Chọn “{t('tasks.create')}” ở đầu trang để bắt đầu.</p>}
+        </div>
+      ) : (tasks.length > 0 || !overviewError) && (view === 'list' ? (
         <TaskTableView
           tasks={tasks}
           loading={loading}
@@ -813,7 +814,7 @@ export default function Tasks() {
           isDark={isDark}
           t={t}
         />
-      )}
+      ))}
 
       {/* 4. Modal tạo / sửa công việc */}
       <TaskFormModal

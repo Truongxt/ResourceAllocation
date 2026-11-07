@@ -100,6 +100,7 @@ Dùng chế độ này khi chạy trên CI, hoặc khi thấy lỗi treo/crash k
 | Tùy chọn hiển thị | `09-preferences.spec.js` | Đổi ngôn ngữ và giao diện sáng/tối có **sống sót qua F5** không; tìm kiếm toàn cục |
 | Realtime | `10-realtime.spec.js` | Hai trình duyệt cùng lúc: admin giao việc → member thấy chuông nhảy số mà không tải lại trang |
 | Quyền theo phân hệ | `11-app-permissions.spec.js` | Hai trình duyệt cùng lúc: admin hạ quyền "Dự án" của PM xuống **Chỉ xem** trong Cài đặt → PM xem được nhưng tạo dự án thì bị chặn → trả quyền lại thì tạo được ngay |
+| Workspace responsive | `13-workspace-ux.spec.js` | Menu desktop dùng bàn phím; menu điện thoại đóng bằng Escape và trả focus; danh sách và form không tràn ngang tại 320/375px; giữ giá trị nâng cao; chụp ảnh desktop, điện thoại và giao diện sáng/tối |
 
 Đánh số ở tên file là **thứ tự chạy**, không phải thứ tự phụ thuộc. Bộ `01` đứng đầu vì mọi
 bộ khác đều bắt đầu bằng `login()`: đường vào hỏng thì phải thấy nó hỏng ở đúng một chỗ, chứ

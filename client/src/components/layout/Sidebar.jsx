@@ -26,7 +26,7 @@ import AppLogo from '../common/AppLogo';
 const { Sider } = Layout;
 const { Text } = Typography;
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, onToggle, mobile = false, onNavigate }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark } = useTheme();
@@ -44,6 +44,15 @@ export default function Sidebar({ collapsed, onToggle }) {
     textTransform: 'none',
     paddingLeft: 4,
   };
+
+  const navigateTo = (path) => {
+    navigate(path);
+    onNavigate?.();
+  };
+  const selectedKey = location.pathname === '/account' && location.search.includes('tab=skills')
+    ? '/account?tab=skills'
+    : location.pathname.startsWith('/projects/') ? '/projects'
+      : location.pathname === '/' ? '/dashboard' : location.pathname;
 
   const menuItems = [
     {
@@ -113,16 +122,14 @@ export default function Sidebar({ collapsed, onToggle }) {
   return (
     <Sider
       className="workspace-sidebar"
-      breakpoint="md"
-      onBreakpoint={(broken) => { if (broken && !collapsed) onToggle(); }}
       collapsible
       collapsed={collapsed}
       trigger={null}
-      width={240}
+      width={mobile ? '100%' : 240}
       collapsedWidth={72}
       style={{
-        position: 'fixed',
-        height: '100vh',
+        position: mobile ? 'relative' : 'fixed',
+        height: mobile ? '100%' : '100vh',
         left: 0,
         top: 0,
         bottom: 0,
@@ -139,10 +146,17 @@ export default function Sidebar({ collapsed, onToggle }) {
     >
       {/* Brand Header */}
       <div>
-        <div
-          onClick={() => navigate('/')}
+        <button
+          type="button"
+          aria-label="Về trang tổng quan"
+          onClick={() => navigateTo('/')}
           style={{
             display: 'flex',
+            width: '100%',
+            border: 0,
+            font: 'inherit',
+            color: 'inherit',
+            textAlign: 'left',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
             gap: 12,
@@ -159,29 +173,35 @@ export default function Sidebar({ collapsed, onToggle }) {
             isDark={isDark}
             subtitle="Resource Allocation AI"
           />
-        </div>
+        </button>
 
         {/* Menu Navigation */}
-        <div style={{ maxHeight: 'calc(100vh - 128px)', overflowY: 'auto', padding: '8px 0' }}>
+        <nav aria-label="Điều hướng chính" style={{ maxHeight: mobile ? undefined : 'calc(100vh - 128px)', overflowY: 'auto', padding: '8px 0' }}>
           <Menu
             theme={isDark ? 'dark' : 'light'}
             mode="inline"
-            selectedKeys={[location.pathname === '/account' && location.search.includes('tab=skills') ? '/account?tab=skills' : location.pathname]}
+            selectedKeys={[selectedKey]}
             items={menuItems}
-            onClick={({ key }) => navigate(key)}
+            onClick={({ key }) => navigateTo(key)}
             style={{
               border: 'none',
               background: 'transparent',
               fontWeight: 500,
             }}
           />
-        </div>
+        </nav>
       </div>
 
       {/* Footer Collapse Toggle */}
-      <div
+      {!mobile && <button
+        type="button"
+        aria-label={collapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
+        aria-expanded={!collapsed}
         style={{
           position: 'absolute',
+          width: '100%',
+          border: 0,
+          font: 'inherit',
           bottom: 0,
           left: 0,
           right: 0,
@@ -218,7 +238,7 @@ export default function Sidebar({ collapsed, onToggle }) {
             {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
           </div>
         </Tooltip>
-      </div>
+      </button>}
     </Sider>
   );
 }

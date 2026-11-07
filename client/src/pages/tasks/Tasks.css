@@ -94,6 +94,50 @@
   transform: scale(0.98) !important;
 }
 
+.task-filter-panel { padding: 16px; margin-bottom: 20px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--surface-card); }
+.task-filter-fields { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(160px, 1fr)); gap: 12px; }
+.task-filter-fields > * { width: 100%; min-width: 0; }
+.task-filter-panel .ant-input::placeholder,
+.task-filter-panel .ant-select-selection-placeholder,
+.task-filter-panel .ant-select-placeholder { color: var(--text-secondary) !important; opacity: 1; }
+.tasks-page .ant-segmented { background: var(--surface-elevated); color: var(--text-secondary); }
+.tasks-page .ant-segmented-item-selected { background: var(--surface-active); color: var(--brand-accent); }
+.task-filter-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border-subtle); }
+.task-filter-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.task-load-error { margin-bottom: 16px; }
+.task-empty-state { padding: 40px 20px; text-align: center; }
+.task-empty-hint { color: var(--text-secondary); }
+.tasks-page .ant-tag-checkable { min-height: 32px; display: inline-flex; align-items: center; }
+@media (max-width: 767px) { .tasks-page .ant-tag-checkable { min-height: 36px; } }
+.task-title-link { display: block; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; font: inherit; font-size: 14px; font-weight: 600; line-height: 1.5; color: var(--text-primary); cursor: pointer; overflow-wrap: anywhere; }
+.task-title-link:hover { color: var(--brand-primary); text-decoration: underline; text-underline-offset: 3px; }
+.task-title-cell > div:first-child > span, .task-title-cell .ant-tag { font-size: 12px !important; }
+.task-secondary-meta { color: var(--text-secondary); }
+.task-secondary-meta > span { font-size: 12px !important; color: var(--text-secondary) !important; }
+.task-table-surface .ant-table-cell { padding-block: 16px; }
+.task-mobile-details { display: grid; gap: 12px; margin-top: 14px; }
+.task-mobile-status { display: flex; flex-wrap: wrap; gap: 6px; }
+.task-mobile-actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--border-subtle); padding-top: 8px; }
+.task-mobile-actions .ant-btn { min-width: 44px; min-height: 44px; }
+@media (max-width: 1000px) {
+  .task-filter-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .task-filter-search { grid-column: 1 / -1; }
+}
+@media (max-width: 767px) {
+  .task-page-actions .ant-btn, .task-filter-panel .ant-btn { min-height: 40px; }
+  .task-filter-panel .ant-segmented-item-label { min-height: 40px; display: flex; align-items: center; }
+  .kanban-board-antd { grid-template-columns: repeat(5, min(280px, 82vw)); scroll-snap-type: x proximity; }
+  .kanban-column-antd { scroll-snap-align: start; }
+}
+@media (max-width: 575px) {
+  .task-filter-fields { grid-template-columns: minmax(0, 1fr); }
+  .task-filter-footer { align-items: stretch; }
+  .task-filter-actions { width: 100%; }
+  .task-table-surface .ant-table-thead { display: none; }
+  .task-table-surface .ant-table-cell { padding: 18px 16px; }
+  .task-table-surface .ant-pagination { padding-inline: 12px; }
+}
+
 /* Column tinting gives the board rhythm without adding a second brand colour. */
 .kanban-column-antd { border-radius: 16px; background: color-mix(in srgb, var(--surface-card) 92%, var(--surface-elevated)); box-shadow: var(--shadow-card); }
 .kanban-column-header-antd { padding: 15px 16px; background: transparent; }

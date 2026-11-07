@@ -5,7 +5,8 @@
  * Build xanh không trả lời được câu nào trong hai câu đó.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders, authState } from './helpers.jsx';
 
 const { auth } = vi.hoisted(() => ({ auth: { current: null } }));
@@ -82,6 +83,31 @@ describe('Định tuyến và nạp trang theo chunk', () => {
     renderWithProviders(<App />, { route: '/duong-dan-khong-co-that' });
 
     await findDashboardHeading();
+  });
+
+  it('điện thoại dùng menu ngăn kéo và trả lại toàn bộ chiều ngang cho nội dung', async () => {
+    auth.current = authState();
+    const media = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      matches: query === '(max-width: 767px)', media: query,
+      addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    }));
+    try {
+      const { container } = renderWithProviders(<App />, { route: '/dashboard' });
+      await findDashboardHeading();
+      expect(container.querySelector('.app-main')).toHaveStyle({ marginLeft: '0px' });
+      expect(screen.queryByRole('navigation', { name: 'Điều hướng chính' })).toBeNull();
+      const openMenu = screen.getByRole('button', { name: 'Mở menu điều hướng' });
+      await userEvent.click(openMenu);
+      const drawer = await screen.findByRole('dialog', { name: 'Điều hướng' });
+      expect(within(drawer).getByRole('navigation', { name: 'Điều hướng chính' })).toBeInTheDocument();
+      await userEvent.click(await within(drawer).findByRole('menuitem', { name: /Dashboard/ }));
+      await waitFor(() => expect(openMenu).toHaveAttribute('aria-expanded', 'false'));
+      await userEvent.click(openMenu);
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(openMenu).toHaveAttribute('aria-expanded', 'false'));
+    } finally {
+      media.mockRestore();
+    }
   });
 
   it('đã đăng nhập mà vào /login thì bị đẩy về trang chủ', async () => {

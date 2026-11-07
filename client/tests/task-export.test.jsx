@@ -80,6 +80,27 @@ describe('Xuất CSV công việc', () => {
 const metric = (label) => screen.getByText(label, { selector: 'dt' }).nextElementSibling.textContent;
 
 describe('Danh sách công việc trên màn hình', () => {
+  it('lỗi tải dữ liệu hiển thị thử lại, không giả thành danh sách rỗng', async () => {
+    mocks.get.mockImplementation(async (url) => {
+      if (url === '/tasks') throw new Error('offline');
+      return { data: { data: {} } };
+    });
+    renderWithProviders(<Tasks />, { route: '/tasks' });
+    expect(await screen.findByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
+    expect(screen.queryByText('Chưa có công việc nào')).toBeNull();
+    serve();
+    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByText('Việc trang 1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull();
+  });
+
+  it('danh sách rỗng do lọc có hành động xóa bộ lọc', async () => {
+    mocks.get.mockImplementation(async () => ({ data: { total: 0, data: { tasks: [] } } }));
+    renderWithProviders(<Tasks />, { route: '/tasks?timeFilter=overdue' });
+    expect(await screen.findByText('Không có công việc khớp với bộ lọc')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Xóa tất cả bộ lọc' }));
+    expect(await screen.findByText('Chưa có công việc nào')).toBeInTheDocument();
+  });
   it('hiện việc ở mọi trang, không dừng ở trang đầu; chip đếm đủ', async () => {
     renderWithProviders(<Tasks />, { route: '/tasks' });
     expect(await screen.findByText('Việc trang 1')).toBeInTheDocument();

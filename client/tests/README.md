@@ -28,7 +28,8 @@ npm run test:watch    # component, chế độ theo dõi
 | CSV | `csv.test.mjs` | Tiện ích xuất CSV dùng chung: mọi ô trong ngoặc kép, `"` được nhân đôi, xuống dòng nằm gọn trong ô, số giữ nguyên (cả số âm), chuỗi bắt đầu bằng `= + - @`/tab/CR bị chặn thành công thức |
 | Locale | `locales.test.mjs` | `vi.json` và `en.json` khớp nhau: khóa, biến nội suy, không có bản dịch rỗng, đủ giá trị enum khớp schema |
 | ProtectedRoute | `protected-route.test.jsx` | Ranh giới đăng nhập: đang kiểm tra phiên thì **không** đá về `/login`; chưa đăng nhập thì đá; sai vai trò thì chặn tại chỗ chứ không đá về `/login` |
-| Định tuyến | `app-routing.test.jsx` | 12 trang nạp theo chunk (`React.lazy`) có render ra không, và ranh giới `Suspense` trong `Content` có giữ được sidebar/header khi nội dung đang tải không |
+| Định tuyến | `app-routing.test.jsx` | Trang nạp theo chunk và giữ sidebar/header khi tải; điện thoại không chừa lề sidebar, menu ngăn kéo đóng khi chọn trang hoặc nhấn Escape |
+| Form công việc | `task-form-ux.test.jsx` | Thu gọn phần nâng cao vẫn giữ và gửi đủ giá trị; lỗi kỹ năng/phụ thuộc tự mở phần nâng cao; xóa kỹ năng bằng bàn phím; giữ quyền chỉnh sửa của thành viên |
 | Link thông báo | `notification-link.test.jsx` | Chặn open redirect ở `notif.link` — đích điều hướng động duy nhất của client. Bấm thật qua giao diện, không gọi thẳng hàm kiểm tra |
 | Đổi ngôn ngữ | `language-switch.test.jsx` | Bấm nút đổi ngôn ngữ thì sidebar, tiêu đề trang, nhãn enum, nhãn form và thông báo lỗi validation có đổi theo không, và lựa chọn có được nhớ không |
 | Làm mới token | `api-refresh.test.jsx` | Interceptor 401 tự làm mới rồi chạy lại request. Ca quan trọng nhất: nhiều request cùng hết hạn chỉ được kích hoạt **một** lượt làm mới — nhiều hơn thì server hiểu là token bị đánh cắp và thu hồi cả chuỗi |

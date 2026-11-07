@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Badge, Dropdown, Avatar, Switch, List, Typography, Button, Space, Tooltip, Empty, Breadcrumb, Tag } from 'antd';
 import {
   BellOutlined,
+  MenuOutlined,
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
@@ -41,7 +42,7 @@ function getNotifIcon(type) {
   return <BellOutlined style={{ color: '#94a3b8', fontSize: 16 }} />;
 }
 
-export default function Header({ collapsed }) {
+export default function Header({ collapsed, isMobile = false, menuOpen = false, onOpenMenu }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -160,7 +161,7 @@ export default function Header({ collapsed }) {
   const notifContent = (
     <div
       style={{
-        width: 380,
+        width: 'min(380px, calc(100vw - 24px))',
         background: isDark ? '#101726' : '#ffffff',
         border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e2e8f0',
         borderRadius: 14,
@@ -245,7 +246,7 @@ export default function Header({ collapsed }) {
           position: 'fixed',
           top: 0,
           right: 0,
-          left: collapsed ? 72 : 240,
+          left: isMobile ? 0 : collapsed ? 72 : 240,
           zIndex: 100,
           display: 'flex',
           alignItems: 'center',
@@ -260,7 +261,15 @@ export default function Header({ collapsed }) {
         }}
       >
         {/* Left: Page Title & Location */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+          {isMobile && <Button
+            type="text"
+            className="header-menu-toggle"
+            icon={<MenuOutlined />}
+            aria-label="Mở menu điều hướng"
+            aria-expanded={menuOpen}
+            onClick={onOpenMenu}
+          />}
           <Title level={4} style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.02em' }}>
             {currentTitle}
           </Title>
@@ -314,7 +323,7 @@ export default function Header({ collapsed }) {
         </button>
 
         {/* Right: Quick Controls, Quick Create & Profile */}
-        <Space size="middle" align="center">
+        <Space className="header-controls" size="middle" align="center">
           {/* Quick Create Button */}
           <Dropdown
             menu={{
@@ -398,7 +407,7 @@ export default function Header({ collapsed }) {
             <button
               type="button"
               onClick={toggleTheme}
-              aria-label="Toggle Theme"
+              aria-label={t('header.toggleTheme') || 'Chuyển giao diện'}
               style={{
                 width: 34,
                 height: 34,
@@ -484,8 +493,13 @@ export default function Header({ collapsed }) {
 
           {/* User Menu Chip */}
           <Dropdown menu={{ items: userMenuItems }} trigger={['click']} placement="bottomRight">
-            <div
+            <button
+              type="button"
+              aria-label="Menu tài khoản"
+              className="header-account-menu"
               style={{
+                font: 'inherit',
+                color: 'inherit',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
@@ -523,7 +537,7 @@ export default function Header({ collapsed }) {
                   boxShadow: 'none',
                 }}
               />
-            </div>
+            </button>
           </Dropdown>
         </Space>
       </AntHeader>

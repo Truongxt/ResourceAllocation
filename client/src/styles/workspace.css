@@ -1,5 +1,8 @@
 /* Shared working surfaces: readable data, quiet navigation, explicit actions. */
-.workspace-content { min-width: 0; }
+.app-content { min-width: 0; }
+.workspace-navigation-drawer .ant-drawer-body { background: var(--surface-ground); }
+.workspace-header .header-menu-toggle { min-width: 44px; min-height: 44px; }
+.workspace-header .header-controls { flex-shrink: 0; }
 .workspace-content > div { margin-inline: auto; }
 .workspace-page { max-width: 1440px; margin-inline: auto; padding-bottom: 12px; }
 .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
@@ -51,14 +54,23 @@
 :where(button, a, input, select, [tabindex]):focus-visible { outline: 2px solid var(--border-focus); outline-offset: 3px; }
 .spinner { width: 24px; height: 24px; border: 2px solid var(--border-subtle); border-top-color: var(--brand-primary); border-radius: 50%; animation: workspace-spin .6s linear infinite; }
 @keyframes workspace-spin { to { transform: rotate(360deg); } }
+@media (max-width: 1100px) {
+  .workspace-header .header-user-copy,
+  .workspace-header .header-quick-create { display: none !important; }
+  .workspace-header .header-controls { gap: 8px !important; }
+}
 @media (max-width: 1000px) {
-  .workspace-header .header-search-trigger { display: none !important; }
+  .workspace-header .header-search-trigger { width: 40px !important; min-height: 40px; justify-content: center !important; }
+  .workspace-header .header-search-trigger kbd,
+  .workspace-header .header-search-trigger span > span:not(.anticon) { display: none; }
 }
 @media (max-width: 767px) {
-  .workspace-layout { margin-left: 72px !important; }
-  .workspace-header.ant-layout-header { left: 72px !important; padding-inline: 12px !important; gap: 8px; }
+  .workspace-header.ant-layout-header { left: 0 !important; padding-inline: 12px !important; gap: 8px; }
+  .workspace-header .header-controls { gap: 4px !important; }
+  .workspace-header .header-controls button { min-width: 40px; min-height: 40px; }
+  .workspace-header .header-search-trigger { display: none !important; }
   .workspace-header h4.ant-typography, .workspace-header .header-user-copy, .workspace-header .header-quick-create { display: none !important; }
-  .workspace-content.ant-layout-content { margin: 76px 12px 20px !important; }
+  .app-content.ant-layout-content { margin: 80px 12px 20px !important; }
   .page-heading { gap: 12px; margin-bottom: 18px; }
   .page-heading h3.ant-typography { font-size: 21px; }
   .metric-strip { row-gap: 20px; }

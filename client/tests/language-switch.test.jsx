@@ -60,6 +60,11 @@ describe('Đổi ngôn ngữ', () => {
     await i18n.changeLanguage('vi');
   });
 
+  it('giữ mục Dự án được chọn khi mở trang chi tiết dự án', () => {
+    renderWithProviders(<Sidebar collapsed={false} onToggle={() => {}} />, { route: '/projects/p1' });
+    expect(screen.getByRole('menuitem', { name: /Dự án$/ })).toHaveClass('ant-menu-item-selected');
+  });
+
   it('nút hiện ngôn ngữ sẽ chuyển sang, không phải ngôn ngữ đang dùng', () => {
     renderChrome();
     // Đang tiếng Việt thì nút phải mời sang EN. Hiện "VI" là mời quay lại chính nó.

@@ -1,7 +1,7 @@
 import { Suspense, lazy, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './styles/workspace.css';
-import { Layout } from 'antd';
+import { Drawer, Layout } from 'antd';
 import { useAuth } from './context/AuthContext';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -46,29 +46,52 @@ function ContentSpinner() {
 
 function AppLayout({ children }) {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px)');
-    const onChange = () => setCollapsed(media.matches);
+    const onChange = () => {
+      setIsMobile(media.matches);
+      setMenuOpen(false);
+    };
     media.addEventListener('change', onChange);
     return () => media.removeEventListener('change', onChange);
   }, []);
+  useEffect(() => { setMenuOpen(false); }, [location.pathname, location.search]);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      <a className="skip-link" href="#main-content">Đến nội dung chính</a>
+      {isMobile ? (
+        <Drawer
+          title="Điều hướng"
+          placement="left"
+          width={280}
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          className="workspace-navigation-drawer"
+          styles={{ body: { padding: 0 }, header: { background: 'var(--surface-ground)' } }}
+        >
+          <Sidebar collapsed={false} mobile onNavigate={() => setMenuOpen(false)} />
+        </Drawer>
+      ) : <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />}
       <Layout
         className="app-main"
         style={{
-          marginLeft: collapsed ? 72 : 240,
+          marginLeft: isMobile ? 0 : collapsed ? 72 : 240,
+          minWidth: 0,
           transition: 'margin-left var(--motion-duration-base) var(--ease-out)',
           minHeight: '100vh',
           background: 'var(--bg-primary, #0f172a)',
         }}
       >
-        <Header collapsed={collapsed} />
+        <Header collapsed={collapsed} isMobile={isMobile} menuOpen={menuOpen} onOpenMenu={() => setMenuOpen(true)} />
         <Content
           className="app-content"
+          id="main-content"
+          role="main"
+          tabIndex={-1}
           style={{
             marginTop: 80,
             marginBottom: 24,
