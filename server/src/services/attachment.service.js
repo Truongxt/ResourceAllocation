@@ -62,10 +62,45 @@ const removeAttachments = async (filter) => {
   return found.length;
 };
 
+/**
+ * Chép tệp của một công việc sang công việc khác — mỗi tệp một bản nội dung riêng trên đĩa.
+ * Trả về số tệp đã chép.
+ *
+ * `storageKey` là `select: false` nên phải gọi rõ; thiếu nó thì bản ghi mới không qua
+ * được validate. Tệp đã mất nội dung trên đĩa thì bỏ qua: chép một bản ghi trỏ vào khoảng
+ * không chỉ tạo thêm một dòng "Tệp không còn trên máy chủ".
+ */
+const copyAttachments = async (fromTaskId, toTaskId, { companyName, uploadedBy }) => {
+  const found = await Attachment.find({ task: fromTaskId }).select('+storageKey').lean();
+  let copied = 0;
+  for (const source of found) {
+    const storageKey = await fileStorage.copy(source.storageKey);
+    if (!storageKey) continue;
+    try {
+      await Attachment.create({
+        task: toTaskId,
+        companyName,
+        originalName: source.originalName,
+        mimeType: source.mimeType,
+        size: source.size,
+        storageKey,
+        uploadedBy,
+      });
+      copied += 1;
+    } catch (error) {
+      // Không để lại nội dung mồ côi trên đĩa khi bản ghi không tạo được.
+      await fileStorage.remove(storageKey);
+      throw error;
+    }
+  }
+  return copied;
+};
+
 module.exports = {
   MAX_FILE_SIZE,
   MAX_FILES_PER_TASK,
   contentTypeOf,
   decodeFileName,
   removeAttachments,
+  copyAttachments,
 };

@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const Task = require('../../models/Task');
 const Project = require('../../models/Project');
 const TaskGroup = require('../../models/TaskGroup');
-const Attachment = require('../../models/Attachment');
+const { copyAttachments } = require('../../services/attachment.service');
 const { logActivity } = require('../../services/activityLog.service');
 const { syncResourceWorkload } = require('../../services/workload.service');
 const { createDeniedReason } = require('../../middleware/taskAccess');
@@ -258,21 +258,10 @@ const duplicateTask = async (req, res, next) => {
 
     // Nhân bản tệp đính kèm nếu được bật (keepAttachments)
     if (keepAttachments) {
-      const attachments = await Attachment.find({ task: original._id });
-      if (attachments && attachments.length > 0) {
-        for (const att of attachments) {
-          await Attachment.create({
-            task: duplicated._id,
-            name: att.name,
-            originalName: att.originalName,
-            mimeType: att.mimeType,
-            size: att.size,
-            storageKey: att.storageKey,
-            companyName: targetCompany,
-            uploadedBy: req.user._id,
-          });
-        }
-      }
+      await copyAttachments(original._id, duplicated._id, {
+        companyName: targetCompany,
+        uploadedBy: req.user._id,
+      });
     }
 
     // Tính lại tiến độ dự án đích
