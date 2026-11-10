@@ -92,10 +92,4 @@ function getTransporter(env = process.env) {
   return cachedTransporter;
 }
 
-/** Dùng trong kiểm thử để tránh transporter của lần chạy trước dính sang. */
-function resetTransporter() {
-  cachedTransporter = null;
-  lastTransporterKey = null;
-}
-
-module.exports = { readMailConfig, getTransporter, resetTransporter };
+module.exports = { readMailConfig, getTransporter };

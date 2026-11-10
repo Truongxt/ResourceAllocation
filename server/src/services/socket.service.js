@@ -7,16 +7,9 @@ const setIO = (io) => {
   ioInstance = io;
 };
 
-const getIO = () => ioInstance;
-
 const emitToUser = (userId, event, payload) => {
   if (!ioInstance || !userId) return;
   ioInstance.to(`user:${userId.toString()}`).emit(event, payload);
-};
-
-const emitToAll = (event, payload) => {
-  if (!ioInstance) return;
-  ioInstance.emit(event, payload);
 };
 
 /**
@@ -80,9 +73,7 @@ const disconnectUser = (userId) => {
 
 module.exports = {
   setIO,
-  getIO,
   emitToUser,
-  emitToAll,
   sendNotification,
   disconnectUser,
 };

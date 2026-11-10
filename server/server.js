@@ -57,10 +57,6 @@ io.on('connection', (socket) => {
   if (userId) {
     socket.join(`user:${userId}`);
   }
-
-  socket.on('disconnect', () => {
-    // no-op
-  });
 });
 
 // Connect to database and start server

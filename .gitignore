@@ -44,3 +44,7 @@ test-results/
 
 # Tệp đính kèm người dùng tải lên (UPLOAD_DIR mặc định)
 server/uploads/
+
+# Trạng thái máy cá nhân của Expo và bytecode Python — không thuộc về repo
+.expo/
+__pycache__/

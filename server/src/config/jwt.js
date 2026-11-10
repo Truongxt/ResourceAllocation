@@ -53,9 +53,6 @@ const getRefreshTokenDays = () => {
   return Number.isFinite(days) && days > 0 ? days : 7;
 };
 
-// Giữ tên cũ cho tương thích: vẫn là tuổi thọ access token.
-const getJwtExpire = getAccessTokenExpire;
-
 /**
  * Kiểm tra cấu hình ngay lúc khởi động.
  *
@@ -69,7 +66,6 @@ const assertJwtConfig = () => {
 
 module.exports = {
   getJwtSecret,
-  getJwtExpire,
   getAccessTokenExpire,
   getRefreshTokenDays,
   assertJwtConfig,
