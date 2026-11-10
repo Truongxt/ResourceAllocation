@@ -36,7 +36,8 @@ trong các commit của `main` mà bộ e2e cũ chưa theo kịp. Các mục dư
   viết lại theo hành vi mới và khóa thêm: tệp của bản sao là bản riêng, xóa nó không làm mất tệp của bản gốc.
 - **`task.controller.js` tách lại trên bản của `main`** (2.802 dòng, 31 handler, thêm `promoteSubtask` và
   `demoteToSubtask`); mã băm của cả 31 handler trước và sau trùng khớp.
-- **Bốn bộ e2e cập nhật theo giao diện mới của `main`**, không đổi thứ chúng kiểm: `06-optimization` (kết quả chưa
+- **Năm bộ e2e cập nhật theo giao diện mới của `main`**, không đổi thứ chúng kiểm: `04-tasks` (danh sách rỗng nay
+  hiện khung "không có công việc khớp" thay cho bảng trống), `06-optimization` (kết quả chưa
   áp dụng hiện ở khung "Xem trước thay đổi phân công"), `07-analytics` (nhãn KPI bỏ dấu hai chấm), `09-preferences`
   (nhãn nút đổi giao diện đi theo ngôn ngữ), `11-app-permissions` (mở tab qua `?tab=permissions` vì thanh tab của
   trang Cài đặt nay tràn bề ngang và tự cuộn khi bấm).
