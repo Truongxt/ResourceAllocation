@@ -751,6 +751,13 @@ const applyResult = async (req, res, next) => {
     if (preview.blockedCount || !preview.assignments.length) {
       return res.status(409).json({ success: false, message: 'Công việc hoặc nhân sự không còn phù hợp. Vui lòng chạy lại tối ưu hóa.' });
     }
+    // Cùng điều kiện với `canApply` của bản xem trước, mà giao diện web đã dựa vào để khóa
+    // nút. Thiếu ở đây thì gọi thẳng API (mobile không qua bản xem trước) áp dụng được một
+    // phương án trùng với phân công hiện tại: vết hoàn tác chỉ ghi việc bị đổi nên rỗng, hoàn
+    // tác bị từ chối, và kết quả kẹt mãi ở trạng thái "Đã áp dụng".
+    if (!preview.changedCount) {
+      return res.status(409).json({ success: false, message: 'Phương án trùng với phân công hiện tại, không có gì để áp dụng.' });
+    }
     if (req.body?.previewToken && req.body.previewToken !== preview.previewToken) {
       return res.status(409).json({ success: false, message: 'Dữ liệu đã thay đổi từ lúc xem trước. Hãy xem lại tác động mới trước khi áp dụng.' });
     }

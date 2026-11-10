@@ -43,6 +43,19 @@ try {
   ok(String((await Task.findById(task._id)).assignee) === String(resources[1].user), 'New assignee persisted');
   response = await call('POST', `${path}/rollback`, { token: admin });
   ok(response.status === 200 && String((await Task.findById(task._id)).assignee) === String(resources[0].user), 'Rollback restores original assignee');
+  // The rollback snapshot only records changed tasks, so applying a plan that changes nothing
+  // would leave an empty snapshot: rollback is refused and the result is stuck as "applied".
+  section('Plan identical to current assignments');
+  const noopPlan = await OptimizationResult.create({ algorithm: 'genetic', status: 'completed', assignments: [
+    { task: unchangedTask._id, taskTitle: unchangedTask.title, resource: resources[1]._id, skillMatch: 80, estimatedHours: 4 },
+  ] });
+  response = await call('GET', `/optimization/${noopPlan._id}/preview`, { token: admin });
+  ok(response.data?.changedCount === 0 && response.data?.canApply === false, 'Preview reports nothing to apply');
+  response = await call('POST', `/optimization/${noopPlan._id}/apply`, { token: admin });
+  ok(response.status === 409, 'Applying a no-change plan is rejected', `status=${response.status} ${response.message || ''}`);
+  ok((await OptimizationResult.findById(noopPlan._id)).isApplied !== true, 'Rejected plan is not marked applied');
+
+  section('Invalid plans');
   await Task.updateOne({ _id: task._id }, { status: 'done' });
   response = await call('GET', `${path}/preview`, { token: admin });
   ok(response.data?.blockedCount === 1 && !response.data.canApply, 'Completed task is marked invalid');
