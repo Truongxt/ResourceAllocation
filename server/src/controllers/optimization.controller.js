@@ -11,6 +11,7 @@ const { sendNotification } = require('../services/socket.service');
 const { logActivity } = require('../services/activityLog.service');
 const { syncResourceWorkload } = require('../services/workload.service');
 const { projectScopeError, resultScopeError } = require('../services/optimizeScope');
+const { loadOptimizationPreview } = require('../services/optimizationPreview.service');
 
 /** Công ty của người gọi — dùng chung cho cả phân lập lẫn phạm vi dữ liệu. */
 const companyOf = (user) => (user && user.companyName) || 'Công ty Công nghệ RAO';
