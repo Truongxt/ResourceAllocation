@@ -477,7 +477,7 @@ gọi. Bốn lỗi vừa tìm ra đều sống sót qua 82 bài e2e vì đúng k
 | **Refresh token thu hồi được**: cookie `httpOnly`, `Path=/api/auth`, chỉ lưu bản băm SHA-256 trong DB, xoay vòng mỗi lần làm mới | |
 | **Phát hiện tái sử dụng**: trình lại token đã bị xoay vòng thì thu hồi cả chuỗi — token bị đánh cắp chỉ dùng được tới lần làm mới kế tiếp của chủ thật | |
 | **Đổi mật khẩu đuổi mọi phiên khác**; có `POST /auth/logout-all` | |
-| Giới hạn tần suất: 10 lần đăng nhập sai / 15 phút ở production (dev nới ra 200 nếu không khai `AUTH_RATE_LIMIT_MAX`), 1000 request / 15 phút | |
+| Giới hạn tần suất: 10 lần đăng nhập sai / 15 phút (chỉ `NODE_ENV=development`/`test` mới nới ra 200 nếu không khai `AUTH_RATE_LIMIT_MAX`), 1000 request / 15 phút. Sau reverse proxy thì tính theo IP thật của khách nhờ `TRUST_PROXY` | Bộ đếm nằm trong bộ nhớ tiến trình — chỉ đúng khi chạy một instance |
 | **Tìm kiếm khớp theo nghĩa đen**: chuỗi nhập được escape trước khi dựng regex ở cả 7 endpoint có `search` — gõ `(` không còn 500, mẫu ReDoS không làm nghẽn tiến trình | |
 | **Socket.IO kiểm `isActive`** ở handshake như middleware `protect`, và ngắt socket đang mở ngay khi tài khoản bị vô hiệu hóa | |
 | Dependency server: `npm audit` 0 lỗ hổng; `xlsx` lên 0.20.3 (cài từ `cdn.sheetjs.com`) — bản 0.18.5 trên npm còn prototype pollution và ReDoS, mà nó đọc chính file người dùng tải lên | Client còn 2 advisory mức trung bình ở `react-router` 6, chỉ vá được bằng v7 (breaking) — xem mục nợ kỹ thuật |
@@ -485,7 +485,8 @@ gọi. Bốn lỗi vừa tìm ra đều sống sót qua 82 bài e2e vì đúng k
 | **Cắt toán tử Mongo** khỏi body/query/params ở tầng middleware (`src/middleware/sanitize.js`) — xóa khóa bắt đầu bằng `$`, chứa `.`, và ba khóa gây ô nhiễm prototype | |
 | **Nhật ký kiểm toán cho hành động Admin**: xóa nhân sự, xóa phòng ban, tính lại workload, xóa nhật ký. Riêng thao tác xóa nhật ký được ghi **sau** lệnh xóa nên vết của nó sống sót | |
 | Stack trace chỉ lộ khi `NODE_ENV=development` | |
-| `JWT_SECRET` bắt buộc khi `NODE_ENV=production`, thiếu là không khởi động | |
+| **Cấu hình an toàn mặc định là chặt**: `JWT_SECRET` bắt buộc, cookie refresh `secure`, CORS chặn IP mạng LAN — trừ khi `NODE_ENV` ghi rõ `development`/`test`. Quên đặt `NODE_ENV` không còn làm server nới lỏng | |
+| `npm run seed` từ chối chạy trên database ở xa hoặc `NODE_ENV=production` nếu không có `--force` | |
 | **Phân lập công ty đã rà bằng phép đo trên 26 endpoint** — task, dự án, nhân sự, phòng ban, tối ưu hóa, nhật ký, nhóm việc, việc lặp lại, nhập Excel, bảng trước/sau tối ưu bên analytics. Chốt cho nhóm task đặt ở `router.param('id')` nên route mới tự được che — nhưng chốt đó **không** che route nhận id trong body/form (nhập Excel gửi `projectId` qua form) hay route ở nhóm khác đọc chéo dữ liệu (bảng trước/sau nằm bên `/analytics`). Hai lỗ hổng cuối thuộc đúng hai loại này và chỉ lộ ra khi có test gọi tới | `companySetting` không có route theo `:id` (luôn truy vấn bằng `companyName` của người gọi) nên không đo được theo cách này — an toàn do thiết kế chứ không do kiểm chứng |
 | `OptimizationResult` và `ActivityLog` nay có `companyName`, đủ 10/10 model có khóa phân lập | Bản ghi tạo **trước** thay đổi này không có trường đó; chúng được quy về công ty mặc định |
 

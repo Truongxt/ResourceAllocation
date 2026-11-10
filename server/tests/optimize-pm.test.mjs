@@ -69,16 +69,29 @@ section('Chạy thuật toán');
 }
 
 section('Kết quả của PM: chạy, xem, áp dụng, hoàn tác');
+// Một việc chưa có người để phương án chắc chắn đổi ít nhất một phân công. Dữ liệu mẫu vốn
+// đã phân công hợp lý, nên Hybrid dễ trả về đúng phân công hiện tại — mà phương án không
+// đổi gì thì server từ chối áp dụng (xem bộ `optimization-preview-api`).
+const unassigned = await call('POST', '/tasks', {
+  token: admin,
+  body: { title: 'Việc chưa có người', project: own._id, estimatedHours: 4, startDate: iso(1), endDate: iso(3) },
+});
+ok(unassigned.status === 201, 'Tạo việc chưa có người trong dự án của PM', `status=${unassigned.status} ${unassigned.message || ''}`);
 const pmRun = await call('POST', '/optimization/run/hybrid', {
   token: pm, body: { projectId: own._id, populationSize: 20, maxGenerations: 10 },
 });
 const pmResultId = pmRun.data?.result?._id;
 ok(pmRun.status === 200 && !!pmResultId, 'PM chạy Hybrid trên dự án mình → 200', `status=${pmRun.status} ${pmRun.message || ''}`);
 ok((await call('GET', `/optimization/${pmResultId}`, { token: pm })).status === 200, 'PM xem kết quả của mình');
+const pmPreview = await call('GET', `/optimization/${pmResultId}/preview`, { token: pm });
+ok(pmPreview.status === 200 && pmPreview.data?.changedCount >= 1, 'Phương án có ít nhất một phân công thay đổi',
+  `status=${pmPreview.status} changed=${pmPreview.data?.changedCount}`);
 const applied = await call('POST', `/optimization/${pmResultId}/apply`, { token: pm });
 ok(applied.status === 200, 'PM áp dụng kết quả trên dự án mình → 200', `status=${applied.status} ${applied.message || ''}`);
 const rolled = await call('POST', `/optimization/${pmResultId}/rollback`, { token: pm });
 ok(rolled.status === 200, 'PM hoàn tác → 200', `status=${rolled.status} ${rolled.message || ''}`);
+const afterRollback = (await call('GET', `/tasks/${unassigned.data?.task?._id}`, { token: admin })).data?.task;
+ok(afterRollback && !afterRollback.assignee, 'Hoàn tác trả việc về trạng thái chưa có người');
 
 section('Kết quả trên dự án người khác: không thấy, không đụng được');
 {

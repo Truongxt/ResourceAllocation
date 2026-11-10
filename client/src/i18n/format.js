@@ -49,15 +49,6 @@ export const formatDateTime = (date) =>
     minute: '2-digit',
   }).format(new Date(date));
 
-/** Ngày giờ rút gọn, bỏ năm — dùng trong danh sách hoạt động gần đây. */
-export const formatShortDateTime = (date) =>
-  new Intl.DateTimeFormat(currentLocale(), {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(date));
-
 /**
  * Khoảng cách tới hiện tại, dạng "3 phút trước".
  *

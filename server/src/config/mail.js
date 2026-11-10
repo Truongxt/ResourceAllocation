@@ -9,6 +9,7 @@
 const path = require('path');
 const dotenv = require('dotenv');
 const nodemailer = require('nodemailer');
+const { isRelaxedEnv } = require('./env');
 
 function cleanEnvVal(val) {
   if (!val) return '';
@@ -27,9 +28,9 @@ function readMailConfig(env = process.env) {
   }
 
   // Nạp lại .env mới nhất ở môi trường dev để nhận cấu hình SMTP mà không cần restart.
-  // Không làm ở production: `override: true` sẽ đè biến môi trường thật của hạ tầng
-  // bằng nội dung một file .env còn sót lại trên máy chủ, mỗi lần gửi mail.
-  if (env.NODE_ENV !== 'production') {
+  // Chỉ làm khi NODE_ENV ghi rõ development: `override: true` sẽ đè biến môi trường
+  // thật của hạ tầng bằng nội dung một file .env còn sót lại trên máy chủ, mỗi lần gửi mail.
+  if (isRelaxedEnv(env)) {
     try {
       dotenv.config({ path: path.join(__dirname, '../../../.env'), override: true });
     } catch {
@@ -92,10 +93,4 @@ function getTransporter(env = process.env) {
   return cachedTransporter;
 }
 
-/** Dùng trong kiểm thử để tránh transporter của lần chạy trước dính sang. */
-function resetTransporter() {
-  cachedTransporter = null;
-  lastTransporterKey = null;
-}
-
-module.exports = { readMailConfig, getTransporter, resetTransporter };
+module.exports = { readMailConfig, getTransporter };

@@ -103,8 +103,11 @@ test.describe('Giao diện sáng/tối', () => {
   test('bấm đổi giao diện thì nền trang đổi và lựa chọn được nhớ', async ({ page }) => {
     await page.goto('/dashboard');
 
+    // Nhãn của nút nay đi theo ngôn ngữ giao diện (`header.toggleTheme`), không còn là
+    // chuỗi tiếng Anh viết cứng "Toggle Theme".
+    const themeButton = page.getByRole('button', { name: 'Chuyển giao diện Sáng/Tối', exact: true });
     const before = await page.evaluate(() => localStorage.getItem('rao_theme'));
-    await page.getByRole('button', { name: 'Toggle Theme', exact: true }).click();
+    await themeButton.click();
 
     await expect
       .poll(() => page.evaluate(() => localStorage.getItem('rao_theme')), { timeout: 10_000 })
@@ -119,7 +122,7 @@ test.describe('Giao diện sáng/tối', () => {
     expect(await page.evaluate(() => localStorage.getItem('rao_theme'))).toBe(after);
 
     // Trả lại giá trị ban đầu
-    await page.getByRole('button', { name: 'Toggle Theme', exact: true }).click();
+    await themeButton.click();
   });
 });
 

@@ -73,9 +73,6 @@ const taskService = {
   addFollower(taskId, userId) {
     return api.post(`/tasks/${taskId}/followers`, { userId });
   },
-  addFollowers(taskId, userIds) {
-    return api.post(`/tasks/${taskId}/followers`, { userIds });
-  },
   removeFollower(taskId, userId) {
     return api.delete(`/tasks/${taskId}/followers/${userId}`);
   },

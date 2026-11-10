@@ -9,14 +9,21 @@
  */
 
 const jwt = require('jsonwebtoken');
+const { isRelaxedEnv } = require('./env');
 
 const DEV_FALLBACK_SECRET = 'rao_dev_only_insecure_secret';
 
 const getJwtSecret = () => {
   if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
 
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET là bắt buộc khi NODE_ENV=production');
+  // Khóa dự phòng nằm công khai trong mã nguồn: ai đọc repo cũng ký được token của
+  // bất kỳ tài khoản nào. Chỉ dùng khi NODE_ENV ghi rõ development/test — bỏ trống
+  // cũng bị từ chối, vì "quên đặt NODE_ENV" chính là cách nó lọt lên máy chủ thật.
+  if (!isRelaxedEnv()) {
+    throw new Error(
+      'JWT_SECRET là bắt buộc. Chỉ được bỏ trống khi NODE_ENV=development hoặc test ' +
+      `(hiện tại: ${process.env.NODE_ENV || 'chưa đặt'}).`
+    );
   }
 
   if (!getJwtSecret._warned) {
@@ -71,9 +78,6 @@ const getRefreshTokenDays = () => {
   return Number.isFinite(days) && days > 0 ? days : 7;
 };
 
-// Giữ tên cũ cho tương thích: vẫn là tuổi thọ access token.
-const getJwtExpire = getAccessTokenExpire;
-
 /**
  * Kiểm tra cấu hình ngay lúc khởi động.
  *
@@ -88,7 +92,6 @@ const assertJwtConfig = () => {
 module.exports = {
   getJwtSecret,
   verifyAccessToken,
-  getJwtExpire,
   getAccessTokenExpire,
   getRefreshTokenDays,
   assertJwtConfig,

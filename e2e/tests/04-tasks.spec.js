@@ -182,7 +182,17 @@ test.describe('Quản lý công việc', () => {
     // Dashboard dẫn sang đây bằng đúng link này, nên tham số phải có tác dụng
     await page.goto('/tasks?status=blocked');
     await expect(page.getByRole('heading', { name: 'Quản lý Công việc' }).first()).toBeVisible();
-    await showTaskList(page);
+    await page.locator('.ant-segmented-item').filter({ hasText: 'Danh sách' }).first().click();
+
+    // Tham số có tác dụng: trang nói rõ đang lọc theo việc bị chặn.
+    await expect(page.getByText('Công việc bị chặn').first()).toBeVisible();
+
+    // Dữ liệu mẫu không có việc bị chặn, và từ 11/2026 danh sách rỗng hiện khung "không có
+    // công việc khớp" thay cho một bảng trống — nên không dùng `showTaskList` (nó đòi phải có
+    // bảng). Có bảng hay không thì mọi dòng hiện ra đều phải là việc bị chặn.
+    const table = page.locator('.ant-table').first();
+    const empty = page.getByText('Không có công việc khớp với bộ lọc');
+    await expect(table.or(empty).first()).toBeVisible();
 
     const rows = page.locator('.ant-table-row');
     const count = await rows.count();

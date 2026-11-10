@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const { isRelaxedEnv } = require('../config/env');
 
 /**
  * Giới hạn tần suất request.
@@ -17,9 +18,10 @@ const message = (text) => ({ success: false, message: text });
 
 const authLimiter = rateLimit({
   windowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || minutes(15),
-  // Khai báo AUTH_RATE_LIMIT_MAX thì luôn dùng nó. Bỏ trống thì production chặt
-  // (10), còn dev nới ra 200 để gõ sai mật khẩu vài lần không bị khoá cả buổi.
-  max: Number(process.env.AUTH_RATE_LIMIT_MAX) || (process.env.NODE_ENV === 'production' ? 10 : 200),
+  // Khai báo AUTH_RATE_LIMIT_MAX thì luôn dùng nó. Bỏ trống thì chặt (10); chỉ khi
+  // NODE_ENV ghi rõ development/test mới nới ra 200 để gõ sai mật khẩu vài lần
+  // không bị khoá cả buổi.
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX) || (isRelaxedEnv() ? 200 : 10),
   standardHeaders: true,
   legacyHeaders: false,
   // Chỉ đếm lần thất bại: đăng nhập đúng liên tục không bị khoá.

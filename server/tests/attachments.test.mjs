@@ -147,12 +147,40 @@ section('Tối đa 20 tệp mỗi việc');
   ok((await list(admin, t._id)).status === 404, 'Danh sách tệp của việc đã xóa → 404');
 }
 
-section('Nhân bản việc không chép tệp');
+// Từ 11/2026 nhân bản mặc định chép cả tệp (ô "Giữ tệp đính kèm" trong DuplicateTaskModal).
+// Bản đầu của tính năng tạo bản ghi mới mà thiếu `storageKey` (trường `select: false`), nên
+// việc nào có tệp là nhân bản trả 400 — sau khi bản sao đã được tạo. Bộ này khóa cả lỗi đó
+// lẫn cái bẫy kế tiếp: hai bản ghi dùng chung một tệp trên đĩa, xóa bên này là mất bên kia.
+section('Nhân bản việc: chép tệp thành bản riêng');
 {
-  const dup = await call('POST', `/tasks/${task._id}/duplicate`, { token: admin, body: {} });
+  const source = (await call('POST', '/tasks', { token: admin, body: { title: `Việc gốc có tệp ${stamp}`, project: project._id, estimatedHours: 2 } })).data?.task;
+  const bytes = Buffer.from('%PDF-1.4\nnội dung của bản gốc\n');
+  const original = (await upload(admin, source._id, { name: 'hop-dong.pdf', bytes })).data?.attachment;
+  const diskBefore = filesOnDisk().length;
+
+  const dup = await call('POST', `/tasks/${source._id}/duplicate`, { token: admin, body: {} });
   const copyId = dup.data?.task?._id;
-  ok(!!copyId, 'Nhân bản được', `status=${dup.status}`);
-  ok((await list(admin, copyId)).data?.attachments?.length === 0, 'Bản sao không có tệp');
+  ok(dup.status === 201 && !!copyId, 'Nhân bản việc có tệp → 201', `status=${dup.status} ${dup.message || ''}`);
+
+  const copied = (await list(admin, copyId)).data?.attachments || [];
+  ok(copied.length === 1 && copied[0].originalName === 'hop-dong.pdf', 'Bản sao có tệp, giữ đúng tên', `${copied.length} tệp`);
+  ok(filesOnDisk().length === diskBefore + 1, 'Nội dung được chép thành tệp riêng trên đĩa', `${diskBefore} → ${filesOnDisk().length}`);
+  ok(!('storageKey' in (copied[0] || {})), 'Không lộ đường lưu trên đĩa ra client');
+
+  const fromCopy = await download(admin, copyId, copied[0]?._id);
+  ok(fromCopy.status === 200 && fromCopy.bytes.equals(bytes), 'Tải về từ bản sao đúng từng byte', `status=${fromCopy.status}`);
+
+  const delCopy = await call('DELETE', `/tasks/${copyId}/attachments/${copied[0]?._id}`, { token: admin });
+  const fromOriginal = await download(admin, source._id, original._id);
+  ok(delCopy.status === 200 && fromOriginal.status === 200 && fromOriginal.bytes.equals(bytes),
+    'Xóa tệp ở bản sao không làm mất tệp của bản gốc', `xóa=${delCopy.status} tải gốc=${fromOriginal.status}`);
+
+  const bare = await call('POST', `/tasks/${source._id}/duplicate`, { token: admin, body: { keepAttachments: false } });
+  ok(bare.status === 201 && (await list(admin, bare.data?.task?._id)).data?.attachments?.length === 0,
+    'keepAttachments=false thì bản sao không có tệp', `status=${bare.status}`);
+
+  const plain = await call('POST', `/tasks/${task._id}/duplicate`, { token: admin, body: { keepAttachments: false } });
+  ok(plain.status === 201, 'Việc ở đầu bộ test vẫn nhân bản được', `status=${plain.status}`);
 }
 
 section('Dự án lưu trữ: chỉ đọc');

@@ -34,9 +34,23 @@ function stream(key) {
   return fs.existsSync(file) ? fs.createReadStream(file) : null;
 }
 
+/**
+ * Chép nội dung sang một khóa mới, trả về khóa đó; null nếu tệp nguồn không còn trên đĩa.
+ *
+ * Hai bản ghi không bao giờ được dùng chung một khóa: xóa bản ghi nào cũng xóa luôn nội
+ * dung trên đĩa, nên bản còn lại sẽ thành "Tệp không còn trên máy chủ".
+ */
+async function copy(key) {
+  const source = pathOf(key);
+  if (!fs.existsSync(source)) return null;
+  const newKey = crypto.randomBytes(16).toString('hex');
+  await fs.promises.copyFile(source, pathOf(newKey), fs.constants.COPYFILE_EXCL);
+  return newKey;
+}
+
 /** Xóa nội dung. Tệp đã mất từ trước thì bỏ qua — mục tiêu là "không còn", không phải "vừa xóa". */
 async function remove(key) {
   await fs.promises.rm(pathOf(key), { force: true });
 }
 
-module.exports = { save, stream, remove };
+module.exports = { save, stream, copy, remove };

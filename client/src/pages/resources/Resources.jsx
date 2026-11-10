@@ -741,7 +741,10 @@ export default function Resources() {
       <div className="section-heading resource-view-heading">
         <div><h2>{t('workspace.teamCapacity')}</h2><p>{t('workspace.resourceScope')}</p></div>
         <Space wrap className="resource-quick-filters">
-          {['all', 'overloaded', 'capacity'].map(key => <Button key={key} type={workloadFilter === key ? 'primary' : 'default'} aria-pressed={workloadFilter === key} onClick={() => setSearchParams(key === 'all' ? {} : { workload: key })}>{t('workspace.filter.' + key)}</Button>)}
+          {/* "Tất cả" phải giữ `tab=resources`: App.jsx dựng lại trang mỗi khi chuỗi truy vấn đổi,
+              và thiếu cả `tab` lẫn `workload` thì trang mở lại ở tab mặc định "Năng suất & Cân
+              bằng tải" — bấm bỏ lọc mà bị ném sang tab khác. */}
+          {['all', 'overloaded', 'capacity'].map(key => <Button key={key} type={workloadFilter === key ? 'primary' : 'default'} aria-pressed={workloadFilter === key} onClick={() => setSearchParams(key === 'all' ? { tab: 'resources' } : { workload: key })}>{t('workspace.filter.' + key)}</Button>)}
         </Space>
       </div>
                 {/* Filters */}

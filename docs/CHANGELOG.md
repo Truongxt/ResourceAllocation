@@ -6,6 +6,135 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-11-10 (gộp `main` vào `Mr.Tien`: sửa lỗi có sẵn trên `main`)
+
+Nhánh `Mr.Tien` tách từ `d585f21` (19/10); `main` sau đó có thêm 7 commit (25/10 – 07/11). Gộp `main` vào nhánh để
+PR #9 hết xung đột. Chạy bộ test server của riêng `main` (`7061a5c`) để đối chiếu: đỏ 10 bài, có từ trước khi gộp.
+Bộ e2e trên cây đã gộp đỏ 6 bài; e2e của riêng `main` chưa chạy, nhưng cả 6 đều truy được về thay đổi giao diện
+trong các commit của `main` mà bộ e2e cũ chưa theo kịp. Các mục dưới đây là phần sửa cho chúng.
+
+### Fixed
+
+- **Xem trước và áp dụng kết quả tối ưu trả 500.** `optimization.controller.js` gọi `loadOptimizationPreview` mà
+  không import. Thêm một dòng import; 7 bài test xanh lại.
+- **Nhân bản công việc có tệp đính kèm trả 400 — sau khi bản sao đã được tạo.** Phần chép tệp (`keepAttachments`,
+  mặc định bật) tạo bản ghi `Attachment` mới mà không đọc `storageKey` (trường `select: false`), nên bản ghi không
+  qua validate. Kể cả khi đọc đủ thì hai bản ghi sẽ dùng chung một tệp trên đĩa: xóa bên này là mất bên kia. Nay
+  `fileStorage.copy` chép nội dung sang khóa mới và `copyAttachments` (trong `attachment.service.js`) tạo bản ghi
+  riêng; tệp đã mất nội dung trên đĩa thì bỏ qua.
+- **Kết quả tối ưu kẹt ở "Đã áp dụng", không hoàn tác được.** Vết hoàn tác chỉ ghi công việc bị đổi người, nên áp
+  dụng một phương án trùng với phân công hiện tại để lại vết rỗng và hoàn tác bị từ chối. Giao diện web đã khóa nút
+  theo `canApply`, nhưng server không kiểm, nên gọi thẳng API (mobile) vẫn áp dụng được. Nay `POST /:id/apply` trả
+  **409** khi phương án không đổi phân công nào — cùng điều kiện với `canApply`.
+- **Bấm "Tất cả" ở bộ lọc tải của tab Nhân sự bị ném sang tab "Năng suất & Cân bằng tải".** `App.jsx` dựng lại
+  trang mỗi khi chuỗi truy vấn đổi, mà nút này xóa sạch chuỗi truy vấn. Nay nó giữ `tab=resources`.
+
+### Changed
+
+- **Hành vi nhân bản đổi so với bộ test cũ:** trước 11/2026 nhân bản không chép tệp; nay mặc định có chép (theo ô
+  "Giữ tệp đính kèm" của `DuplicateTaskModal`), gửi `keepAttachments: false` để không chép. Bộ `attachments` được
+  viết lại theo hành vi mới và khóa thêm: tệp của bản sao là bản riêng, xóa nó không làm mất tệp của bản gốc.
+- **`task.controller.js` tách lại trên bản của `main`** (2.802 dòng, 31 handler, thêm `promoteSubtask` và
+  `demoteToSubtask`); mã băm của cả 31 handler trước và sau trùng khớp.
+- **Năm bộ e2e cập nhật theo giao diện mới của `main`**, không đổi thứ chúng kiểm: `04-tasks` (danh sách rỗng nay
+  hiện khung "không có công việc khớp" thay cho bảng trống), `06-optimization` (kết quả chưa
+  áp dụng hiện ở khung "Xem trước thay đổi phân công"), `07-analytics` (nhãn KPI bỏ dấu hai chấm), `09-preferences`
+  (nhãn nút đổi giao diện đi theo ngôn ngữ), `11-app-permissions` (mở tab qua `?tab=permissions` vì thanh tab của
+  trang Cài đặt nay tràn bề ngang và tự cuộn khi bấm).
+- `server/package-lock.json` bổ sung `otplib` và `qrcode` mà `main` đã thêm vào `package.json`.
+
+### Chưa làm
+
+- **`App.jsx` dựng lại cả trang mỗi khi chuỗi truy vấn đổi** (`key` gồm cả `location.search`). Mọi state cục bộ của
+  trang mất khi đổi bộ lọc hay tab qua URL; lỗi "Tất cả" ở trên chỉ là một biểu hiện. Sửa tận gốc là đổi thiết kế
+  chuyển trang, chưa đụng.
+- Phần mã mới của `main` (khoảng 100 file client, 23 file server) chưa qua đợt audit mã chết bên dưới.
+- Các số 2.481 dòng / 29 handler / 43 bộ test ở mục bên dưới là của bản trước khi gộp; sau khi gộp là 2.802 dòng /
+  31 handler / 49 bộ.
+
+---
+
+## [Chưa phát hành] - 2026-11-10 (audit: xóa mã chết, siết bốn giả định triển khai)
+
+### ⚠️ Cần làm trước khi deploy bản này
+
+- **Đặt `NODE_ENV=production` và `JWT_SECRET`.** Thiếu `JWT_SECRET` mà `NODE_ENV` không phải `development`/`test`
+  thì server **từ chối khởi động** (trước đây chỉ khi `NODE_ENV=production`).
+- **Đang chạy HTTP thường mà chưa đặt `NODE_ENV=production`** thì thêm `COOKIE_SECURE=false`. Không làm thì cookie
+  refresh mang cờ `secure`, trình duyệt không gửi lại, người dùng bị đăng xuất mỗi 15 phút.
+- **Chạy sau reverse proxy** (Nginx, load balancer, CDN) thì đặt `TRUST_PROXY` bằng số lớp proxy, thường là `1`.
+- **Script hoặc CI nào gọi `npm run seed` lên database không phải localhost** thì thêm `-- --force`.
+
+### Changed
+
+- **Cấu hình an toàn mặc định là chặt.** Trước đây mỗi nơi tự so `NODE_ENV === 'production'` rồi mới siết, nên quên
+  đặt biến đó — không lỗi nào nổ ra — là server ký token bằng khóa dev công khai trong mã nguồn, cookie refresh
+  không `secure`, giới hạn đăng nhập sai nới lên 200 và CORS nhận mọi IP mạng LAN. Nay chỉ nới khi `NODE_ENV` ghi rõ
+  `development` hoặc `test`; bỏ trống hay gõ sai (`prod`, `staging`) đều coi như production. Quy tắc nằm một chỗ ở
+  `server/src/config/env.js`, dùng cho JWT, cookie, rate limit, CORS và việc nạp lại `.env` của tầng email.
+- **`COOKIE_SECURE=false` nay có hiệu lực ở mọi môi trường**, kể cả production (trước đây production luôn ép
+  `secure`). Đây là lối thoát cho triển khai HTTP nội bộ và phải tự tay ghi ra.
+- **`npm run seed` có chốt chặn.** Seed xóa sạch 14 collection trên bất cứ database nào `MONGODB_URI` trỏ tới. Nay
+  từ chối khi `NODE_ENV=production` hoặc database không nằm trên máy này (host ở xa, Atlas, replica set có máy ở
+  xa), trừ khi thêm `-- --force`. Dev, `server/tests` và e2e dùng Mongo local nên không đổi.
+
+### Added
+
+- **`TRUST_PROXY`**: số lớp proxy đứng trước server, hoặc dải IP của proxy. Thiếu nó khi chạy sau reverse proxy thì
+  mọi khách hàng chung một IP: cả hệ thống chia nhau 1000 request / 15 phút và 10 lần đăng nhập sai của một người
+  khóa đăng nhập của tất cả. Bỏ trống giữ hành vi cũ. `true` làm server từ chối khởi động, vì nó cho phép giả mạo
+  IP qua `X-Forwarded-For`.
+- Mục **Giới hạn triển khai** trong README: server chỉ chạy đúng một instance (rate limit và Socket.IO nằm trong bộ
+  nhớ tiến trình, tệp đính kèm nằm trên đĩa), và cần gì để nhân bản. Chưa dựng Redis/S3 vì chưa có nhu cầu.
+- Ba bộ test server: `seed-guard` (14 ca), `trust-proxy` (11 ca), `env-strict` (25 ca). Tổng 43 bộ.
+
+### Removed
+
+- **Năm script cá nhân trong `server/src/utils/`**: `setup-demo-data.js`, `setup-requested-accounts.js`,
+  `setup-resources-data.js`, `test_direct_manager_and_wework_perms.js`, `migrate-company-isolation.js`. Chúng viết
+  cứng email cá nhân, cấp quyền Owner, đặt mật khẩu `123123` và ký JWT bằng khóa dự phòng viết cứng; không npm
+  script hay tài liệu nào nhắc tới.
+- **Mã chết ở client**: `Header.css`, `Sidebar.css` (628 dòng, không file nào import), `PasswordFormCard.jsx`,
+  `ProfileFormCard.jsx`, 10 file `pages/*/index.jsx`; hằng `APP_NAME`, `APP_FULL_NAME`, `PROJECT_STATUS`,
+  `TASK_STATUS`, `PRIORITY`; `formatShortDateTime`; `taskService.addFollowers`.
+- **Dependency client không ai import**: `react-icons`, `i18next-browser-languagedetector`.
+- **Mobile**: `projectApi.getMembers` — không ai gọi, và trỏ tới `GET /projects/:id/members` không tồn tại.
+- **Server**: `getJwtExpire`, `getIO`, `emitToAll`, `resetTransporter`, handler `disconnect` rỗng.
+- `mobile/.expo/` và `tools/__pycache__/` khỏi git (đã thêm vào `.gitignore`).
+
+### Đợt hai (cùng ngày): năm mục "cố ý chưa đụng" của đợt audit
+
+- **Chunk chính của client: 1.180 → 733 kB (−38%).** `Header` nằm trong chunk chính và import tĩnh bốn lớp phủ chỉ
+  hiện khi bấm (tìm kiếm, tạo nhanh, nhắc việc, chi tiết công việc), kéo theo DatePicker, Form, Select và cả khối
+  chi tiết công việc vào lần tải đầu của mọi trang, kể cả trang đăng nhập. Nay chúng tải khi mở lần đầu. Chunk không
+  tải được (tab mở từ trước một lần deploy) thì báo "Không tải được phần này. Vui lòng tải lại trang." và đóng lại,
+  không trắng màn hình. Test mới: `client/tests/header-overlays.test.jsx`.
+- **`task.controller.js` 2.481 dòng tách thành sáu file** trong `server/src/controllers/task/` (`core`,
+  `collaboration`, `operations`, `review`, `reassign`, `shared`); file cũ còn 49 dòng, giữ nguyên 29 tên export nên
+  route không đổi. Tách bằng script cắt dán nguyên văn từng khối: mã băm của cả 29 handler trước và sau trùng khớp,
+  không file nào có định danh chưa khai báo, 43 bộ test đạt. Bỏ luôn khối `module.exports` thứ nhất vốn bị khối thứ
+  hai ghi đè.
+- **Script `migrate-*`: giữ lại, có bằng chứng.** Chạy khô trên database dev: `migrate:dependencies` còn 2 công việc
+  ở dạng cũ, `migrate:stale-indexes` còn chỉ mục `code_1` của `departments`. Ba script còn lại báo sạch. Chưa
+  `--apply` vào database nào.
+- **Endpoint: không có gì để xóa.** So 135 route với mọi lời gọi của web và mobile: chỉ
+  `GET /analytics/workload-history` không client nào gọi. Nó là đầu đọc duy nhất của job `workload-snapshot`, tức
+  dữ liệu đang được chụp hằng ngày mà chưa màn hình nào hiển thị — quyết định sản phẩm, chưa đụng.
+- **`docs/` thử nghiệm và `.agents/skills/`: chưa đụng.** Lộ trình 07/10 mục 5 đã ghi "Hỏi Truongxt trước khi dọn
+  tiếp", và cả hai đều do Truongxt commit. Gỡ khỏi git ở nhánh này thì lần pull tới sẽ xóa file trên máy bạn ấy.
+- **`Projects.jsx` (1.740 dòng) và các component lớn khác: chưa tách.** Khác controller, state và closure của React
+  không cắt dán nguyên văn được; cần viết lại có chủ đích, kèm test giao diện cho từng phần tách ra.
+
+### Cố ý chưa làm
+
+- `set-test-pw.js`: giữ, đi cùng quyết định về các script `migrate-*`.
+- Không xóa endpoint nào: API có tài liệu công khai, có thể có bên ngoài gọi.
+- `docs/TESTING.md` và báo cáo vẫn ghi 40 bộ / 1.448 ca của lần chạy 19/10; chưa cập nhật theo 43 bộ.
+- Trang tải lười (`lazy`) trong `App.jsx` chưa có ranh giới lỗi: chunk của trang không tải được sau một lần deploy
+  thì vẫn trắng màn hình. Có từ trước đợt này.
+
+---
+
 ## [Chưa phát hành] - 2026-11-03 (ranh giới đăng ký, 2FA và truy vấn công việc)
 
 ### Fixed

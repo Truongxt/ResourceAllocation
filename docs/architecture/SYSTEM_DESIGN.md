@@ -283,7 +283,9 @@ tức đường dẫn tính từ thư mục `server/` khi chạy `npm run dev:se
 | Variable | Default trong code | Mô tả |
 |----------|--------------------|-------|
 | `PORT` | 5000 | Server port |
-| `NODE_ENV` | development | Bật stack trace trong response lỗi khi = `development` |
+| `NODE_ENV` | (bỏ trống = chặt như production) | Chỉ `development` / `test` ghi rõ mới nới cấu hình an toàn: khóa JWT tạm, cookie không `secure`, 200 lần đăng nhập sai, CORS nhận IP mạng LAN ([`src/config/env.js`](../../server/src/config/env.js)). Stack trace trong response lỗi chỉ bật khi = `development` |
+| `TRUST_PROXY` | (bỏ trống = không tin proxy nào) | Số lớp proxy đứng trước server, hoặc dải IP của proxy. **Bắt buộc khi chạy sau reverse proxy**, nếu không mọi khách hàng chung một IP với giới hạn tần suất. `true` bị từ chối |
+| `COOKIE_SECURE` | (bỏ trống = bật, trừ development/test) | Cờ `secure` của cookie refresh. `false` cho triển khai HTTP nội bộ |
 | `MONGODB_URI` | mongodb://localhost:27017/resource_allocation | Chuỗi kết nối MongoDB |
 | `JWT_SECRET` | khóa dev tạm (xem dưới) | Khóa ký JWT |
 | `JWT_EXPIRE` | 7d | Thời hạn token |
@@ -298,8 +300,8 @@ Nơi ký token (`auth.controller.js`), nơi verify (`middleware/auth.js`) và ha
 
 | Môi trường | Thiếu `JWT_SECRET` |
 |------------|--------------------|
-| `NODE_ENV` ≠ production | Ghi cảnh báo một lần rồi dùng khóa dev tạm — hệ thống vẫn chạy được |
-| `NODE_ENV=production` | `assertJwtConfig()` chạy ngay đầu `startServer()` → **server thoát với exit code 1** trước khi listen |
+| `NODE_ENV=development` hoặc `test` | Ghi cảnh báo một lần rồi dùng khóa dev tạm — hệ thống vẫn chạy được |
+| Mọi giá trị khác, kể cả bỏ trống | `assertJwtConfig()` chạy ngay đầu `startServer()` → **server thoát với exit code 1** trước khi listen |
 
 Kiểm tra cấu hình đặt trước cả bước kết nối DB, để lỗi lộ ra lúc khởi động thay vì
 biến thành 401 khó chẩn đoán ở request đầu tiên.

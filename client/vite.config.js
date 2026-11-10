@@ -10,8 +10,8 @@ import react from '@vitejs/plugin-react';
 // vào đầu tiên phải tải cả 1,1 MB. Để Rollup tự chia thì phần antd chỉ một
 // trang dùng nằm luôn trong chunk của trang đó.
 //
-// So sánh theo tên package chứ không theo đường dẫn, vì 'react-icons' cũng
-// chứa chuỗi 'react'.
+// So sánh theo tên package chứ không theo đường dẫn, vì '@vitejs/plugin-react',
+// 'react-i18next'… cũng chứa chuỗi 'react'.
 const REACT_PKGS = ['react', 'react-dom', 'react-router', 'react-router-dom', 'scheduler'];
 const NET_PKGS = ['axios', 'socket.io-client', 'socket.io-parser', 'engine.io-client', 'engine.io-parser'];
 

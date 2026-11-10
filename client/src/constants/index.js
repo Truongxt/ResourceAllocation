@@ -4,9 +4,6 @@
 // Trước đây file này không được import ở đâu nên đã trôi khỏi thực tế
 // (task status ghi 'in_review' trong khi server dùng 'review', và thiếu 'blocked').
 
-export const APP_NAME = 'RAO';
-export const APP_FULL_NAME = 'Resource Allocation Optimization';
-
 // User roles — khớp User.role
 export const ROLES = {
   ADMIN: 'admin',
@@ -25,10 +22,6 @@ export const PROJECT_STATUSES = [
   { value: 'cancelled', color: 'error' },
 ];
 
-export const PROJECT_STATUS = Object.fromEntries(
-  PROJECT_STATUSES.map((s) => [s.value.toUpperCase(), s.value])
-);
-
 // Nhãn hiển thị nằm ở src/i18n/enums.js — file này chỉ giữ giá trị enum và màu,
 // vốn không phụ thuộc ngôn ngữ.
 
@@ -43,10 +36,6 @@ export const TASK_STATUSES = [
   { key: 'blocked', color: '#ef4444', badgeColor: 'error' },
   { key: 'failed', color: '#e11d48', badgeColor: 'error' },
 ];
-
-export const TASK_STATUS = Object.fromEntries(
-  TASK_STATUSES.map((s) => [s.key.toUpperCase(), s.key])
-);
 
 // Mã màu thật, dùng khi vẽ trực tiếp (Gantt, biểu đồ)
 export const TASK_STATUS_COLORS = Object.fromEntries(
@@ -72,10 +61,6 @@ export const PRIORITY_OPTIONS = [
   { value: 'high', color: 'warning', hex: '#f59e0b' },
   { value: 'critical', color: 'red', hex: '#ef4444' },
 ];
-
-export const PRIORITY = Object.fromEntries(
-  PRIORITY_OPTIONS.map((p) => [p.value.toUpperCase(), p.value])
-);
 
 // Mã màu thật, dùng cho những chỗ vẽ trực tiếp (Gantt) thay vì Tag của Ant Design.
 export const PRIORITY_COLORS = Object.fromEntries(

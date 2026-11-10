@@ -46,12 +46,16 @@ test.describe('Tối ưu hóa phân bổ', () => {
       await expect(page.getByText(kpi).first()).toBeVisible();
     }
 
-    // Và quan trọng nhất: bảng phân công phải gán người thật cho việc thật
-    await expect(page.getByText('Chi tiết Phân công')).toBeVisible();
+    // Và quan trọng nhất: phương án phải gán người thật cho việc thật. Từ 11/2026 kết quả
+    // chưa áp dụng hiện ở khung "Xem trước thay đổi phân công" (đối chiếu người hiện tại với
+    // người được đề xuất); bảng "Chi tiết Phân công" chỉ còn hiện sau khi đã áp dụng.
+    await expect(page.getByText('Xem trước thay đổi phân công')).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Người được đề xuất' })).toBeVisible();
     const rows = page.locator('.ant-table-row');
     await expect(rows.first()).toBeVisible();
     await expect(page.getByText(/Đã tìm thấy gán việc cho \d+ công việc/)).toBeVisible();
     await expect(rows.first()).toContainText(/Trần Văn Nam|Lê Thị Hoa|Phạm Minh Tuấn/);
+    await expect(page.getByText('Tác động đến tải nhân sự')).toBeVisible();
 
     expect(problems).toEqual([]);
   });
