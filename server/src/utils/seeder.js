@@ -16,6 +16,7 @@ const CompanySetting = require('../models/CompanySetting');
 const JobRun = require('../models/JobRun');
 const WorkloadSnapshot = require('../models/WorkloadSnapshot');
 const { syncResourceWorkload } = require('../services/workload.service');
+const { seedRefusal } = require('./seedGuard');
 
 // .env nằm ở thư mục gốc dự án, không phải trong server/
 dotenv.config({ path: path.join(__dirname, '..', '..', '..', '.env') });
@@ -24,6 +25,17 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '..', '.env') });
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/resource_allocation';
 
 async function seedData() {
+  const refusal = seedRefusal({
+    uri: MONGO_URI,
+    nodeEnv: process.env.NODE_ENV,
+    force: process.argv.includes('--force'),
+  });
+  if (refusal) {
+    console.error(`❌ Từ chối seed: ${refusal}.`);
+    console.error('   Seed XÓA SẠCH mọi collection. Nếu đúng là muốn vậy: npm run seed -- --force');
+    process.exit(1);
+  }
+
   try {
     await mongoose.connect(MONGO_URI);
     console.log('Connected to MongoDB for seeding...');
