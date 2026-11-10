@@ -49,8 +49,11 @@ npm run test:e2e:install
 
 Yêu cầu: **Node.js ≥ 20** và **MongoDB** đang chạy ở `localhost:27017`.
 
-> `JWT_SECRET` bỏ trống ở môi trường dev thì hệ thống vẫn chạy (ghi cảnh báo và dùng khóa tạm),
-> nhưng với `NODE_ENV=production` server sẽ **từ chối khởi động**. Hãy đặt giá trị thật trước khi triển khai.
+> Cấu hình an toàn **mặc định là chặt**; chỉ nới khi `NODE_ENV` ghi rõ `development` hoặc `test`.
+> Với `NODE_ENV=development`, bỏ trống `JWT_SECRET` thì hệ thống vẫn chạy (ghi cảnh báo và dùng khóa tạm).
+> Mọi giá trị khác — `production`, bỏ trống, gõ sai — thì thiếu `JWT_SECRET` server **từ chối khởi động**,
+> cookie refresh bật `secure` (cần HTTPS; chạy HTTP nội bộ thì đặt `COOKIE_SECURE=false`), và giới hạn
+> đăng nhập sai là 10 lần / 15 phút.
 
 ### Tài khoản mẫu sau khi seed
 
@@ -113,6 +116,23 @@ Tệp người dùng tải lên công việc nằm trên đĩa server, trong `UP
 **không bị xóa khi deploy lại** (volume riêng nếu chạy container). Database chỉ giữ siêu dữ liệu, nên
 sao lưu database mà thiếu thư mục này thì danh sách tệp còn nhưng tải về báo "Tệp không còn trên máy
 chủ". Muốn chuyển sang S3 thì chỉ thay `server/src/services/fileStorage.js`.
+
+## Giới hạn triển khai
+
+**Chạy đúng một instance server.** Ba thứ nằm trong bộ nhớ hoặc trên đĩa của chính tiến trình đó, nên
+chạy từ hai instance trở lên sau load balancer thì hỏng âm thầm, không có lỗi nào nổ ra:
+
+| Thứ | Nằm ở đâu | Chạy nhiều instance thì |
+|-----|-----------|-------------------------|
+| Giới hạn tần suất | Bộ nhớ tiến trình | Mỗi instance đếm riêng: hạn mức thực tế nhân theo số instance |
+| Socket.IO (thông báo tức thì) | Bộ nhớ tiến trình | Thông báo chỉ tới người đang nối vào đúng instance phát ra nó |
+| Tệp đính kèm | Đĩa của server (`UPLOAD_DIR`) | Tệp tải lên instance này, instance kia báo "Tệp không còn trên máy chủ" |
+
+Muốn nhân bản thì cần cả ba: store Redis cho `express-rate-limit`, Redis adapter cho Socket.IO (kèm
+sticky session ở load balancer), và lưu tệp ở nơi dùng chung (S3 hoặc volume mạng).
+
+Chạy sau reverse proxy (Nginx, load balancer, CDN) thì **phải** đặt `TRUST_PROXY` — xem `.env.example`.
+Thiếu nó, mọi khách hàng chung một IP và chia nhau một hạn mức.
 
 ## Tài liệu
 

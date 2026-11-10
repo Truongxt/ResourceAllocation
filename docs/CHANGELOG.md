@@ -6,6 +6,62 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-11-10 (audit: xóa mã chết, siết bốn giả định triển khai)
+
+### ⚠️ Cần làm trước khi deploy bản này
+
+- **Đặt `NODE_ENV=production` và `JWT_SECRET`.** Thiếu `JWT_SECRET` mà `NODE_ENV` không phải `development`/`test`
+  thì server **từ chối khởi động** (trước đây chỉ khi `NODE_ENV=production`).
+- **Đang chạy HTTP thường mà chưa đặt `NODE_ENV=production`** thì thêm `COOKIE_SECURE=false`. Không làm thì cookie
+  refresh mang cờ `secure`, trình duyệt không gửi lại, người dùng bị đăng xuất mỗi 15 phút.
+- **Chạy sau reverse proxy** (Nginx, load balancer, CDN) thì đặt `TRUST_PROXY` bằng số lớp proxy, thường là `1`.
+- **Script hoặc CI nào gọi `npm run seed` lên database không phải localhost** thì thêm `-- --force`.
+
+### Changed
+
+- **Cấu hình an toàn mặc định là chặt.** Trước đây mỗi nơi tự so `NODE_ENV === 'production'` rồi mới siết, nên quên
+  đặt biến đó — không lỗi nào nổ ra — là server ký token bằng khóa dev công khai trong mã nguồn, cookie refresh
+  không `secure`, giới hạn đăng nhập sai nới lên 200 và CORS nhận mọi IP mạng LAN. Nay chỉ nới khi `NODE_ENV` ghi rõ
+  `development` hoặc `test`; bỏ trống hay gõ sai (`prod`, `staging`) đều coi như production. Quy tắc nằm một chỗ ở
+  `server/src/config/env.js`, dùng cho JWT, cookie, rate limit, CORS và việc nạp lại `.env` của tầng email.
+- **`COOKIE_SECURE=false` nay có hiệu lực ở mọi môi trường**, kể cả production (trước đây production luôn ép
+  `secure`). Đây là lối thoát cho triển khai HTTP nội bộ và phải tự tay ghi ra.
+- **`npm run seed` có chốt chặn.** Seed xóa sạch 14 collection trên bất cứ database nào `MONGODB_URI` trỏ tới. Nay
+  từ chối khi `NODE_ENV=production` hoặc database không nằm trên máy này (host ở xa, Atlas, replica set có máy ở
+  xa), trừ khi thêm `-- --force`. Dev, `server/tests` và e2e dùng Mongo local nên không đổi.
+
+### Added
+
+- **`TRUST_PROXY`**: số lớp proxy đứng trước server, hoặc dải IP của proxy. Thiếu nó khi chạy sau reverse proxy thì
+  mọi khách hàng chung một IP: cả hệ thống chia nhau 1000 request / 15 phút và 10 lần đăng nhập sai của một người
+  khóa đăng nhập của tất cả. Bỏ trống giữ hành vi cũ. `true` làm server từ chối khởi động, vì nó cho phép giả mạo
+  IP qua `X-Forwarded-For`.
+- Mục **Giới hạn triển khai** trong README: server chỉ chạy đúng một instance (rate limit và Socket.IO nằm trong bộ
+  nhớ tiến trình, tệp đính kèm nằm trên đĩa), và cần gì để nhân bản. Chưa dựng Redis/S3 vì chưa có nhu cầu.
+- Ba bộ test server: `seed-guard` (14 ca), `trust-proxy` (11 ca), `env-strict` (25 ca). Tổng 43 bộ.
+
+### Removed
+
+- **Năm script cá nhân trong `server/src/utils/`**: `setup-demo-data.js`, `setup-requested-accounts.js`,
+  `setup-resources-data.js`, `test_direct_manager_and_wework_perms.js`, `migrate-company-isolation.js`. Chúng viết
+  cứng email cá nhân, cấp quyền Owner, đặt mật khẩu `123123` và ký JWT bằng khóa dự phòng viết cứng; không npm
+  script hay tài liệu nào nhắc tới.
+- **Mã chết ở client**: `Header.css`, `Sidebar.css` (628 dòng, không file nào import), `PasswordFormCard.jsx`,
+  `ProfileFormCard.jsx`, 10 file `pages/*/index.jsx`; hằng `APP_NAME`, `APP_FULL_NAME`, `PROJECT_STATUS`,
+  `TASK_STATUS`, `PRIORITY`; `formatShortDateTime`; `taskService.addFollowers`.
+- **Dependency client không ai import**: `react-icons`, `i18next-browser-languagedetector`.
+- **Mobile**: `projectApi.getMembers` — không ai gọi, và trỏ tới `GET /projects/:id/members` không tồn tại.
+- **Server**: `getJwtExpire`, `getIO`, `emitToAll`, `resetTransporter`, handler `disconnect` rỗng.
+- `mobile/.expo/` và `tools/__pycache__/` khỏi git (đã thêm vào `.gitignore`).
+
+### Cố ý chưa làm
+
+- Năm script `migrate-*` còn lại và `set-test-pw.js`: giữ cho tới khi xác nhận mọi môi trường đã chạy migration.
+- Không xóa endpoint nào: API có tài liệu công khai, có thể có bên ngoài gọi.
+- `docs/TESTING.md` và báo cáo vẫn ghi 40 bộ / 1.448 ca của lần chạy 19/10; chưa cập nhật theo 43 bộ.
+
+---
+
 ## [Chưa phát hành] - 2026-10-19 (gộp `main`: đánh giá năng lực hai chiều, tải theo kỳ, khung tổng quan)
 
 ### Added
