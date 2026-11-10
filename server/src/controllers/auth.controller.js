@@ -5,6 +5,7 @@ const Resource = require('../models/Resource');
 const Department = require('../models/Department');
 const RefreshToken = require('../models/RefreshToken');
 const { getJwtSecret, getAccessTokenExpire, getRefreshTokenDays } = require('../config/jwt');
+const { isCookieSecure } = require('../config/env');
 const {
   issueRefreshToken,
   rotateRefreshToken,
@@ -51,7 +52,7 @@ const generateToken = (id) => {
 const setRefreshCookie = (res, value, expiresAt) => {
   res.cookie(REFRESH_COOKIE, value, {
     httpOnly: true,
-    secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
+    secure: isCookieSecure(),
     sameSite: process.env.COOKIE_SAMESITE || 'lax',
     path: '/api/auth',
     expires: expiresAt,
@@ -62,7 +63,7 @@ const setRefreshCookie = (res, value, expiresAt) => {
 const clearRefreshCookie = (res) => {
   res.clearCookie(REFRESH_COOKIE, {
     httpOnly: true,
-    secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
+    secure: isCookieSecure(),
     sameSite: process.env.COOKIE_SAMESITE || 'lax',
     path: '/api/auth',
   });

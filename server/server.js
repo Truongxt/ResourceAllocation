@@ -13,6 +13,7 @@ const { setIO } = require('./src/services/socket.service');
 const { getJwtSecret, assertJwtConfig } = require('./src/config/jwt');
 const { logMailStatus } = require('./src/services/email.service');
 const { corsOrigin } = require('./src/config/cors');
+const { isRelaxedEnv } = require('./src/config/env');
 const User = require('./src/models/User');
 
 const PORT = process.env.PORT || 5000;
@@ -74,7 +75,7 @@ const startServer = async () => {
 ║  🚀 RAO Server is running!                   ║
 ║                                               ║
 ║  Port:    ${PORT}                              ║
-║  Mode:    ${process.env.NODE_ENV || 'development'}                     ║
+║  Mode:    ${isRelaxedEnv() ? process.env.NODE_ENV : `${process.env.NODE_ENV || 'chưa đặt'} (cấu hình chặt)`}
 ║  API:     http://localhost:${PORT}/api          ║
 ║  Health:  http://localhost:${PORT}/api/health    ║
 ╚═══════════════════════════════════════════════╝

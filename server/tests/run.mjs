@@ -37,6 +37,7 @@ const SUITES = [
   { name: 'email', file: 'email.test.mjs', label: 'Email — bật/tắt và nội dung thư' },
   { name: 'sanitize', file: 'sanitize.test.mjs', label: 'Cắt toán tử Mongo khỏi request' },
   { name: 'cors', file: 'cors.test.mjs', label: 'Origin dùng chung cho REST và Socket.IO' },
+  { name: 'env-strict', file: 'env-strict.test.mjs', label: 'Thiếu NODE_ENV thì cấu hình chặt, không nới' },
   { name: 'trust-proxy', file: 'trust-proxy.test.mjs', label: 'TRUST_PROXY — IP thật của khách sau reverse proxy' },
   { name: 'seed-guard', file: 'seed-guard.test.mjs', label: 'Seed từ chối database ở xa và production' },
   { name: 'regex-search', file: 'regex-search.test.mjs', label: 'Tìm kiếm không hiểu chuỗi nhập là regex' },

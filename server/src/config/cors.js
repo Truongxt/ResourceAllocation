@@ -7,9 +7,11 @@
  * giờ kết nối — giao diện không báo lỗi gì, chỉ là thông báo tức thì không đến.
  */
 
+const { isRelaxedEnv } = require('./env');
+
 const DEFAULT_CLIENT_URL = 'http://localhost:5173';
 
-// Ở môi trường dev, cho phép thiết bị di động trong mạng LAN kết nối thẳng
+// Chỉ khi NODE_ENV ghi rõ development/test: cho phép thiết bị di động trong mạng LAN kết nối thẳng
 const DEV_LAN_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/;
 
 const parseAllowedOrigins = (clientUrl = process.env.CLIENT_URL) =>
@@ -22,7 +24,7 @@ const isOriginAllowed = (origin, env = process.env) => {
   // Request không kèm Origin (curl, health check của hạ tầng) được đi qua
   if (!origin) return true;
   if (parseAllowedOrigins(env.CLIENT_URL).includes(origin)) return true;
-  return env.NODE_ENV !== 'production' && DEV_LAN_ORIGIN.test(origin);
+  return isRelaxedEnv(env) && DEV_LAN_ORIGIN.test(origin);
 };
 
 /** Dạng callback mà cả `cors` lẫn Socket.IO đều nhận. */
