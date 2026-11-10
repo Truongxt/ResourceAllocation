@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Badge, Dropdown, Avatar, Switch, List, Typography, Button, Space, Tooltip, Empty, Breadcrumb, Tag } from 'antd';
+import { message, Layout, Badge, Dropdown, Avatar, Switch, List, Typography, Button, Space, Tooltip, Empty, Breadcrumb, Tag } from 'antd';
 import {
   BellOutlined,
   UserOutlined,
@@ -26,13 +26,43 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useSocket } from '../../context/SocketContext';
 import taskService from '../../services/taskService';
-import GlobalSearchModal from '../common/GlobalSearchModal';
-import QuickCreateModal from '../common/QuickCreateModal';
-import RemindersDrawer from '../tasks/RemindersDrawer';
-import TaskDetailDrawer from '../tasks/TaskDetailDrawer';
 
 const { Header: AntHeader } = Layout;
 const { Text, Title } = Typography;
+
+// Bốn lớp phủ dưới đây chỉ hiện khi người dùng bấm vào, nhưng Header nằm trong
+// chunk chính: import tĩnh thì DatePicker, Form, Select và cả khối chi tiết công
+// việc bị kéo vào lần tải đầu tiên của mọi trang, kể cả trang đăng nhập. Tách ra
+// thì chúng chỉ được tải khi mở lần đầu.
+//
+// Chunk có thể không tải được — phổ biến nhất là tab mở từ trước một lần deploy,
+// tên file cũ không còn trên máy chủ. Không có ranh giới lỗi nào phía trên, nên để
+// lỗi đó ném ra là trắng cả màn hình. Thay vào đó đóng lớp phủ và báo tải lại trang.
+function OverlayLoadFailed({ open, onClose }) {
+  useEffect(() => {
+    if (!open) return;
+    message.error('Không tải được phần này. Vui lòng tải lại trang.');
+    onClose?.();
+  }, [open, onClose]);
+  return null;
+}
+
+const lazyOverlay = (load) => lazy(() => load().catch(() => ({ default: OverlayLoadFailed })));
+
+const GlobalSearchModal = lazyOverlay(() => import('../common/GlobalSearchModal'));
+const QuickCreateModal = lazyOverlay(() => import('../common/QuickCreateModal'));
+const RemindersDrawer = lazyOverlay(() => import('../tasks/RemindersDrawer'));
+const TaskDetailDrawer = lazyOverlay(() => import('../tasks/TaskDetailDrawer'));
+
+/**
+ * Dựng lớp phủ từ lần mở đầu tiên, rồi giữ nguyên: gỡ ra ngay khi đóng thì hiệu
+ * ứng đóng của Modal/Drawer không kịp chạy.
+ */
+function Deferred({ open, children }) {
+  const everOpened = useRef(false);
+  if (open) everOpened.current = true;
+  return everOpened.current ? <Suspense fallback={null}>{children}</Suspense> : null;
+}
 
 function getNotifIcon(type) {
   if (type?.includes('task')) return <FileTextOutlined style={{ color: '#818cf8', fontSize: 16 }} />;
@@ -68,6 +98,16 @@ export default function Header({ collapsed }) {
   const [remindersBadgeCount, setRemindersBadgeCount] = useState(0);
   const [selectedDetailTaskId, setSelectedDetailTaskId] = useState(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+
+  // Tham chiếu ổn định: `OverlayLoadFailed` gọi onClose trong effect, hàm mới mỗi
+  // lần render sẽ làm effect đó chạy lại.
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  const closeQuickCreate = useCallback(() => setQuickCreateOpen(false), []);
+  const closeReminders = useCallback(() => setRemindersOpen(false), []);
+  const closeDetail = useCallback(() => {
+    setDetailDrawerOpen(false);
+    setSelectedDetailTaskId(null);
+  }, []);
 
   const fetchRemindersCount = useCallback(async () => {
     if (!user) return;
@@ -577,49 +617,54 @@ export default function Header({ collapsed }) {
       )}
 
       {/* Global Command Palette / Search Modal */}
-      <GlobalSearchModal
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
-      />
+      <Deferred open={searchOpen}>
+        <GlobalSearchModal
+          open={searchOpen}
+          onClose={closeSearch}
+        />
+      </Deferred>
 
       {/* Global Quick Create Modal */}
-      <QuickCreateModal
-        open={quickCreateOpen}
-        onClose={() => setQuickCreateOpen(false)}
-        defaultType={quickCreateType}
-        onSuccess={() => {
-          // If on tasks or projects or resources page, refresh or reload
-          window.location.reload();
-        }}
-      />
+      <Deferred open={quickCreateOpen}>
+        <QuickCreateModal
+          open={quickCreateOpen}
+          onClose={closeQuickCreate}
+          defaultType={quickCreateType}
+          onSuccess={() => {
+            // If on tasks or projects or resources page, refresh or reload
+            window.location.reload();
+          }}
+        />
+      </Deferred>
 
       {/* Base Wework: Reminders Drawer */}
-      <RemindersDrawer
-        open={remindersOpen}
-        onClose={() => setRemindersOpen(false)}
-        onSelectTask={(id) => {
-          setSelectedDetailTaskId(id);
-          setDetailDrawerOpen(true);
-        }}
-        onTaskUpdated={() => {
-          fetchRemindersCount();
-        }}
-      />
+      <Deferred open={remindersOpen}>
+        <RemindersDrawer
+          open={remindersOpen}
+          onClose={closeReminders}
+          onSelectTask={(id) => {
+            setSelectedDetailTaskId(id);
+            setDetailDrawerOpen(true);
+          }}
+          onTaskUpdated={() => {
+            fetchRemindersCount();
+          }}
+        />
+      </Deferred>
 
       {/* Base Wework: Task Detail Drawer khi click xem chi tiết từ Reminders */}
-      <TaskDetailDrawer
-        open={detailDrawerOpen}
-        taskId={selectedDetailTaskId}
-        onClose={() => {
-          setDetailDrawerOpen(false);
-          setSelectedDetailTaskId(null);
-        }}
-        currentUser={user}
-        onTaskUpdated={() => {
-          fetchRemindersCount();
-          window.dispatchEvent(new CustomEvent('reminders:updated'));
-        }}
-      />
+      <Deferred open={detailDrawerOpen}>
+        <TaskDetailDrawer
+          open={detailDrawerOpen}
+          taskId={selectedDetailTaskId}
+          onClose={closeDetail}
+          currentUser={user}
+          onTaskUpdated={() => {
+            fetchRemindersCount();
+            window.dispatchEvent(new CustomEvent('reminders:updated'));
+          }}
+        />
+      </Deferred>
     </>
   );
 }
