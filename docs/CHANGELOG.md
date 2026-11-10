@@ -6,6 +6,53 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 
 ---
 
+## [Chưa phát hành] - 2026-11-10 (gộp `main` vào `Mr.Tien`: sửa lỗi có sẵn trên `main`)
+
+Nhánh `Mr.Tien` tách từ `d585f21` (19/10); `main` sau đó có thêm 7 commit (25/10 – 07/11). Gộp `main` vào nhánh để
+PR #9 hết xung đột. Chạy bộ test server của riêng `main` (`7061a5c`) để đối chiếu: đỏ 10 bài, có từ trước khi gộp.
+Bộ e2e trên cây đã gộp đỏ 6 bài; e2e của riêng `main` chưa chạy, nhưng cả 6 đều truy được về thay đổi giao diện
+trong các commit của `main` mà bộ e2e cũ chưa theo kịp. Các mục dưới đây là phần sửa cho chúng.
+
+### Fixed
+
+- **Xem trước và áp dụng kết quả tối ưu trả 500.** `optimization.controller.js` gọi `loadOptimizationPreview` mà
+  không import. Thêm một dòng import; 7 bài test xanh lại.
+- **Nhân bản công việc có tệp đính kèm trả 400 — sau khi bản sao đã được tạo.** Phần chép tệp (`keepAttachments`,
+  mặc định bật) tạo bản ghi `Attachment` mới mà không đọc `storageKey` (trường `select: false`), nên bản ghi không
+  qua validate. Kể cả khi đọc đủ thì hai bản ghi sẽ dùng chung một tệp trên đĩa: xóa bên này là mất bên kia. Nay
+  `fileStorage.copy` chép nội dung sang khóa mới và `copyAttachments` (trong `attachment.service.js`) tạo bản ghi
+  riêng; tệp đã mất nội dung trên đĩa thì bỏ qua.
+- **Kết quả tối ưu kẹt ở "Đã áp dụng", không hoàn tác được.** Vết hoàn tác chỉ ghi công việc bị đổi người, nên áp
+  dụng một phương án trùng với phân công hiện tại để lại vết rỗng và hoàn tác bị từ chối. Giao diện web đã khóa nút
+  theo `canApply`, nhưng server không kiểm, nên gọi thẳng API (mobile) vẫn áp dụng được. Nay `POST /:id/apply` trả
+  **409** khi phương án không đổi phân công nào — cùng điều kiện với `canApply`.
+- **Bấm "Tất cả" ở bộ lọc tải của tab Nhân sự bị ném sang tab "Năng suất & Cân bằng tải".** `App.jsx` dựng lại
+  trang mỗi khi chuỗi truy vấn đổi, mà nút này xóa sạch chuỗi truy vấn. Nay nó giữ `tab=resources`.
+
+### Changed
+
+- **Hành vi nhân bản đổi so với bộ test cũ:** trước 11/2026 nhân bản không chép tệp; nay mặc định có chép (theo ô
+  "Giữ tệp đính kèm" của `DuplicateTaskModal`), gửi `keepAttachments: false` để không chép. Bộ `attachments` được
+  viết lại theo hành vi mới và khóa thêm: tệp của bản sao là bản riêng, xóa nó không làm mất tệp của bản gốc.
+- **`task.controller.js` tách lại trên bản của `main`** (2.802 dòng, 31 handler, thêm `promoteSubtask` và
+  `demoteToSubtask`); mã băm của cả 31 handler trước và sau trùng khớp.
+- **Bốn bộ e2e cập nhật theo giao diện mới của `main`**, không đổi thứ chúng kiểm: `06-optimization` (kết quả chưa
+  áp dụng hiện ở khung "Xem trước thay đổi phân công"), `07-analytics` (nhãn KPI bỏ dấu hai chấm), `09-preferences`
+  (nhãn nút đổi giao diện đi theo ngôn ngữ), `11-app-permissions` (mở tab qua `?tab=permissions` vì thanh tab của
+  trang Cài đặt nay tràn bề ngang và tự cuộn khi bấm).
+- `server/package-lock.json` bổ sung `otplib` và `qrcode` mà `main` đã thêm vào `package.json`.
+
+### Chưa làm
+
+- **`App.jsx` dựng lại cả trang mỗi khi chuỗi truy vấn đổi** (`key` gồm cả `location.search`). Mọi state cục bộ của
+  trang mất khi đổi bộ lọc hay tab qua URL; lỗi "Tất cả" ở trên chỉ là một biểu hiện. Sửa tận gốc là đổi thiết kế
+  chuyển trang, chưa đụng.
+- Phần mã mới của `main` (khoảng 100 file client, 23 file server) chưa qua đợt audit mã chết bên dưới.
+- Các số 2.481 dòng / 29 handler / 43 bộ test ở mục bên dưới là của bản trước khi gộp; sau khi gộp là 2.802 dòng /
+  31 handler / 49 bộ.
+
+---
+
 ## [Chưa phát hành] - 2026-11-10 (audit: xóa mã chết, siết bốn giả định triển khai)
 
 ### ⚠️ Cần làm trước khi deploy bản này
