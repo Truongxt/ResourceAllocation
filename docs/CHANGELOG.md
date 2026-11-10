@@ -54,11 +54,36 @@ Format: [Semantic Versioning](https://semver.org/lang/vi/)
 - **Server**: `getJwtExpire`, `getIO`, `emitToAll`, `resetTransporter`, handler `disconnect` rỗng.
 - `mobile/.expo/` và `tools/__pycache__/` khỏi git (đã thêm vào `.gitignore`).
 
+### Đợt hai (cùng ngày): năm mục "cố ý chưa đụng" của đợt audit
+
+- **Chunk chính của client: 1.180 → 733 kB (−38%).** `Header` nằm trong chunk chính và import tĩnh bốn lớp phủ chỉ
+  hiện khi bấm (tìm kiếm, tạo nhanh, nhắc việc, chi tiết công việc), kéo theo DatePicker, Form, Select và cả khối
+  chi tiết công việc vào lần tải đầu của mọi trang, kể cả trang đăng nhập. Nay chúng tải khi mở lần đầu. Chunk không
+  tải được (tab mở từ trước một lần deploy) thì báo "Không tải được phần này. Vui lòng tải lại trang." và đóng lại,
+  không trắng màn hình. Test mới: `client/tests/header-overlays.test.jsx`.
+- **`task.controller.js` 2.481 dòng tách thành sáu file** trong `server/src/controllers/task/` (`core`,
+  `collaboration`, `operations`, `review`, `reassign`, `shared`); file cũ còn 49 dòng, giữ nguyên 29 tên export nên
+  route không đổi. Tách bằng script cắt dán nguyên văn từng khối: mã băm của cả 29 handler trước và sau trùng khớp,
+  không file nào có định danh chưa khai báo, 43 bộ test đạt. Bỏ luôn khối `module.exports` thứ nhất vốn bị khối thứ
+  hai ghi đè.
+- **Script `migrate-*`: giữ lại, có bằng chứng.** Chạy khô trên database dev: `migrate:dependencies` còn 2 công việc
+  ở dạng cũ, `migrate:stale-indexes` còn chỉ mục `code_1` của `departments`. Ba script còn lại báo sạch. Chưa
+  `--apply` vào database nào.
+- **Endpoint: không có gì để xóa.** So 135 route với mọi lời gọi của web và mobile: chỉ
+  `GET /analytics/workload-history` không client nào gọi. Nó là đầu đọc duy nhất của job `workload-snapshot`, tức
+  dữ liệu đang được chụp hằng ngày mà chưa màn hình nào hiển thị — quyết định sản phẩm, chưa đụng.
+- **`docs/` thử nghiệm và `.agents/skills/`: chưa đụng.** Lộ trình 07/10 mục 5 đã ghi "Hỏi Truongxt trước khi dọn
+  tiếp", và cả hai đều do Truongxt commit. Gỡ khỏi git ở nhánh này thì lần pull tới sẽ xóa file trên máy bạn ấy.
+- **`Projects.jsx` (1.740 dòng) và các component lớn khác: chưa tách.** Khác controller, state và closure của React
+  không cắt dán nguyên văn được; cần viết lại có chủ đích, kèm test giao diện cho từng phần tách ra.
+
 ### Cố ý chưa làm
 
-- Năm script `migrate-*` còn lại và `set-test-pw.js`: giữ cho tới khi xác nhận mọi môi trường đã chạy migration.
+- `set-test-pw.js`: giữ, đi cùng quyết định về các script `migrate-*`.
 - Không xóa endpoint nào: API có tài liệu công khai, có thể có bên ngoài gọi.
 - `docs/TESTING.md` và báo cáo vẫn ghi 40 bộ / 1.448 ca của lần chạy 19/10; chưa cập nhật theo 43 bộ.
+- Trang tải lười (`lazy`) trong `App.jsx` chưa có ranh giới lỗi: chunk của trang không tải được sau một lần deploy
+  thì vẫn trắng màn hình. Có từ trước đợt này.
 
 ---
 
