@@ -17,4 +17,18 @@
 .base-auth-card .ant-form-item-label > label { color: var(--text-primary); font-size: 13px; font-weight: 500; }
 .base-auth-card .ant-input, .base-auth-card .ant-input-affix-wrapper, .base-auth-card .ant-select-selector { border-radius: 6px !important; }
 .auth-switch { padding-top: 20px; margin-top: 20px; border-top: 1px solid var(--border-subtle); font-size: 13px; }
+
+/* A grounded entry point: distinct from the app shell, but from the same system. */
+.auth-workspace { position: relative; overflow: hidden; background: var(--surface-canvas); }
+.auth-workspace::before { content: ''; position: fixed; inset: 0; pointer-events: none; background: radial-gradient(circle at 15% 14%, rgba(59,130,246,.20), transparent 24rem), radial-gradient(circle at 88% 80%, rgba(14,165,233,.10), transparent 28rem); }
+.auth-context, .auth-form-area { position: relative; z-index: 1; }
+.auth-context { background: rgba(14, 23, 41, .90); box-shadow: 28px 0 60px -48px rgba(0, 0, 0, .75); }
+[data-theme="light"] .auth-context { background: rgba(251, 252, 255, .84); }
+.auth-brand { width: fit-content; border-radius: 12px; transition: transform var(--duration-press) var(--ease-out), opacity var(--duration-press) var(--ease-out); }
+.auth-context li { display: flex; align-items: center; gap: 10px; }
+.auth-context li::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--brand-primary); box-shadow: 0 0 0 4px rgba(59,130,246,.12); }
+.base-auth-card { padding: clamp(24px, 4vw, 40px); border: 1px solid var(--border-subtle); border-radius: 22px; background: var(--surface-overlay); box-shadow: var(--shadow-card-hover); }
+.base-auth-card h2 { letter-spacing: -.04em; }
+.base-auth-card .ant-btn-primary { border-radius: 10px !important; box-shadow: var(--shadow-glow) !important; }
+@media (hover: hover) and (pointer: fine) { .auth-brand:hover { transform: translateY(-1px); opacity: .88; } }
 @media (max-width: 850px) { .auth-workspace { grid-template-columns: 1fr; } .auth-context { padding: 24px; border-right: 0; border-bottom: 1px solid var(--border-subtle); } .auth-context > div, .auth-context-footer { display: none; } .auth-form-area { padding: 28px 20px; } .auth-back { margin-bottom: 20px; } }

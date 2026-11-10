@@ -255,7 +255,7 @@ export default function DashboardTaskAndHours({
           {latestOpt && (
             <div className="recent-opt-strip">
               <div className="recent-opt-left">
-                <ThunderboltOutlined style={{ color: '#8b5cf6', fontSize: 14 }} />
+                <ThunderboltOutlined style={{ color: '#0284c7', fontSize: 14 }} />
                 <span className="recent-opt-text">
                   Tối ưu AI gần nhất: <strong>{latestOpt.algorithm || 'Di truyền (GA)'}</strong>
                   {latestOpt.fitness != null && ` · Độ tối ưu ${Math.round(latestOpt.fitness * 100)}%`}

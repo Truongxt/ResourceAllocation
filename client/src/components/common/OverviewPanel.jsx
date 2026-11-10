@@ -5,7 +5,7 @@ import { BarChartOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
 import { PROJECT_STATUSES, TASK_STATUSES, PRIORITY_OPTIONS } from '../../constants';
 import './OverviewPanel.css';
 
-const colors = ['#64748b', '#3b82f6', '#d97706', '#059669', '#dc2626', '#7c3aed'];
+const colors = ['#64748b', '#3b82f6', '#d97706', '#059669', '#dc2626', '#0284c7'];
 const number = (value) => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
 
 function statusGroups(items, definitions, field = 'status') {
@@ -22,9 +22,9 @@ function statusGroups(items, definitions, field = 'status') {
   return groups;
 }
 
-function OverviewPanel({ title, description, loading, error, children }) {
+function OverviewPanel({ title, description, loading, error, children, initialExpanded = true }) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(initialExpanded);
   const id = useId();
   return (
     <section className="overview-panel" aria-label={t(title)}>
@@ -107,11 +107,11 @@ export function ProjectsOverview({ projects = [], total, loading, error, onProje
   </OverviewPanel>;
 }
 
-export function TasksOverview({ tasks = [], total, loading, error }) {
+export function TasksOverview({ tasks = [], total, loading, error, initialExpanded = true }) {
   const { t } = useTranslation();
   const groups = statusGroups(tasks, TASK_STATUSES.map((status) => ({ ...status, label: `enums.taskStatus.${status.key}` })));
   const priorities = statusGroups(tasks, PRIORITY_OPTIONS.map((priority) => ({ key: priority.value, label: `enums.priority.${priority.value}`, color: priority.hex })), 'priority');
-  return <OverviewPanel title="overview.tasks" loading={loading} error={error}
+  return <OverviewPanel title="overview.tasks" loading={loading} error={error} initialExpanded={initialExpanded}
     description={total > tasks.length ? t('overview.partialScope', { loaded: tasks.length, total }) : undefined}>
     <div className="overview-grid">
       <Distribution title="overview.taskStatus" groups={groups} unit="overview.taskUnit" />

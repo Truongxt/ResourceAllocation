@@ -262,7 +262,7 @@ export default function GanttChart() {
     return {
       left: `${box.left}px`,
       width: `${box.right - box.left}px`,
-      backgroundColor: STATUS_COLORS[task.status] || '#6366f1',
+      backgroundColor: STATUS_COLORS[task.status] || '#0284c7',
     };
   };
 
@@ -431,8 +431,8 @@ export default function GanttChart() {
             }`}
             style={{
               left: `${offsetOf(task.startDate)}px`,
-              borderColor: PRIORITY_COLORS[task.priority] || '#6366f1',
-              backgroundColor: STATUS_COLORS[task.status] || '#6366f1',
+              borderColor: PRIORITY_COLORS[task.priority] || '#0284c7',
+              backgroundColor: STATUS_COLORS[task.status] || '#0284c7',
             }}
             onMouseDown={(e) => beginDrag(e, original, 'move')}
           >

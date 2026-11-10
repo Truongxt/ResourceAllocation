@@ -110,9 +110,9 @@ export default function SubtaskFormModal({
       title={
         <Space align="center">
           {editingSubtask ? (
-            <EditOutlined style={{ color: '#6366f1', fontSize: 18 }} />
+            <EditOutlined style={{ color: '#0284c7', fontSize: 18 }} />
           ) : (
-            <ApartmentOutlined style={{ color: '#6366f1', fontSize: 18 }} />
+            <ApartmentOutlined style={{ color: '#0284c7', fontSize: 18 }} />
           )}
           <span style={{ fontWeight: 700, fontSize: 16 }}>
             {editingSubtask ? 'Chỉnh sửa công việc con' : 'Tạo công việc con mới'}
@@ -167,7 +167,7 @@ export default function SubtaskFormModal({
                   value: u._id,
                   label: (
                     <Space>
-                      <Avatar size="small" src={u.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                      <Avatar size="small" src={u.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                       <span>{u.name || u.email}</span>
                       {u.position && (
                         <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>
@@ -303,8 +303,8 @@ export default function SubtaskFormModal({
               htmlType="submit"
               loading={submitting}
               style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
+                
+                
                 fontWeight: 600,
               }}
             >

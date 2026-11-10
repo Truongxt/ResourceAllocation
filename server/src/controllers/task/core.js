@@ -24,6 +24,7 @@ const { normalizeDependencies } = require('../../services/taskDependency.service
 const {
   STATUS_TRAIL_FIELDS,
   companyProjectScope,
+  recalculateParentTaskProgress,
   recalculateProjectProgress,
   notifyTaskFailed,
   notifyDeadlineChanged,
@@ -41,7 +42,6 @@ const getTasks = async (req, res, next) => {
     // `cf_<key>=<giá trị>`: lọc theo trường tùy chỉnh. Kiểm `key` trước khi ghép vào đường dẫn.
     const custom = customValueFilter(req.query);
     if (custom.error) return res.status(400).json({ success: false, message: custom.error });
-    const filter = { ...custom.filter };
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
 
     const companyProjects = await Project.find({
@@ -49,9 +49,20 @@ const getTasks = async (req, res, next) => {
     }).select('_id');
     const companyProjectIds = companyProjects.map((p) => p._id);
 
-    if (req.user && (req.user.role === 'admin' || req.user.isOwner)) {
-      filter.project = { $in: companyProjectIds };
-    } else {
+    // Tenant, scope và bộ lọc tùy chọn phải giao nhau; không nhánh nào được ghi đè quyền.
+    const filter = { ...custom.filter, $and: [{ project: { $in: companyProjectIds } }] };
+    const scope = req.query.scope || 'all';
+    if (scope === 'my_tasks') {
+      filter.$and.push({ assignee: req.user._id });
+    } else if (scope === 'assigned_by_me') {
+      filter.$and.push({ createdBy: req.user._id });
+    } else if (scope === 'following') {
+      filter.$and.push({ followers: req.user._id });
+    } else if (scope === 'subordinates') {
+      const subordinates = await User.find({ manager: req.user._id }).select('_id');
+      const subIds = subordinates.map((s) => s._id);
+      filter.$and.push({ assignee: { $in: subIds } });
+    } else if (!(req.user.role === 'admin' || req.user.isOwner)) {
       const accessibleProjects = await Project.find({
         _id: { $in: companyProjectIds },
         $or: [
@@ -63,11 +74,11 @@ const getTasks = async (req, res, next) => {
       }).select('_id');
       const projectIds = accessibleProjects.map((p) => p._id);
 
-      filter.$or = [
+      filter.$and.push({ $or: [
         { project: { $in: projectIds } },
         { assignee: req.user._id },
         { createdBy: req.user._id },
-      ];
+      ] });
     }
 
     // Lọc theo date
@@ -84,36 +95,8 @@ const getTasks = async (req, res, next) => {
         ]
       }
 
-      // ghép vô filter
-
-      if (filter.$and) {
-        filter.$and.push(dateOverLapCondition)
-      } else if (filter.$or) {
-        filter.$and = [{ $or: filter.$or }, dateOverLapCondition];
-        delete filter.$or;
-      }
-      else {
-        filter.$and = [dateOverLapCondition];
-      }
+      filter.$and.push(dateOverLapCondition);
     }
-    // Base Wework: Lọc theo phạm vi cá nhân (scope)
-    const scope = req.query.scope || 'all';
-    if (scope === 'my_tasks') {
-      filter.assignee = req.user._id;
-      delete filter.$or;
-    } else if (scope === 'assigned_by_me') {
-      filter.createdBy = req.user._id;
-      delete filter.$or;
-    } else if (scope === 'following') {
-      filter.followers = req.user._id;
-      delete filter.$or;
-    } else if (scope === 'subordinates') {
-      const subordinates = await User.find({ manager: req.user._id }).select('_id');
-      const subIds = subordinates.map((s) => s._id);
-      filter.assignee = { $in: subIds };
-      delete filter.$or;
-    }
-    // Khi scope === 'all', giữ nguyên filter.$or đã thiết lập theo dự án và công ty phía trên
 
     // Base Wework: Lọc thời gian nhanh (timeFilter)
     if (req.query.timeFilter) {
@@ -153,32 +136,19 @@ const getTasks = async (req, res, next) => {
         });
       }
 
-      if (filter.$or) {
-        filter.$and = filter.$and || [];
-        filter.$and.push({ $or: filter.$or }, { project: req.query.project });
-        delete filter.$or;
-      } else {
-        filter.project = req.query.project;
-      }
+      filter.$and.push({ project: req.query.project });
     }
     if (req.query.status) filter.status = req.query.status;
     if (req.query.priority) filter.priority = req.query.priority;
-    if (req.query.assignee) filter.assignee = req.query.assignee;
+    if (req.query.assignee) filter.$and.push({ assignee: req.query.assignee });
     if (req.query.unassigned === 'true') {
-      filter.$and = [...(filter.$and || []), { assignee: null }, { status: { $ne: 'done' } }];
+      filter.$and.push({ assignee: null }, { status: { $ne: 'done' } });
     }
 
     if (req.query.search) {
       const regex = toSearchRegex(req.query.search);
       const searchOr = [{ title: regex }, { description: regex }];
-      if (filter.$and) {
-        filter.$and.push({ $or: searchOr });
-      } else if (filter.$or) {
-        filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
-        delete filter.$or;
-      } else {
-        filter.$or = searchOr;
-      }
+      filter.$and.push({ $or: searchOr });
     }
 
     // Không hiển thị công việc con ra ngoài bảng chính trừ khi có chỉ định
@@ -193,7 +163,7 @@ const getTasks = async (req, res, next) => {
     if (!req.query.project) {
       const inactive = await inactiveProjectIds(companyProjectScope(userCompany));
       if (inactive.length) {
-        filter.$and = [...(filter.$and || []), { project: { $nin: inactive } }];
+        filter.$and.push({ project: { $nin: inactive } });
       }
     }
 
@@ -336,23 +306,93 @@ const createTask = async (req, res, next) => {
     }
 
     // Có body `customValues` hay không cũng phải kiểm: dự án có trường bắt buộc thì tạo việc
-    // thiếu nó là sai, dù client không biết gì về trường tùy chỉnh.
-    const custom = mergeCustomValues(project.customFields, req.body.customValues, {});
+    // thiếu nó là sai, dù client không biết gì về trường tùy chỉnh (chỉ kiểm trường task, bỏ qua trường nghiệm thu).
+    const custom = mergeCustomValues(project.customFields, req.body.customValues, {}, { target: 'task' });
     if (custom.error) return res.status(400).json({ success: false, message: custom.error });
     req.body.customValues = Object.keys(custom.values).length ? custom.values : undefined;
 
     const taskData = {
       ...req.body,
       // Gắn công ty theo DỰ ÁN chứa nó, như `createSubtask` gắn theo task cha.
-      //
-      // Thiếu dòng này, mọi công việc đều rơi vào `default` của schema là
-      // "Công ty Công nghệ RAO", bất kể nó thuộc công ty nào. Trang Công việc không
-      // lộ ra vì nó lọc theo công ty của *dự án*, nhưng `optimization.controller`
-      // lọc thẳng theo `Task.companyName`: chạy tối ưu phạm vi toàn công ty báo 0
-      // công việc trong khi chạy theo từng dự án vẫn thấy đủ.
       companyName: project.companyName || userCompany,
       createdBy: req.user._id,
     };
+
+    // Base Wework (Bài 19): Giao việc cho nhiều người cùng lúc (Multi-Assignee / Parallel Tasks)
+    const targetAssignees = Array.isArray(req.body.assignees)
+      ? [...new Set(req.body.assignees.filter(Boolean))]
+      : [];
+
+    if (targetAssignees.length > 1) {
+      delete taskData.assignees;
+      const createdTasks = [];
+      const userIdsToSync = [];
+
+      for (const uId of targetAssignees) {
+        const singleTaskData = {
+          ...taskData,
+          assignee: uId,
+        };
+
+        const singleTask = await Task.create(singleTaskData);
+
+        // Auto add to project members
+        const isMember = (project.members || []).some(
+          (m) => m.user && m.user.toString() === uId.toString()
+        );
+        if (!isMember) {
+          project.members.push({ user: uId, role: 'developer', allocation: 100 });
+        }
+
+        userIdsToSync.push(uId);
+
+        if (uId.toString() !== req.user._id.toString()) {
+          sendNotification({
+            recipient: uId,
+            actor: req.user._id,
+            type: 'task_assigned',
+            title: 'Công việc mới được phân công',
+            message: `Bạn đã được gán công việc "${singleTask.title}" trong dự án ${project.name}`,
+            entityType: 'task',
+            entityId: singleTask._id,
+            link: '/tasks',
+          });
+        }
+
+        createdTasks.push(singleTask);
+      }
+
+      await project.save();
+      await recalculateProjectProgress(project._id);
+      if (userIdsToSync.length > 0) {
+        await syncResourceWorkload(userIdsToSync);
+      }
+
+      logActivity({
+        req,
+        action: 'CREATE_TASK_MULTI',
+        entityType: 'task',
+        entityId: createdTasks[0]._id,
+        entityTitle: `${createdTasks.length} công việc`,
+        description: `${req.user.name} đã giao việc "${taskData.title}" cho ${createdTasks.length} thành viên`,
+        details: { count: createdTasks.length, assignees: targetAssignees.map(String) },
+      });
+
+      return res.status(201).json({
+        success: true,
+        data: {
+          task: createdTasks[0],
+          tasks: createdTasks,
+          count: createdTasks.length,
+        },
+        message: `Đã giao công việc cho ${createdTasks.length} thành viên thành công (Base Wework Bài 19)`,
+      });
+    }
+
+    if (targetAssignees.length === 1) {
+      taskData.assignee = targetAssignees[0];
+    }
+    delete taskData.assignees;
 
     const task = await Task.create(taskData);
 
@@ -493,7 +533,7 @@ const updateTask = async (req, res, next) => {
     // Chỉ kiểm (cả trường bắt buộc) khi lần sửa này có đụng tới `customValues`: đổi trạng thái
     // hay kéo Kanban không được bị chặn vì dự án vừa thêm một trường bắt buộc.
     if (req.body.customValues !== undefined) {
-      const custom = mergeCustomValues(project?.customFields, req.body.customValues, task.customValues);
+      const custom = mergeCustomValues(project?.customFields, req.body.customValues, task.customValues, { target: 'task' });
       if (custom.error) return res.status(400).json({ success: false, message: custom.error });
       req.body.customValues = custom.values;
     }
@@ -544,7 +584,13 @@ const updateTask = async (req, res, next) => {
       }
     }
 
-    // Recalculate project progress
+    // Recalculate parent and project progress
+    if (updatedTask.parentTask) {
+      await recalculateParentTaskProgress(updatedTask.parentTask._id || updatedTask.parentTask);
+    }
+    if (task.parentTask) {
+      await recalculateParentTaskProgress(task.parentTask);
+    }
     await recalculateProjectProgress(task.project);
 
     // Đồng bộ tải cho cả người cũ và người mới (nếu có thay đổi assignee hoặc giờ/trạng thái)
@@ -652,6 +698,9 @@ const updateTaskStatus = async (req, res, next) => {
       .populate('project', 'name code status')
       .populate('assignee', 'name email avatar department');
 
+    if (task.parentTask) {
+      await recalculateParentTaskProgress(task.parentTask);
+    }
     await recalculateProjectProgress(task.project);
 
     // Đồng bộ lại tải công việc của người được gán khi đổi trạng thái
@@ -733,7 +782,13 @@ const deleteTask = async (req, res, next) => {
     await task.deleteOne();
     await removeAttachments({ task: task._id });
 
-    // Recalculate project progress
+    // Xóa cascade các việc con thuộc việc bị xóa
+    await Task.deleteMany({ parentTask: task._id });
+
+    // Recalculate parent and project progress
+    if (task.parentTask) {
+      await recalculateParentTaskProgress(task.parentTask);
+    }
     await recalculateProjectProgress(projectId);
 
     // Đồng bộ lại tải công việc khi task bị xóa
@@ -767,7 +822,6 @@ const deleteTask = async (req, res, next) => {
  */
 const getTaskSummary = async (req, res, next) => {
   try {
-    const filter = {};
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
 
     const companyProjects = await Project.find({
@@ -775,9 +829,9 @@ const getTaskSummary = async (req, res, next) => {
     }).select('_id');
     const companyProjectIds = companyProjects.map((p) => p._id);
 
-    if (req.user && req.user.role === 'admin') {
-      filter.project = { $in: companyProjectIds };
-    } else {
+    // Chốt tenant độc lập với quyền theo người/dự án và mọi bộ lọc tùy chọn.
+    const filter = { $and: [{ project: { $in: companyProjectIds } }] };
+    if (!(req.user && req.user.role === 'admin')) {
       const accessibleProjects = await Project.find({
         _id: { $in: companyProjectIds },
         $or: [
@@ -788,28 +842,21 @@ const getTaskSummary = async (req, res, next) => {
       }).select('_id');
       const projectIds = accessibleProjects.map((p) => p._id);
 
-      filter.$or = [
+      filter.$and.push({ $or: [
         { project: { $in: projectIds } },
         { assignee: req.user._id },
         { createdBy: req.user._id },
-      ];
+      ] });
     }
 
-
     if (req.query.project) {
-      if (filter.$or) {
-        filter.$and = [
-          { $or: filter.$or },
-          { project: req.query.project },
-        ];
-        delete filter.$or;
-      } else {
-        filter.project = req.query.project;
-      }
+      // Aggregate không tự cast chuỗi query sang ObjectId như Task.find.
+      const projectIds = companyProjectIds.filter((id) => id.toString() === req.query.project.toString());
+      filter.$and.push({ project: { $in: projectIds } });
     } else {
       // Cùng luật với `getTasks`: mẫu và dự án lưu trữ không nằm trong số liệu mặc định.
       const inactive = await inactiveProjectIds(companyProjectScope(userCompany));
-      if (inactive.length) filter.$and = [...(filter.$and || []), { project: { $nin: inactive } }];
+      if (inactive.length) filter.$and.push({ project: { $nin: inactive } });
     }
 
     if (!req.query.includeSubtasks) {

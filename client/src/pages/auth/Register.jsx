@@ -65,7 +65,7 @@ export default function Register() {
     <main className="auth-workspace">
       <aside className="auth-context">
         <Link to="/home" className="auth-brand"><AppLogo size={36} subtitle="" /></Link>
-        <div><span className="auth-eyebrow">RAO / WORKSPACE</span><h1>{t('workspace.authHeadline')}</h1><p>{t('workspace.authHint')}</p>
+        <div><h1>{t('workspace.authHeadline')}</h1><p>{t('workspace.authHint')}</p>
         <ul><li>{t('nav.projects')}</li><li>{t('nav.tasks')}</li><li>{t('nav.resources')}</li></ul></div>
         <span className="auth-context-footer">Resource Allocation</span>
       </aside>

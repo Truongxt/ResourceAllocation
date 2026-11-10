@@ -3,6 +3,8 @@ const { toSearchRegex } = require('../utils/escapeRegex');
 const User = require('../models/User');
 const Resource = require('../models/Resource');
 const Department = require('../models/Department');
+const CompanySetting = require('../models/CompanySetting');
+const { reserveCompanyName } = require('../services/companyRegistration.service');
 const RefreshToken = require('../models/RefreshToken');
 const { getJwtSecret, getAccessTokenExpire, getRefreshTokenDays } = require('../config/jwt');
 const { isCookieSecure } = require('../config/env');
@@ -17,6 +19,12 @@ const { sendUserWelcomeEmail } = require('../services/email.service');
 const { logActivity } = require('../services/activityLog.service');
 const { disconnectUser } = require('../services/socket.service');
 const { companyOf, usersError } = require('../services/companyRefs.service');
+const {
+  generate2FASecret,
+  verifyTOTP,
+  generateBackupCodes,
+  consumeBackupCode,
+} = require('../services/twoFactor.service');
 
 /**
  * `companyName` là khóa phân lập: đổi nó là chuyển tài khoản sang công ty khác và
@@ -34,7 +42,7 @@ const REFRESH_COOKIE = 'rao_refresh';
  * Generate JWT Token (access token — ngắn hạn, không thu hồi được)
  */
 const generateToken = (id) => {
-  return jwt.sign({ id }, getJwtSecret(), {
+  return jwt.sign({ id, purpose: 'access' }, getJwtSecret(), {
     expiresIn: getAccessTokenExpire(),
   });
 };
@@ -105,12 +113,13 @@ const issueSession = async (res, req, user) => {
  * @access  Public
  */
 const register = async (req, res, next) => {
+  let companyReservation;
+  let user;
   try {
     const {
       name,
       email,
       password,
-      role,
       phone,
       companyName,
       jobTitle,
@@ -128,42 +137,22 @@ const register = async (req, res, next) => {
       });
     }
 
-    // Khi người dùng đăng ký Demo Doanh Nghiệp (có companyName):
-    // Họ chính là Quản trị cấp cao (Owner) & Admin hệ thống của công ty đó!
-    let userRole = role;
-    let isOwner = false;
-    const finalCompanyName = (companyName && companyName.trim()) ? companyName.trim() : 'Công ty Công nghệ RAO';
+    const finalCompanyName = companyName.trim();
+    companyReservation = await reserveCompanyName(finalCompanyName);
 
-    if (companyName && companyName.trim()) {
-      userRole = 'admin';
-      isOwner = true;
-    } else if (!userRole) {
-      if (
-        jobTitle &&
-        (jobTitle.includes('CEO') ||
-          jobTitle.includes('Giám đốc') ||
-          jobTitle.includes('Manager') ||
-          jobTitle.includes('Quản lý'))
-      ) {
-        userRole = 'project_manager';
-      } else {
-        userRole = 'member';
-      }
-    }
-
-    // Create user
-    const user = await User.create({
+    // Owner belongs only to the newly reserved company; role is never client-selected.
+    user = await User.create({
       name,
       email,
       password,
-      role: userRole,
+      role: 'admin',
       phone,
       companyName: finalCompanyName,
       jobTitle,
       companySize,
       interestedProduct,
       location,
-      isOwner,
+      isOwner: true,
     });
 
     // Tự động tạo hồ sơ nhân sự mặc định cho tài khoản mới trong công ty đó
@@ -182,13 +171,7 @@ const register = async (req, res, next) => {
       await Resource.create({
         user: user._id,
         employeeId,
-        position:
-          jobTitle ||
-          (userRole === 'project_manager'
-            ? 'Project Manager'
-            : userRole === 'admin'
-            ? 'Quản trị viên'
-            : 'Developer'),
+        position: jobTitle || 'Quản trị viên',
         department: departmentName,
         companyName: finalCompanyName,
         maxCapacity: 40,
@@ -210,9 +193,13 @@ const register = async (req, res, next) => {
       //
       // Xóa User vừa tạo là thao tác bù có phạm vi rất hẹp: nó được tạo vài mili
       // giây trước, trong cùng request này, chưa có gì trỏ tới nó.
-      await User.deleteOne({ _id: user._id }).catch((cleanupErr) => {
-        console.error('Không dọn được User mồ côi sau khi tạo Resource hỏng:', cleanupErr.message);
-      });
+      try {
+        await User.deleteOne({ _id: user._id });
+        await CompanySetting.deleteOne({ _id: companyReservation._id });
+      } catch (cleanupErr) {
+        // Keep the reservation if cleanup is uncertain: never let a retry join a leftover tenant.
+        console.error('Không dọn được đăng ký sau khi tạo Resource hỏng:', cleanupErr.message);
+      }
 
       return res.status(500).json({
         success: false,
@@ -231,6 +218,11 @@ const register = async (req, res, next) => {
       },
     });
   } catch (error) {
+    if (companyReservation && !user) {
+      await CompanySetting.deleteOne({ _id: companyReservation._id }).catch((cleanupErr) => {
+        console.error('Không giải phóng được tên công ty sau đăng ký lỗi:', cleanupErr.message);
+      });
+    }
     next(error);
   }
 };
@@ -277,6 +269,23 @@ const login = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: 'Email hoặc mật khẩu không đúng',
+      });
+    }
+
+    // Check if account has Two-Factor Authentication (2FA) enabled
+    if (user.twoFactorEnabled) {
+      const tempToken = jwt.sign(
+        { id: user._id, purpose: '2fa_login' },
+        getJwtSecret(),
+        { expiresIn: '5m' }
+      );
+
+      return res.json({
+        success: true,
+        requires2FA: true,
+        tempToken,
+        email: user.email,
+        message: 'Vui lòng nhập mã xác thực 2 bước (TOTP hoặc mã dự phòng)',
       });
     }
 
@@ -337,7 +346,6 @@ const updateProfile = async (req, res, next) => {
     if (phone !== undefined) updateData.phone = phone;
     if (jobTitle !== undefined) updateData.jobTitle = jobTitle;
     if (manager !== undefined) updateData.manager = manager || null;
-    if (twoFactorEnabled !== undefined) updateData.twoFactorEnabled = Boolean(twoFactorEnabled);
 
     const user = await User.findByIdAndUpdate(req.user._id, updateData, {
       new: true,
@@ -1039,6 +1047,9 @@ const disableUser2FA = async (req, res, next) => {
     }
 
     targetUser.twoFactorEnabled = false;
+    targetUser.twoFactorSecret = undefined;
+    targetUser.twoFactorTempSecret = undefined;
+    targetUser.twoFactorBackupCodes = [];
     await targetUser.save();
 
     res.json({
@@ -1410,9 +1421,436 @@ const getCompanyManagers = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Xác thực bước 2 khi đăng nhập (TOTP 6 số hoặc Backup Code)
+ * @route   POST /api/auth/2fa/verify
+ * @access  Public
+ */
+const verify2FALogin = async (req, res, next) => {
+  try {
+    const { tempToken, code } = req.body;
+    if (!tempToken || !code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cung cấp mã xác thực và phiên đăng nhập',
+      });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(tempToken, getJwtSecret());
+    } catch (jwtErr) {
+      return res.status(401).json({
+        success: false,
+        message: 'Phiên đăng nhập tạm thời đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.',
+      });
+    }
+
+    if (decoded.purpose !== '2fa_login') {
+      return res.status(401).json({
+        success: false,
+        message: 'Mã phiên không hợp lệ cho xác thực 2 bước',
+      });
+    }
+
+    const user = await User.findById(decoded.id)
+      .select('+twoFactorSecret +twoFactorBackupCodes')
+      .populate('manager', 'name email avatar jobTitle');
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Tài khoản không tồn tại hoặc đã bị vô hiệu hóa',
+      });
+    }
+
+    // Kiểm tra mã TOTP trước
+    const isTotpValid = verifyTOTP(code, user.twoFactorSecret);
+    if (isTotpValid) {
+      const session = await issueSession(res, req, user);
+      return res.json({
+        success: true,
+        data: {
+          user: user.toJSON(),
+          ...session,
+        },
+      });
+    }
+
+    // Nếu không phải TOTP, kiểm tra xem có khớp mã dự phòng (backup code) không
+    const backupResult = consumeBackupCode(code, user.twoFactorBackupCodes);
+    if (backupResult.valid) {
+      await user.save();
+      const session = await issueSession(res, req, user);
+      return res.json({
+        success: true,
+        data: {
+          user: user.toJSON(),
+          ...session,
+        },
+        usedBackupCode: true,
+        remainingBackupCodes: backupResult.remainingCount,
+        message: `Đăng nhập thành công bằng mã dự phòng. Bạn còn ${backupResult.remainingCount} mã dự phòng khả dụng.`,
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: 'Mã xác thực hoặc mã dự phòng không chính xác',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Lấy trạng thái 2FA của user hiện tại
+ * @route   GET /api/auth/2fa/status
+ * @access  Private
+ */
+const get2FAStatus = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id).select('+twoFactorBackupCodes');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    const remainingBackupCodes = Array.isArray(user.twoFactorBackupCodes)
+      ? user.twoFactorBackupCodes.filter((c) => !c.used).length
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        twoFactorEnabled: Boolean(user.twoFactorEnabled),
+        remainingBackupCodes,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Bắt đầu thiết lập 2FA (sinh secret tạm thời và QR code)
+ * @route   POST /api/auth/2fa/setup
+ * @access  Private
+ */
+const setup2FA = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    const { secret, otpauthUri, qrCodeDataUrl } = await generate2FASecret(user.email);
+
+    user.twoFactorTempSecret = secret;
+    await user.save();
+
+    res.json({
+      success: true,
+      data: {
+        secret,
+        qrCode: qrCodeDataUrl,
+        otpauthUri,
+      },
+      message: 'Quét mã QR bằng ứng dụng xác thực (Google Authenticator, Microsoft Authenticator, v.v.), sau đó nhập mã OTP 6 số để kích hoạt.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Xác nhận mã OTP và kích hoạt 2FA + sinh 10 mã dự phòng
+ * @route   POST /api/auth/2fa/enable
+ * @access  Private
+ */
+const enable2FA = async (req, res, next) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập mã OTP 6 số từ ứng dụng xác thực',
+      });
+    }
+
+    const user = await User.findById(req.user._id).select('+twoFactorTempSecret +twoFactorSecret +twoFactorBackupCodes');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    if (!user.twoFactorTempSecret) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chưa có phiên thiết lập 2FA nào. Vui lòng bắt đầu lại từ bước lấy mã QR.',
+      });
+    }
+
+    const isValid = verifyTOTP(code, user.twoFactorTempSecret);
+    if (!isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã OTP không chính xác hoặc đã hết hạn. Vui lòng kiểm tra đồng hồ thiết bị và thử lại.',
+      });
+    }
+
+    // Kích hoạt 2FA chính thức
+    user.twoFactorEnabled = true;
+    user.twoFactorSecret = user.twoFactorTempSecret;
+    user.twoFactorTempSecret = undefined;
+
+    // Sinh 10 mã dự phòng (backup codes)
+    const { plainCodes, storedCodes } = generateBackupCodes(10);
+    user.twoFactorBackupCodes = storedCodes;
+
+    await user.save();
+
+    res.json({
+      success: true,
+      data: {
+        twoFactorEnabled: true,
+        backupCodes: plainCodes,
+      },
+      message: 'Đã kích hoạt xác thực hai yếu tố (2FA) thành công! Hãy lưu lại danh sách mã dự phòng ở nơi an toàn.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Người dùng tự tắt 2FA (cần xác nhận bằng mật khẩu hoặc OTP)
+ * @route   POST /api/auth/2fa/disable
+ * @access  Private
+ */
+const disable2FA = async (req, res, next) => {
+  try {
+    const { password, code } = req.body;
+    if (!password && !code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập mật khẩu hoặc mã OTP hiện tại để xác nhận tắt 2FA',
+      });
+    }
+
+    const user = await User.findById(req.user._id).select('+password +twoFactorSecret');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bảo mật 2 lớp chưa được kích hoạt',
+      });
+    }
+
+    let verified = false;
+    if (password) {
+      verified = await user.comparePassword(password);
+    }
+    if (!verified && code && user.twoFactorSecret) {
+      verified = verifyTOTP(code, user.twoFactorSecret);
+    }
+
+    if (!verified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu hoặc mã OTP xác nhận không chính xác',
+      });
+    }
+
+    user.twoFactorEnabled = false;
+    user.twoFactorSecret = undefined;
+    user.twoFactorTempSecret = undefined;
+    user.twoFactorBackupCodes = [];
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Đã tắt bảo mật 2 lớp (2FA) thành công',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Tạo lại 10 mã dự phòng mới (cần xác nhận mật khẩu hoặc OTP)
+ * @route   POST /api/auth/2fa/regenerate-backup-codes
+ * @access  Private
+ */
+const regenerateBackupCodes = async (req, res, next) => {
+  try {
+    const { password, code } = req.body;
+    const user = await User.findById(req.user._id).select('+password +twoFactorSecret +twoFactorBackupCodes');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tài khoản chưa bật bảo mật 2 lớp',
+      });
+    }
+
+    let verified = false;
+    if (password) {
+      verified = await user.comparePassword(password);
+    }
+    if (!verified && code && user.twoFactorSecret) {
+      verified = verifyTOTP(code, user.twoFactorSecret);
+    }
+
+    if (!verified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu hoặc mã xác thực không chính xác',
+      });
+    }
+
+    const { plainCodes, storedCodes } = generateBackupCodes(10);
+    user.twoFactorBackupCodes = storedCodes;
+    await user.save();
+
+    res.json({
+      success: true,
+      data: {
+        backupCodes: plainCodes,
+      },
+      message: 'Đã tạo lại danh sách mã dự phòng thành công. Các mã cũ không còn hiệu lực.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Lấy cấu hình tùy chọn nhận email của user
+ * @route   GET /api/auth/email-preferences
+ * @access  Private
+ */
+const getEmailPreferences = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id).select('emailPreferences email name');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    const defaultPrefs = {
+      task_assigned: true,
+      task_review: true,
+      task_failed: true,
+      task_deadline: true,
+      optimization_applied: true,
+      project_member_added: true,
+      daily_digest: false,
+    };
+
+    res.json({
+      success: true,
+      data: {
+        emailPreferences: { ...defaultPrefs, ...(user.emailPreferences || {}) },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Cập nhật tùy chọn nhận email
+ * @route   PUT /api/auth/email-preferences
+ * @access  Private
+ */
+const updateEmailPreferences = async (req, res, next) => {
+  try {
+    const { emailPreferences } = req.body;
+    if (!emailPreferences || typeof emailPreferences !== 'object') {
+      return res.status(400).json({ success: false, message: 'Dữ liệu tùy chọn email không hợp lệ' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    user.emailPreferences = {
+      ...(user.emailPreferences || {}),
+      ...emailPreferences,
+    };
+    user.markModified('emailPreferences');
+    await user.save();
+
+    res.json({
+      success: true,
+      data: { emailPreferences: user.emailPreferences },
+      message: 'Đã cập nhật tùy chọn nhận thông báo qua email thành công',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Gửi email thử nghiệm cho tài khoản hiện tại
+ * @route   POST /api/auth/test-email
+ * @access  Private
+ */
+const sendTestEmail = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id).select('name email companyName');
+    if (!user || !user.email) {
+      return res.status(400).json({ success: false, message: 'Tài khoản của bạn không có email' });
+    }
+
+    const { sendTestNotificationEmail } = require('../services/email.service');
+    const result = await sendTestNotificationEmail({
+      recipient: { name: user.name, email: user.email },
+      clientUrl: req.headers.origin || process.env.CLIENT_URL,
+      companyName: user.companyName,
+    });
+
+    if (result.sent) {
+      return res.json({
+        success: true,
+        message: `Đã gửi email thử nghiệm thành công tới ${user.email}. Vui lòng kiểm tra hộp thư đến (hoặc thư mục Spam).`,
+      });
+    }
+
+    if (result.simulated) {
+      return res.json({
+        success: true,
+        simulated: true,
+        message: `Cấu hình SMTP chưa được kích hoạt trong .env (${result.reason}). Hệ thống đã mô phỏng gửi thư thành công.`,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: `Gửi email thử nghiệm thất bại: ${result.reason || 'Lỗi kết nối máy chủ mail'}`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
+  verify2FALogin,
+  get2FAStatus,
+  setup2FA,
+  enable2FA,
+  disable2FA,
+  regenerateBackupCodes,
+  getEmailPreferences,
+  updateEmailPreferences,
+  sendTestEmail,
   getMe,
   updateProfile,
   changePassword,

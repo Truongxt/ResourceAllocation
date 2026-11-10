@@ -25,9 +25,15 @@ const UPLOAD_DIR = process.env.TEST_UPLOAD_DIR || path.join(os.tmpdir(), 'rao_te
 rmSync(UPLOAD_DIR, { recursive: true, force: true });
 
 const SUITES = [
+  { name: 'registration-boundary', file: 'registration-boundary.test.mjs', label: 'Đăng ký chỉ tạo công ty mới' },
+  { name: 'token-boundary', file: 'token-boundary.test.mjs', label: 'Phân biệt access token và phiên chờ 2FA' },
+  { name: 'task-list-scope', file: 'task-list-scope.test.mjs', label: 'Bộ lọc công việc không mở rộng quyền truy cập' },
+  { name: 'optimization-preview', file: 'optimization-preview.test.mjs', label: 'Proposal workload comparison' },
+  { name: 'optimization-preview-api', file: 'optimization-preview-api.test.mjs', label: 'Proposal scope and freshness' },
   { name: 'workload-period', file: 'workload-period.test.mjs', label: 'Period capacity and assessment transitions' },
   { name: 'resource-workflows', file: 'resource-workflows.test.mjs', label: 'Workload period and evaluation workflow' },
   // Bộ đơn vị, không cần server lẫn database — chạy trước để lỗi thuật toán lộ ra sớm.
+  { name: 'twoFactor', file: 'twoFactor.test.mjs', label: 'Bảo mật 2 lớp TOTP và Backup Codes' },
   { name: 'scoring', file: 'scoring.test.mjs', label: 'Thang điểm dùng chung' },
   { name: 'csp', file: 'csp.test.mjs', label: 'CSP — ràng buộc H3/H4' },
   { name: 'hybrid', file: 'hybrid.test.mjs', label: 'Hybrid — bàn giao CSP → GA' },

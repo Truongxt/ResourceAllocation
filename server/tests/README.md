@@ -43,6 +43,9 @@ thường vì MongoDB chưa chạy, hoặc máy đang quá tải (chạy ngay sa
 
 | Bộ | File | Phạm vi |
 |----|------|---------|
+| `registration-boundary` | `registration-boundary.test.mjs` | Đăng ký không gia nhập công ty đã có, không chọn role; bảo vệ dữ liệu legacy; nhiều request cùng tên chỉ tạo một Owner/Resource; lỗi ghi dữ liệu dọn đúng reservation để thử lại |
+| `token-boundary` | `token-boundary.test.mjs` | Token access bắt buộc đúng purpose/HS256/id. Luồng 2FA thật: challenge không đọc hồ sơ/đổi mật khẩu/mở socket; TOTP hợp lệ cấp phiên và refresh dùng được |
+| `task-list-scope` | `task-list-scope.test.mjs` | Scope cá nhân kết hợp người được giao, dự án, ngày, tìm kiếm và phân trang không vượt tenant; thống kê cũng loại tham chiếu chéo công ty cũ; giữ quyền hợp lệ và dữ liệu legacy |
 | `security` | `security.test.mjs` | Security header của helmet, CORS chỉ nhận origin của client, và giới hạn tần suất đăng nhập. Phần giới hạn tần suất dựng app express riêng trên cổng tạm vì đó là trạng thái toàn cục theo IP — chạm ngưỡng trên server dùng chung sẽ làm các bộ sau không đăng nhập nổi |
 | `scoring` | `scoring.test.mjs` | Thang điểm dùng chung của GA và CSP ở mức đơn vị: công thức khớp kỹ năng có trọng số, so khớp tên không phân biệt hoa thường, giới hạn thang level, capacity/effort mặc định. Thêm `contextSwitches` (S3): đếm dự án thừa của mỗi người, nhận project dạng id lẫn object, tính cả tải đã cam kết |
 | `workload-trend` | `workload-trend.test.mjs` | Chuỗi thời gian khối lượng ở mức đơn vị: trải giờ theo ngày làm việc, capacity theo fte và lịch nghỉ, gộp tuần, quá tải, và các giờ công không đặt được lên trục thời gian. Mốc thời gian dùng tháng 3/2026 vì mùng 2 là thứ Hai. Không cần server lẫn database |

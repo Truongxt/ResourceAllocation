@@ -891,7 +891,7 @@ export default function Resources() {
               <span>
                 <BarChartOutlined /> Năng suất & Cân bằng tải {productivityData?.summary?.redCount > 0 ? (
                   <Tag color="error" style={{ marginLeft: 6, borderRadius: 10, padding: '0 6px' }}>
-                    ⚠️ {productivityData.summary.redCount} quá tải
+                    {productivityData.summary.redCount} quá tải
                   </Tag>
                 ) : null}
               </span>

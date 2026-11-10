@@ -51,7 +51,7 @@ export default function CsvImportModal({
         onChange={(e) => setContent(e.target.value)}
         placeholder={
           t('resources.csvExample') ||
-          'Nguyen Van A, nva@example.com, password123, Frontend Dev, IT, 1, 40, 150000'
+          'Nguyen Van A, nva@company.internal, password123, Frontend Dev, IT, 1, 40, 150000'
         }
         style={{ fontFamily: 'monospace', fontSize: 12 }}
       />

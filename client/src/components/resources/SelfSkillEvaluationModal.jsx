@@ -96,7 +96,7 @@ export default function SelfSkillEvaluationModal({
                       </Text>
                       <Space>
                         {isApproved ? (
-                          <Tag color="success">✓ Quản lý đã duyệt: Lv.{currentItem?.managerLevel}</Tag>
+                          <Tag color="success">Quản lý đã duyệt: Lv.{currentItem?.managerLevel}</Tag>
                         ) : (
                           <Tag color="warning">{currentItem?.evaluationStatus === 'returned' ? 'Cần bổ sung minh chứng' : currentItem?.evaluationStatus === 'self_assessed' ? 'Chờ quản lý duyệt' : 'Chưa gửi đánh giá'}</Tag>
                         )}
@@ -140,7 +140,7 @@ export default function SelfSkillEvaluationModal({
                     </Form.Item>
                     {currentItem?.managerFeedback && (
                       <div style={{ marginTop: 8, fontSize: 12, color: '#475569', background: '#eff6ff', padding: '6px 10px', borderRadius: 6 }}>
-                        💬 <strong>Nhận xét từ Quản lý:</strong> {currentItem.managerFeedback}
+                        <strong>Nhận xét từ Quản lý:</strong> {currentItem.managerFeedback}
                       </div>
                     )}
                   </div>
@@ -176,7 +176,7 @@ export default function SelfSkillEvaluationModal({
             loading={submitting}
             style={{ background: 'var(--brand-primary)', borderRadius: 6, fontWeight: 600 }}
           >
-            Gửi bản tự đánh giá cho Quản lý ➔
+            Gửi bản tự đánh giá cho Quản lý
           </Button>
         </div>
       </Form>

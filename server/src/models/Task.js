@@ -194,6 +194,8 @@ const taskSchema = new mongoose.Schema(
         default: 0,
         min: 0,
       },
+      // Base Wework (Bài 77): Giá trị các trường tùy chỉnh cho kết quả công việc
+      customValues: { type: Map, of: mongoose.Schema.Types.Mixed, default: undefined },
       submittedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

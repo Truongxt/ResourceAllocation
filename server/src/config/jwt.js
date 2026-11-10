@@ -8,6 +8,7 @@
  * đều trả 401. Gom về một chỗ để không thể lệch lại.
  */
 
+const jwt = require('jsonwebtoken');
 const { isRelaxedEnv } = require('./env');
 
 const DEV_FALLBACK_SECRET = 'rao_dev_only_insecure_secret';
@@ -34,6 +35,22 @@ const getJwtSecret = () => {
   }
 
   return DEV_FALLBACK_SECRET;
+};
+
+/** Chỉ access token mới được dùng cho REST và Socket.IO, không nhận challenge 2FA. */
+const verifyAccessToken = (token) => {
+  const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] });
+  if (
+    !decoded ||
+    typeof decoded !== 'object' ||
+    Array.isArray(decoded) ||
+    decoded.purpose !== 'access' ||
+    typeof decoded.id !== 'string' ||
+    !/^[a-f\d]{24}$/i.test(decoded.id)
+  ) {
+    throw new jwt.JsonWebTokenError('Invalid access token');
+  }
+  return decoded;
 };
 
 /**
@@ -74,6 +91,7 @@ const assertJwtConfig = () => {
 
 module.exports = {
   getJwtSecret,
+  verifyAccessToken,
   getAccessTokenExpire,
   getRefreshTokenDays,
   assertJwtConfig,

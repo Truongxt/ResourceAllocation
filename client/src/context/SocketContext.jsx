@@ -50,7 +50,7 @@ export function SocketProvider({ children }) {
     });
 
     newSocket.on('connect', () => {
-      console.log('⚡ Connected to Real-time Socket Server');
+      console.log('[Socket] Connected to Real-time Server');
     });
 
     // Real-time new notification listener

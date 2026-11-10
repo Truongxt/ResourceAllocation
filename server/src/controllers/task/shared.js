@@ -25,10 +25,54 @@ const companyProjectScope = (company) =>
   company === DEFAULT_COMPANY ? { $in: [company, null, undefined] } : company;
 
 /**
+ * Helper: Tính lại progress của Task cha dựa trên các việc con (subtasks)
+ * Chuẩn Base Wework: Tiến độ của việc cha phản ánh trung bình cộng các việc con
+ */
+const recalculateParentTaskProgress = async (parentTaskId) => {
+  if (!parentTaskId) return;
+  const parent = await Task.findById(parentTaskId).select('progress status project');
+  if (!parent) return;
+
+  const subtasks = await Task.find({
+    parentTask: parentTaskId,
+  }).select('progress status');
+
+  const counted = subtasks.filter((t) => t.status !== 'failed');
+  if (!counted.length) return;
+
+  const total = counted.reduce((sum, t) => sum + (t.status === 'done' ? 100 : (t.progress || 0)), 0);
+  const progress = Math.round(total / counted.length);
+
+  const updateData = { progress };
+  // Nếu tất cả việc con đều 'done' và việc cha chưa thất bại, có thể nâng lên 100%
+  if (counted.every((t) => t.status === 'done') && parent.status !== 'failed') {
+    updateData.progress = 100;
+  }
+  await Task.findByIdAndUpdate(parentTaskId, updateData);
+};
+
+/**
  * Helper: Tính lại progress dự án dựa trên tasks
+ * Chuẩn Base Wework (Bài 9, 25, 86):
+ * 1. Phòng ban ('team') không có thanh % tiến độ tổng thể (vì vận hành liên tục).
+ * 2. Dự án ('project') chỉ tính các công việc cha cấp gốc (parentTask = null) để tránh tính trùng trọng số (Double Weighting).
  */
 const recalculateProjectProgress = async (projectId) => {
-  const tasks = await Task.find({ project: projectId }).select('progress status');
+  if (!projectId) return;
+  const project = await Project.findById(projectId).select('kind');
+  if (!project) return;
+
+  // Phòng ban vô thời hạn: Không tính thanh % tiến độ tổng thể
+  if (project.kind === 'team') {
+    return;
+  }
+
+  // Chỉ lấy các công việc cấp gốc (không phải việc con) để tính tiến độ dự án
+  const tasks = await Task.find({
+    project: projectId,
+    parentTask: { $in: [null, undefined] },
+  }).select('progress status');
+
   // Việc đã đánh dấu Thất bại bị loại khỏi mẫu số: giữ lại thì một việc hỏng khiến
   // dự án không bao giờ chạm 100% dù mọi việc còn lại đã xong. Nó được đếm riêng
   // trong báo cáo ở mục 'failed'.
@@ -176,6 +220,7 @@ const canApproveReview = (task, project, user) => {
 module.exports = {
   STATUS_TRAIL_FIELDS,
   companyProjectScope,
+  recalculateParentTaskProgress,
   recalculateProjectProgress,
   notifyTaskFailed,
   notifyDeadlineChanged,

@@ -35,20 +35,16 @@
   flex-wrap: wrap;
 }
 
-.dashboard-greeting-chip {
+.dashboard-freshness-chip {
   display: inline-flex;
   align-items: center;
-  padding: 3px 12px;
-  border-radius: 9999px;
-  font-size: 13px;
-  color: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
   background: var(--surface-hover);
   border: 1px solid var(--border-subtle);
-}
-
-.dashboard-greeting-chip strong {
-  color: var(--brand-primary);
-  margin-left: 4px;
 }
 
 .dashboard-header-desc {
@@ -66,12 +62,11 @@
 }
 
 .btn-dashboard-cta {
-  font-weight: 600;
-  box-shadow: 0 2px 8px var(--brand-primary-glow);
+  font-weight: 500;
 }
 
 /* --------------------------------------------------------------------------
-   2. KPI Bento Cards
+   2. KPI Bento Cards (Clean, Flat, Typography-Led)
    -------------------------------------------------------------------------- */
 .dashboard-kpi-grid {
   display: grid;
@@ -83,20 +78,18 @@
 .dashboard-kpi-card {
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  transition: border-color var(--transition-fast);
   position: relative;
   overflow: hidden;
 }
 
 .dashboard-kpi-card:hover {
-  transform: translateY(-2px);
   border-color: var(--border-highlight);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
 }
 
 .kpi-card-header {
@@ -110,47 +103,7 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
-}
-
-.kpi-card-icon-box {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.kpi-icon-blue {
-  background: rgba(37, 99, 235, 0.1);
-  color: #3b82f6;
-}
-
-.kpi-icon-indigo {
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
-}
-
-.kpi-icon-emerald {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-}
-
-.kpi-icon-amber {
-  background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
-}
-
-.kpi-icon-rose {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-}
-
-.kpi-icon-sky {
-  background: rgba(14, 165, 233, 0.1);
-  color: #0ea5e9;
+  letter-spacing: -0.01em;
 }
 
 .kpi-card-body {
@@ -287,7 +240,7 @@
 
 .icon-recent {
   background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
+  color: #0284c7;
 }
 
 .icon-distribution {
@@ -376,7 +329,7 @@
   background: var(--surface-card);
   color: var(--text-primary);
   text-decoration: none;
-  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .attention-row.has-issue {
@@ -477,7 +430,7 @@
   border-radius: 8px;
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
-  transition: all 140ms ease;
+  transition: background-color 140ms cubic-bezier(0.23, 1, 0.32, 1), border-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .recent-task-row:hover {
@@ -800,7 +753,7 @@
 .recent-opt-link {
   font-size: 12px;
   font-weight: 600;
-  color: #8b5cf6;
+  color: #0284c7;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -808,7 +761,7 @@
 }
 
 .recent-opt-link:hover {
-  color: #7c3aed;
+  color: #0284c7;
 }
 
 /* --------------------------------------------------------------------------
@@ -877,3 +830,42 @@
     padding-top: 4px;
   }
 }
+
+
+.dashboard-kpi-card {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: emilStaggerIn var(--duration-modal, 240ms) var(--ease-out) forwards;
+}
+.dashboard-kpi-card:nth-child(1) { animation-delay: 0ms; }
+.dashboard-kpi-card:nth-child(2) { animation-delay: 40ms; }
+.dashboard-kpi-card:nth-child(3) { animation-delay: 80ms; }
+.dashboard-kpi-card:nth-child(4) { animation-delay: 120ms; }
+
+.attention-row:active {
+  transform: scale(0.98);
+}
+
+.recent-task-row:active {
+  transform: scale(0.99);
+}
+
+.btn-dashboard-cta:active {
+  transform: scale(0.97);
+}
+
+/* Command-center depth: metrics can be scanned quickly without looking like a
+   repeated wall of cards. The coloured line denotes category, not decoration. */
+.dashboard-header { margin-bottom: 28px; }
+.dashboard-header-title-row h2, .dashboard-header-title-row h3 { letter-spacing: -.045em; }
+.dashboard-freshness-chip { border-radius: 7px; background: var(--surface-elevated); }
+.dashboard-kpi-card { border-radius: var(--radius-lg); border-top-width: 2px; box-shadow: var(--shadow-card); }
+.dashboard-kpi-card:nth-child(1) { border-top-color: var(--brand-primary); }
+.dashboard-kpi-card:nth-child(2) { border-top-color: var(--status-info); }
+.dashboard-kpi-card:nth-child(3) { border-top-color: var(--status-warning); }
+.dashboard-kpi-card:nth-child(4) { border-top-color: var(--status-success); }
+.dashboard-kpi-card:hover { box-shadow: var(--shadow-card-hover); }
+.dashboard-work-grid > .ant-card, .dashboard-detail-grid > .ant-card { box-shadow: var(--shadow-card); }
+.attention-row, .recent-task-row, .hours-metric-tile { border-radius: 12px; }
+.management-summary-grid > div { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.management-department-track { height: 12px; background: color-mix(in srgb, var(--surface-elevated) 78%, transparent); }

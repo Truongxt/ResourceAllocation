@@ -12,7 +12,12 @@ import { ok, section as S, summary } from './helpers.mjs';
 
 const require = createRequire(import.meta.url);
 const { readMailConfig } = require('../src/config/mail');
-const { buildNotificationEmail, buildUserWelcomeEmail, shouldEmail } = require('../src/services/email.service');
+const {
+  buildNotificationEmail,
+  buildUserWelcomeEmail,
+  buildDailyDigestEmail,
+  shouldEmail,
+} = require('../src/services/email.service');
 
 /** env tối thiểu để email được coi là đã cấu hình đủ. */
 const fullEnv = {
@@ -147,6 +152,46 @@ S('Email chào mừng và mật khẩu khởi tạo cho người dùng mới');
   ok(welcomeMail.text.includes('https://app.nasani.vn/login'), 'Bản text chứa link đăng nhập');
   ok(welcomeMail.html.includes('https://app.nasani.vn/login'), 'Bản HTML chứa link đăng nhập');
   ok(welcomeMail.html.includes('Kỹ sư phần mềm'), 'Bản HTML chứa chức danh của nhân sự');
+}
+
+// ══════════════════════════════════════════════
+S('Mở rộng email và tùy chọn người dùng (Email Preferences)');
+{
+  ok(shouldEmail('task_review_requested') === true, 'Yêu cầu duyệt việc → có gửi mail');
+  ok(shouldEmail('task_review_approved') === true, 'Đã duyệt việc → có gửi mail');
+  ok(shouldEmail('task_review_rejected') === true, 'Từ chối duyệt → có gửi mail');
+  ok(shouldEmail('task_failed') === true, 'Báo cáo việc thất bại → có gửi mail');
+  ok(shouldEmail('task_deadline_changed') === true, 'Đổi hạn chót → có gửi mail');
+  ok(shouldEmail('optimization_applied') === true, 'Áp dụng phân bổ tối ưu → có gửi mail');
+  ok(shouldEmail('project_member_added') === true, 'Thêm vào dự án mới → có gửi mail');
+
+  // Kiểm tra tùy chọn người dùng
+  const prefs = {
+    task_assigned: true,
+    task_review: false,
+    task_failed: false,
+  };
+
+  ok(shouldEmail('task_assigned', prefs) === true, 'Bật tùy chọn task_assigned → vẫn gửi');
+  ok(shouldEmail('task_review_requested', prefs) === false, 'Tắt tùy chọn task_review → chặn email');
+  ok(shouldEmail('task_review_rejected', prefs) === false, 'Tắt tùy chọn task_review → chặn cả từ chối duyệt');
+  ok(shouldEmail('task_failed', prefs) === false, 'Tắt tùy chọn task_failed → chặn email việc thất bại');
+
+  // Kiểm tra Daily Digest
+  const digest = buildDailyDigestEmail({
+    user: { name: 'Thảo', email: 'thao@rao.com', companyName: 'RAO Corp' },
+    summary: {
+      dueToday: [{ title: 'Viết API' }],
+      overdue: [{ title: 'Sửa bug' }],
+      pendingReviews: [{ title: 'Duyệt UI' }],
+    },
+    clientUrl: 'https://rao.example.com',
+  });
+
+  ok(digest.to === 'thao@rao.com', 'Digest gửi đúng người nhận');
+  ok(digest.subject.includes('Tóm tắt công việc đầu ngày'), 'Tiêu đề digest đúng mẫu');
+  ok(digest.html.includes('Viết API'), 'Bản HTML chứa công việc đến hạn');
+  ok(digest.html.includes('Sửa bug'), 'Bản HTML chứa công việc quá hạn');
 }
 
 process.exit(summary() ? 1 : 0);

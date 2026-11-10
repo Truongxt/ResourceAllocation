@@ -4,7 +4,7 @@
  * Handler nằm trong `./task/`, chia theo nhóm chức năng:
  *   core           danh sách, chi tiết, tạo, sửa, đổi trạng thái, xóa, thống kê
  *   collaboration  bình luận, checklist, người theo dõi, công việc con
- *   operations     báo cáo kết quả, nhân bản, di chuyển, đổi hạn, nhập Excel, nhắc việc
+ *   operations     báo cáo kết quả, nhân bản, nâng/hạ công việc con, di chuyển, đổi hạn, nhập Excel, nhắc việc
  *   review         luồng đánh giá kết quả
  *   reassign       bàn giao hàng loạt
  *   shared         helper dùng chung giữa các nhóm
@@ -35,6 +35,8 @@ module.exports = {
   createSubtask: collaboration.createSubtask,
   reportTaskResult: operations.reportTaskResult,
   duplicateTask: operations.duplicateTask,
+  promoteSubtask: operations.promoteSubtask,
+  demoteToSubtask: operations.demoteToSubtask,
   moveTask: operations.moveTask,
   updateDeadline: operations.updateDeadline,
   downloadExcelTemplate: operations.downloadExcelTemplate,

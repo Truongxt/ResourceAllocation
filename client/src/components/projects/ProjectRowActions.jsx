@@ -58,7 +58,7 @@ export default function ProjectRowActions({
           type="text"
           size="small"
           aria-label="Chỉnh sửa nhanh"
-          icon={<EditOutlined style={{ color: '#6366f1' }} />}
+          icon={<EditOutlined style={{ color: 'var(--brand-primary, #0284c7)' }} />}
           onClick={() => onQuickEdit?.(project)}
         />
       </Tooltip>

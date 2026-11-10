@@ -13,6 +13,7 @@ import {
   SafetyCertificateOutlined,
   CheckCircleFilled,
   LockOutlined,
+  MailOutlined,
   CalendarOutlined,
   TeamOutlined,
   ApartmentOutlined,
@@ -32,6 +33,7 @@ import UserDirectoryTab from '../../components/settings/UserDirectoryTab';
 import AppPermissionsTab from '../../components/settings/AppPermissionsTab';
 import GroupsTab from '../../components/settings/GroupsTab';
 import MySkillAssessmentTab from '../../components/settings/MySkillAssessmentTab';
+import EmailPreferencesTab from '../../components/settings/EmailPreferencesTab';
 import './Settings.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -81,6 +83,16 @@ export default function Settings() {
       ),
     },
     {
+      key: 'notifications',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 600 }}>
+          <MailOutlined />
+          <span>Tùy chọn Email</span>
+        </span>
+      ),
+      children: <EmailPreferencesTab user={user} />,
+    },
+    {
       key: 'leaves',
       label: (
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 600 }}>
@@ -98,7 +110,7 @@ export default function Settings() {
               <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 600 }}>
                 <TeamOutlined />
                 <span>Danh bạ Tài khoản (Base Directory)</span>
-                <Badge count="Admin" style={{ backgroundColor: '#7c3aed', fontSize: 10 }} />
+                <Badge count="Admin" style={{ backgroundColor: '#0284c7', fontSize: 10 }} />
               </span>
             ),
             children: <UserDirectoryTab currentUser={user} />,

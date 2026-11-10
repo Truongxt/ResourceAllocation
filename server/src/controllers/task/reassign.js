@@ -16,17 +16,24 @@ const { CLOSED_STATUSES } = require('../../services/taskStatus.service');
 const { recalculateProjectProgress } = require('./shared');
 
 /**
- * Điều kiện lọc tập công việc sẽ bị bàn giao.
+ * Điều kiện lọc tập công việc sẽ bị bàn giao (Bài 75 - Tác vụ hàng loạt).
  *
  * Việc đã `done` hoặc `failed` KHÔNG bao giờ nằm trong tập này: đổi người thực hiện
  * của một việc đã ngã ngũ là viết lại lịch sử ai đã thực sự làm nó.
  */
-const buildReassignFilter = ({ fromUserId, projectId, taskIds, projectScopeIds }) => {
+const buildReassignFilter = ({ fromUserId, projectId, taskIds, projectScopeIds, role = 'assignee' }) => {
   const filter = {
-    assignee: fromUserId,
     status: { $nin: CLOSED_STATUSES },
     project: { $in: projectScopeIds },
   };
+
+  if (role === 'creator') {
+    filter.createdBy = fromUserId;
+  } else if (role === 'follower') {
+    filter.followers = fromUserId;
+  } else {
+    filter.assignee = fromUserId;
+  }
 
   if (projectId) filter.project = projectId;
   if (Array.isArray(taskIds) && taskIds.length) filter._id = { $in: taskIds };
@@ -58,16 +65,18 @@ const companyProjectIds = async (user) => {
  */
 const previewReassign = async (req, res, next) => {
   try {
-    const { fromUserId, projectId } = req.query;
+    const { fromUserId, projectId, role = 'assignee' } = req.query;
 
     if (!fromUserId || !mongoose.Types.ObjectId.isValid(fromUserId)) {
       return res.status(400).json({ success: false, message: 'Thiếu hoặc sai người bàn giao' });
     }
 
     const scopeIds = await companyProjectIds(req.user);
-    const tasks = await Task.find(buildReassignFilter({ fromUserId, projectId, projectScopeIds: scopeIds }))
+    const tasks = await Task.find(buildReassignFilter({ fromUserId, projectId, projectScopeIds: scopeIds, role }))
       .populate('project', 'name code')
-      .select('title status priority startDate endDate estimatedHours project reviewers')
+      .populate('assignee', 'name avatar')
+      .populate('createdBy', 'name avatar')
+      .select('title status priority startDate endDate estimatedHours project reviewers assignee createdBy followers')
       .sort({ endDate: 1 });
 
     const totalHours = tasks.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
@@ -93,13 +102,13 @@ const previewReassign = async (req, res, next) => {
 };
 
 /**
- * @desc    Bàn giao hàng loạt công việc từ người này sang người khác
+ * @desc    Bàn giao hàng loạt công việc từ người này sang người khác (Bài 75 - Tác vụ hàng loạt)
  * @route   POST /api/tasks/bulk-reassign
  * @access  Admin, Project Manager
  */
 const bulkReassign = async (req, res, next) => {
   try {
-    const { fromUserId, toUserId, projectId, taskIds, reason } = req.body;
+    const { fromUserId, toUserId, projectId, taskIds, reason, actionType = 'replace_assignee' } = req.body;
 
     if (!fromUserId || !mongoose.Types.ObjectId.isValid(fromUserId)) {
       return res.status(400).json({ success: false, message: 'Thiếu hoặc sai người bàn giao' });
@@ -127,32 +136,38 @@ const bulkReassign = async (req, res, next) => {
       return res.status(400).json({ success: false, message: recipientError });
     }
 
+    const role = actionType === 'replace_creator' ? 'creator' : actionType === 'add_follower' ? 'follower' : 'assignee';
     const scopeIds = await companyProjectIds(req.user);
-    const filter = buildReassignFilter({ fromUserId, projectId, taskIds, projectScopeIds: scopeIds });
+    const filter = buildReassignFilter({ fromUserId, projectId, taskIds, projectScopeIds: scopeIds, role });
 
-    const tasks = await Task.find(filter).select('_id title status project');
+    const tasks = await Task.find(filter).select('_id title status project assignee createdBy followers');
     if (!tasks.length) {
       return res.status(400).json({
         success: false,
-        message: 'Không có công việc nào phù hợp để bàn giao',
+        message: 'Không có công việc nào phù hợp để thao tác',
       });
     }
 
-    // Chỉ đổi người thực hiện. `reviewers` cố ý giữ nguyên kể cả với việc đang chờ
-    // đánh giá: người nộp và người duyệt là hai vai khác nhau, gộp lại thì người mới
-    // có thể tự duyệt việc vừa nhận.
     const movedIds = tasks.map((t) => t._id);
-    await Task.updateMany({ _id: { $in: movedIds } }, { assignee: toUserId });
+
+    if (actionType === 'replace_creator') {
+      await Task.updateMany({ _id: { $in: movedIds } }, { createdBy: toUserId });
+    } else if (actionType === 'add_follower') {
+      await Task.updateMany({ _id: { $in: movedIds } }, { $addToSet: { followers: toUserId } });
+    } else {
+      // Mặc định: thay thế người nhận việc (assignee)
+      await Task.updateMany({ _id: { $in: movedIds } }, { assignee: toUserId });
+      await syncResourceWorkload([fromUserId, toUserId]);
+    }
 
     await recalculateProjectProgressFor(tasks);
-    await syncResourceWorkload([fromUserId, toUserId]);
 
     sendNotification({
       recipient: toUserId,
       actor: req.user._id,
       type: 'task_assigned',
-      title: 'Bạn được bàn giao công việc',
-      message: `${req.user.name} đã bàn giao ${movedIds.length} công việc cho bạn${
+      title: 'Tác vụ bàn giao công việc hàng loạt',
+      message: `${req.user.name} đã thực hiện tác vụ hàng loạt (${actionType}) với ${movedIds.length} công việc cho bạn${
         reason ? `: ${reason}` : ''
       }`,
       entityType: 'task',
@@ -160,20 +175,19 @@ const bulkReassign = async (req, res, next) => {
       link: '/tasks',
     });
 
-    // Một bản ghi cho cả lô, không phải mỗi việc một dòng: thao tác này là một quyết
-    // định duy nhất, và tách ra thành 40 dòng sẽ chôn vùi nhật ký của mọi thứ khác.
     logActivity({
       req,
       action: 'BULK_REASSIGN',
       entityType: 'task',
       entityId: movedIds[0],
       entityTitle: `${movedIds.length} công việc`,
-      description: `${req.user.name} đã bàn giao ${movedIds.length} công việc sang người khác`,
+      description: `${req.user.name} đã thực hiện tác vụ hàng loạt (${actionType}) cho ${movedIds.length} công việc`,
       details: {
         fromUserId: String(fromUserId),
         toUserId: String(toUserId),
         projectId: projectId ? String(projectId) : null,
         taskIds: movedIds.map(String),
+        actionType,
         reason: reason || '',
       },
     });

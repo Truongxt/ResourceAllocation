@@ -18,7 +18,7 @@ Hai lớp đầu chạy trong vòng vài phút (server khoảng 6 phút, compone
 mất **12–20 phút** (đo trên máy phát triển, 1 worker: 18,8 phút ngày 09/10, 11,8 phút ngày 19/10 cho
 93 bài) vì nó khởi động thật, đăng nhập thật và chờ API thật ở từng bài.
 
-**Lần chạy trọn bộ gần nhất — 19/10/2026 tối**, sau luật "PM chỉ có quyền PM trên dự án mình quản lý"
+**Mốc kiểm thử lịch sử — 19/10/2026 tối**, sau luật "PM chỉ có quyền PM trên dự án mình quản lý"
 (`aa3aac3`, `0f7d8bd`, `752c95b`), mobile dùng chung luật quyền với web (`56d729e`), App Admin `work` tạo được dự án
 (`8ec776b`), không tự duyệt việc của mình (`b127a04`) và form tạo việc của web (`d56b8cf`), tất cả đạt:
 
@@ -34,6 +34,29 @@ Chi tiết từng lớp:
 - [`server/tests/README.md`](../server/tests/README.md) — 39 bộ, gồm cả kiểm thử đơn vị cho GA/CSP/scoring
 - [`client/tests/README.md`](../client/tests/README.md) — logic thuần chạy bằng `node`, component chạy bằng vitest
 - [`e2e/README.md`](../e2e/README.md) — 12 bộ điều khiển Chromium trên hệ thống thật
+
+## Kiểm chứng bản vá bảo mật — 03/11/2026
+
+- Ba bộ mới `registration-boundary`, `token-boundary`, `task-list-scope` đều đạt.
+  Bộ token có 26 kiểm tra qua node:test; phạm vi danh sách/thống kê có 1.122 assertion
+  qua HTTP và MongoDB thật. Đăng ký có kiểm tra đồng thời và tiêm lỗi ghi dữ liệu
+  **chỉ trong test** để kiểm chứng dọn reservation/cho thử lại.
+- Toàn backend trên database mới `resource_allocation_security_test`: **42/46 bộ đạt**.
+  Đối chiếu mã HEAD trước bản vá trong bản sao riêng và database
+  `resource_allocation_security_baseline_test`: **39/43 bộ đạt**. Cùng bốn bộ thất bại:
+  `optimization-preview-api`, `api`, `optimize-pm`, `attachments`. Ba bộ đầu liên quan
+  `loadOptimizationPreview is not defined`; bộ cuối lỗi nhân bản việc trả 400. Không
+  sửa các lỗi ngoài phạm vi bản vá này và không hạ assertion để báo xanh.
+- Database test cũ có chỉ mục phòng ban `name_1`/`code_1` còn sót, làm hai bộ nữa
+  (`company-isolation`, `cross-company-refs`) hỏng. Chạy trên database mới thì cả hai
+  đạt; bản vá không xóa chỉ mục của database đang có.
+- Web: toàn bộ logic và **23 file component / 112 test đạt**; build production đạt,
+  vẫn cảnh báo chunk lớn hơn 500 kB.
+- Mobile: đã thêm test form đăng ký; **chưa chạy được** vì dependencies/Jest chưa cài
+  (`jest is not recognized`). Cú pháp JSX của màn hình và test đã qua Babel parser.
+  Không chạy lại E2E trong đợt này.
+- Log đầy đủ: `scratch/security-fixes-clean-server-tests.log` và
+  `scratch/security-baseline-server-tests.log` (được gitignore).
 
 ## Chạy tất cả
 

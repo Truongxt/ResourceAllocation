@@ -9,6 +9,9 @@
 .resource-skill-review .ant-tag { margin-inline-end: 0; }
 .resource-skill-review-button { min-height: 36px; font-weight: 600; }
 .resource-skill-review-button.ant-btn-default { color: var(--brand-primary); border-color: var(--brand-primary); }
+.resources-page .ant-card { box-shadow: var(--shadow-card); }
+.resources-page .ant-table-wrapper { border-radius: var(--radius-lg); }
+.resource-quick-filters { padding: 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface-overlay); width: fit-content; }
 @media (max-width: 767px) {
   .resources-page .page-heading > .ant-space { width: 100%; }
   .resource-quick-filters { width: 100%; }

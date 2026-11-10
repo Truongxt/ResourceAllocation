@@ -113,6 +113,15 @@
   background: var(--bg-card-hover);
 }
 
+/* Project cards use hierarchy rather than a wall of identical containers. */
+.projects-toolbar { border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface-overlay); box-shadow: var(--shadow-card); }
+.project-stat { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.project-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.project-card:nth-child(3n + 1) { border-top: 2px solid color-mix(in srgb, var(--brand-primary) 65%, transparent); }
+.project-card:nth-child(3n + 2) { border-top: 2px solid color-mix(in srgb, var(--status-info) 55%, transparent); }
+.project-card:nth-child(3n + 3) { border-top: 2px solid color-mix(in srgb, var(--status-success) 50%, transparent); }
+@media (hover: hover) and (pointer: fine) { .project-card:hover { box-shadow: var(--shadow-card-hover); } }
+
 .project-card-top {
   display: flex;
   justify-content: space-between;
@@ -146,7 +155,7 @@
   justify-content: center;
   background: rgba(148, 163, 184, 0.08);
   color: var(--text-secondary);
-  transition: all var(--transition-fast);
+  transition: border-color 180ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 180ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .project-actions button:hover {
@@ -214,7 +223,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-primary-500), var(--color-accent-400));
+  background: var(--brand-primary);
 }
 
 .project-meta,
@@ -234,7 +243,7 @@
   position: fixed;
   inset: 0;
   background: var(--bg-overlay);
-  backdrop-filter: blur(4px);
+  /* solid overlay */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -319,4 +328,31 @@
   .projects-header {
     flex-direction: column;
   }
+}
+
+.project-card {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: projectStaggerIn 220ms var(--ease-out) forwards;
+}
+.project-card:nth-child(1) { animation-delay: 0ms; }
+.project-card:nth-child(2) { animation-delay: 30ms; }
+.project-card:nth-child(3) { animation-delay: 60ms; }
+.project-card:nth-child(4) { animation-delay: 90ms; }
+.project-card:nth-child(5) { animation-delay: 120ms; }
+.project-card:nth-child(6) { animation-delay: 150ms; }
+
+@keyframes projectStaggerIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.project-card:active {
+  transform: scale(0.99);
+}
+
+.project-actions button:active {
+  transform: scale(0.92);
 }

@@ -142,7 +142,7 @@ export default function SkillsMatrixModal({
                         )}
                         {currentSkill?.evaluationStatus === 'approved' && (
                           <Tag color="success" style={{ borderRadius: 4 }}>
-                            ✓ Đã phê duyệt
+                            Đã phê duyệt
                           </Tag>
                         )}
                       </Space>

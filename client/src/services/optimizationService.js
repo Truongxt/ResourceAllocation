@@ -28,8 +28,8 @@ const optimizationService = {
     return this.runGenetic(flatParams);
   },
 
-  apply(id) {
-    return this.applyResult(id);
+  apply(id, previewToken) {
+    return this.applyResult(id, previewToken);
   },
 
   runGenetic(params = {}) {
@@ -56,14 +56,18 @@ const optimizationService = {
     return api.get(`/optimization/${id}`);
   },
 
+  getPreview(id) {
+    return api.get(`/optimization/${id}/preview`);
+  },
+
   // So sánh song song 2-4 phương án. Server ghép phân công theo từng công việc và
   // tự chấm chỉ số nào thắng, nên client chỉ việc vẽ.
   compare(ids = []) {
     return api.get('/optimization/compare', { params: { ids: ids.join(',') } });
   },
 
-  applyResult(id) {
-    return api.post(`/optimization/${id}/apply`);
+  applyResult(id, previewToken) {
+    return api.post(`/optimization/${id}/apply`, { previewToken });
   },
 
   rollbackResult(id) {

@@ -34,7 +34,7 @@ export const TASK_STATUSES = [
   { key: 'review', color: '#f59e0b', badgeColor: 'warning' },
   { key: 'done', color: '#10b981', badgeColor: 'success' },
   { key: 'blocked', color: '#ef4444', badgeColor: 'error' },
-  { key: 'failed', color: '#7c3aed', badgeColor: 'error' },
+  { key: 'failed', color: '#e11d48', badgeColor: 'error' },
 ];
 
 // Mã màu thật, dùng khi vẽ trực tiếp (Gantt, biểu đồ)

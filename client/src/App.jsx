@@ -1,7 +1,7 @@
 import { Suspense, lazy, useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './styles/workspace.css';
-import { Layout } from 'antd';
+import { Drawer, Layout } from 'antd';
 import { useAuth } from './context/AuthContext';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -30,13 +30,7 @@ const { Content } = Layout;
 
 function FullPageSpinner() {
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100dvh',
-      background: 'var(--bg-primary, #0f172a)',
-    }}>
+    <div className="app-loading-screen">
       <div className="spinner" />
     </div>
   );
@@ -44,41 +38,60 @@ function FullPageSpinner() {
 
 function ContentSpinner() {
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 'calc(100vh - 200px)',
-    }}>
+    <div className="app-content-spinner">
       <div className="spinner" />
     </div>
   );
 }
 
 function AppLayout({ children }) {
-  const [collapsed, setCollapsed] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  const location = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px)');
-    const onChange = () => setCollapsed(media.matches);
+    const onChange = () => {
+      setIsMobile(media.matches);
+      setMenuOpen(false);
+    };
     media.addEventListener('change', onChange);
     return () => media.removeEventListener('change', onChange);
   }, []);
+  useEffect(() => { setMenuOpen(false); }, [location.pathname, location.search]);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      <a className="skip-link" href="#main-content">Đến nội dung chính</a>
+      {isMobile ? (
+        <Drawer
+          title="Điều hướng"
+          placement="left"
+          width={280}
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          className="workspace-navigation-drawer"
+          styles={{ body: { padding: 0 }, header: { background: 'var(--surface-ground)' } }}
+        >
+          <Sidebar collapsed={false} mobile onNavigate={() => setMenuOpen(false)} />
+        </Drawer>
+      ) : <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />}
       <Layout
         className="app-main"
         style={{
-          marginLeft: collapsed ? 72 : 240,
-          transition: 'margin-left 0.2s ease',
+          marginLeft: isMobile ? 0 : collapsed ? 72 : 240,
+          minWidth: 0,
+          transition: 'margin-left var(--motion-duration-base) var(--ease-out)',
           minHeight: '100vh',
           background: 'var(--bg-primary, #0f172a)',
         }}
       >
-        <Header collapsed={collapsed} />
+        <Header collapsed={collapsed} isMobile={isMobile} menuOpen={menuOpen} onOpenMenu={() => setMenuOpen(true)} />
         <Content
           className="app-content"
+          id="main-content"
+          role="main"
+          tabIndex={-1}
           style={{
             marginTop: 80,
             marginBottom: 24,
@@ -89,7 +102,11 @@ function AppLayout({ children }) {
         >
           {/* Ranh giới Suspense nằm trong Content nên khi đổi trang chỉ vùng nội
               dung hiện spinner; sidebar và header không chớp mất rồi hiện lại. */}
-          <Suspense fallback={<ContentSpinner />}>{children}</Suspense>
+          <Suspense fallback={<ContentSpinner />}>
+            <div className="app-page-transition" key={`${location.pathname}${location.search}`}>
+              {children}
+            </div>
+          </Suspense>
         </Content>
       </Layout>
     </Layout>

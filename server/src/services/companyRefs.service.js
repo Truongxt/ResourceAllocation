@@ -99,6 +99,7 @@ const taskRefsError = async (fields, { projectId, company }) => {
   }
   const users = [];
   if (fields.assignee) users.push(fields.assignee);
+  if (Array.isArray(fields.assignees)) users.push(...fields.assignees);
   if (Array.isArray(fields.followers)) users.push(...fields.followers);
   if (Array.isArray(fields.reviewers)) users.push(...fields.reviewers);
   return (

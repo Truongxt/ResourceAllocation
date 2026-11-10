@@ -92,6 +92,12 @@ const taskService = {
   duplicate(taskId, data = {}) {
     return api.post(`/tasks/${taskId}/duplicate`, data);
   },
+  promoteSubtask(taskId) {
+    return api.patch(`/tasks/${taskId}/promote-subtask`);
+  },
+  demoteToSubtask(taskId, targetParentTaskId) {
+    return api.patch(`/tasks/${taskId}/demote-to-subtask`, { targetParentTaskId });
+  },
   move(taskId, data) {
     return api.post(`/tasks/${taskId}/move`, data);
   },

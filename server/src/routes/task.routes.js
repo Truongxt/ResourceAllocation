@@ -39,6 +39,8 @@ const {
   createSubtask,
   reportTaskResult,
   duplicateTask,
+  promoteSubtask,
+  demoteToSubtask,
   moveTask,
   updateDeadline,
   downloadExcelTemplate,
@@ -111,6 +113,8 @@ const createValidation = [
     .isFloat({ min: 0 })
     .withMessage('Giờ ước tính phải >= 0'),
   body('assignee').optional({ nullable: true }).isMongoId().withMessage('ID nhân sự không hợp lệ'),
+  body('assignees').optional().isArray().withMessage('Danh sách người nhận việc phải là mảng'),
+  body('assignees.*').optional().isMongoId().withMessage('ID người nhận việc không hợp lệ'),
   body('dependencies').optional().isArray().withMessage('Dependencies phải là mảng'),
   body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
   body('requiredSkills.*.name').trim().notEmpty().withMessage('Tên kỹ năng yêu cầu không được để trống'),
@@ -154,6 +158,8 @@ const updateValidation = [
     .isFloat({ min: 0, max: 100 })
     .withMessage('Tiến độ phải từ 0 đến 100'),
   body('assignee').optional({ nullable: true }).isMongoId().withMessage('ID nhân sự không hợp lệ'),
+  body('assignees').optional().isArray().withMessage('Danh sách người nhận việc phải là mảng'),
+  body('assignees.*').optional().isMongoId().withMessage('ID người nhận việc không hợp lệ'),
   body('dependencies').optional().isArray().withMessage('Dependencies phải là mảng'),
   body('requiredSkills').optional().isArray().withMessage('Required skills phải là mảng'),
   body('requiredSkills.*.name').trim().notEmpty().withMessage('Tên kỹ năng yêu cầu không được để trống'),
@@ -222,8 +228,12 @@ router.delete('/:id', taskIdValidation, validate, canDeleteTask(), deleteTask);
 // Báo cáo kết quả công việc
 router.post('/:id/report-result', taskIdValidation, validate, canReportResult(), reportTaskResult);
 
-// Nhân bản công việc
+// Nhân bản công việc (Base Wework Bài 52 & 53)
 router.post('/:id/duplicate', taskIdValidation, validate, canDuplicateTask(), duplicateTask);
+
+// Chuyển đổi công việc con <-> công việc cha (Base Wework Bài 85)
+router.patch('/:id/promote-subtask', taskIdValidation, validate, canModifyTask(), promoteSubtask);
+router.patch('/:id/demote-to-subtask', taskIdValidation, validate, canModifyTask(), demoteToSubtask);
 
 // Di chuyển công việc (nhóm / dự án)
 router.post('/:id/move', taskIdValidation, validate, canMoveTask(), moveTask);

@@ -224,14 +224,23 @@ export default function UserDirectoryTab({ currentUser }) {
   };
 
   // 5. Vô hiệu hóa 2FA
-  const handleDisable2FA = async (record) => {
-    try {
-      await authService.disableUser2FA(record._id);
-      message.success(`Đã vô hiệu hóa bảo mật 2 lớp cho ${record.name}`);
-      loadUsers();
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Lỗi khi vô hiệu hóa 2FA');
-    }
+  const handleDisable2FA = (record) => {
+    Modal.confirm({
+      title: 'Vô hiệu hóa 2FA cho tài khoản này?',
+      content: `Bạn có chắc muốn tắt bảo mật 2 lớp cho ${record.name}? Người này sẽ chỉ cần mật khẩu để đăng nhập.`,
+      okText: 'Tắt 2FA',
+      okType: 'danger',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          await authService.disableUser2FA(record._id);
+          message.success(`Đã vô hiệu hóa bảo mật 2 lớp cho ${record.name}`);
+          loadUsers();
+        } catch (err) {
+          message.error(err.response?.data?.message || 'Lỗi khi vô hiệu hóa 2FA');
+        }
+      },
+    });
   };
 
   // 6. Đổi mật khẩu
@@ -438,7 +447,7 @@ export default function UserDirectoryTab({ currentUser }) {
         ? [
             {
               key: 'promote_admin',
-              icon: <StarOutlined style={{ color: '#7c3aed' }} />,
+              icon: <StarOutlined style={{ color: '#0284c7' }} />,
               label: record.role === 'admin' && !record.isOwner ? 'Hủy quyền Quản trị hệ thống' : 'Chọn làm Quản trị hệ thống (Admin)',
               disabled: isSelf,
               onClick: () => handleChangeRole(record, record.role === 'admin' && !record.isOwner ? 'member' : 'admin'),
@@ -531,7 +540,7 @@ export default function UserDirectoryTab({ currentUser }) {
                 backgroundColor: record.isOwner
                   ? '#dc2626'
                   : record.role === 'admin'
-                  ? '#7c3aed'
+                  ? '#0284c7'
                   : record.role === 'project_manager'
                   ? '#2563eb'
                   : '#64748b',
@@ -549,7 +558,7 @@ export default function UserDirectoryTab({ currentUser }) {
                 {/* Badge chuẩn Base: Owner có badge đỏ đậm, Admin tím, PM xanh */}
                 {record.isOwner && (
                   <Tag color="#dc2626" style={{ fontWeight: 700, borderRadius: 10, fontSize: 10.5, margin: 0 }}>
-                    ★ Quản trị cấp cao
+                    Quản trị cấp cao
                   </Tag>
                 )}
                 {!record.isOwner && record.role === 'admin' && (
@@ -657,7 +666,7 @@ export default function UserDirectoryTab({ currentUser }) {
           color={isActive !== false ? 'success' : 'error'}
           style={{ borderRadius: 10, fontSize: 11.5, fontWeight: 600 }}
         >
-          {isActive !== false ? '● Đang hoạt động' : '✕ Đã vô hiệu hóa'}
+          {isActive !== false ? '● Đang hoạt động' : 'Đã vô hiệu hóa'}
         </Tag>
       ),
     },
@@ -721,7 +730,7 @@ export default function UserDirectoryTab({ currentUser }) {
           color={isCurrentOwner ? 'gold' : 'blue'}
           style={{ borderRadius: 12, padding: '4px 12px', fontSize: 12, fontWeight: 600 }}
         >
-          {isCurrentOwner ? '★ Quản trị cấp cao (Owner)' : (currentUser?.role === 'admin' ? '🛡 Admin hệ thống' : 'Thành viên')}
+          {isCurrentOwner ? 'Quản trị cấp cao (Owner)' : (currentUser?.role === 'admin' ? 'Admin hệ thống' : 'Thành viên')}
         </Tag>
       </div>
 
@@ -780,7 +789,7 @@ export default function UserDirectoryTab({ currentUser }) {
             }}
           >
             <Text type="secondary" style={{ fontSize: 12 }}>Quản trị viên (Owner/Admin)</Text>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#8b5cf6', marginTop: 4 }}>{stats.admins}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#0284c7', marginTop: 4 }}>{stats.admins}</div>
           </div>
         </Col>
       </Row>
@@ -873,7 +882,7 @@ export default function UserDirectoryTab({ currentUser }) {
         width={480}
       >
         <Paragraph type="secondary" style={{ fontSize: 13 }}>
-          Theo quy chuẩn Base Account, chỉ <strong>Quản trị cấp cao (Owner)</strong> hoặc App Admin được phân quyền chìa khóa 🔑 mới có thể thay đổi email đăng nhập của nhân sự.
+          Theo quy chuẩn Base Account, chỉ <strong>Quản trị cấp cao (Owner)</strong> hoặc App Admin được phân quyền quản trị mới có thể thay đổi email đăng nhập của nhân sự.
         </Paragraph>
         <Form form={emailForm} layout="vertical" onFinish={handleSaveEmail} style={{ marginTop: 16 }}>
           <Form.Item
@@ -1013,7 +1022,7 @@ export default function UserDirectoryTab({ currentUser }) {
                 },
                 ...managerCandidates.map((u) => ({
                   value: u._id,
-                  label: `${u.name} (${u.isOwner ? '★ Quản trị cấp cao' : u.role === 'admin' ? 'Admin' : u.role === 'project_manager' ? 'PM' : 'Thành viên'}${u.jobTitle ? ` • ${u.jobTitle}` : ''})`,
+                  label: `${u.name} (${u.isOwner ? 'Quản trị cấp cao' : u.role === 'admin' ? 'Admin' : u.role === 'project_manager' ? 'PM' : 'Thành viên'}${u.jobTitle ? ` • ${u.jobTitle}` : ''})`,
                 })),
               ]}
             />
@@ -1063,7 +1072,7 @@ export default function UserDirectoryTab({ currentUser }) {
             alignItems: 'center',
             gap: 10,
           }}>
-            <MailOutlined style={{ color: '#4f46e5', fontSize: 20 }} />
+            <MailOutlined style={{ color: '#0284c7', fontSize: 20 }} />
             <div>
               <Text strong style={{ fontSize: 13, color: '#312e81', display: 'block' }}>
                 Tự động gửi thông tin tài khoản và mật khẩu qua email

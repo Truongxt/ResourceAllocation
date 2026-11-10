@@ -11,7 +11,11 @@ const User = require('../../models/User');
 const { sendNotification } = require('../../services/socket.service');
 const { placementError } = require('../../services/projectLifecycle.service');
 const { companyOf, usersError } = require('../../services/companyRefs.service');
-const { belongsToCompany } = require('./shared');
+const {
+  recalculateParentTaskProgress,
+  recalculateProjectProgress,
+  belongsToCompany,
+} = require('./shared');
 
 /**
  * @desc    Thêm bình luận vào task
@@ -407,6 +411,9 @@ const createSubtask = async (req, res, next) => {
         link: '/tasks',
       });
     }
+
+    await recalculateParentTaskProgress(parent._id);
+    await recalculateProjectProgress(parent.project);
 
     res.status(201).json({
       success: true,

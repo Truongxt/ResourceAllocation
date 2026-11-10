@@ -26,7 +26,7 @@ import AppLogo from '../common/AppLogo';
 const { Sider } = Layout;
 const { Text } = Typography;
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, onToggle, mobile = false, onNavigate }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark } = useTheme();
@@ -36,34 +36,51 @@ export default function Sidebar({ collapsed, onToggle }) {
   const canAccessOptimize = Boolean(hasAppAccess ? hasAppAccess('optimize') : (user?.isOwner || user?.role === 'admin' || user?.appAdmins?.includes('optimize')));
   const canAccessResource = Boolean(user?.role !== 'member' || user?.isOwner || (hasAppAccess && hasAppAccess('resource')));
 
+  const groupLabelStyle = {
+    fontSize: 12,
+    fontWeight: 500,
+    letterSpacing: '-0.01em',
+    color: isDark ? '#71717a' : '#818ba0',
+    textTransform: 'none',
+    paddingLeft: 4,
+  };
+
+  const navigateTo = (path) => {
+    navigate(path);
+    onNavigate?.();
+  };
+  const selectedKey = location.pathname === '/account' && location.search.includes('tab=skills')
+    ? '/account?tab=skills'
+    : location.pathname.startsWith('/projects/') ? '/projects'
+      : location.pathname === '/' ? '/dashboard' : location.pathname;
+
   const menuItems = [
     {
       key: 'grp-overview',
       type: 'group',
       label: !collapsed ? (
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: isDark ? '#64748b' : '#94a3b8', textTransform: 'uppercase' }}>
-          {t('nav.overview') || 'TỔNG QUAN'}
+        <span style={groupLabelStyle}>
+          {t('nav.overview') || 'Tổng quan'}
         </span>
       ) : null,
       children: [
-        { key: '/dashboard', icon: <DashboardOutlined style={{ fontSize: 16 }} />, label: t('nav.dashboard') || 'Tổng quan Dashboard' },
-        // { key: '/home', icon: <GlobalOutlined style={{ fontSize: 16, color: '#06b6d4' }} />, label: 'Trang chủ (Giới thiệu)' },
+        { key: '/dashboard', icon: <DashboardOutlined style={{ fontSize: 15 }} />, label: t('nav.dashboard') || 'Tổng quan điều phối' },
       ],
     },
     {
       key: 'grp-management',
       type: 'group',
       label: !collapsed ? (
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: isDark ? '#64748b' : '#94a3b8', textTransform: 'uppercase' }}>
-          {t('nav.workspace') || 'QUẢN LÝ DỰ ÁN'}
+        <span style={groupLabelStyle}>
+          {t('nav.workspace') || 'Quản lý dự án'}
         </span>
       ) : null,
       children: [
-        { key: '/projects', icon: <ProjectOutlined style={{ fontSize: 16 }} />, label: t('nav.projects') },
-        { key: '/tasks', icon: <UnorderedListOutlined style={{ fontSize: 16 }} />, label: t('nav.tasks') },
-        { key: '/calendar', icon: <CalendarOutlined style={{ fontSize: 16 }} />, label: t('nav.calendar') || 'Lịch công việc' },
+        { key: '/projects', icon: <ProjectOutlined style={{ fontSize: 15 }} />, label: t('nav.projects') },
+        { key: '/tasks', icon: <UnorderedListOutlined style={{ fontSize: 15 }} />, label: t('nav.tasks') },
+        { key: '/calendar', icon: <CalendarOutlined style={{ fontSize: 15 }} />, label: t('nav.calendar') || 'Lịch công việc' },
         ...(canAccessResource
-          ? [{ key: '/resources', icon: <TeamOutlined style={{ fontSize: 16 }} />, label: t('nav.resources') }]
+          ? [{ key: '/resources', icon: <TeamOutlined style={{ fontSize: 15 }} />, label: t('nav.resources') }]
           : []),
       ],
     },
@@ -71,33 +88,33 @@ export default function Sidebar({ collapsed, onToggle }) {
       key: 'grp-analytics',
       type: 'group',
       label: !collapsed ? (
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: isDark ? '#64748b' : '#94a3b8', textTransform: 'uppercase' }}>
-          {t('nav.analytics') || 'TỐI ƯU & BÁO CÁO'}
+        <span style={groupLabelStyle}>
+          {t('nav.analytics') || 'Tối ưu & Phân tích'}
         </span>
       ) : null,
       children: [
         ...(canAccessOptimize
           ? [
-              { key: '/optimization', icon: <ThunderboltOutlined style={{ fontSize: 16, color: '#818cf8' }} />, label: t('nav.optimization') },
-              { key: '/benchmark', icon: <ExperimentOutlined style={{ fontSize: 16, color: '#f59e0b' }} />, label: 'Benchmark Studio' },
+              { key: '/optimization', icon: <ThunderboltOutlined style={{ fontSize: 15 }} />, label: t('nav.optimization') },
+              { key: '/benchmark', icon: <ExperimentOutlined style={{ fontSize: 15 }} />, label: 'Benchmark Studio' },
             ]
           : []),
-        { key: '/gantt', icon: <BarChartOutlined style={{ fontSize: 16 }} />, label: t('nav.gantt') },
-        { key: '/reports', icon: <FileTextOutlined style={{ fontSize: 16 }} />, label: t('nav.reports') },
+        { key: '/gantt', icon: <BarChartOutlined style={{ fontSize: 15 }} />, label: t('nav.gantt') },
+        { key: '/reports', icon: <FileTextOutlined style={{ fontSize: 15 }} />, label: t('nav.reports') },
       ],
     },
     {
       key: 'grp-system',
       type: 'group',
       label: !collapsed ? (
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: isDark ? '#64748b' : '#94a3b8', textTransform: 'uppercase' }}>
-          {t('nav.system') || 'HỆ THỐNG'}
+        <span style={groupLabelStyle}>
+          {t('nav.system') || 'Hệ thống'}
         </span>
       ) : null,
       children: [
-        { key: '/account?tab=skills', icon: <StarOutlined style={{ fontSize: 16, color: '#f59e0b' }} />, label: 'Tự đánh giá năng lực' },
-        { key: '/account', icon: <SafetyCertificateOutlined style={{ fontSize: 16, color: '#3b82f6' }} />, label: 'Base Account' },
-        { key: '/activity-logs', icon: <HistoryOutlined style={{ fontSize: 16 }} />, label: t('nav.activityLogs') },
+        { key: '/account?tab=skills', icon: <StarOutlined style={{ fontSize: 15 }} />, label: 'Tự đánh giá năng lực' },
+        { key: '/account', icon: <SafetyCertificateOutlined style={{ fontSize: 15 }} />, label: 'Tài khoản & Phân quyền' },
+        { key: '/activity-logs', icon: <HistoryOutlined style={{ fontSize: 15 }} />, label: t('nav.activityLogs') },
       ],
     },
   ];
@@ -105,16 +122,14 @@ export default function Sidebar({ collapsed, onToggle }) {
   return (
     <Sider
       className="workspace-sidebar"
-      breakpoint="md"
-      onBreakpoint={(broken) => { if (broken && !collapsed) onToggle(); }}
       collapsible
       collapsed={collapsed}
       trigger={null}
-      width={240}
+      width={mobile ? '100%' : 240}
       collapsedWidth={72}
       style={{
-        position: 'fixed',
-        height: '100vh',
+        position: mobile ? 'relative' : 'fixed',
+        height: mobile ? '100%' : '100vh',
         left: 0,
         top: 0,
         bottom: 0,
@@ -125,16 +140,23 @@ export default function Sidebar({ collapsed, onToggle }) {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'background-color 160ms var(--ease-out), color 160ms var(--ease-out)',
       }}
       theme={isDark ? 'dark' : 'light'}
     >
       {/* Brand Header */}
       <div>
-        <div
-          onClick={() => navigate('/')}
+        <button
+          type="button"
+          aria-label="Về trang tổng quan"
+          onClick={() => navigateTo('/')}
           style={{
             display: 'flex',
+            width: '100%',
+            border: 0,
+            font: 'inherit',
+            color: 'inherit',
+            textAlign: 'left',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
             gap: 12,
@@ -151,29 +173,35 @@ export default function Sidebar({ collapsed, onToggle }) {
             isDark={isDark}
             subtitle="Resource Allocation AI"
           />
-        </div>
+        </button>
 
         {/* Menu Navigation */}
-        <div style={{ maxHeight: 'calc(100vh - 128px)', overflowY: 'auto', padding: '8px 0' }}>
+        <nav aria-label="Điều hướng chính" style={{ maxHeight: mobile ? undefined : 'calc(100vh - 128px)', overflowY: 'auto', padding: '8px 0' }}>
           <Menu
             theme={isDark ? 'dark' : 'light'}
             mode="inline"
-            selectedKeys={[location.pathname === '/account' && location.search.includes('tab=skills') ? '/account?tab=skills' : location.pathname]}
+            selectedKeys={[selectedKey]}
             items={menuItems}
-            onClick={({ key }) => navigate(key)}
+            onClick={({ key }) => navigateTo(key)}
             style={{
               border: 'none',
               background: 'transparent',
               fontWeight: 500,
             }}
           />
-        </div>
+        </nav>
       </div>
 
       {/* Footer Collapse Toggle */}
-      <div
+      {!mobile && <button
+        type="button"
+        aria-label={collapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
+        aria-expanded={!collapsed}
         style={{
           position: 'absolute',
+          width: '100%',
+          border: 0,
+          font: 'inherit',
           bottom: 0,
           left: 0,
           right: 0,
@@ -210,7 +238,7 @@ export default function Sidebar({ collapsed, onToggle }) {
             {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
           </div>
         </Tooltip>
-      </div>
+      </button>}
     </Sider>
   );
 }

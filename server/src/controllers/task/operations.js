@@ -1,5 +1,5 @@
 /**
- * Công việc — báo cáo kết quả, nhân bản, di chuyển, đổi hạn, nhập Excel, nhắc việc.
+ * Công việc — báo cáo kết quả, nhân bản, nâng/hạ công việc con, di chuyển, đổi hạn, nhập Excel, nhắc việc.
  *
  * Tách từ `task.controller.js` — route vẫn lấy handler qua file đó.
  */
@@ -8,10 +8,12 @@ const mongoose = require('mongoose');
 const Task = require('../../models/Task');
 const Project = require('../../models/Project');
 const TaskGroup = require('../../models/TaskGroup');
+const Attachment = require('../../models/Attachment');
 const { logActivity } = require('../../services/activityLog.service');
 const { syncResourceWorkload } = require('../../services/workload.service');
 const { createDeniedReason } = require('../../middleware/taskAccess');
 const { placementError } = require('../../services/projectLifecycle.service');
+const { mergeCustomValues } = require('../../services/customFields.service');
 const {
   companyOf,
   projectRef,
@@ -23,6 +25,7 @@ const {
   importTasksFromExcel,
 } = require('../../services/excelTaskImport.service');
 const {
+  recalculateParentTaskProgress,
   recalculateProjectProgress,
   notifyDeadlineChanged,
   validateDependencies,
@@ -40,7 +43,7 @@ const reportTaskResult = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
     }
 
-    const { summary, deliverableLinks, attachments, actualHours, markAsDone } = req.body;
+    const { summary, deliverableLinks, attachments, actualHours, markAsDone, customValues } = req.body;
 
     // deliverableLinks/attachments là mảng subdocument { title/name, url }. Gửi
     // mảng chuỗi thay vì mảng object khiến Mongoose ném CastError nguyên văn
@@ -62,11 +65,25 @@ const reportTaskResult = async (req, res, next) => {
       });
     }
 
+    // Base Wework (Bài 77): Xử lý trường tùy chỉnh cho Kết quả công việc
+    const project = await Project.findById(task.project);
+    const resultFields = (project?.customFields || []).filter((f) => f.target === 'result');
+    let validatedResultCustomValues;
+    if (resultFields.length > 0) {
+      const merged = mergeCustomValues(resultFields, customValues || {}, task.resultReport?.customValues || {}, {
+        target: 'result',
+        requireAll: true,
+      });
+      if (merged.error) return res.status(400).json({ success: false, message: merged.error });
+      validatedResultCustomValues = merged.values;
+    }
+
     task.resultReport = {
       summary: summary || '',
       deliverableLinks: Array.isArray(deliverableLinks) ? deliverableLinks : [],
       attachments: Array.isArray(attachments) ? attachments : [],
       actualHours: typeof actualHours === 'number' ? actualHours : task.actualHours,
+      customValues: validatedResultCustomValues || task.resultReport?.customValues,
       submittedBy: req.user._id,
       submittedAt: new Date(),
     };
@@ -96,6 +113,9 @@ const reportTaskResult = async (req, res, next) => {
     }
 
     await task.save();
+    if (task.parentTask) {
+      await recalculateParentTaskProgress(task.parentTask);
+    }
     await recalculateProjectProgress(task.project);
     if (task.assignee) {
       await syncResourceWorkload(task.assignee);
@@ -126,7 +146,7 @@ const reportTaskResult = async (req, res, next) => {
 };
 
 /**
- * @desc    Nhân bản công việc (Base Wework 5.2)
+ * @desc    Nhân bản công việc (Base Wework Bài 52 & 53)
  * @route   POST /api/tasks/:id/duplicate
  * @access  Private
  */
@@ -137,7 +157,19 @@ const duplicateTask = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy công việc cần nhân bản' });
     }
 
-    const { targetProjectId, targetTaskGroupId, newTitle } = req.body;
+    const {
+      targetProjectId,
+      targetTaskGroupId,
+      newTitle,
+      keepAssignee = true,
+      keepDates = true,
+      keepChecklist = true,
+      keepSubtasks = true,
+      keepFollowers = true,
+      keepCustomValues = true,
+      keepAttachments = true,
+    } = req.body;
+
     const targetProject = targetProjectId || original.project;
     // Nhóm của bản gốc chỉ còn hợp lệ khi bản sao vẫn ở dự án cũ
     const changesProject = Boolean(targetProjectId) && String(targetProjectId) !== String(original.project);
@@ -164,55 +196,102 @@ const duplicateTask = async (req, res, next) => {
     if (groupError) return res.status(400).json({ success: false, message: groupError });
 
     const duplicated = await Task.create({
-      title: newTitle || `${original.title} (Bản sao)`,
+      title: newTitle ? newTitle.trim() : `${original.title} (Bản sao)`,
       description: original.description,
       project: targetProject,
       taskGroup: targetGroup || null,
-      assignee: intoTemplate ? null : original.assignee,
-      followers: intoTemplate ? [] : original.followers,
+      assignee: intoTemplate || !keepAssignee ? null : original.assignee,
+      followers: intoTemplate || !keepFollowers ? [] : (original.followers || []),
       priority: original.priority,
       status: 'todo',
       progress: 0,
       estimatedHours: original.estimatedHours,
-      startDate: new Date(),
-      endDate: original.endDate,
+      startDate: keepDates ? original.startDate : new Date(),
+      endDate: keepDates ? original.endDate : undefined,
       requiredSkills: original.requiredSkills,
-      // Giá trị trường tùy chỉnh bám theo định nghĩa của dự án: sang dự án khác thì bỏ.
-      customValues: changesProject ? undefined : original.customValues,
-      checklist: (original.checklist || []).map((c) => ({
-        title: c.title,
-        assignee: c.assignee,
-        isCompleted: false,
-        order: c.order,
-      })),
+      // Giá trị trường tùy chỉnh bám theo định nghĩa của dự án: sang dự án khác hoặc bỏ chọn thì thôi.
+      customValues: changesProject || !keepCustomValues ? undefined : original.customValues,
+      checklist: !keepChecklist
+        ? []
+        : (original.checklist || []).map((c) => ({
+            title: c.title,
+            assignee: intoTemplate || !keepAssignee ? null : c.assignee,
+            isCompleted: false,
+            order: c.order,
+          })),
       companyName: targetCompany,
       createdBy: req.user._id,
     });
 
-    // Nhân bản cả subtasks con nếu có
-    const subtasks = await Task.find({ parentTask: original._id });
-    if (subtasks && subtasks.length > 0) {
-      for (const sub of subtasks) {
-        await Task.create({
-          title: `${sub.title} (Bản sao)`,
-          description: sub.description,
-          project: targetProject,
-          taskGroup: targetGroup || null,
-          parentTask: duplicated._id,
-          assignee: intoTemplate ? null : sub.assignee,
-          priority: sub.priority,
-          status: 'todo',
-          progress: 0,
-          estimatedHours: sub.estimatedHours,
-          checklist: (sub.checklist || []).map((c) => ({
-            title: c.title,
-            isCompleted: false,
-          })),
-          companyName: targetCompany,
-          createdBy: req.user._id,
-        });
+    // Nhân bản cả subtasks con nếu được bật (keepSubtasks)
+    if (keepSubtasks) {
+      const subtasks = await Task.find({ parentTask: original._id });
+      if (subtasks && subtasks.length > 0) {
+        for (const sub of subtasks) {
+          await Task.create({
+            title: `${sub.title} (Bản sao)`,
+            description: sub.description,
+            project: targetProject,
+            taskGroup: targetGroup || null,
+            parentTask: duplicated._id,
+            assignee: intoTemplate || !keepAssignee ? null : sub.assignee,
+            followers: intoTemplate || !keepFollowers ? [] : (sub.followers || []),
+            priority: sub.priority,
+            status: 'todo',
+            progress: 0,
+            estimatedHours: sub.estimatedHours,
+            startDate: keepDates ? sub.startDate : undefined,
+            endDate: keepDates ? sub.endDate : undefined,
+            checklist: !keepChecklist
+              ? []
+              : (sub.checklist || []).map((c) => ({
+                  title: c.title,
+                  assignee: intoTemplate || !keepAssignee ? null : c.assignee,
+                  isCompleted: false,
+                })),
+            companyName: targetCompany,
+            createdBy: req.user._id,
+          });
+        }
       }
     }
+
+    // Nhân bản tệp đính kèm nếu được bật (keepAttachments)
+    if (keepAttachments) {
+      const attachments = await Attachment.find({ task: original._id });
+      if (attachments && attachments.length > 0) {
+        for (const att of attachments) {
+          await Attachment.create({
+            task: duplicated._id,
+            name: att.name,
+            originalName: att.originalName,
+            mimeType: att.mimeType,
+            size: att.size,
+            storageKey: att.storageKey,
+            companyName: targetCompany,
+            uploadedBy: req.user._id,
+          });
+        }
+      }
+    }
+
+    // Tính lại tiến độ dự án đích
+    await recalculateProjectProgress(targetProject);
+
+    // Đồng bộ tải nếu có gán nhân sự
+    if (duplicated.assignee) {
+      await syncResourceWorkload(duplicated.assignee);
+    }
+
+    logActivity({
+      req,
+      action: 'DUPLICATE_TASK',
+      entityType: 'task',
+      entityId: duplicated._id,
+      entityTitle: duplicated.title,
+      description: `${req.user.name} đã nhân bản công việc "${original.title}" thành "${duplicated.title}"`,
+      details: { originalTaskId: String(original._id), targetProjectId: String(targetProject) },
+    });
 
     const populated = await Task.findById(duplicated._id)
       .populate('project', 'name code')
@@ -223,6 +302,135 @@ const duplicateTask = async (req, res, next) => {
       success: true,
       data: { task: populated },
       message: 'Nhân bản công việc thành công',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Chuyển công việc con thành công việc cha độc lập (Base Wework - Bài 85)
+ * @route   PATCH /api/tasks/:id/promote-subtask
+ * @access  Private (Quản lý dự án, Creator, Assignee)
+ */
+const promoteSubtask = async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+    }
+
+    if (!task.parentTask) {
+      return res.status(400).json({
+        success: false,
+        message: 'Công việc này hiện đã là công việc cha độc lập, không phải công việc con',
+      });
+    }
+
+    const oldParentId = task.parentTask;
+    const oldParent = await Task.findById(oldParentId).select('title');
+
+    // Chuyển thành công việc cha độc lập: xóa parentTask
+    task.parentTask = null;
+    await task.save();
+
+    // Tính lại tiến độ cho công việc cha cũ và dự án
+    await recalculateParentTaskProgress(oldParentId);
+    await recalculateProjectProgress(task.project);
+
+    logActivity({
+      req,
+      action: 'PROMOTE_SUBTASK',
+      entityType: 'task',
+      entityId: task._id,
+      entityTitle: task.title,
+      description: `${req.user.name} đã chuyển việc con "${task.title}" thành công việc cha độc lập (tách khỏi "${oldParent?.title || 'Công việc cha'}")`,
+      details: { oldParentId: String(oldParentId) },
+    });
+
+    const populated = await Task.findById(task._id)
+      .populate('project', 'name code')
+      .populate('assignee', 'name email avatar')
+      .populate('taskGroup', 'name color');
+
+    res.json({
+      success: true,
+      data: { task: populated },
+      message: 'Đã chuyển thành công việc cha độc lập thành công',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Chuyển công việc độc lập thành công việc con của công việc khác (Base Wework)
+ * @route   PATCH /api/tasks/:id/demote-to-subtask
+ * @access  Private (Quản lý dự án, Creator)
+ */
+const demoteToSubtask = async (req, res, next) => {
+  try {
+    const { targetParentTaskId } = req.body;
+    if (!targetParentTaskId) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn công việc cha đích' });
+    }
+
+    if (String(targetParentTaskId) === String(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Không thể chọn chính công việc này làm công việc cha' });
+    }
+
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+    }
+
+    const targetParent = await Task.findById(targetParentTaskId);
+    if (!targetParent) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công việc cha đích' });
+    }
+
+    if (String(targetParent.project) !== String(task.project)) {
+      return res.status(400).json({ success: false, message: 'Công việc cha phải thuộc cùng một dự án' });
+    }
+
+    // Tránh vòng lặp
+    if (String(targetParent.parentTask) === String(task._id)) {
+      return res.status(400).json({ success: false, message: 'Không thể tạo quan hệ cha con vòng tròn' });
+    }
+
+    const oldParentId = task.parentTask;
+    task.parentTask = targetParentTaskId;
+    if (targetParent.taskGroup) {
+      task.taskGroup = targetParent.taskGroup;
+    }
+    await task.save();
+
+    if (oldParentId) {
+      await recalculateParentTaskProgress(oldParentId);
+    }
+    await recalculateParentTaskProgress(targetParentTaskId);
+    await recalculateProjectProgress(task.project);
+
+    logActivity({
+      req,
+      action: 'DEMOTE_TO_SUBTASK',
+      entityType: 'task',
+      entityId: task._id,
+      entityTitle: task.title,
+      description: `${req.user.name} đã chuyển công việc "${task.title}" thành việc con của "${targetParent.title}"`,
+      details: { targetParentTaskId: String(targetParentTaskId) },
+    });
+
+    const populated = await Task.findById(task._id)
+      .populate('project', 'name code')
+      .populate('parentTask', 'title status')
+      .populate('assignee', 'name email avatar')
+      .populate('taskGroup', 'name color');
+
+    res.json({
+      success: true,
+      data: { task: populated },
+      message: `Đã chuyển thành việc con của "${targetParent.title}" thành công`,
     });
   } catch (error) {
     next(error);
@@ -596,6 +804,8 @@ const getTaskReminders = async (req, res, next) => {
 module.exports = {
   reportTaskResult,
   duplicateTask,
+  promoteSubtask,
+  demoteToSubtask,
   moveTask,
   updateDeadline,
   downloadExcelTemplate,

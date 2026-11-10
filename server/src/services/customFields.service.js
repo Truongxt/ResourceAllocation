@@ -70,7 +70,15 @@ function normalizeFieldDefinitions(input, existing = []) {
       if (new Set(options).size !== options.length) return { error: `Trường "${name}" có lựa chọn bị trùng` };
     }
 
-    fields.push({ key, name, type: raw.type, options, required: Boolean(raw.required), order: index });
+    fields.push({
+      key,
+      name,
+      type: raw.type,
+      options,
+      required: Boolean(raw.required),
+      order: index,
+      target: raw.target === 'result' ? 'result' : 'task',
+    });
   }
 
   const removedKeys = [...current.keys()].filter((key) => !seenKeys.has(key));
@@ -134,12 +142,20 @@ function coerceValue(field, value) {
  *
  * `requireAll`: kiểm cả các trường bắt buộc trên kết quả sau khi gộp. Bật khi tạo việc, và khi
  * một lần sửa có gửi `customValues`.
+ *
+ * `target`: 'task' (mặc định) | 'result' | 'all'.
+ * Nếu 'task': chỉ xét các trường thuộc công việc (bỏ qua trường kết quả nghiệm thu - Bài 77).
+ * Nếu 'result': chỉ xét các trường thuộc báo cáo kết quả nghiệm thu.
  */
-function mergeCustomValues(definitions = [], input, current = {}, { requireAll = true } = {}) {
+function mergeCustomValues(definitions = [], input, current = {}, { requireAll = true, target = 'task' } = {}) {
   if (input !== undefined && (input === null || typeof input !== 'object' || Array.isArray(input))) {
     return { error: 'customValues phải là một object { key: giá trị }' };
   }
-  const fields = new Map(definitions.map((f) => [f.key, plain(f)]));
+  // Chỉ lọc theo target nếu target !== 'all'
+  const targetDefs = target && target !== 'all'
+    ? definitions.filter((f) => (target === 'result' ? f.target === 'result' : f.target !== 'result'))
+    : definitions;
+  const fields = new Map(targetDefs.map((f) => [f.key, plain(f)]));
   const values = { ...(current instanceof Map ? Object.fromEntries(current) : current || {}) };
   // Giá trị của trường đã bị xóa khỏi dự án không được sống lại qua một lần ghi.
   Object.keys(values).forEach((key) => { if (!fields.has(key)) delete values[key]; });

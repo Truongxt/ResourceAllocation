@@ -109,7 +109,7 @@ export default function TaskDetailModal({ open, task, onClose, onUpdated }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#818cf8',
+              color: '#0284c7',
               fontSize: 18,
             }}
           >
@@ -170,7 +170,7 @@ export default function TaskDetailModal({ open, task, onClose, onUpdated }) {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
               <Text strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>
-                Tiến độ: <span className="tabular-nums" style={{ color: '#818cf8', fontWeight: 700 }}>{currentProgress}%</span>
+                Tiến độ: <span className="tabular-nums" style={{ color: '#0284c7', fontWeight: 700 }}>{currentProgress}%</span>
               </Text>
             </div>
             <Slider
@@ -194,7 +194,7 @@ export default function TaskDetailModal({ open, task, onClose, onUpdated }) {
         {/* Thông tin chi tiết */}
         <Descriptions column={{ xs: 1, sm: 2 }} bordered size="middle" style={{ borderRadius: 10, overflow: 'hidden' }}>
           <Descriptions.Item label="Thời gian thực hiện">
-            <CalendarOutlined style={{ marginRight: 6, color: '#6366f1' }} />
+            <CalendarOutlined style={{ marginRight: 6, color: '#0284c7' }} />
             <span className="tabular-nums">{start} — {end}</span>
           </Descriptions.Item>
 
@@ -209,7 +209,7 @@ export default function TaskDetailModal({ open, task, onClose, onUpdated }) {
                 <Avatar
                   size="default"
                   icon={<UserOutlined />}
-                  style={{ backgroundColor: '#6366f1', fontWeight: 700 }}
+                  style={{ backgroundColor: '#0284c7', fontWeight: 700 }}
                 >
                   {task.assignee.name ? task.assignee.name[0].toUpperCase() : 'U'}
                 </Avatar>

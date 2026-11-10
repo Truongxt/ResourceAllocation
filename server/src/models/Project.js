@@ -159,6 +159,8 @@ const projectSchema = new mongoose.Schema(
         options: { type: [String], default: [] },
         required: { type: Boolean, default: false },
         order: { type: Number, default: 0 },
+        // Base Wework (Bài 77): Mục đích áp dụng (task = thông tin công việc, result = kết quả nghiệm thu)
+        target: { type: String, enum: ['task', 'result'], default: 'task' },
       },
     ],
     // Base Wework: Cấu hình phân quyền thao tác trong dự án

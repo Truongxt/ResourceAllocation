@@ -108,7 +108,7 @@ và quản trị nhân sự.
 
 | Method | Endpoint | Mô tả | Auth |
 |--------|----------|-------|------|
-| POST | `/register` | Đăng ký tài khoản | 🔓 |
+| POST | `/register` | Tạo công ty mới và tài khoản Owner của công ty đó | 🔓 |
 | POST | `/login` | Đăng nhập | 🔓 |
 | POST | `/refresh` | Đổi refresh token lấy access token mới | 🔓¹ |
 | POST | `/logout` | Đăng xuất thiết bị hiện tại | 🔓¹ |
@@ -161,6 +161,11 @@ cookie `rao_refresh`.
 
 Client phải gửi kèm cookie (`withCredentials: true`) khi gọi nhóm `/api/auth`.
 
+Access token bắt buộc có `purpose: 'access'` và dùng thuật toán HS256. Token tạm
+`purpose: '2fa_login'` chỉ dùng cho `POST /auth/2fa/verify`, không truy cập được REST
+hay Socket.IO. Khi triển khai bản vá, access token cũ thiếu `purpose` bị từ chối;
+client làm mới bằng refresh token hiện có hoặc đăng nhập lại.
+
 #### Client không phải trình duyệt
 
 App di động không có kho cookie đáng tin (axios trong React Native giữ `Set-Cookie` khác nhau
@@ -207,18 +212,26 @@ hai tab là đủ để tự đăng xuất chính mình.
   "name": "Nguyễn Văn A",
   "email": "nguyenvana@example.com",
   "password": "password123",
-  "role": "member"            // optional: 'admin' | 'project_manager' | 'member'
+  "companyName": "Công ty mới" // bắt buộc, tối đa 200 ký tự sau khi trim
 }
 
 // Response 201
 {
   "success": true,
   "data": {
-    "user": { "_id": "...", "name": "...", "email": "...", "role": "member" },
+    "user": { "_id": "...", "name": "...", "email": "...", "role": "admin", "isOwner": true, "companyName": "Công ty mới" },
     "token": "eyJhbGciOiJIUzI1NiIs..."
   }
 }
 ```
+
+Endpoint này **chỉ tạo công ty mới**, không cho tự gia nhập công ty đã có. Tên đã
+được giữ hoặc còn dữ liệu công ty cũ trả **409**, kể cả đăng ký đồng thời; tên công
+ty mặc định `Công ty Công nghệ RAO` được dành riêng cho dữ liệu cũ. Thiếu/rỗng/sai
+kiểu `companyName`, hoặc gửi `role`, trả **400**. Nhân sự trong công ty hiện hữu
+được Admin tạo qua `POST /auth/users`; không suy quyền từ chức danh người đăng ký.
+Bản ghi `CompanySetting` với chỉ mục unique `companyName` giữ tên công ty trước khi
+tạo tài khoản; dữ liệu cũ chưa có settings vẫn được kiểm tra, không cần migrate.
 
 ### POST `/api/auth/login`
 ```json
@@ -627,6 +640,11 @@ Sửa task của người khác cũng trả 403; task không tồn tại vẫn t
 Quy tắc nằm ở [`middleware/taskAccess.js`](../server/src/middleware/taskAccess.js).
 
 **Query filter cho `GET /`**: `project`, `status`, `priority`, `assignee`, `search` (title/description), `page`, `limit`, `sort`.
+
+`scope=all|my_tasks|assigned_by_me|following|subordinates`, ngày (`from`/`to`) và các
+bộ lọc khác luôn giao với phạm vi công ty. `assignee` chỉ thu hẹp phạm vi cá nhân,
+không ghi đè người hiện tại/cấp dưới. Kết quả, `total` và `/tasks/stats/summary`
+không tính việc thuộc dự án công ty khác, kể cả còn tham chiếu người dùng cũ.
 
 ### POST `/api/tasks`
 ```json

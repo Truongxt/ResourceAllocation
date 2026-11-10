@@ -13,6 +13,7 @@ import {
   Spin,
   Empty,
   Tooltip,
+  Progress,
 } from 'antd';
 import {
   AppstoreOutlined,
@@ -30,12 +31,12 @@ const { Text } = Typography;
 
 const COLOR_PRESETS = [
   { color: '#3b82f6', label: 'Xanh dương' },
-  { color: '#6366f1', label: 'Tím chàm' },
+  { color: '#1e3a8a', label: 'Xanh Navy' },
   { color: '#10b981', label: 'Xanh lá' },
   { color: '#f59e0b', label: 'Hổ phách' },
   { color: '#ef4444', label: 'Đỏ' },
   { color: '#ec4899', label: 'Hồng' },
-  { color: '#8b5cf6', label: 'Tím hoa cà' },
+  { color: '#475569', label: 'Xanh Slate' },
   { color: '#06b6d4', label: 'Xanh lơ' },
   { color: '#64748b', label: 'Xám chì' },
 ];
@@ -147,6 +148,17 @@ export default function TaskGroupManagerModal({
       loadGroups();
     } catch (err) {
       message.error(err.response?.data?.message || 'Lỗi khi xóa nhóm công việc');
+    }
+  };
+
+  // Đóng / Mở nhóm (Bài 60)
+  const handleToggleOpen = async (item) => {
+    try {
+      const res = await taskGroupService.toggleOpen(item._id);
+      message.success(res.data?.message || 'Đã cập nhật trạng thái nhóm');
+      loadGroups();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Không thể cập nhật trạng thái');
     }
   };
 
@@ -368,6 +380,7 @@ export default function TaskGroupManagerModal({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    opacity: item.isOpen === false ? 0.75 : 1,
                   }}
                 >
                   <Space style={{ minWidth: 0, flex: 1 }}>
@@ -387,35 +400,73 @@ export default function TaskGroupManagerModal({
                     <Text strong style={{ fontSize: 13, color: item.color || '#3b82f6' }}>
                       {item.name}
                     </Text>
+                    {item.isOpen === false && (
+                      <Tag color="default" style={{ fontSize: 10, borderRadius: 4, margin: 0 }}>
+                        Đã đóng
+                      </Tag>
+                    )}
                   </Space>
 
-                  <Space size={4}>
-                    <Tooltip title="Chỉnh sửa tên & màu sắc">
-                      <Button
-                        type="text"
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {/* Thống kê tiến độ nhóm (Bài 25, 40) */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 140 }}>
+                      <Progress
+                        percent={item.progress || 0}
                         size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => startEdit(item)}
+                        style={{ width: 70, margin: 0 }}
+                        strokeColor={item.color || '#3b82f6'}
                       />
-                    </Tooltip>
-                    <Popconfirm
-                      title="Xóa nhóm công việc này?"
-                      description="Các công việc thuộc nhóm này sẽ được chuyển thành 'Chưa phân nhóm'. Bạn có chắc muốn xóa?"
-                      okText="Xóa"
-                      cancelText="Hủy"
-                      okButtonProps={{ danger: true }}
-                      onConfirm={() => handleDelete(item._id)}
-                    >
-                      <Tooltip title="Xóa nhóm">
+                      <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+                        {item.completedTasks || 0}/{item.totalTasks || 0} việc
+                      </Text>
+                    </div>
+
+                    <Space size={4}>
+                      {/* Đóng / Mở nhóm (Bài 60) */}
+                      <Tooltip title={item.isOpen !== false ? 'Tạm đóng nhóm công việc' : 'Mở lại nhóm công việc'}>
+                        <Button
+                          size="small"
+                          type={item.isOpen !== false ? 'default' : 'dashed'}
+                          style={{
+                            fontSize: 11,
+                            height: 24,
+                            padding: '0 8px',
+                            color: item.isOpen !== false ? '#10b981' : '#f59e0b',
+                            borderColor: item.isOpen !== false ? '#86efac' : '#fcd34d',
+                          }}
+                          onClick={() => handleToggleOpen(item)}
+                        >
+                          {item.isOpen !== false ? 'Đang mở' : 'Tạm đóng'}
+                        </Button>
+                      </Tooltip>
+
+                      <Tooltip title="Chỉnh sửa tên & màu sắc">
                         <Button
                           type="text"
                           size="small"
-                          danger
-                          icon={<DeleteOutlined />}
+                          icon={<EditOutlined />}
+                          onClick={() => startEdit(item)}
                         />
                       </Tooltip>
-                    </Popconfirm>
-                  </Space>
+                      <Popconfirm
+                        title="Xóa nhóm công việc này?"
+                        description="Các công việc thuộc nhóm này sẽ được chuyển thành 'Chưa phân nhóm'. Bạn có chắc muốn xóa?"
+                        okText="Xóa"
+                        cancelText="Hủy"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => handleDelete(item._id)}
+                      >
+                        <Tooltip title="Xóa nhóm">
+                          <Button
+                            type="text"
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                          />
+                        </Tooltip>
+                      </Popconfirm>
+                    </Space>
+                  </div>
                 </List.Item>
               );
             }}

@@ -21,12 +21,13 @@ import {
   SendOutlined, UnorderedListOutlined,
   TeamOutlined, CalendarOutlined, FlagOutlined, ApartmentOutlined,
   CloseOutlined, EyeOutlined, CopyOutlined, HistoryOutlined, FileDoneOutlined,
-  LinkOutlined, LeftOutlined, RightOutlined, PaperClipOutlined,
+  LinkOutlined, LeftOutlined, RightOutlined, PaperClipOutlined, ArrowUpOutlined,
 } from '@ant-design/icons';
 import { useTheme } from '../../context/ThemeContext';
 import taskService from '../../services/taskService';
 import SubtaskFormModal from './SubtaskFormModal';
 import TaskResultModal from './TaskResultModal';
+import DuplicateTaskModal from './DuplicateTaskModal';
 import TaskWorkflowActions from './TaskWorkflowActions';
 import TaskAttachments from './TaskAttachments';
 import { sortedFields, formatCustomValue } from '../../utils/customFields';
@@ -47,7 +48,7 @@ const STATUS_MAP = {
   review: { label: 'Đánh giá', color: '#f59e0b', bg: '#fffbeb' },
   done: { label: 'Hoàn thành', color: '#10b981', bg: '#ecfdf5' },
   blocked: { label: 'Bị chặn', color: '#ef4444', bg: '#fef2f2' },
-  failed: { label: 'Thất bại', color: '#7c3aed', bg: '#f5f3ff' },
+  failed: { label: 'Thất bại', color: '#e11d48', bg: '#fff1f2' },
 };
 
 const PRIORITY_MAP = {
@@ -204,7 +205,7 @@ function TaskDetailTabBar({ activeKey, onChange, items }) {
                 background: isActive ? 'var(--surface-active, rgba(37, 99, 235, 0.08))' : 'transparent',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                transition: 'all 150ms cubic-bezier(0.16, 1, 0.3, 1)',
+                transition: 'background-color 150ms var(--ease-out), border-color 150ms var(--ease-out)',
                 borderBottom: isActive ? '2px solid var(--brand-primary, #2563eb)' : '2px solid transparent',
                 userSelect: 'none',
               }}
@@ -276,22 +277,24 @@ export default function TaskDetailDrawer({
   // Followers
   const [followerSelectVisible, setFollowerSelectVisible] = useState(false);
 
-  // Base Wework: Báo cáo kết quả & Gia hạn deadline
+  // Base Wework: Báo cáo kết quả & Gia hạn deadline & Nhân bản
   const [resultModalOpen, setResultModalOpen] = useState(false);
   const [deadlineModalOpen, setDeadlineModalOpen] = useState(false);
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [newDeadlineDate, setNewDeadlineDate] = useState(null);
   const [deadlineReason, setDeadlineReason] = useState('');
   const [updatingDeadline, setUpdatingDeadline] = useState(false);
 
-  // Nhân bản công việc
-  const handleDuplicateTask = async () => {
-    if (!task) return;
+  // Chuyển công việc con thành công việc cha độc lập (Base Wework Bài 85)
+  const handlePromoteSubtask = async (subtaskId) => {
     try {
-      await taskService.duplicate(task._id);
-      message.success('Đã nhân bản công việc thành công!');
+      await taskService.promoteSubtask(subtaskId);
+      message.success('Đã chuyển thành công việc cha độc lập thành công!');
+      await loadTask();
+      await loadSubtasks();
       if (onTaskUpdated) onTaskUpdated();
-    } catch {
-      message.error('Lỗi khi nhân bản công việc');
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Lỗi khi chuyển thành công việc cha');
     }
   };
 
@@ -605,10 +608,10 @@ export default function TaskDetailDrawer({
           </div>
         </InfoCard>
 
-        <InfoCard icon={<ClockCircleOutlined />} label="Ước lượng / Thực tế" isDark={isDark}>
-          <Text style={{ fontSize: 13 }}>
-            {task.estimatedHours || 0}h / {task.actualHours || 0}h
-          </Text>
+        <InfoCard icon={<ClockCircleOutlined />} label="Tổng giờ của công việc" isDark={isDark}>
+          <div><Text style={{ fontSize: 13 }}>Ước tính: <strong>{task.estimatedHours || 0}h</strong> cho toàn bộ công việc</Text></div>
+          <div><Text style={{ fontSize: 13 }}>Thực tế đã ghi nhận: <strong>{task.actualHours || 0}h</strong></Text></div>
+          <Text type="secondary" style={{ fontSize: 12 }}>Giờ ước tính được chia theo lịch công việc để tính tải từng tuần.</Text>
         </InfoCard>
 
         <InfoCard icon={<ApartmentOutlined />} label="Nhóm công việc" isDark={isDark}>
@@ -672,7 +675,7 @@ export default function TaskDetailDrawer({
             background: item.isCompleted ? (isDark ? 'rgba(16, 185, 129, 0.1)' : '#ecfdf5') : subtleBg,
             border: `1px solid ${item.isCompleted ? '#10b98130' : borderColor}`,
             marginBottom: 8,
-            transition: 'all 0.2s ease',
+            transition: 'background-color 160ms var(--ease-out), border-color 160ms var(--ease-out)',
           }}
         >
           <Checkbox
@@ -835,7 +838,7 @@ export default function TaskDetailDrawer({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <ApartmentOutlined style={{ color: '#6366f1', fontSize: 18 }} />
+              <ApartmentOutlined style={{ color: '#0284c7', fontSize: 18 }} />
               <Text strong style={{ fontSize: 14 }}>
                 Công việc con ({subtasks.length})
               </Text>
@@ -851,7 +854,7 @@ export default function TaskDetailDrawer({
             onClick={handleOpenCreateSubtask}
             style={{
               borderRadius: 8,
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              background: 'var(--brand-primary, #0284c7)',
               fontWeight: 600,
               boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
             }}
@@ -864,14 +867,14 @@ export default function TaskDetailDrawer({
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px dashed ${borderColor}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Tiến độ hoàn thành: <strong style={{ color: subtasksProgressPercent === 100 ? '#10b981' : '#6366f1' }}>{subtasksCompletedCount}/{subtasks.length}</strong> ({subtasksProgressPercent}%)
+                Tiến độ hoàn thành: <strong style={{ color: subtasksProgressPercent === 100 ? '#10b981' : '#0284c7' }}>{subtasksCompletedCount}/{subtasks.length}</strong> ({subtasksProgressPercent}%)
               </Text>
             </div>
             <Progress
               percent={subtasksProgressPercent}
               size="small"
               strokeColor={{
-                '0%': '#6366f1',
+                '0%': '#0284c7',
                 '100%': '#10b981',
               }}
             />
@@ -896,7 +899,7 @@ export default function TaskDetailDrawer({
                 background: isDone ? (isDark ? 'rgba(16, 185, 129, 0.08)' : '#ecfdf5') : cardBg,
                 border: `1px solid ${isDone ? '#10b98130' : borderColor}`,
                 marginBottom: 10,
-                transition: 'all 0.2s ease',
+                transition: 'background-color 160ms var(--ease-out), border-color 160ms var(--ease-out)',
               }}
             >
               <Checkbox
@@ -920,11 +923,26 @@ export default function TaskDetailDrawer({
                     {sub.title}
                   </Text>
                   <Space size={4}>
+                    <Tooltip title="Chuyển thành công việc cha độc lập (Base Wework Bài 85)">
+                      <Popconfirm
+                        title="Chuyển thành công việc cha độc lập?"
+                        description="Công việc con này sẽ được tách thành một đầu việc độc lập ngang hàng trong dự án, giữ nguyên toàn bộ dữ liệu."
+                        okText="Chuyển đổi"
+                        cancelText="Hủy"
+                        onConfirm={() => handlePromoteSubtask(sub._id)}
+                      >
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<ArrowUpOutlined style={{ fontSize: 13, color: '#10b981' }} />}
+                        />
+                      </Popconfirm>
+                    </Tooltip>
                     <Tooltip title="Chỉnh sửa chi tiết">
                       <Button
                         type="text"
                         size="small"
-                        icon={<EditOutlined style={{ fontSize: 13, color: '#6366f1' }} />}
+                        icon={<EditOutlined style={{ fontSize: 13, color: '#0284c7' }} />}
                         onClick={() => handleOpenEditSubtask(sub)}
                       />
                     </Tooltip>
@@ -988,7 +1006,7 @@ export default function TaskDetailDrawer({
                     <span style={{
                       fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
                       background: sub.progress === 100 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.12)',
-                      color: sub.progress === 100 ? '#10b981' : '#6366f1',
+                      color: sub.progress === 100 ? '#10b981' : '#0284c7',
                     }}>
                       {sub.progress}%
                     </span>
@@ -1025,7 +1043,7 @@ export default function TaskDetailDrawer({
             onClick={handleOpenCreateSubtask}
             style={{
               borderRadius: 8,
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              background: 'var(--brand-primary, #0284c7)',
               fontWeight: 600,
             }}
           >
@@ -1114,6 +1132,35 @@ export default function TaskDetailDrawer({
               </div>
             </div>
           )}
+
+          {/* Base Wework (Bài 77): Tiêu chí kết quả nghiệm thu tùy chỉnh */}
+          {task.resultReport.customValues && Object.keys(task.resultReport.customValues).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6, color: '#0284c7' }}>
+                Tiêu chí kết quả nghiệm thu (Base Wework - Bài 77):
+              </Text>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
+                {(task.project?.customFields || [])
+                  .filter((f) => f.target === 'result' && task.resultReport.customValues[f.key] !== undefined && task.resultReport.customValues[f.key] !== null)
+                  .map((f) => (
+                    <div
+                      key={f.key}
+                      style={{
+                        padding: '6px 10px',
+                        background: isDark ? 'rgba(255,255,255,0.04)' : '#f8fafc',
+                        borderRadius: 6,
+                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0'}`,
+                      }}
+                    >
+                      <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{f.name}</Text>
+                      <Text strong style={{ fontSize: 12.5 }}>
+                        {formatCustomValue(f, task.resultReport.customValues[f.key])}
+                      </Text>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </Card>
       ) : (
         <div
@@ -1137,7 +1184,7 @@ export default function TaskDetailDrawer({
             icon={<CheckCircleOutlined />}
             onClick={() => setResultModalOpen(true)}
             style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              background: '#10b981',
               borderColor: '#10b981',
               fontWeight: 600,
             }}
@@ -1273,7 +1320,7 @@ export default function TaskDetailDrawer({
           <ApartmentOutlined style={{ marginRight: 4 }} />
           Công việc con
           {subtasks.length > 0 && (
-            <Badge count={subtasks.length} style={{ backgroundColor: '#8b5cf6', marginLeft: 6, fontSize: 10 }} />
+            <Badge count={subtasks.length} style={{ backgroundColor: '#0284c7', marginLeft: 6, fontSize: 10 }} />
           )}
         </span>
       ),
@@ -1369,7 +1416,7 @@ export default function TaskDetailDrawer({
                     style={{
                       borderRadius: 8,
                       fontSize: 12,
-                      background: task.status === 'done' ? undefined : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      background: task.status === 'done' ? undefined : '#10b981',
                       borderColor: '#10b981',
                     }}
                   >
@@ -1380,21 +1427,14 @@ export default function TaskDetailDrawer({
 
               {/* Nhân bản công việc (Chỉ Người giao, QLDA, Owner) */}
               {perms.canDuplicate && (
-                <Tooltip title="Nhân bản công việc">
-                  <Popconfirm
-                    title="Nhân bản công việc này?"
-                    description="Sao chép toàn bộ checklist và công việc con sang bản mới."
-                    onConfirm={handleDuplicateTask}
-                    okText="Nhân bản"
-                    cancelText="Hủy"
-                  >
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<CopyOutlined />}
-                      style={{ borderRadius: 8 }}
-                    />
-                  </Popconfirm>
+                <Tooltip title="Nhân bản công việc (Base Wework Bài 52 & 53)">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CopyOutlined />}
+                    style={{ borderRadius: 8 }}
+                    onClick={() => setDuplicateModalOpen(true)}
+                  />
                 </Tooltip>
               )}
 
@@ -1436,6 +1476,53 @@ export default function TaskDetailDrawer({
           </div>
         ) : (
           <>
+            {/* Banner Công việc con (Base Wework Bài 85) */}
+            {task.parentTask && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
+                  border: `1px solid ${isDark ? '#1e40af' : '#bfdbfe'}`,
+                  borderRadius: 10,
+                  marginTop: 8,
+                  marginBottom: 12,
+                }}
+              >
+                <Space size={8}>
+                  <ApartmentOutlined style={{ color: '#2563eb', fontSize: 16 }} />
+                  <div>
+                    <Text style={{ fontSize: 12, color: '#64748b', display: 'block' }}>Công việc con thuộc:</Text>
+                    <Text strong style={{ fontSize: 13, color: isDark ? '#93c5fd' : '#1d4ed8' }}>
+                      {task.parentTask.title || 'Công việc cha'}
+                    </Text>
+                  </div>
+                </Space>
+                <Popconfirm
+                  title="Chuyển thành công việc cha độc lập?"
+                  description="Công việc con này sẽ được tách thành một đầu việc độc lập ngang hàng trong dự án (Base Wework Bài 85)."
+                  okText="Tách việc cha"
+                  cancelText="Hủy"
+                  onConfirm={async () => {
+                    try {
+                      await taskService.promoteSubtask(task._id);
+                      message.success('Đã chuyển thành công việc cha độc lập!');
+                      await loadTask();
+                      if (onTaskUpdated) onTaskUpdated();
+                    } catch (err) {
+                      message.error(err.response?.data?.message || 'Lỗi khi chuyển thành công việc cha');
+                    }
+                  }}
+                >
+                  <Button size="small" type="primary" ghost icon={<ArrowUpOutlined />} style={{ borderRadius: 6 }}>
+                    Chuyển thành việc cha
+                  </Button>
+                </Popconfirm>
+              </div>
+            )}
+
             {/* Vết của luồng công việc: đang chờ ai, vì sao bị trả lại, vì sao thất bại */}
             {task.status === 'review' && (
               <Alert
@@ -1470,7 +1557,7 @@ export default function TaskDetailDrawer({
               <Alert
                 type="error"
                 showIcon
-                style={{ marginTop: 8, marginBottom: 12, borderRadius: 10, borderColor: '#7c3aed' }}
+                style={{ marginTop: 8, marginBottom: 12, borderRadius: 10, borderColor: '#0284c7' }}
                 message={`Công việc thất bại${task.failedBy?.name ? ` — đánh dấu bởi ${task.failedBy.name}` : ''}`}
                 description={(
                   <span style={{ fontSize: 13 }}>
@@ -1610,6 +1697,16 @@ export default function TaskDetailDrawer({
         </div>
       </div>
     </Modal>
+
+    {/* Modal Nhân bản công việc chuẩn Base Wework (Bài 52) */}
+    <DuplicateTaskModal
+      open={duplicateModalOpen}
+      onClose={() => setDuplicateModalOpen(false)}
+      task={task}
+      onSuccess={() => {
+        if (onTaskUpdated) onTaskUpdated();
+      }}
+    />
   </>
   );
 }

@@ -67,7 +67,7 @@ function workloadInPeriod(resource, tasks, period) {
     const overlapDays = totalDays ? workingDays(overlapStart, overlapEnd) : Math.floor((overlapEnd - overlapStart) / DAY) + 1;
     const periodHours = hours * overlapDays / days;
     workload += periodHours;
-    if (overlapDays > 0) breakdown.push({ ...base, scheduled: true, workingDays: days, periodDays: overlapDays, hoursPerDay: round(hours / days), periodHours: round(periodHours) });
+    if (overlapDays > 0) breakdown.push({ ...base, scheduled: true, distributionBasis: totalDays ? 'working_days' : 'calendar_days', workingDays: days, periodDays: overlapDays, hoursPerDay: round(hours / days), periodHours: round(periodHours) });
   }
   const capacity = weeklyCapacity / 5 * availableDays;
   return { workload: round(workload), capacity: round(capacity), weeklyCapacity, baseWeeklyCapacity: resource.maxCapacity ?? 40, fte: resource.fte ?? 1, availableDays,

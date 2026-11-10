@@ -28,11 +28,8 @@ export default function LandingSandbox({
     <section id="sandbox" className="sandbox-section">
       <div className="landing-container">
         <div className="section-header-center">
-          <Tag color="cyan" className="section-tag">
-            Mô phỏng minh họa
-          </Tag>
           <Title level={2} className="section-title">
-            Khám phá một phương án phân bổ
+            Khám phá mô hình phân bổ nguồn lực
           </Title>
           <Paragraph className="section-subtitle">
             Thay đổi số lượng công việc và nhân sự để xem kết quả minh họa. Các số liệu được mô phỏng, không phải kết quả đo thuật toán. Đăng nhập để chạy trên dữ liệu dự án của bạn.
@@ -66,7 +63,7 @@ export default function LandingSandbox({
                 <div className="control-item" style={{ marginTop: 24 }}>
                   <div className="control-header">
                     <span className="control-title">Số lượng Nhân sự (Resources)</span>
-                    <Tag color="purple">{sandboxResources} Nhân sự</Tag>
+                    <Tag color="default">{sandboxResources} Nhân sự</Tag>
                   </div>
                   <Slider
                     min={3}
@@ -132,7 +129,7 @@ export default function LandingSandbox({
                   <Col xs={12} sm={8}>
                     <div className="sandbox-metric-box">
                       <span className="box-k">Độ Lệch Chuẩn Tải</span>
-                      <span className="box-v text-purple">{sandboxResult.workloadStdDev}h</span>
+                      <span className="box-v text-primary">{sandboxResult.workloadStdDev}h</span>
                       <span className="box-desc">Cân bằng tải giữa các người</span>
                     </div>
                   </Col>

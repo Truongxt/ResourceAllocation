@@ -6,8 +6,17 @@ import SkillsMatrixModal from '../src/components/resources/SkillsMatrixModal';
 import SelfSkillEvaluationModal from '../src/components/resources/SelfSkillEvaluationModal';
 import WorkloadProductivityChart from '../src/components/resources/WorkloadProductivityChart';
 import WorkloadPeriodControls, { weekRange } from '../src/components/resources/WorkloadPeriodControls';
+import WorkloadBreakdown from '../src/components/resources/WorkloadBreakdown';
 
 describe('Evaluation and workload interactions', () => {
+  it('explains the exact 8-hour task calculation and distinguishes review from completion', () => {
+    renderWithProviders(<WorkloadBreakdown selection={{ name: 'Nem', people: [{ _id: 'nem', name: 'Nem', workload: 2.29, capacity: 40, baseWeeklyCapacity: 40, fte: 1, availableDays: 5,
+      breakdown: [{ taskId: 'build', title: 'Build app', status: 'review', estimatedHours: 8, startDate: '2026-10-15', endDate: '2026-10-23', scheduled: true, workingDays: 7, periodDays: 2, periodHours: 2.29, distributionBasis: 'working_days' }],
+    }] }} period={{ from: '2026-10-12', to: '2026-10-18' }} />);
+    expect(screen.getByText('8h ÷ 7 ngày × 2 ngày ≈ 2.29h')).toBeInTheDocument();
+    expect(screen.getByText('Chờ đánh giá')).toBeInTheDocument();
+    expect(screen.getByText(/Tiến độ 100% nhưng còn chờ đánh giá vẫn được tính/)).toBeInTheDocument();
+  });
   it('requires feedback before returning pending skills and shows employee evidence', async () => {
     const onSubmit = vi.fn();
     renderWithProviders(<SkillsMatrixModal open resource={{ user: { name: 'Lan' }, skills: [{ name: 'React', level: 2, selfLevel: 4, evaluationStatus: 'self_assessed', evidence: 'Delivered checkout module' }] }} onSubmit={onSubmit} t={key => key} />);

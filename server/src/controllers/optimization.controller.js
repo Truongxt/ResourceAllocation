@@ -640,9 +640,9 @@ const compareResults = async (req, res, next) => {
       constraintReport:
         typeof r.constraintReport?.violated === 'number'
           ? {
-              satisfied: r.constraintReport.satisfied ?? null,
-              violated: r.constraintReport.violated,
-            }
+            satisfied: r.constraintReport.satisfied ?? null,
+            violated: r.constraintReport.violated,
+          }
           : null,
       domainReduction:
         r.domainReduction && typeof r.domainReduction.totalPairs === 'number' ? r.domainReduction : null,
@@ -710,6 +710,15 @@ const getResultById = async (req, res, next) => {
  * @route   POST /api/optimization/:id/apply
  * @access  Private (Admin, PM)
  */
+const getResultPreview = async (req, res, next) => {
+  try {
+    const result = await OptimizationResult.findById(req.params.id);
+    if (!result) return res.status(404).json({ success: false, message: 'Không tìm thấy kết quả' });
+    if (!resultBelongsTo(result, req.user)) return res.status(403).json({ success: false, message: 'Không có quyền xem kết quả tối ưu của công ty khác' });
+    res.json({ success: true, data: await loadOptimizationPreview(result) });
+  } catch (error) { next(error); }
+};
+
 const applyResult = async (req, res, next) => {
   try {
     const result = await OptimizationResult.findById(req.params.id);
@@ -737,6 +746,14 @@ const applyResult = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Kết quả này đã được áp dụng trước đó' });
     }
 
+    const preview = await loadOptimizationPreview(result);
+    if (preview.blockedCount || !preview.assignments.length) {
+      return res.status(409).json({ success: false, message: 'Công việc hoặc nhân sự không còn phù hợp. Vui lòng chạy lại tối ưu hóa.' });
+    }
+    if (req.body?.previewToken && req.body.previewToken !== preview.previewToken) {
+      return res.status(409).json({ success: false, message: 'Dữ liệu đã thay đổi từ lúc xem trước. Hãy xem lại tác động mới trước khi áp dụng.' });
+    }
+
     // Lấy thông tin các task hiện tại để lưu snapshot phân công trước khi áp dụng
     const taskIds = result.assignments.map((a) => a.task).filter(Boolean);
     const existingTasks = await Task.find({ _id: { $in: taskIds } }).select('_id assignee title');
@@ -758,6 +775,7 @@ const applyResult = async (req, res, next) => {
         const resource = await Resource.findById(assignment.resource);
         if (resource) {
           const oldAssignee = existingMap.get(assignment.task.toString()) || null;
+          if (oldAssignee?.toString() === resource.user?.toString()) continue;
           previousAssignments.push({
             task: assignment.task,
             previousAssignee: oldAssignee,
@@ -800,9 +818,9 @@ const applyResult = async (req, res, next) => {
         titles.length === 1
           ? `Bạn được giao công việc "${titles[0]}" theo phương án tối ưu hóa vừa áp dụng.`
           : `Bạn được giao ${titles.length} công việc theo phương án tối ưu hóa vừa áp dụng: ${titles
-              .slice(0, 3)
-              .map((t) => `"${t}"`)
-              .join(', ')}${titles.length > 3 ? `, và ${titles.length - 3} việc nữa` : ''}.`;
+            .slice(0, 3)
+            .map((t) => `"${t}"`)
+            .join(', ')}${titles.length > 3 ? `, và ${titles.length - 3} việc nữa` : ''}.`;
 
       sendNotification({
         recipient: userId,
@@ -1036,6 +1054,7 @@ module.exports = {
   getHistory,
   compareResults,
   getResultById,
+  getResultPreview,
   applyResult,
   rollbackResult,
   runBenchmark,

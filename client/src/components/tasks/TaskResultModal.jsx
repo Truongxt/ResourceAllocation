@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, Button, Checkbox, Space, Typography, Card, Divider, message } from 'antd';
 import { CheckCircleOutlined, PlusOutlined, DeleteOutlined, LinkOutlined, FileTextOutlined } from '@ant-design/icons';
 import taskService from '../../services/taskService';
+import projectService from '../../services/projectService';
+import CustomFieldInputs, { toFormCustomValues, fromFormCustomValues } from './CustomFieldInputs';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -9,31 +11,53 @@ const { TextArea } = Input;
 export default function TaskResultModal({ open, onClose, task, onSuccess }) {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const [project, setProject] = useState(null);
+
+  const initForm = (proj) => {
+    const existing = task.resultReport || {};
+    const existingCustom = existing.customValues || {};
+    form.setFieldsValue({
+      summary: existing.summary || '',
+      actualHours: existing.actualHours || task.actualHours || task.estimatedHours || 0,
+      deliverableLinks: (existing.deliverableLinks && existing.deliverableLinks.length > 0)
+        ? existing.deliverableLinks
+        : [{ title: '', url: '' }],
+      markAsDone: task.status !== 'done',
+      customValues: proj ? toFormCustomValues(proj, existingCustom, 'result') : {},
+    });
+  };
 
   useEffect(() => {
     if (open && task) {
-      const existing = task.resultReport || {};
-      form.setFieldsValue({
-        summary: existing.summary || '',
-        actualHours: existing.actualHours || task.actualHours || task.estimatedHours || 0,
-        deliverableLinks: (existing.deliverableLinks && existing.deliverableLinks.length > 0)
-          ? existing.deliverableLinks
-          : [{ title: '', url: '' }],
-        markAsDone: task.status !== 'done',
-      });
+      const projId = task.project?._id || task.project;
+      if (task.project && Array.isArray(task.project.customFields)) {
+        setProject(task.project);
+        initForm(task.project);
+      } else if (projId) {
+        projectService.getById(projId).then((res) => {
+          const p = res.data?.data?.project || res.data?.project || res.data;
+          setProject(p);
+          initForm(p);
+        }).catch(() => initForm(null));
+      } else {
+        initForm(null);
+      }
     }
-  }, [open, task, form]);
+  }, [open, task]);
 
   const handleSubmit = async (values) => {
     if (!task) return;
     setSubmitting(true);
     try {
       const validLinks = (values.deliverableLinks || []).filter((l) => l && l.url && l.url.trim());
+      const resultCustomValues = project ? fromFormCustomValues(project, values.customValues, 'result') : undefined;
+
       const payload = {
         summary: values.summary || '',
         actualHours: Number(values.actualHours) || 0,
         deliverableLinks: validLinks,
         markAsDone: !!values.markAsDone,
+        customValues: resultCustomValues,
       };
 
       await taskService.reportResult(task._id, payload);
@@ -72,7 +96,7 @@ export default function TaskResultModal({ open, onClose, task, onSuccess }) {
           name="summary"
           label={
             <Space>
-              <FileTextOutlined style={{ color: '#6366f1' }} />
+              <FileTextOutlined style={{ color: '#0284c7' }} />
               <span style={{ fontWeight: 600 }}>Tóm tắt kết quả thực hiện</span>
             </Space>
           }
@@ -93,6 +117,19 @@ export default function TaskResultModal({ open, onClose, task, onSuccess }) {
         >
           <InputNumber min={0} step={0.5} style={{ width: '100%' }} placeholder="VD: 8" />
         </Form.Item>
+
+        {/* Base Wework (Bài 77): Các trường dữ liệu tùy chỉnh cho Kết quả công việc */}
+        {project && (project.customFields || []).some((f) => f.target === 'result') && (
+          <div style={{ marginBottom: 16 }}>
+            <Divider style={{ margin: '14px 0 10px 0' }} />
+            <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontWeight: 600, color: '#0284c7' }}>
+                Tiêu chí kết quả nghiệm thu yêu cầu (Base Wework - Bài 77):
+              </span>
+            </div>
+            <CustomFieldInputs project={project} target="result" />
+          </div>
+        )}
 
         <Divider style={{ margin: '16px 0 12px 0' }} />
 
@@ -173,7 +210,7 @@ export default function TaskResultModal({ open, onClose, task, onSuccess }) {
             htmlType="submit"
             loading={submitting}
             style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              background: '#10b981',
               borderColor: '#10b981',
               fontWeight: 600,
             }}

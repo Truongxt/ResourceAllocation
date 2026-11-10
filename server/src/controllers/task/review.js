@@ -10,7 +10,11 @@ const { sendNotification } = require('../../services/socket.service');
 const { logActivity } = require('../../services/activityLog.service');
 const { syncResourceWorkload } = require('../../services/workload.service');
 const { resolveReviewers, isReviewOverdue } = require('../../services/taskStatus.service');
-const { recalculateProjectProgress, canApproveReview } = require('./shared');
+const {
+  recalculateParentTaskProgress,
+  recalculateProjectProgress,
+  canApproveReview,
+} = require('./shared');
 
 /**
  * @desc    Người thực hiện báo hoàn thành công việc
@@ -56,6 +60,9 @@ const completeTask = async (req, res, next) => {
       .populate('project', 'name code')
       .populate('assignee', 'name email avatar');
 
+    if (task.parentTask) {
+      await recalculateParentTaskProgress(task.parentTask);
+    }
     await recalculateProjectProgress(task.project);
     if (task.assignee) await syncResourceWorkload(task.assignee);
 
@@ -164,6 +171,9 @@ const reviewTask = async (req, res, next) => {
       .populate('assignee', 'name email avatar')
       .populate('reviewedBy', 'name email avatar');
 
+    if (task.parentTask) {
+      await recalculateParentTaskProgress(task.parentTask);
+    }
     await recalculateProjectProgress(task.project);
     if (task.assignee) await syncResourceWorkload(task.assignee);
 

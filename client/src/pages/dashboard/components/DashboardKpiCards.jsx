@@ -1,11 +1,6 @@
 import React from 'react';
-import { Card, Progress, Tag, Tooltip } from 'antd';
+import { Progress } from 'antd';
 import {
-  ProjectOutlined,
-  ThunderboltOutlined,
-  TeamOutlined,
-  DashboardOutlined,
-  ArrowUpOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
@@ -31,11 +26,9 @@ export default function DashboardKpiCards({ proj = {}, task = {}, res = {}, t })
   const cards = [
     {
       id: 'projects',
-      title: t('dashboard.activeProjects'),
+      title: t('dashboard.activeProjects') || 'Dự án đang thực hiện',
       value: activeProjects,
       suffix: '',
-      icon: <ProjectOutlined />,
-      colorClass: 'kpi-icon-blue',
       badge: (
         <span className="kpi-chip kpi-chip-neutral">
           {totalProjects} {t('workspace.projectTotal', { count: totalProjects }).replace(/[0-9]/g, '').trim() || 'dự án'}
@@ -43,12 +36,12 @@ export default function DashboardKpiCards({ proj = {}, task = {}, res = {}, t })
       ),
       subtext: (
         <div className="kpi-subrow">
-          <span className="kpi-subtext-muted">Tiến độ TB: <strong>{avgProgress}%</strong></span>
+          <span className="kpi-subtext-muted">Tiến độ trung bình <strong>{avgProgress}%</strong></span>
           <Progress
             percent={avgProgress}
             showInfo={false}
             size="small"
-            strokeColor="#3b82f6"
+            strokeColor="var(--brand-primary)"
             railColor="var(--border-subtle)"
             className="kpi-mini-bar"
           />
@@ -57,25 +50,22 @@ export default function DashboardKpiCards({ proj = {}, task = {}, res = {}, t })
     },
     {
       id: 'tasks',
-      title: t('dashboard.runningTasks'),
+      title: t('dashboard.runningTasks') || 'Công việc đang xử lý',
       value: runningTasks,
       suffix: '',
-      icon: <ThunderboltOutlined />,
-      colorClass: 'kpi-icon-indigo',
       badge: (
-        <span className="kpi-chip kpi-chip-success">
-          <CheckCircleOutlined style={{ marginRight: 3 }} />
-          {doneTasks} {t('workspace.taskDone', { count: doneTasks }).replace(/[0-9]/g, '').trim() || 'hoàn thành'}
+        <span className="kpi-chip kpi-chip-neutral">
+          {doneTasks} {t('workspace.taskDone', { count: doneTasks }).replace(/[0-9]/g, '').trim() || 'hoàn tất'}
         </span>
       ),
       subtext: (
         <div className="kpi-subrow">
-          <span className="kpi-subtext-muted">Tỷ lệ xong: <strong>{taskCompletionRate}%</strong></span>
+          <span className="kpi-subtext-muted">Tỷ lệ xong <strong>{taskCompletionRate}%</strong></span>
           <Progress
             percent={taskCompletionRate}
             showInfo={false}
             size="small"
-            strokeColor="#10b981"
+            strokeColor="var(--status-success)"
             railColor="var(--border-subtle)"
             className="kpi-mini-bar"
           />
@@ -84,32 +74,30 @@ export default function DashboardKpiCards({ proj = {}, task = {}, res = {}, t })
     },
     {
       id: 'resources',
-      title: t('reports.stats.totalResources'),
+      title: t('reports.stats.totalResources') || 'Nguồn lực nhân sự',
       value: totalResources,
       suffix: '',
-      icon: <TeamOutlined />,
-      colorClass: 'kpi-icon-emerald',
       badge: overloadedCount > 0 ? (
         <span className="kpi-chip kpi-chip-danger">
-          <ExclamationCircleOutlined style={{ marginRight: 3 }} />
+          <ExclamationCircleOutlined style={{ marginRight: 4 }} />
           {overloadedCount} quá tải
         </span>
       ) : (
         <span className="kpi-chip kpi-chip-success">
-          <CheckCircleOutlined style={{ marginRight: 3 }} />
+          <CheckCircleOutlined style={{ marginRight: 4 }} />
           Tải ổn định
         </span>
       ),
       subtext: (
         <div className="kpi-subrow">
           <span className="kpi-subtext-muted">
-            Sẵn sàng: <strong>{availableResources}/{totalResources}</strong> nhân sự
+            Sẵn sàng <strong>{availableResources}/{totalResources}</strong> nhân sự
           </span>
           <Progress
             percent={totalResources > 0 ? Math.round((availableResources / totalResources) * 100) : 0}
             showInfo={false}
             size="small"
-            strokeColor="#10b981"
+            strokeColor="var(--status-success)"
             railColor="var(--border-subtle)"
             className="kpi-mini-bar"
           />
@@ -118,28 +106,26 @@ export default function DashboardKpiCards({ proj = {}, task = {}, res = {}, t })
     },
     {
       id: 'utilization',
-      title: t('workspace.capacityUsed'),
+      title: t('workspace.capacityUsed') || 'Công suất điều phối',
       value: avgUtilization,
       suffix: '%',
-      icon: <DashboardOutlined />,
-      colorClass: avgUtilization > 100 ? 'kpi-icon-rose' : avgUtilization >= 75 ? 'kpi-icon-amber' : 'kpi-icon-sky',
       badge: avgUtilization > 100 ? (
         <span className="kpi-chip kpi-chip-danger">Quá tải</span>
       ) : avgUtilization >= 75 ? (
         <span className="kpi-chip kpi-chip-warning">Tải cao</span>
       ) : (
-        <span className="kpi-chip kpi-chip-info">Khả dụng</span>
+        <span className="kpi-chip kpi-chip-neutral">Cân bằng</span>
       ),
       subtext: (
         <div className="kpi-subrow">
           <span className="kpi-subtext-muted">
-            Đã gán: <strong>{totalWorkload}</strong> / {totalCapacity}h
+            Đã giao <strong>{totalWorkload}</strong> / {totalCapacity}h
           </span>
           <Progress
             percent={Math.min(avgUtilization, 100)}
             showInfo={false}
             size="small"
-            strokeColor={avgUtilization > 100 ? '#ef4444' : avgUtilization >= 75 ? '#f59e0b' : '#0ea5e9'}
+            strokeColor={avgUtilization > 100 ? 'var(--status-danger)' : avgUtilization >= 75 ? 'var(--status-warning)' : 'var(--brand-primary)'}
             railColor="var(--border-subtle)"
             className="kpi-mini-bar"
           />
@@ -154,9 +140,7 @@ export default function DashboardKpiCards({ proj = {}, task = {}, res = {}, t })
         <div key={card.id} className="dashboard-kpi-card">
           <div className="kpi-card-header">
             <span className="kpi-card-title">{card.title}</span>
-            <div className={`kpi-card-icon-box ${card.colorClass}`}>
-              {card.icon}
-            </div>
+            {card.badge}
           </div>
           <div className="kpi-card-body">
             <div className="kpi-value-row">
@@ -164,7 +148,6 @@ export default function DashboardKpiCards({ proj = {}, task = {}, res = {}, t })
                 {card.value}
                 {card.suffix && <span className="kpi-suffix">{card.suffix}</span>}
               </span>
-              {card.badge}
             </div>
             {card.subtext}
           </div>

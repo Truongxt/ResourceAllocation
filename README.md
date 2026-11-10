@@ -88,6 +88,20 @@ Yêu cầu: **Node.js ≥ 20** và **MongoDB** đang chạy ở `localhost:27017
 | `npm run test:e2e:report` | gốc | Mở báo cáo HTML của lần chạy e2e gần nhất |
 | `npm run preview` | `client/` | Xem thử bản build production |
 
+## Lưu ý triển khai bản vá bảo mật
+
+- Đăng ký công khai bắt buộc có `companyName` và chỉ tạo **công ty mới**. Công ty đã có
+  (kể cả dữ liệu cũ chưa có cấu hình) trả 409; nhân sự trong công ty do Admin tạo qua
+  `POST /api/auth/users`. Không gửi `role` khi đăng ký. Web và mobile đều dùng hợp đồng này.
+- `CompanySetting.companyName` với chỉ mục unique được dùng giữ tên nguyên tử khi đăng ký;
+  không cần đổi schema hoặc chuyển dữ liệu công ty cũ. Nếu khởi tạo chỉ mục thất bại,
+  đăng ký không được tiếp tục.
+- Access token mới có `purpose: 'access'`. Token cũ thiếu trường này bị từ chối ở REST
+  và Socket.IO; client dùng refresh token hiện có để lấy token mới, hoặc đăng nhập lại.
+  Triển khai các thay đổi server cùng nhau.
+- Bản vá không tự thu hồi các tài khoản/phiên được tạo trước đó. Nếu ứng dụng từng mở
+  đăng ký công khai, hãy rà soát Owner/Admin và thu hồi tài khoản/phiên đáng ngờ.
+
 ## Job định kỳ
 
 Server **không tự hẹn giờ**. Hai job phải được một cron bên ngoài (cron của hệ điều hành, Cloud

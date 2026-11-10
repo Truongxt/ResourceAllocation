@@ -7,6 +7,18 @@ const { reportingPeriod, workloadInPeriod, calendarDay } = periodModule;
 const period = reportingPeriod({ from: '2026-10-12', to: '2026-10-18' });
 const task = { _id: 'task1', title: 'Build', status: 'in_progress', estimatedHours: 80, startDate: '2026-10-12', endDate: '2026-10-23' };
 
+test('Nem: 8 total hours over seven working days yields 2.29h this week and 5.71h next week', () => {
+  const buildApp = { ...task, estimatedHours: 8, startDate: '2026-10-15', status: 'review', progress: 100, actualHours: 0 };
+  const current = workloadInPeriod({}, [buildApp], period);
+  const next = workloadInPeriod({}, [buildApp], reportingPeriod({ from: '2026-10-19', to: '2026-10-25' }));
+  assert.equal(current.workload, 2.29);
+  assert.equal(next.workload, 5.71);
+  assert.equal(current.breakdown[0].workingDays, 7);
+  assert.equal(current.breakdown[0].periodDays, 2);
+  assert.equal(current.breakdown[0].distributionBasis, 'working_days');
+  assert.equal(workloadInPeriod({}, [{ ...buildApp, status: 'done' }], period).workload, 0);
+});
+
 test('same period, FTE, leave and task contribution agree', () => {
   const result = workloadInPeriod({ maxCapacity: 40, fte: 0.5, unavailablePeriods: [{ startDate: '2026-10-14', endDate: '2026-10-14' }] }, [task], period);
   assert.equal(result.workload, 40); assert.equal(result.capacity, 16);
@@ -26,6 +38,7 @@ test('weekend-only work has hours but no normal capacity', () => {
   const weekend = reportingPeriod({ from: '2026-10-17', to: '2026-10-18' });
   const result = workloadInPeriod({}, [{ ...task, startDate: weekend.from, endDate: weekend.to, estimatedHours: 8 }], weekend);
   assert.equal(result.workload, 8); assert.equal(result.capacity, 0);
+  assert.equal(result.breakdown[0].distributionBasis, 'calendar_days');
 });
 test('Vietnam dates and invalid ranges', () => {
   assert.equal(calendarDay('2026-10-11T18:00:00Z'), calendarDay('2026-10-12'));

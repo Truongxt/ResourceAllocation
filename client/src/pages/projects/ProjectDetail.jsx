@@ -56,6 +56,7 @@ import taskGroupService from '../../services/taskGroupService';
 import TaskDetailDrawer from '../../components/tasks/TaskDetailDrawer';
 import TaskFormModal from '../tasks/components/TaskFormModal';
 import TaskGroupManagerModal from '../../components/tasks/TaskGroupManagerModal';
+import ProjectLifecycleMenu from '../../components/projects/ProjectLifecycleMenu';
 import { getTaskPermissions } from '../../utils/taskPermissions';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -123,6 +124,10 @@ export default function ProjectDetail() {
   // Task Group management state
   const [taskGroups, setTaskGroups] = useState([]);
   const [taskGroupModalOpen, setTaskGroupModalOpen] = useState(false);
+  const [selectedTaskGroupId, setSelectedTaskGroupId] = useState(null);
+
+  // Base Wework: Báo cáo tiến độ Kế hoạch vs Thực tế (Bài 86)
+  const [progressMetrics, setProgressMetrics] = useState(null);
 
   // Admin/Owner, hoặc PM của chính dự án này: toàn quyền với công việc lẫn quản lý dự án (nhóm
   // công việc, thành viên, cấu hình, mở lại). PM ở dự án khác chỉ như thành viên — khớp server
@@ -167,7 +172,8 @@ export default function ProjectDetail() {
     setLoadError('');
     try {
       const res = await projectService.getById(id);
-      setProject(res.data.data.project);
+      setProject(res.data?.data?.project || res.data?.data);
+      setProgressMetrics(res.data?.data?.progressMetrics || null);
     } catch (error) {
       setLoadError(error.response?.data?.message || t('projectDetail.loadFailed') || 'Không thể tải chi tiết dự án');
     } finally {
@@ -444,7 +450,7 @@ export default function ProjectDetail() {
       key: 'user',
       render: (_, record) => (
         <Space>
-          <Avatar src={record.user?.avatar || undefined} icon={<UserOutlined />} style={{ backgroundColor: '#4f46e5' }} />
+          <Avatar src={record.user?.avatar || undefined} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
           <div>
             <Text strong style={{ display: 'block', fontSize: 13 }}>
               {record.user?.name || t('projectDetail.unknownUser') || 'Thành viên'}
@@ -474,7 +480,7 @@ export default function ProjectDetail() {
         <Progress
           percent={allocation}
           size="small"
-          strokeColor="#6366f1"
+          strokeColor="#0284c7"
           status={allocation > 100 ? 'exception' : 'normal'}
           format={(p) => `${p}%`}
         />
@@ -517,7 +523,7 @@ export default function ProjectDetail() {
       key: 'title',
       render: (title, record) => (
         <div style={{ cursor: 'pointer' }} onClick={() => handleOpenDetail(record)}>
-          <Text strong style={{ fontSize: 13, color: '#6366f1' }}>{title}</Text>
+          <Text strong style={{ fontSize: 13, color: '#0284c7' }}>{title}</Text>
           {record.taskGroup?.name && (
             <Tag color={record.taskGroup.color || 'blue'} style={{ marginLeft: 6, fontSize: 10, borderRadius: 4 }}>
               {record.taskGroup.name}
@@ -554,7 +560,7 @@ export default function ProjectDetail() {
       render: (assignee) =>
         assignee ? (
           <Space size={6}>
-            <Avatar size="small" src={assignee.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+            <Avatar size="small" src={assignee.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
             <Text style={{ fontSize: 13 }}>{assignee.name}</Text>
           </Space>
         ) : (
@@ -577,7 +583,7 @@ export default function ProjectDetail() {
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
-              <CalendarOutlined style={{ color: isOverdue ? '#ef4444' : '#6366f1', fontSize: 11 }} />
+              <CalendarOutlined style={{ color: isOverdue ? '#ef4444' : '#0284c7', fontSize: 11 }} />
               {hasStart && (
                 <Text type="secondary" style={{ fontSize: 11 }}>
                   {dayjs(record.startDate).format('DD/MM/YYYY HH:mm')} →{' '}
@@ -610,8 +616,38 @@ export default function ProjectDetail() {
       title: t('gantt.progress') || 'Tiến độ',
       dataIndex: 'progress',
       key: 'progress',
-      width: 120,
-      render: (progress = 0) => <Progress percent={progress} size="small" strokeColor="#6366f1" />,
+      width: 140,
+      render: (progress = 0, record) => {
+        let planned = null;
+        let isDelayed = false;
+        if (record.startDate && record.endDate) {
+          const now = Date.now();
+          const start = new Date(record.startDate).getTime();
+          const end = new Date(record.endDate).getTime();
+          if (end > start) {
+            planned = now <= start ? 0 : now >= end ? 100 : Math.round(((now - start) / (end - start)) * 100);
+            if (record.status !== 'done' && progress < planned - 5) {
+              isDelayed = true;
+            }
+          }
+        }
+
+        return (
+          <div>
+            <Progress percent={progress} size="small" strokeColor={isDelayed ? '#ef4444' : '#0284c7'} />
+            {planned !== null && (
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                <span>KH: {planned}%</span>
+                {isDelayed && (
+                  <Tag color="error" style={{ fontSize: 9, margin: 0, padding: '0 3px', lineHeight: '14px' }}>
+                    Chậm {planned - progress}%
+                  </Tag>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: t('common.actions') || 'Thao tác',
@@ -629,7 +665,7 @@ export default function ProjectDetail() {
               <Button
                 type="text"
                 size="small"
-                icon={<EyeOutlined style={{ color: '#6366f1' }} />}
+                icon={<EyeOutlined style={{ color: '#0284c7' }} />}
                 onClick={() => handleOpenDetail(record)}
               />
             </Tooltip>
@@ -680,7 +716,7 @@ export default function ProjectDetail() {
           type="text"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/projects')}
-          style={{ paddingLeft: 0, marginBottom: 8, color: '#818cf8', fontWeight: 600 }}
+          style={{ paddingLeft: 0, marginBottom: 8, color: '#0284c7', fontWeight: 600 }}
         >
           {t('projectDetail.projectList') || 'Quay lại danh sách dự án'}
         </Button>
@@ -724,7 +760,7 @@ export default function ProjectDetail() {
                     padding: '2px 8px',
                     borderRadius: 4,
                     background: 'rgba(99, 102, 241, 0.12)',
-                    color: '#818cf8',
+                    color: '#0284c7',
                     border: '1px solid rgba(99, 102, 241, 0.25)',
                   }}
                 >
@@ -756,6 +792,14 @@ export default function ProjectDetail() {
             <Button icon={<ReloadOutlined />} onClick={() => { load(); loadTaskGroups(); }}>
               {t('common.reload') || 'Tải lại'}
             </Button>
+            {canManageThisProject && (
+              <ProjectLifecycleMenu
+                project={project}
+                canArchive={canManageThisProject}
+                canDuplicate={canManageThisProject}
+                onChanged={load}
+              />
+            )}
           </Space>
         </div>
       </div>
@@ -771,8 +815,22 @@ export default function ProjectDetail() {
               <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
                 {t('projectDetail.projectProgress') || 'Tiến độ dự án'}
               </Text>
-              <div style={{ fontSize: 24, fontWeight: 600, color: '#818cf8' }} className="tabular-nums">
-                {project.progress || 0}%
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <div style={{ fontSize: 24, fontWeight: 600, color: '#0284c7' }} className="tabular-nums">
+                  {project.progress || 0}%
+                </div>
+                {progressMetrics && (
+                  <Tag
+                    color={progressMetrics.scheduleStatus === 'delayed' ? 'error' : progressMetrics.scheduleStatus === 'ahead' ? 'blue' : 'success'}
+                    style={{ fontSize: 10, margin: 0, padding: '0 5px', borderRadius: 4 }}
+                  >
+                    {progressMetrics.scheduleStatus === 'delayed'
+                      ? `Chậm ${Math.abs(progressMetrics.variance)}%`
+                      : progressMetrics.scheduleStatus === 'ahead'
+                      ? `Vượt ${progressMetrics.variance}%`
+                      : 'Đúng hạn'}
+                  </Tag>
+                )}
               </div>
             </div>
           </div>
@@ -844,7 +902,7 @@ export default function ProjectDetail() {
                       <Descriptions.Item label={t('projectDetail.manager') || 'Quản lý dự án (PM)'}>
                         {project.manager ? (
                           <Space size={6}>
-                            <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                            <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                             <span>{project.manager.name}</span>
                             <Text type="secondary" style={{ fontSize: 12 }}>({project.manager.email})</Text>
                           </Space>
@@ -875,13 +933,13 @@ export default function ProjectDetail() {
                     <Space orientation="vertical" style={{ width: '100%' }} size="middle">
                       <div>
                         <Text type="secondary" style={{ fontSize: 12 }}>{t('projectDetail.overallProgress') || 'Tiến độ tổng thể'}</Text>
-                        <Progress percent={project.progress || 0} strokeColor="#6366f1" status={project.progress === 100 ? 'success' : 'active'} />
+                        <Progress percent={project.progress || 0} strokeColor="#0284c7" status={project.progress === 100 ? 'success' : 'active'} />
                       </div>
                       <Row gutter={16}>
                         <Col span={12}>
                           <div style={{ padding: 12, borderRadius: 8, background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc' }}>
                             <Text type="secondary" style={{ fontSize: 11, fontWeight: 600 }}>{t('projectDetail.estimatedHours') || 'Ước tính'}</Text>
-                            <div style={{ fontSize: 20, fontWeight: 600, color: '#818cf8' }} className="tabular-nums">{taskStats.totalEstimated}h</div>
+                            <div style={{ fontSize: 20, fontWeight: 600, color: '#0284c7' }} className="tabular-nums">{taskStats.totalEstimated}h</div>
                           </div>
                         </Col>
                         <Col span={12}>
@@ -898,6 +956,82 @@ export default function ProjectDetail() {
                           strokeColor="#10b981"
                         />
                       </div>
+
+                      {/* Báo cáo tiến độ dự án: Kế hoạch vs Thực tế (Bài 86) */}
+                      {progressMetrics && (
+                        <div
+                          style={{
+                            marginTop: 8,
+                            padding: 14,
+                            borderRadius: 8,
+                            border: `1px solid ${isDark ? '#27272a' : '#e2e8f0'}`,
+                            background: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                            <Text strong style={{ fontSize: 12 }}>
+                              Tiến độ Kế hoạch vs Thực tế (Bài 86)
+                            </Text>
+                            <Tag
+                              color={
+                                progressMetrics.scheduleStatus === 'delayed'
+                                  ? 'error'
+                                  : progressMetrics.scheduleStatus === 'ahead'
+                                  ? 'blue'
+                                  : 'success'
+                              }
+                              style={{ margin: 0 }}
+                            >
+                              {progressMetrics.scheduleStatus === 'delayed'
+                                ? `Chậm tiến độ (${Math.abs(progressMetrics.variance)}%)`
+                                : progressMetrics.scheduleStatus === 'ahead'
+                                ? `Vượt tiến độ (${progressMetrics.variance}%)`
+                                : 'Đúng tiến độ'}
+                            </Tag>
+                          </div>
+
+                          <div style={{ marginBottom: 10 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
+                              <Text type="secondary">Tiến độ thực tế hiện tại</Text>
+                              <span style={{ fontWeight: 600, color: '#0284c7' }}>{progressMetrics.actualProgress}%</span>
+                            </div>
+                            <Progress percent={progressMetrics.actualProgress} strokeColor="#0284c7" size="small" />
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2, marginTop: 6 }}>
+                              <Text type="secondary">Kế hoạch lẽ ra phải đạt tới hôm nay</Text>
+                              <span style={{ fontWeight: 600, color: '#f59e0b' }}>{progressMetrics.plannedProgress}%</span>
+                            </div>
+                            <Progress percent={progressMetrics.plannedProgress} strokeColor="#f59e0b" size="small" />
+                          </div>
+
+                          <Row gutter={8} style={{ fontSize: 11, paddingTop: 8, borderTop: `1px dashed ${isDark ? '#3f3f46' : '#e2e8f0'}` }}>
+                            <Col span={8}>
+                              <Text type="secondary" style={{ display: 'block', fontSize: 10 }}>Chỉ số SPI:</Text>
+                              <Text strong style={{ color: progressMetrics.spi >= 1 ? '#10b981' : '#ef4444' }}>
+                                {progressMetrics.spi}
+                              </Text>
+                            </Col>
+                            <Col span={8}>
+                              <Text type="secondary" style={{ display: 'block', fontSize: 10 }}>Độ lệch tiến độ:</Text>
+                              <Text strong style={{ color: progressMetrics.daysDiff < 0 ? '#ef4444' : '#10b981' }}>
+                                {progressMetrics.daysDiff < 0
+                                  ? `Chậm ~${Math.abs(progressMetrics.daysDiff)} ngày`
+                                  : progressMetrics.daysDiff > 0
+                                  ? `Vượt ~${progressMetrics.daysDiff} ngày`
+                                  : 'Đúng hạn'}
+                              </Text>
+                            </Col>
+                            <Col span={8}>
+                              <Text type="secondary" style={{ display: 'block', fontSize: 10 }}>Dự kiến xong:</Text>
+                              <Text strong>
+                                {progressMetrics.estimatedFinishDate
+                                  ? dayjs(progressMetrics.estimatedFinishDate).format('DD/MM/YYYY')
+                                  : '—'}
+                              </Text>
+                            </Col>
+                          </Row>
+                        </div>
+                      )}
                     </Space>
                   </div>
                 </Col>
@@ -942,12 +1076,76 @@ export default function ProjectDetail() {
                     )}
                   </Space>
                 </div>
+
+                {/* Thanh theo dõi tiến độ theo Nhóm công việc / Milestone (Bài 25, 40, 60) */}
+                {taskGroups.length > 0 && (
+                  <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 12, marginBottom: 16 }}>
+                    <div
+                      onClick={() => setSelectedTaskGroupId(null)}
+                      style={{
+                        cursor: 'pointer',
+                        padding: '8px 14px',
+                        borderRadius: 8,
+                        border: !selectedTaskGroupId ? '1.5px solid #0284c7' : '1px solid var(--border-color, #e2e8f0)',
+                        background: !selectedTaskGroupId ? (isDark ? 'rgba(2, 132, 199, 0.15)' : '#f0f9ff') : 'transparent',
+                        minWidth: 120,
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>Tất cả nhóm</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{tasks.length} công việc</div>
+                    </div>
+                    {taskGroups.map((g) => {
+                      const isSelected = selectedTaskGroupId === g._id;
+                      return (
+                        <div
+                          key={g._id}
+                          onClick={() => setSelectedTaskGroupId(isSelected ? null : g._id)}
+                          style={{
+                            cursor: 'pointer',
+                            padding: '8px 14px',
+                            borderRadius: 8,
+                            border: isSelected ? `1.5px solid ${g.color || '#3b82f6'}` : '1px solid var(--border-color, #e2e8f0)',
+                            background: isSelected ? (isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff') : 'transparent',
+                            minWidth: 160,
+                            opacity: g.isOpen === false ? 0.65 : 1,
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: g.color || '#3b82f6' }}>{g.name}</span>
+                            {g.isOpen === false && (
+                              <Tag color="default" style={{ fontSize: 9, margin: 0, padding: '0 4px', lineHeight: '14px' }}>
+                                Đóng
+                              </Tag>
+                            )}
+                          </div>
+                          <Progress
+                            percent={g.progress || 0}
+                            size="small"
+                            strokeColor={g.color || '#3b82f6'}
+                            style={{ margin: '3px 0' }}
+                          />
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{g.completedTasks || 0}/{g.totalTasks || 0} việc</span>
+                            <span style={{ fontWeight: 600 }}>{g.progress || 0}%</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {tasks.length === 0 ? (
                   <Empty description={t('projectDetail.noTasks') || 'Chưa có công việc'} style={{ padding: 48 }} />
                 ) : (
                   <Table
                     rowKey="_id"
-                    dataSource={tasks}
+                    dataSource={
+                      selectedTaskGroupId
+                        ? tasks.filter((t) => (t.taskGroup?._id || t.taskGroup) === selectedTaskGroupId)
+                        : tasks
+                    }
                     columns={taskColumns}
                     pagination={{ pageSize: 10, hideOnSinglePage: true }}
                     onRow={(record) => ({
@@ -1028,14 +1226,14 @@ export default function ProjectDetail() {
                   showIcon
                   icon={<KeyOutlined />}
                   message="Phân quyền đối với thao tác trong công việc (Chuẩn Base Wework)"
-                  description="Cấu hình các quyền hạn bổ sung (tương ứng với biểu tượng chìa khóa 🔑) cho người thực hiện, người theo dõi và thành viên trong dự án này."
+                  description="Cấu hình các quyền hạn bổ sung (tương ứng với chìa khóa phân quyền) cho người thực hiện, người theo dõi và thành viên trong dự án này."
                 />
 
                 {/* Luồng công việc: Thất bại & Đánh giá kết quả */}
                 <Card
                   title={(
                     <Space>
-                      <KeyOutlined style={{ color: '#8b5cf6' }} />
+                      <KeyOutlined style={{ color: '#0284c7' }} />
                       <Text strong>Luồng công việc</Text>
                     </Space>
                   )}
@@ -1133,7 +1331,7 @@ export default function ProjectDetail() {
 
                 {/* Group 1: Quyền hạn của Người thực hiện (Assignee) */}
                 <Card
-                  title={<Space><KeyOutlined style={{ color: '#6366f1' }} /><Text strong>Quyền hạn của Người thực hiện (Assignee)</Text></Space>}
+                  title={<Space><KeyOutlined style={{ color: '#0284c7' }} /><Text strong>Quyền hạn của Người thực hiện (Assignee)</Text></Space>}
                   className="saas-card"
                   size="small"
                 >
@@ -1301,7 +1499,7 @@ export default function ProjectDetail() {
           {editingMember ? (
             <Form.Item label={t('projectDetail.member') || 'Thành viên'}>
               <Space>
-                <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#6366f1' }} />
+                <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
                 <Text strong>{editingMember.user?.name}</Text>
               </Space>
             </Form.Item>

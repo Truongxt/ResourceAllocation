@@ -11,7 +11,7 @@
  *     4. Giờ ước tính, giờ thực tế, tiến độ (%), và khoảng thời gian thực hiện (RangePicker).
  */
 
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Form,
@@ -42,6 +42,7 @@ import {
 import { getTaskPermissions } from '../../../utils/taskPermissions';
 import { canCreateTaskIn } from '../../../utils/projectAccess';
 import CustomFieldInputs from '../../../components/tasks/CustomFieldInputs';
+import './TaskFormModal.css';
 
 const { TextArea } = Input;
 
@@ -53,10 +54,10 @@ const DEPENDENCY_TYPE_OPTIONS = [
 ];
 
 const TASK_DIFFICULTY_OPTIONS = [
-  { value: 'easy', label: '🟢 Dễ (Lv.1 — Junior)' },
-  { value: 'medium', label: '🟡 Vừa (Lv.2 — Tiêu chuẩn)' },
-  { value: 'hard', label: '🟠 Khó (Lv.3 — Senior)' },
-  { value: 'expert', label: '🔴 Rất khó (Lv.4 — Chuyên gia)' },
+  { value: 'easy', label: 'Dễ (Cấp 1 — Junior)' },
+  { value: 'medium', label: 'Vừa (Cấp 2 — Tiêu chuẩn)' },
+  { value: 'hard', label: 'Khó (Cấp 3 — Senior)' },
+  { value: 'expert', label: 'Rất khó (Cấp 4 — Chuyên gia)' },
 ];
 
 export default function TaskFormModal({
@@ -80,6 +81,8 @@ export default function TaskFormModal({
   const selectedAssigneeId = Form.useWatch('assignee', form);
   const selectedDifficulty = Form.useWatch('difficulty', form) || 'medium';
   const selectedRequiredSkills = Form.useWatch('requiredSkills', form) || [];
+  const [isMultiAssign, setIsMultiAssign] = useState(false);
+  const advancedRef = useRef(null);
 
   const currentProj = useMemo(() => {
     const projId = selectedProject || editingTask?.project?._id || editingTask?.project;
@@ -131,20 +134,20 @@ export default function TaskFormModal({
       (assigneeResource.utilizationRate && assigneeResource.utilizationRate > 100);
 
     let type = 'success';
-    let message = '🟢 Năng lực phù hợp với độ khó công việc';
+    let message = 'Năng lực phù hợp với độ khó công việc';
 
     if (isOverloaded) {
       type = 'error';
-      message = `🔴 Cảnh báo Quá tải: Nhân sự này đang hoạt động ở mức ${assigneeResource.utilizationRate || '>100'}% công suất. Đề xuất san tải hoặc chọn nhân sự khác đang rảnh!`;
+      message = `Cảnh báo quá tải: Nhân sự này đang hoạt động ở mức ${assigneeResource.utilizationRate || '>100'}% công suất. Đề xuất san tải hoặc chọn nhân sự khác đang rảnh!`;
     } else if (missingSkills.length > 0) {
       type = 'warning';
-      message = `⚠️ Chưa đạt kỹ năng yêu cầu đã duyệt: ${missingSkills.map((skill) => skill.name).join(', ')}. Hãy kiểm tra người được giao hoặc điều chỉnh yêu cầu.`;
+      message = `Chưa đạt kỹ năng yêu cầu đã duyệt: ${missingSkills.map((skill) => skill.name).join(', ')}. Hãy kiểm tra người được giao hoặc điều chỉnh yêu cầu.`;
     } else if (diffLevel > maxSkillLevel) {
       type = 'warning';
-      message = `⚠️ Cảnh báo Năng lực: Độ khó công việc (Level ${diffLevel}) vượt mức kỹ năng cao nhất của nhân sự (Level ${maxSkillLevel}). Cần người có kinh nghiệm kèm cặp!`;
+      message = `Cảnh báo năng lực: Độ khó công việc (Level ${diffLevel}) vượt mức kỹ năng cao nhất của nhân sự (Level ${maxSkillLevel}). Cần người có kinh nghiệm kèm cặp!`;
     } else if (maxSkillLevel >= diffLevel) {
       type = 'success';
-      message = `🟢 Phù hợp lý tưởng: Trình độ kỹ năng (Level ${maxSkillLevel}) đáp ứng trọn vẹn độ khó công việc (Level ${diffLevel}).`;
+      message = `Phù hợp lý tưởng: Trình độ kỹ năng (Level ${maxSkillLevel}) đáp ứng trọn vẹn độ khó công việc (Level ${diffLevel}).`;
     }
 
     return { type, message, isOverloaded };
@@ -166,6 +169,7 @@ export default function TaskFormModal({
       onCancel={onClose}
       footer={null}
       width={720}
+      className="task-form-modal"
       destroyOnHidden
     >
       {!canManageTasks && (
@@ -182,7 +186,23 @@ export default function TaskFormModal({
         />
       )}
 
-      <Form form={form} layout="vertical" onFinish={onSubmit} style={{ marginTop: 16 }}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={onSubmit}
+        onFinishFailed={({ errorFields }) => {
+          if (errorFields.some(({ name }) => ['requiredSkills', 'dependencies'].includes(name[0]))) {
+            advancedRef.current.open = true;
+          }
+          // Wait for the disclosure to lay out before scrolling/focusing the first error.
+          requestAnimationFrame(() => {
+            if (errorFields[0]) form.scrollToField(errorFields[0].name, { focus: true });
+          });
+        }}
+        style={{ marginTop: 16 }}
+      >
+        <h3 className="task-form-section-title">Thông tin chính</h3>
+        <p className="task-form-section-hint">Nhập thông tin công việc. Chỉ mở cấu hình nâng cao khi cần thêm yêu cầu phân bổ.</p>
         {/* Tiêu đề công việc */}
         <Form.Item
           name="title"
@@ -194,7 +214,7 @@ export default function TaskFormModal({
 
         {/* Dự án & Trạng thái */}
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               name="project"
               label={t('common.project') || 'Thuộc dự án'}
@@ -210,7 +230,7 @@ export default function TaskFormModal({
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item name="status" label={t('common.status') || 'Trạng thái'} rules={[{ required: true }]}>
               <Select options={taskStatusOptions().map((s) => ({ value: s.key, label: s.label }))} />
             </Form.Item>
@@ -219,33 +239,96 @@ export default function TaskFormModal({
 
         {/* Phân công nhân sự, Độ ưu tiên & Độ khó công việc */}
         <Row gutter={16}>
-          <Col span={10}>
-            <Form.Item name="assignee" label={t('projectDetail.assignee') || 'Phân công nhân sự'}>
-              <Select
-                placeholder={t('tasks.form.assigneePlaceholder') || 'Chọn nhân sự phụ trách...'}
-                allowClear
-                disabled={!canChangeAssignee}
-                options={resources.map((r) => ({
-                  value: r.user?._id || r.userId || r._id,
-                  label: (
-                    <Space>
-                      <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: r.isOverloaded ? '#ef4444' : '#6366f1' }} />
-                      <span>{r.user?.name || r.userName || r.position}</span>
-                      <Tag color={r.isOverloaded ? 'error' : 'blue'} style={{ fontSize: 10, margin: 0 }}>
-                        {r.position} {r.utilizationRate ? `(${r.utilizationRate}%)` : ''}
-                      </Tag>
-                    </Space>
-                  ),
-                }))}
-              />
-            </Form.Item>
+          <Col xs={24} sm={24} md={10}>
+            {isMultiAssign && !editingTask ? (
+              <Form.Item
+                name="assignees"
+                label={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <span>Giao nhiều người (Base Wework)</span>
+                    <Button
+                      type="link"
+                      size="small"
+                      style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                      onClick={() => {
+                        setIsMultiAssign(false);
+                        form.setFieldsValue({ assignees: undefined });
+                      }}
+                    >
+                      ← Giao 1 người
+                    </Button>
+                  </div>
+                }
+                rules={[{ required: true, message: 'Vui lòng chọn ít nhất 1 nhân sự' }]}
+                extra="Hệ thống sẽ tự động tạo việc riêng cho từng người."
+              >
+                <Select
+                  mode="multiple"
+                  placeholder="Tick chọn các nhân sự..."
+                  allowClear
+                  maxTagCount="responsive"
+                  options={resources.map((r) => ({
+                    value: r.user?._id || r.userId || r._id,
+                    label: (
+                      <Space>
+                        <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: r.isOverloaded ? '#ef4444' : '#0284c7' }} />
+                        <span>{r.user?.name || r.userName || r.position}</span>
+                        <Tag color={r.isOverloaded ? 'error' : 'blue'} style={{ fontSize: 10, margin: 0 }}>
+                          {r.position} {r.utilizationRate ? `(${r.utilizationRate}%)` : ''}
+                        </Tag>
+                      </Space>
+                    ),
+                  }))}
+                />
+              </Form.Item>
+            ) : (
+              <Form.Item
+                name="assignee"
+                label={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <span>{t('projectDetail.assignee') || 'Phân công nhân sự'}</span>
+                    {!editingTask && (
+                      <Button
+                        type="link"
+                        size="small"
+                        style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                        onClick={() => {
+                          setIsMultiAssign(true);
+                          form.setFieldsValue({ assignee: undefined });
+                        }}
+                      >
+                        + Giao nhiều người
+                      </Button>
+                    )}
+                  </div>
+                }
+              >
+                <Select
+                  placeholder={t('tasks.form.assigneePlaceholder') || 'Chọn nhân sự phụ trách...'}
+                  allowClear
+                  disabled={!canChangeAssignee}
+                  options={resources.map((r) => ({
+                    value: r.user?._id || r.userId || r._id,
+                    label: (
+                      <Space>
+                        <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: r.isOverloaded ? '#ef4444' : '#0284c7' }} />
+                        <span>{r.user?.name || r.userName || r.position}</span>
+                        <Tag color={r.isOverloaded ? 'error' : 'blue'} style={{ fontSize: 10, margin: 0 }}>
+                          {r.position} {r.utilizationRate ? `(${r.utilizationRate}%)` : ''}
+                        </Tag>
+                      </Space>
+                    ),
+                  }))}
+                />
+              </Form.Item>
+            )}
           </Col>
-          <Col span={7}>
+          <Col xs={24} sm={12} md={7}>
             <Form.Item name="priority" label={t('common.priority') || 'Độ ưu tiên'} rules={[{ required: true }]}>
               <Select options={priorityOptions()} disabled={!canManageTasks} />
             </Form.Item>
           </Col>
-          <Col span={7}>
+          <Col xs={24} sm={12} md={7}>
             <Form.Item name="difficulty" label="Độ khó công việc" initialValue="medium">
               <Select options={TASK_DIFFICULTY_OPTIONS} disabled={!canManageTasks} />
             </Form.Item>
@@ -262,9 +345,50 @@ export default function TaskFormModal({
           />
         )}
 
+        {/* Mô tả và trường tùy chỉnh bắt buộc luôn hiển thị. */}
+        <Form.Item name="description" label={t('tasks.form.description') || 'Mô tả chi tiết'}>
+          <TextArea rows={3} placeholder="Mô tả công việc..." disabled={!canEditTitleDesc} />
+        </Form.Item>
+        <CustomFieldInputs project={currentProj} disabled={!canEditTitleDesc} />
+
+        <Form.Item name="dateRange" label={t('projects.form.dateRange') || 'Thời gian thực hiện'}>
+          <DatePicker.RangePicker
+            showTime={{ format: 'HH:mm' }}
+            format="DD/MM/YYYY HH:mm"
+            style={{ width: '100%' }}
+            disabled={!canEditDeadline}
+            placeholder={['Ngày & giờ bắt đầu', 'Hạn chót & giờ hoàn thành']}
+          />
+        </Form.Item>
+
+        <Row gutter={16}>
+          <Col xs={24} sm={8}>
+            <Form.Item name="progress" label={t('tasks.form.progress') || 'Tiến độ (%)'}>
+              <InputNumber min={0} max={100} style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Form.Item name="estimatedHours" label={t('tasks.form.estimatedHours') || 'Giờ ước tính'} extra={t('tasks.form.estimatedHoursHelp')}>
+              <InputNumber min={0} style={{ width: '100%' }} disabled={!canManageTasks} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Form.Item name="actualHours" label={t('tasks.form.actualHours') || 'Giờ thực tế'} extra={t('tasks.form.actualHoursHelp')}>
+              <InputNumber min={0} style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        {/* Native disclosure keeps every advanced field mounted and registered for validation. */}
+        <details className="task-form-advanced" ref={advancedRef}>
+          <summary>
+            <span className="task-form-section-title">Cấu hình nâng cao</span>
+            <span className="task-form-section-hint">Nhóm việc, người theo dõi, kỹ năng & công việc tiền nhiệm</span>
+          </summary>
+          <div className="task-form-advanced-content">
         {/* Base Wework: Nhóm công việc & Công việc cha */}
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               name="taskGroup"
               label={
@@ -308,7 +432,7 @@ export default function TaskFormModal({
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               name="parentTask"
               label="Công việc cha (Nếu là việc con)"
@@ -343,13 +467,6 @@ export default function TaskFormModal({
           />
         </Form.Item>
 
-        {/* Mô tả chi tiết */}
-        <Form.Item name="description" label={t('tasks.form.description') || 'Mô tả chi tiết'}>
-          <TextArea rows={3} placeholder="Mô tả công việc..." disabled={!canEditTitleDesc} />
-        </Form.Item>
-
-        {/* Trường tùy chỉnh của dự án — cùng quyền sửa với tiêu đề/mô tả */}
-        <CustomFieldInputs project={currentProj} disabled={!canEditTitleDesc} />
 
         {/* Kỹ năng yêu cầu cho thuật toán tối ưu */}
         <Form.Item
@@ -364,12 +481,13 @@ export default function TaskFormModal({
             {(fields, { add, remove }) => (
               <>
                 {fields.map(({ key, name, ...restField }) => (
-                  <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                  <div key={key} className="task-form-skill-row">
                     <Form.Item
                       {...restField}
                       name={[name, 'name']}
                       rules={[{ required: true, message: t('tasks.form.skillNameRequired') || 'Nhập tên kỹ năng' }]}
-                      style={{ width: 210, marginBottom: 0 }}
+                      label="Tên kỹ năng"
+
                     >
                       <AutoComplete
                         placeholder="React, Nodejs, SQL..."
@@ -383,7 +501,7 @@ export default function TaskFormModal({
                     <Form.Item
                       {...restField}
                       name={[name, 'level']}
-                      style={{ width: 210, marginBottom: 0 }}
+                      label="Cấp độ yêu cầu"
                     >
                       <Select
                         options={requiredSkillLevelOptions()}
@@ -394,19 +512,27 @@ export default function TaskFormModal({
                     <Form.Item
                       {...restField}
                       name={[name, 'weight']}
-                      style={{ width: 130, marginBottom: 0 }}
+                      label="Trọng số (0–1)"
                     >
                       <InputNumber
                         min={0}
                         max={1}
                         step={0.1}
-                        addonBefore="Trọng số"
+
                         style={{ width: '100%' }}
                       />
                     </Form.Item>
 
-                    <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ef4444' }} />
-                  </Space>
+                    <Button
+                      type="text"
+                      htmlType="button"
+                      danger
+                      className="task-form-remove"
+                      icon={<MinusCircleOutlined />}
+                      aria-label={`Xóa kỹ năng ${name + 1}`}
+                      onClick={() => remove(name)}
+                    />
+                  </div>
                 ))}
                 <Button
                   type="dashed"
@@ -435,16 +561,16 @@ export default function TaskFormModal({
               {(fields, { add, remove }) => (
                 <>
                   {fields.map((field) => (
-                    <Space key={field.key} align="baseline" style={{ display: 'flex', marginBottom: 8 }}>
+                    <div key={field.key} className="task-form-dependency-row">
                       <Form.Item
                         {...field}
                         name={[field.name, 'task']}
                         rules={[{ required: true, message: 'Chọn công việc tiền nhiệm' }]}
-                        style={{ marginBottom: 0 }}
+                        label="Công việc tiền nhiệm"
                       >
                         <Select
                           showSearch
-                          style={{ width: 300 }}
+
                           disabled={!selectedProject}
                           placeholder="Công việc tiền nhiệm..."
                           options={dependencyOptions}
@@ -455,15 +581,21 @@ export default function TaskFormModal({
                         {...field}
                         name={[field.name, 'type']}
                         initialValue="finish_to_start"
-                        style={{ marginBottom: 0 }}
+                        label="Loại quan hệ"
                       >
                         <Select
-                          style={{ width: 210 }}
+
                           options={DEPENDENCY_TYPE_OPTIONS}
                         />
                       </Form.Item>
-                      <Button type="text" danger onClick={() => remove(field.name)}>Xóa</Button>
-                    </Space>
+                      <Button
+                        type="text"
+                        danger
+                        className="task-form-remove"
+                        aria-label={`Xóa công việc tiền nhiệm ${field.name + 1}`}
+                        onClick={() => remove(field.name)}
+                      >Xóa</Button>
+                    </div>
                   ))}
                   <Button
                     type="dashed"
@@ -479,48 +611,17 @@ export default function TaskFormModal({
           </Form.Item>
         )}
 
-        {/* Tiến độ & Giờ công */}
-        <Row gutter={16}>
-          <Col span={8}>
-            <Form.Item name="progress" label={t('tasks.form.progress') || 'Tiến độ (%)'}>
-              <InputNumber min={0} max={100} style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item name="estimatedHours" label={t('tasks.form.estimatedHours') || 'Giờ ước tính'}>
-              <InputNumber min={0} style={{ width: '100%' }} disabled={!canManageTasks} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item name="actualHours" label={t('tasks.form.actualHours') || 'Giờ thực tế'}>
-              <InputNumber min={0} style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-        </Row>
-
-        {/* Khoảng ngày thực hiện kèm giờ */}
-        <Form.Item name="dateRange" label={t('projects.form.dateRange') || 'Thời gian thực hiện'}>
-          <DatePicker.RangePicker
-            showTime={{ format: 'HH:mm' }}
-            format="DD/MM/YYYY HH:mm"
-            style={{ width: '100%' }}
-            disabled={!canEditDeadline}
-            placeholder={['Ngày & giờ bắt đầu', 'Hạn chót & giờ hoàn thành']}
-          />
-        </Form.Item>
+          </div>
+        </details>
 
         {/* Nút hành động */}
-        <div style={{ textAlign: 'right', marginTop: 24 }}>
+        <div className="task-form-actions">
           <Space>
             <Button onClick={onClose}>{t('common.cancel') || 'Hủy'}</Button>
             <Button
               type="primary"
               htmlType="submit"
               loading={submitting}
-              style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
-              }}
             >
               {editingTask
                 ? t('common.saveChanges') || 'Lưu thay đổi'

@@ -1,6 +1,5 @@
 const http = require('http');
 const path = require('path');
-const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
 const { Server } = require('socket.io');
 
@@ -10,7 +9,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 const app = require('./app');
 const connectDB = require('./src/config/db');
 const { setIO } = require('./src/services/socket.service');
-const { getJwtSecret, assertJwtConfig } = require('./src/config/jwt');
+const { verifyAccessToken, assertJwtConfig } = require('./src/config/jwt');
 const { logMailStatus } = require('./src/services/email.service');
 const { corsOrigin } = require('./src/config/cors');
 const { isRelaxedEnv } = require('./src/config/env');
@@ -36,7 +35,7 @@ io.use(async (socket, next) => {
       return next(new Error('Authentication error'));
     }
 
-    const decoded = jwt.verify(token, getJwtSecret());
+    const decoded = verifyAccessToken(token);
 
     // Cùng điều kiện với middleware `protect`: access token còn sống tới 15 phút
     // sau khi tài khoản bị khóa, chỉ verify chữ ký thì người bị khóa vẫn mở được

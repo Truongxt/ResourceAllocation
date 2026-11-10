@@ -22,9 +22,9 @@ const { Text } = Typography;
 export const ALGO_VALUES = ['genetic', 'csp', 'hybrid'];
 
 export const ALGO_META = {
-  genetic: { icon: <BranchesOutlined style={{ color: '#a855f7' }} />, label: 'GA (Giải thuật Di truyền)', color: 'purple', shortLabel: 'GA' },
-  csp: { icon: <ApartmentOutlined style={{ color: '#06b6d4' }} />, label: 'CSP (Thỏa mãn Ràng buộc)', color: 'cyan', shortLabel: 'CSP' },
-  hybrid: { icon: <ThunderboltOutlined style={{ color: '#f59e0b' }} />, label: 'Hybrid (CSP + GA)', color: 'gold', shortLabel: 'Hybrid' },
+  genetic: { icon: <BranchesOutlined style={{ color: '#2563eb' }} />, label: 'GA (Giải thuật Di truyền)', color: 'blue', shortLabel: 'GA' },
+  csp: { icon: <ApartmentOutlined style={{ color: '#0284c7' }} />, label: 'CSP (Thỏa mãn Ràng buộc)', color: 'cyan', shortLabel: 'CSP' },
+  hybrid: { icon: <ThunderboltOutlined style={{ color: '#d97706' }} />, label: 'Hybrid (CSP + GA)', color: 'gold', shortLabel: 'Hybrid' },
 };
 
 /**
