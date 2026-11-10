@@ -25,8 +25,14 @@ const { errorHandler, notFound } = require('./src/middleware/error');
 const { apiLimiter } = require('./src/middleware/rateLimit');
 const { sanitizeRequest } = require('./src/middleware/sanitize');
 const { corsOrigin } = require('./src/config/cors');
+const { parseTrustProxy } = require('./src/config/proxy');
 
 const app = express();
+
+// Phải đặt trước mọi middleware đọc `req.ip` (giới hạn tần suất). Bỏ trống thì giữ
+// mặc định của Express: không tin proxy nào. Xem config/proxy.js.
+const trustProxy = parseTrustProxy();
+if (trustProxy !== undefined) app.set('trust proxy', trustProxy);
 
 // API thuần JSON, không phục vụ HTML, nên tắt CSP mặc định của helmet cho gọn;
 // phần còn lại (nosniff, frameguard, HSTS…) giữ nguyên.
