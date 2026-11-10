@@ -39,8 +39,10 @@ const MODULE_COLUMN = { 'Dự án': 1, 'Công việc': 2, 'Báo cáo': 3 };
 
 /** Mở Cài đặt → Phân quyền Thao tác & Ứng dụng → Quyền theo Phân hệ. */
 async function openModulePermissions(page) {
-  await page.goto('/settings');
-  await page.getByRole('tab', { name: /Phân quyền Thao tác & Ứng dụng/ }).click();
+  // Mở thẳng tab qua URL. Thanh tab của trang Cài đặt nay tràn bề ngang (thêm "Tùy chọn
+  // Email"), tab này nằm sát mép phải và thanh tab tự cuộn khi nhận focus — bấm vào đó lúc
+  // trúng lúc trượt. Thứ bộ này kiểm là phân quyền, không phải việc cuộn thanh tab.
+  await page.goto('/settings?tab=permissions');
   await page.getByRole('tab', { name: /Quyền theo Phân hệ/ }).click();
   await expect(page.getByRole('columnheader', { name: 'Tài khoản nhân sự' })).toBeVisible();
 }

@@ -45,8 +45,9 @@ test.describe('Dashboard', () => {
     await expect(content).toContainText('Dự án hoạt động');
     await expect(content).toContainText('Công việc đang chạy');
     await expect(content).toContainText('Tổng nhân sự');
-    await expect(content).toContainText(/Tỷ lệ xong: \d+%/);
-    await expect(content).toContainText(/Sẵn sàng: \d+\/\d+ nhân sự/);
+    // Khung tổng quan mới (11/2026) bỏ dấu hai chấm sau nhãn; chấp nhận cả hai cách viết.
+    await expect(content).toContainText(/Tỷ lệ xong:? \d+%/);
+    await expect(content).toContainText(/Sẵn sàng:? \d+\/\d+ nhân sự/);
 
     await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
     expect(problems).toEqual([]);
