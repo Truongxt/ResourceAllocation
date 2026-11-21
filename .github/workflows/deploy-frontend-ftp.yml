@@ -29,10 +29,25 @@ jobs:
           cd client
           npm ci || npm install
 
+      - name: Determine Environment Settings
+        id: env-settings
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/uat" ]; then
+            echo "target_dir=./domains/optiwork.x10.mx/public_html/uat/" >> $GITHUB_OUTPUT
+            echo "api_url=${{ secrets.UAT_API_URL || 'https://optiwork-api-uat.onrender.com/api' }}" >> $GITHUB_OUTPUT
+            echo "socket_url=${{ secrets.UAT_SOCKET_URL || 'https://optiwork-api-uat.onrender.com' }}" >> $GITHUB_OUTPUT
+            echo "Target: UAT Environment"
+          else
+            echo "target_dir=./domains/optiwork.x10.mx/public_html/" >> $GITHUB_OUTPUT
+            echo "api_url=https://optiwork-api.onrender.com/api" >> $GITHUB_OUTPUT
+            echo "socket_url=https://optiwork-api.onrender.com" >> $GITHUB_OUTPUT
+            echo "Target: Production Environment"
+          fi
+
       - name: Build Frontend
         env:
-          VITE_API_URL: https://optiwork-api.onrender.com/api
-          VITE_SOCKET_URL: https://optiwork-api.onrender.com
+          VITE_API_URL: ${{ steps.env-settings.outputs.api_url }}
+          VITE_SOCKET_URL: ${{ steps.env-settings.outputs.socket_url }}
         run: |
           cd client
           npm run build
@@ -50,17 +65,6 @@ jobs:
           </IfModule>
           EOF
 
-      - name: Determine Target Directory
-        id: target-dir
-        run: |
-          if [ "${{ github.ref }}" = "refs/heads/uat" ]; then
-            echo "dir=./domains/optiwork.x10.mx/public_html/uat/" >> $GITHUB_OUTPUT
-            echo "Deploying to UAT environment..."
-          else
-            echo "dir=./domains/optiwork.x10.mx/public_html/" >> $GITHUB_OUTPUT
-            echo "Deploying to Production environment..."
-          fi
-
       - name: Sync files to x10hosting via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -68,5 +72,5 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./client/dist/
-          server-dir: ${{ steps.target-dir.outputs.dir }}
+          server-dir: ${{ steps.env-settings.outputs.target_dir }}
           dangerous-clean-slate: false
