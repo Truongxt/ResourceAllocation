@@ -33,7 +33,7 @@ jobs:
         id: env-settings
         run: |
           if [ "${{ github.ref }}" = "refs/heads/uat" ]; then
-            echo "target_dir=./domains/optiwork.x10.mx/public_html/uat/" >> $GITHUB_OUTPUT
+            echo "target_dir=./domains/uat.optiwork.x10.mx/public_html/" >> $GITHUB_OUTPUT
             echo "api_url=${{ secrets.UAT_API_URL || 'https://optiwork-api-uat.onrender.com/api' }}" >> $GITHUB_OUTPUT
             echo "socket_url=${{ secrets.UAT_SOCKET_URL || 'https://optiwork-api-uat.onrender.com' }}" >> $GITHUB_OUTPUT
             echo "Target: UAT Environment"
