@@ -92,8 +92,8 @@
     "hoursNote": "Giờ ước tính là tổng của các công việc trong phạm vi, không phải tải theo tuần hay giờ thực tế đã làm."
   },
   "common": {
-    "appName": "RAO",
-    "appFullName": "Resource Allocation Optimization",
+    "appName": "OptiWork",
+    "appFullName": "OptiWork - Quản trị & Tối ưu hóa Công việc",
     "save": "Lưu",
     "cancel": "Hủy",
     "close": "Đóng",
@@ -268,13 +268,13 @@
       "confirmReq": "Vui lòng xác nhận mật khẩu",
       "confirmMismatch": "Mật khẩu xác nhận không khớp",
       "termsReq": "Vui lòng đồng ý với điều khoản sử dụng",
-      "terms": "Tôi xác nhận đồng ý với mục đích giao tiếp, nhận thông tin tư vấn giải pháp và các điều khoản sử dụng của nền tảng RAO.",
+      "terms": "Tôi xác nhận đồng ý với mục đích giao tiếp, nhận thông tin tư vấn giải pháp và các điều khoản sử dụng của nền tảng OptiWork.",
       "options": {
         "products": [
-          "RAO Work+: Phân bổ nhân sự & Quản trị công việc AI",
-          "RAO Schedule+: Lịch biểu tác vụ đa góc nhìn (Day/Week/Month)",
-          "RAO Optimize+: Tối ưu hóa thuật toán kép CSP & Di truyền (GA)",
-          "RAO Analytics+: Phân tích khối lượng công việc, FTE & Ngân sách"
+          "OptiWork Work+: Phân bổ nhân sự & Quản trị công việc AI",
+          "OptiWork Schedule+: Lịch biểu tác vụ đa góc nhìn (Day/Week/Month)",
+          "OptiWork Optimize+: Tối ưu hóa thuật toán kép CSP & Di truyền (GA)",
+          "OptiWork Analytics+: Phân tích khối lượng công việc, FTE & Ngân sách"
         ],
         "jobTitles": [
           "CEO / Founder / Chủ tịch",

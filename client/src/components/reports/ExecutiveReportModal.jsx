@@ -41,7 +41,7 @@ export default function ExecutiveReportModal({ open, onClose, utilData, taskData
   };
 
   const reportDate = dayjs().format('DD/MM/YYYY HH:mm');
-  const reportCode = `RAO-REP-${dayjs().format('YYYYMMDD-HHmm')}`;
+  const reportCode = `OW-REP-${dayjs().format('YYYYMMDD-HHmm')}`;
 
   const resources = utilData?.resources || [];
   const projects = taskData?.byProject || [];
@@ -105,7 +105,7 @@ export default function ExecutiveReportModal({ open, onClose, utilData, taskData
             <div className="rep-header">
               <div className="rep-brand">
                 <div>
-                  <div className="rep-logo-text">RAO STUDIO</div>
+                  <div className="rep-logo-text">OPTIWORK</div>
                   <div className="rep-subbrand">Resource Allocation & Optimization System</div>
                 </div>
                 <div className="rep-meta-right">

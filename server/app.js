@@ -74,7 +74,7 @@ app.use('/api/internal', internalRoutes);
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    message: 'Resource Allocation Optimization API is running',
+    message: 'OptiWork API is running',
     timestamp: new Date().toISOString(),
   });
 });

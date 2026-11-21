@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { generateSecret, generateURI, verifySync } = require('otplib');
 const qrcode = require('qrcode');
 
-const ISSUER_NAME = 'Resource Allocation Optimization';
+const ISSUER_NAME = 'OptiWork';
 
 /**
  * Sinh secret Base32 mới và mã QR (Data URL) để người dùng quét bằng ứng dụng Authenticator.

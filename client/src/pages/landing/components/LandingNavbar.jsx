@@ -34,10 +34,10 @@ export default function LandingNavbar({
       <div className="landing-top-announcement">
         <div className="announcement-content">
           <span className="announcement-badge">
-            Đồ án tốt nghiệp 2026
+            OptiWork v2.0
           </span>
           <span className="announcement-text">
-            Hệ thống Quản lý Dự án & Tự động Tối ưu hóa Phân bổ Nguồn lực (RAO Studio)
+            OptiWork - Nền tảng Quản trị Dự án & Tối ưu hóa Phân bổ Nguồn lực Thông minh
           </span>
           <a
             href="#benchmark-section"
