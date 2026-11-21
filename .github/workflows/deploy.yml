@@ -1,0 +1,26 @@
+name: Deploy to Production VPS
+
+on:
+  push:
+    branches:
+      - Truong
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            echo "🚀 Bắt đầu tự động cập nhật mã nguồn trên VPS..."
+            cd /var/www/resource-allocation
+            git pull origin Truong
+            docker compose up -d --build
+            docker image prune -f
+            echo "✅ Cập nhật thành công!"
