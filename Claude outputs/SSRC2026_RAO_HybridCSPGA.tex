@@ -1,0 +1,332 @@
+\documentclass{IEEEtran}
+\usepackage[utf8]{vietnam}
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp,nicefrac}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit}
+\usepackage[ruled,linesnumbered,vlined]{algorithm2e}
+\SetKwInput{KwIn}{Vào}
+\SetKwInput{KwOut}{Ra}
+\SetAlgorithmName{Thuật toán}{thuật toán}{Danh sách thuật toán}
+
+
+\markboth{STUDENT SCIENTIFIC RESEARCH COMMUNICATION, Volume II, 2026}
+{Trần Xuân Trường \MakeLowercase{\textit{et al.}}: Kết hợp thỏa mãn ràng buộc và giải thuật di truyền cho bài toán phân bổ nhân sự đa dự án}
+
+\begin{document}
+
+\title{Kết hợp thỏa mãn ràng buộc và giải thuật di truyền cho bài toán phân bổ nhân sự đa dự án}
+
+% TODO(tác giả): báo cáo Word không có email; điền email trước khi nộp.
+\author{Trần Xuân Trường, Lê Minh Tiến, và Bùi Đình Tiền
+\thanks{Bài báo gửi Hội nghị khoa học cấp Khoa SSRC-II'2026 ngày 22/11/2026.}
+\thanks{Trần Xuân Trường và Lê Minh Tiến là sinh viên ngành Kỹ thuật phần mềm, Khoa Công nghệ Thông tin, Trường Đại học Công nghiệp Thành phố Hồ Chí Minh (e-mail: \underline{\hspace{3cm}}; \underline{\hspace{3cm}}).}
+\thanks{ThS. Bùi Đình Tiền, giảng viên hướng dẫn, công tác tại Khoa Công nghệ Thông tin, Trường Đại học Công nghiệp Thành phố Hồ Chí Minh (e-mail: \underline{\hspace{3cm}}).}}
+
+\maketitle
+
+\begin{abstract}
+Phân công nhân sự cho nhiều dự án chạy song song là bài toán tổ hợp với các mục tiêu mâu thuẫn: giao việc đúng kỹ năng, cân bằng tải, kiểm soát chi phí và không để ai vượt năng lực làm việc mỗi tuần. Bài báo đề xuất một cách tiếp cận lai hai pha. Pha thứ nhất dùng mô hình thỏa mãn ràng buộc để lọc, với từng công việc, tập nhân sự đạt ngưỡng kỹ năng, còn rảnh và còn đủ năng lực tuần. Pha thứ hai chạy giải thuật di truyền chỉ trong các miền đã lọc. Bài báo cũng chỉ ra rằng năng lực phải được đo theo tải từng tuần thay vì tổng giờ cả kỳ, và phát biểu lại ràng buộc phụ thuộc giữa các công việc thành ràng buộc trên biến phân công. Phương pháp được cài đặt trong một hệ thống quản lý dự án trên nền web và được đánh giá trên dữ liệu sinh có thể tái lập, so với cách gán tham lam, bộ giải ràng buộc thuần và giải thuật di truyền thuần. Ở cỡ một trăm công việc và hai mươi nhân sự, cách tiếp cận lai đạt độ thích nghi cao hơn giải thuật di truyền thuần trên toàn bộ ba mươi bộ dữ liệu và cao hơn cách gán tham lam, đồng thời giảm mạnh số người quá tải. Ở cỡ nhỏ, pha lọc giúp hội tụ sớm hơn nhưng làm độ thích nghi giảm nhẹ, cho thấy lợi ích của nó tăng theo kích thước bài toán.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Bài toán thỏa mãn ràng buộc, cân bằng tải công việc, giải thuật di truyền, phân bổ nguồn lực, quản lý dự án.
+\end{IEEEkeywords}
+
+%=====================================================================
+\section{Giới thiệu}
+\label{sec:intro}
+
+Trong các doanh nghiệp phần mềm, một nhân sự thường cùng lúc tham gia nhiều dự án. Người quản lý dự án phải trả lời liên tục câu hỏi ``giao việc này cho ai'', và câu trả lời phổ biến nhất là một quy tắc kinh nghiệm: chọn người giỏi nhất đang còn rảnh. Quy tắc này dễ áp dụng nhưng có hai hệ quả quen thuộc. Thứ nhất, người giỏi nhất nhận việc cho tới khi ngập việc, trong khi người khác còn trống. Thứ hai, mỗi người bị kéo vào ngày càng nhiều dự án, phải chuyển ngữ cảnh liên tục giữa chúng. Khi số công việc lên tới hàng trăm và nhân sự có nhiều cấp độ kỹ năng khác nhau, việc cân nhắc đồng thời kỹ năng, lịch nghỉ, năng lực tuần và chi phí vượt quá khả năng tính nhẩm của con người.
+
+Về mặt hình thức, bài toán là một biến thể của bài toán phân công tổng quát (Generalized Assignment Problem, GAP)~\cite{ross1975}, có thêm ràng buộc thời gian và kỹ năng gần với họ bài toán lập lịch dự án có ràng buộc nguồn lực (RCPSP)~\cite{hartmann2010}. Cả hai đều là bài toán NP-khó, nên các phương pháp metaheuristic như giải thuật di truyền (Genetic Algorithm, GA)~\cite{holland1975,goldberg1989} được dùng rộng rãi~\cite{chu1997,kolisch2006}. Tuy vậy, khi áp dụng GA trực tiếp, phần lớn không gian tìm kiếm là những phương án giao việc cho người thiếu kỹ năng hoặc đang nghỉ; giải thuật phải tốn nhiều thế hệ chỉ để ``học'' cách tránh các phương án đó. Ngược lại, mô hình thỏa mãn ràng buộc (Constraint Satisfaction Problem, CSP)~\cite{russell2020,rossi2006} bảo đảm được ràng buộc cứng nhưng dừng ở lời giải hợp lệ đầu tiên, không tối ưu các mục tiêu mềm, và dễ báo vô nghiệm khi ràng buộc chặt.
+
+Bài báo này kết hợp hai cách tiếp cận theo hướng lai tiếp sức~\cite{talbi2002}: CSP lọc miền giá trị của từng công việc, sau đó GA tối ưu đa mục tiêu bên trong các miền đó. Các đóng góp chính gồm:
+\begin{itemize}
+  \item Một mô hình bài toán trong đó năng lực được đo theo \emph{tải từng tuần}, và ràng buộc phụ thuộc giữa các công việc được phát biểu lại thành ràng buộc trên biến phân công (mục~\ref{sec:model}).
+  \item Một quy trình lai CSP--GA, trong đó CSP vừa thu hẹp miền vừa giải thích được lý do vô nghiệm; GA chỉ sinh và đột biến gen trong miền (mục~\ref{sec:method}).
+  \item Một đánh giá thực nghiệm có thể tái lập so với ba đường cơ sở: gán tham lam, CSP thuần và GA thuần, kèm phân tích các hạn chế (mục~\ref{sec:exp}).
+  \item Tích hợp phương pháp vào một hệ thống quản lý dự án trên nền web, có cơ chế xem trước, áp dụng và hoàn tác phương án phân công.
+\end{itemize}
+
+%=====================================================================
+\section{Các nghiên cứu liên quan}
+\label{sec:related}
+
+\textit{Bài toán phân công và lập lịch.} Ross và Soland~\cite{ross1975} giải GAP bằng nhánh cận; Chu và Beasley~\cite{chu1997} đề xuất GA cho GAP với cách mã hóa mỗi gen là chỉ số tác tử được giao, kèm cách đánh giá tách riêng độ thích nghi và độ vi phạm ràng buộc, cùng một bước cải thiện cục bộ. Cách mã hóa trong bài báo này giống Chu và Beasley, nhưng thay vì xử lý lời giải vi phạm sau khi sinh, miền khả thi được tính trước bằng CSP. Hartmann và Briskorn~\cite{hartmann2010} tổng hợp các biến thể của RCPSP, trong đó có biến thể đa kỹ năng; Kolisch và Hartmann~\cite{kolisch2006} so sánh thực nghiệm các heuristic cho RCPSP. Khác với RCPSP, bài báo này coi ngày bắt đầu và kết thúc là dữ liệu đầu vào, chỉ quyết định người thực hiện, vì đó là quyết định mà người quản lý dự án phải đưa ra hằng ngày.
+
+\textit{Thỏa mãn ràng buộc.} Mackworth~\cite{mackworth1977} đưa ra thuật toán AC-3 cho tính nhất quán cung; Haralick và Elliott~\cite{haralick1980} phân tích các heuristic chọn biến như ``giá trị còn lại ít nhất'' (MRV). Với ràng buộc ``đôi một khác nhau'', Régin~\cite{regin1994} đề xuất bộ lọc dựa trên ghép cặp, mạnh hơn AC-3 khi có nhóm từ ba biến trở lên.
+
+\textit{Metaheuristic lai.} Talbi~\cite{talbi2002} phân loại các phương pháp lai; Blum và Roli~\cite{blum2003} cùng Blum và cộng sự~\cite{blum2011} tổng quan việc kết hợp metaheuristic với lập trình ràng buộc. Theo phân loại của Talbi, phương pháp trong bài báo là lai mức cao kiểu tiếp sức: hai thuật toán chạy nối tiếp, kết quả của thuật toán trước là đầu vào của thuật toán sau.
+
+%=====================================================================
+\section{Mô hình bài toán}
+\label{sec:model}
+
+\subsection{Dữ liệu và biến quyết định}
+
+Cho tập công việc $T=\{t_1,\dots,t_n\}$ và tập nhân sự $R=\{r_1,\dots,r_m\}$. Mỗi công việc $t_j$ có số giờ ước lượng $e_j$, ngày bắt đầu $s_j$, ngày kết thúc $f_j$, dự án $p_j$, và tập kỹ năng yêu cầu $Q_j=\{(k, q_{jk}, \omega_{jk})\}$ với $q_{jk}\in\{1,\dots,4\}$ là cấp độ yêu cầu và $\omega_{jk}\ge 0$ là trọng số. Mỗi nhân sự $r_i$ có cấp độ kỹ năng $S_{ik}\in\{0,\dots,4\}$ (bằng 0 nếu không có kỹ năng $k$), năng lực tuần $C_i=\text{maxCapacity}_i\times\text{FTE}_i$ (giờ/tuần), đơn giá $c_i$, các khoảng nghỉ $U_i$, và tập việc đã cam kết ở các dự án khác. Biến quyết định là $x_j\in R$: người thực hiện công việc $t_j$. Một lời giải được biểu diễn bằng vectơ $\mathbf{x}=(x_1,\dots,x_n)$.
+
+\subsection{Độ khớp kỹ năng}
+
+Độ khớp giữa công việc $t_j$ và nhân sự $r_i$ được định nghĩa là
+\begin{equation}
+\mu(j,i)=\frac{\sum_{k\in Q_j}\omega_{jk}\min(S_{ik},q_{jk})}{\sum_{k\in Q_j}\omega_{jk}\,q_{jk}},
+\label{eq:skill}
+\end{equation}
+với quy ước $\mu=1$ khi công việc không yêu cầu kỹ năng nào. Tên kỹ năng được so khớp không phân biệt hoa thường. Hai thang cấp độ dùng chung miền $1$--$4$: nếu yêu cầu được phép lên tới 5 trong khi nhân sự tối đa 4, điểm khớp của mọi người ở kỹ năng đó bị chặn trên bởi $0{,}8$, và kỹ năng đó không còn phân biệt được ai hơn ai.
+
+\subsection{Tải theo tuần}
+
+Số giờ $e_j$ được trải đều lên các ngày làm việc trong $[s_j,f_j]$ rồi gom theo tuần; gọi $d_j(w)$ là phần giờ của $t_j$ rơi vào tuần $w$. Tải của nhân sự $r_i$ trong tuần $w$ là
+\begin{equation}
+L_i(w)=\sum_{j:\,x_j=r_i} d_j(w) + B_i(w),
+\label{eq:load}
+\end{equation}
+trong đó $B_i(w)$ là tải đã cam kết ở các dự án khác. Công việc chưa có lịch được coi như dồn hết vào một tuần, là mức sàn bảo thủ để việc thiếu ngày không trở thành ``miễn phí'' đối với thuật toán.
+
+Lý do đo theo tuần: $C_i$ là một \emph{tốc độ} (giờ mỗi tuần). Nếu đem tổng giờ tích lũy của mọi việc đã giao so với $C_i$, tức là so một lượng với một tốc độ, thì một người không bao giờ nhận nổi quá khoảng 40 giờ cho cả một dự án kéo dài nhiều tháng. Trong phiên bản đầu của hệ thống, trên một bộ thử gồm 30 công việc và 6 nhân sự, cách tính theo tổng giờ báo cả 6/6 người quá tải, trong khi tải tuần cao điểm thực tế của họ chỉ từ 25 đến 40 giờ so với năng lực 40 giờ; cách tính theo tuần báo 0/6. Hệ quả nghiêm trọng hơn là thành phần phạt quá tải trong hàm mục tiêu bị bão hòa ở mọi phương án, nên trọng số của nó trở thành trọng số chết. Việc cộng $B_i(w)$ cũng xuất phát từ dữ liệu thật: nếu mỗi lần tối ưu đều coi đội ngũ đang rảnh hoàn toàn, hai lần tối ưu cho hai dự án có thể cùng giao việc cho một người, và cả hai lần đều báo ``không quá tải''.
+
+\subsection{Ràng buộc cứng}
+
+\begin{align}
+\text{(H1)}\;& L_i(w)\le C_i, && \forall i,\ \forall w,\\
+\text{(H2)}\;& \mu(j,x_j)\ge\theta, && \forall j,\\
+\text{(H3)}\;& [s_j,f_j]\cap u=\varnothing, && \forall j,\ \forall u\in U_{x_j},\\
+\text{(H4)}\;& x_a\ne x_b, && \forall (a,b)\in D,\ [s_a,f_a]\cap[s_b,f_b]\ne\varnothing,
+\end{align}
+trong đó $\theta$ là ngưỡng kỹ năng (mặc định $0{,}5$) và $D$ là tập cặp công việc có quan hệ phụ thuộc. Ràng buộc H3 dùng biên đóng: kỳ nghỉ kết thúc đúng ngày công việc bắt đầu vẫn tính là bận.
+
+Cần lưu ý rằng H2 là ràng buộc ngưỡng trên điểm tổng hợp~\eqref{eq:skill}, không tương đương với yêu cầu $S_{ik}\ge q_{jk}$ cho mọi kỹ năng: một người thiếu hẳn một kỹ năng vẫn có thể được giao nếu điểm tổng đạt ngưỡng.
+
+\textit{Phát biểu lại ràng buộc phụ thuộc.} Dạng quen thuộc của ràng buộc phụ thuộc kết thúc--bắt đầu là $f_a\le s_b$. Trong bài toán này ngày tháng là dữ liệu đầu vào, không phải biến quyết định, nên đổi người thực hiện bao nhiêu lần cũng không làm điều kiện đó đúng lên; cài đặt nguyên văn sẽ làm mọi bộ dữ liệu có lịch chồng nhau trở nên vô nghiệm mà không nói được lý do. Vì vậy ràng buộc được tách làm hai phần. Phần thứ tự ngày ($f_a>s_b$) được coi là lỗi dữ liệu lịch và chỉ được báo cáo, kèm cặp công việc và số ngày lệch. Phần thuộc về phân công là H4: hai việc phụ thuộc nhau mà lịch chồng nhau thì không giao cho cùng một người. Hai việc nối tiếp đúng thứ tự ($f_a=s_b$) không bị coi là chồng lịch.
+
+\subsection{Hàm mục tiêu}
+
+Chất lượng của một lời giải được đo bằng độ thích nghi
+\begin{equation}
+F(\mathbf{x})=w_1 f_W+w_2 f_S+w_3 f_C+w_4 f_O\in[0,1],
+\label{eq:fitness}
+\end{equation}
+với $w=(0{,}30;\,0{,}35;\,0{,}15;\,0{,}20)$ và:
+\begin{itemize}
+  \item $f_W=1-\sigma(H)/\max(H)$: cân bằng tải, trong đó $H_i$ là tổng giờ được giao cho $r_i$ và $\sigma$ là độ lệch chuẩn;
+  \item $f_S=\frac{1}{n}\sum_j \mu(j,x_j)$: độ khớp kỹ năng trung bình;
+  \item $f_C=1-\sum_j c_{x_j}e_j\,/\,(\max_i c_i\sum_j e_j)$: chi phí đã chuẩn hóa;
+  \item $f_O=1-|\{i:\max_w L_i(w)>C_i\}|/m$: tỷ lệ nhân sự không quá tải theo tuần cao điểm.
+\end{itemize}
+Ngoài ra, số lần chuyển ngữ cảnh $\mathrm{CS}=\sum_i\max(0,|P_i|-1)$, với $P_i$ là tập dự án mà $r_i$ tham gia (kể cả việc đã cam kết), được dùng làm chỉ số đánh giá nhưng không đưa vào $F$.
+
+%=====================================================================
+\section{Phương pháp đề xuất}
+\label{sec:method}
+
+Hình~\ref{fig:pipeline} tóm tắt quy trình hai pha. Pha CSP nhận toàn bộ công việc và nhân sự, trả về miền khả thi $D_j\subseteq R$ cho từng công việc cùng một báo cáo ràng buộc; pha GA tìm lời giải tốt nhất theo~\eqref{eq:fitness} với điều kiện $x_j\in D_j$.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, minimum height=7mm, inner sep=3pt},
+  arr/.style={-{Latex[length=2mm]}, semithick}]
+\def\W{0.9\columnwidth}
+\node[box, fill=gray!10, text width=\W] (in) at (0,0) {Công việc $T$, nhân sự $R$, lịch nghỉ, tải đã cam kết};
+\node[box, text width=\W] (csp) at (0,-1.25) {\textbf{Pha 1 -- CSP}: lọc miền theo H2, H3 $\rightarrow$ nhất quán nút theo năng lực tuần $\rightarrow$ AC-3 trên đồ thị H4 $\rightarrow$ (tùy chọn) quay lui MRV};
+\node[box, fill=gray!10, text width=0.4\columnwidth] (dom) at (-0.24\columnwidth,-2.55) {Miền $D_j$ cho từng việc};
+\node[box, fill=gray!10, text width=0.4\columnwidth] (rep) at (0.24\columnwidth,-2.55) {Báo cáo ràng buộc, lý do vô nghiệm};
+\node[box, text width=\W] (ga) at (0,-3.75) {\textbf{Pha 2 -- GA}: khởi tạo và đột biến trong $D_j$; chọn lọc giải đấu, lai đều, giữ cá thể ưu tú};
+\node[box, fill=gray!10, text width=\W] (out) at (0,-4.95) {Phương án $\mathbf{x}^\ast$ $\rightarrow$ xem trước $\rightarrow$ áp dụng hoặc hoàn tác};
+\draw[arr] (in) -- (csp);
+\draw[arr] (dom.north |- csp.south) -- (dom.north);
+\draw[arr] (rep.north |- csp.south) -- (rep.north);
+\draw[arr] (dom.south) -- (dom.south |- ga.north);
+\draw[arr] (ga) -- (out);
+\end{tikzpicture}
+\caption{Quy trình lai hai pha CSP--GA.}
+\label{fig:pipeline}
+\end{figure}
+
+\subsection{Pha 1: thỏa mãn ràng buộc}
+
+Thuật toán~\ref{alg:csp} mô tả bộ giải. Bước lọc miền chỉ giữ những nhân sự thỏa H2 và H3. Bước nhất quán nút loại những nhân sự mà riêng công việc đang xét đã vượt năng lực ở một tuần nào đó. Bước AC-3~\cite{mackworth1977} lan truyền ràng buộc nhị phân H4: với ràng buộc $x_a\ne x_b$, một giá trị $r\in D_a$ chỉ mất chỗ dựa khi $D_b=\{r\}$.
+
+AC-3 trên ràng buộc ``khác nhau'' không suy luận được kiểu chuồng bồ câu; muốn vậy cần bộ lọc của Régin~\cite{regin1994}. Tuy nhiên Régin chỉ lọc được nhiều hơn AC-3 khi đồ thị xung đột H4 có nhóm từ ba đỉnh trở lên đôi một nối nhau. Đo trên cơ sở dữ liệu phát triển của hệ thống, nhóm lớn nhất chỉ có hai đỉnh, đúng là ràng buộc nhị phân mà AC-3 đã lọc trọn vẹn. Với phụ thuộc kết thúc--bắt đầu, một nhóm ba đỉnh đòi hỏi ba lỗi lịch xảy ra cùng lúc, nên chúng tôi không cài đặt Régin.
+
+Khi dùng như một bộ giải độc lập, CSP tiếp tục quay lui với heuristic MRV~\cite{haralick1980}. Vì quay lui trả về lời giải đầu tiên, thứ tự thử ứng viên là nơi các mục tiêu mềm có tác dụng. Ứng viên $r_i$ cho công việc $t_j$ được xếp theo điểm
+\begin{equation}
+\phi(j,i)=0{,}35\,\mu(j,i)+0{,}30\,\rho_i+0{,}15\,\mathbb{1}[p_j\in P_i],
+\label{eq:order}
+\end{equation}
+trong đó $\rho_i=(C_i-\max_w L_i(w))/C_i$ là phần năng lực còn trống ở tuần nặng nhất của $r_i$ và $\mathbb{1}[p_j\in P_i]$ bằng 1 nếu $r_i$ đã có việc thuộc cùng dự án.
+Hai trọng số đầu cùng tỷ lệ với $w_2$ và $w_1$ trong~\eqref{eq:fitness}, để CSP và GA cùng hiểu thế nào là phân công tốt. Trọng số $0{,}15$ của thành phần ``cùng dự án'' được chọn để thắng chênh lệch về chỗ trống mà một công việc thường gây ra ($8/40\times0{,}30=0{,}06$), nhưng thua chênh lệch kỹ năng rõ rệt ($0{,}5\times0{,}35\approx0{,}175$).
+
+Bộ giải có ngân sách $10\,000$ bước và $30$ giây. Kết quả thất bại phân biệt hai trường hợp: đã duyệt hết cây tìm kiếm (thật sự vô nghiệm) và hết ngân sách (bài toán có thể vẫn có nghiệm). Khi một miền rỗng, bộ giải trả về danh sách công việc không có ứng viên cùng lý do, giúp người quản lý biết cần nới ràng buộc nào.
+
+\begin{algorithm}[t]
+\caption{Pha thỏa mãn ràng buộc}
+\label{alg:csp}
+\KwIn{$T$, $R$, ngưỡng $\theta$}
+\KwOut{Miền $D_j$; phân công $\mathbf{x}$ hoặc lý do thất bại}
+\ForEach{$t_j\in T$}{
+  $D_j\leftarrow\{r_i : \mu(j,i)\ge\theta \wedge \text{H3}(i,j)\}$\;
+  $D_j\leftarrow\{r_i\in D_j : \forall w,\ d_j(w)+B_i(w)\le C_i\}$\;
+}
+\lIf{$\exists j: D_j=\varnothing$}{\Return{lý do: việc không có ứng viên}}
+$\text{AC-3}(\{D_j\},\ \text{đồ thị H4})$\;
+\lIf{$\exists j: D_j=\varnothing$}{\Return{lý do: ràng buộc quá chặt}}
+\Return{$\{D_j\}$, $\textsc{QuayLui}(\varnothing)$ với MRV và thứ tự~\eqref{eq:order}, kiểm H1 và H4 ở mỗi bước}\;
+\end{algorithm}
+
+\subsection{Pha 2: giải thuật di truyền trên miền đã lọc}
+
+Mỗi nhiễm sắc thể là vectơ $\mathbf{x}$ độ dài $n$, gen thứ $j$ là chỉ số nhân sự được giao~\cite{chu1997}. Quần thể ban đầu được sinh bằng cách chọn ngẫu nhiên $x_j$ \emph{trong} $D_j$. Chọn lọc dùng giải đấu kích thước 5; lai ghép đều (mỗi gen lấy từ cha hoặc mẹ với xác suất $1/2$); đột biến gán lại gen bằng một nhân sự ngẫu nhiên \emph{trong} $D_j$; giữ lại 5\% cá thể tốt nhất. Lai ghép và giữ cá thể ưu tú không cần sửa, vì chúng chỉ hoán đổi hoặc sao chép những gen vốn đã hợp lệ. Vì vậy mọi cá thể trong quần thể đều thỏa H2 và H3 suốt quá trình tiến hóa. Giải thuật dừng khi đạt số thế hệ tối đa, khi độ thích nghi tốt nhất không cải thiện sau 50 thế hệ liên tiếp, hoặc khi đạt $0{,}95$.
+
+Ràng buộc H1 và H4 phụ thuộc vào toàn bộ lời giải nên không đưa được vào miền; H1 được xử lý mềm qua thành phần $f_O$. Nếu một công việc có miền rỗng, GA không thể sinh gen cho nó; khi đó miền của riêng công việc này được mở lại thành toàn bộ $R$ và số lần mở lại được ghi vào kết quả. Hệ thống hiển thị cảnh báo tương ứng thay vì im lặng trả về một phương án trông có vẻ hợp lệ.
+
+\begin{table*}[!t]
+\centering
+\caption{So sánh bốn thuật toán, trung bình trên 30 bộ mỗi cỡ. Fitness theo~\eqref{eq:fitness}; $\sigma$ là độ lệch chuẩn tổng giờ giữa các nhân sự; ``Quá tải'' là số người có tuần cao điểm vượt năng lực; CS là số lần chuyển ngữ cảnh. Chữ đậm: tốt nhất trong cỡ.}
+\label{tab:main}
+\begin{tabular}{llrrrrrrr}
+\toprule
+Cỡ & Thuật toán & Fitness $\uparrow$ & Khớp KN (\%) $\uparrow$ & $\sigma$ (giờ) $\downarrow$ & Quá tải $\downarrow$ & CS $\downarrow$ & Thời gian (ms) & Số bộ giải được \\
+\midrule
+\multirow{4}{*}{\shortstack[l]{Nhỏ\\20$\times$5}}
+ & Tham lam & 0,767 & \textbf{94,8} & 16,8 & 1,07 & 4,0 & \textbf{1} & 30/30 \\
+ & CSP      & 0,800 & 92,9 & 15,8 & \textbf{0,00} & \textbf{2,5} & \textbf{1} & 23/30 \\
+ & GA       & \textbf{0,824} & 87,0 & \textbf{3,5} & 0,03 & 4,3 & 689 & 30/30 \\
+ & Hybrid   & 0,819 & 93,2 & 9,6 & 0,23 & 4,2 & 419 & 30/30 \\
+\midrule
+\multirow{4}{*}{\shortstack[l]{Vừa\\100$\times$20}}
+ & Tham lam & 0,751 & \textbf{98,0} & 34,2 & 7,77 & 54,5 & \textbf{2} & 30/30 \\
+ & CSP      & \textbf{0,828} & 94,5 & \textbf{17,3} & \textbf{0,07} & \textbf{33,9} & 19 & 14/30 \\
+ & GA       & 0,697 & 61,7 & 38,2 & 1,73 & 58,2 & 6\,483 & 30/30 \\
+ & Hybrid   & 0,803 & 91,7 & 36,3 & 1,60 & 58,1 & 5\,517 & 30/30 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Đường cơ sở: gán tham lam}
+
+Để có mốc so sánh gần với cách làm thủ công, chúng tôi cài đặt một thuật toán tham lam: xét công việc theo thứ tự số giờ giảm dần, giao mỗi việc cho người có điểm $0{,}6\,\mu(j,i)+0{,}4\,(1-\text{tải}_i/C_i)$ cao nhất. Đây chính là quy tắc ``người hợp kỹ năng nhất, đang rảnh nhất'' nêu ở mục~\ref{sec:intro}.
+
+\subsection{Tích hợp vào hệ thống}
+
+Phương pháp được cài đặt trong hệ thống \textit{Resource Allocation Optimization} (RAO), gồm máy chủ Node.js/Express với cơ sở dữ liệu MongoDB, ứng dụng web React và ứng dụng di động React Native dùng chung giao diện lập trình. Người quản lý chọn phạm vi (một dự án hoặc toàn công ty), chạy thuật toán và nhận một bản \emph{xem trước} liệt kê từng công việc đổi người, kèm tải tuần trước và sau. Chỉ khi bấm áp dụng thì phân công mới được ghi vào cơ sở dữ liệu, đồng thời lưu vết để có thể hoàn tác. Hệ thống từ chối áp dụng một phương án không đổi phân công nào, vì vết hoàn tác khi đó rỗng. Tải đã cam kết $B_i(w)$ được nạp từ các dự án nằm ngoài phạm vi đang tối ưu.
+
+%=====================================================================
+\section{Thực nghiệm}
+\label{sec:exp}
+
+\subsection{Dữ liệu}
+
+Dữ liệu được sinh tự động để kiểm soát được cỡ bài toán và tái lập được kết quả. Bộ sinh gắn kỹ năng với \emph{vai trò}: có 9 vai trò (ví dụ kỹ sư fullstack, chuyên viên DevOps, quản trị cơ sở dữ liệu), mỗi vai trò có một cụm 2--4 kỹ năng. Mỗi nhân sự nắm trọn cụm kỹ năng của vai trò mình ở cấp 2--4, cộng 0--2 kỹ năng ngoài cụm ở cấp 1--2, với năng lực 40 giờ/tuần và đơn giá 150--450 nghìn đồng/giờ. Mỗi công việc thuộc vai trò của một nhân sự có thật trong đội, yêu cầu 1--3 kỹ năng của cụm đó ở cấp 1--3 với trọng số $0{,}5$--$1{,}0$, cần 4--24 giờ, kéo dài 2--10 ngày và bắt đầu trong vòng 15 ngày kể từ một ngày mốc cố định. Các công việc chia vào $\lceil n/10\rceil$ dự án. Nhờ cách sinh này, mỗi công việc luôn có ít nhất một nhân sự đạt độ khớp từ $2/3$ trở lên.
+
+Cách gắn kỹ năng theo vai trò là cần thiết. Ở phiên bản đầu, kỹ năng của người và của việc được bốc độc lập từ 15 kỹ năng, khiến khoảng 26\% công việc của bộ cỡ nhỏ không có ai đạt ngưỡng $\theta=0{,}5$, và CSP giải được $0/30$ bộ. Số đo khi đó phản ánh bộ sinh dữ liệu chứ không phản ánh thuật toán.
+
+Hai cỡ được dùng: \emph{nhỏ} (20 công việc, 5 nhân sự) và \emph{vừa} (100 công việc, 20 nhân sự), mỗi cỡ 30 bộ. Dữ liệu và mọi lần gọi số ngẫu nhiên đều dùng bộ sinh có hạt giống cố định (mulberry32) cùng ngày mốc cố định 08/10/2026, nên chạy lại cho đúng các con số dưới đây, trừ cột thời gian.
+
+\subsection{Cấu hình}
+
+GA dùng quần thể 80, tối đa 250 thế hệ, xác suất lai $0{,}8$ và đột biến $0{,}1$. Trong bảng so sánh tổng hợp, Hybrid dùng cấu hình của công cụ benchmark trong hệ thống ($0{,}85$ và $0{,}12$); thí nghiệm ở mục~\ref{sec:domain} giữ tham số hai bên giống hệt để tách riêng tác dụng của miền. CSP dùng $\theta=0{,}5$, ngân sách $10\,000$ bước và 10 giây. Mọi thí nghiệm chạy trên Node.js 22, một luồng, trên máy Linux hai nhân; cột thời gian phụ thuộc máy, các cột còn lại tái lập chính xác.
+
+\subsection{So sánh tổng hợp}
+
+Bảng~\ref{tab:main} trình bày kết quả. Với CSP, các trung bình chỉ lấy trên những bộ mà CSP giải được; ba thuật toán còn lại luôn giao đủ việc nên lấy trên cả 30 bộ.
+
+
+Có bốn nhận xét chính. \emph{Thứ nhất}, cách gán tham lam cho độ khớp kỹ năng cao nhất nhưng làm quá tải người: trung bình 1,07 người ở cỡ nhỏ và 7,77 trên 20 người ở cỡ vừa có tuần cao điểm vượt năng lực, đúng như hiện tượng ``người giỏi nhất ngập việc'' nêu ở mục~\ref{sec:intro}. \emph{Thứ hai}, Hybrid hơn tham lam ở cả hai cỡ và giảm số người quá tải ở cỡ vừa xuống còn 1,60. \emph{Thứ ba}, GA thuần ở cỡ vừa còn kém cả tham lam: với 100 công việc, 20 nhân sự và 250 thế hệ, GA không đủ thời gian để tự học cách tránh người thiếu kỹ năng (độ khớp chỉ 61,7\%). Đây chính là lý do của pha CSP: miền đã loại sẵn các cặp thiếu kỹ năng, đưa độ khớp lên 91,7\%. Ở cỡ nhỏ, không gian tìm kiếm đủ hẹp để GA thuần tự tìm được phương án cân tải rất tốt ($\sigma=3{,}5$ giờ), nên ưu thế của Hybrid không còn; mục~\ref{sec:domain} phân tích kỹ hiện tượng này. \emph{Thứ tư}, CSP cho phương án tốt nhất khi giải được, nhưng chỉ giải được 23/30 bộ cỡ nhỏ và 14/30 bộ cỡ vừa; phần còn lại vô nghiệm theo ràng buộc cứng hoặc chạm ngân sách tìm kiếm. Vì trung bình của CSP chỉ tính trên các bộ nó giải được, vốn là những bộ ``dễ'' hơn, không thể so trực tiếp con số này với ba thuật toán còn lại.
+
+\subsection{Tác dụng của việc thu hẹp miền}
+\label{sec:domain}
+
+Để tách riêng tác dụng của miền, chúng tôi chạy GA thuần và Hybrid với \emph{cùng} tham số di truyền trên cùng dữ liệu. ``Hội tụ 90\%'' là thế hệ đầu tiên mà mức cải thiện độ thích nghi tốt nhất so với thế hệ 0 đạt 90\% mức cải thiện cuối cùng; định nghĩa theo mức cải thiện thay vì theo ``đạt 90\% độ thích nghi cuối'', vì độ thích nghi của thế hệ 0 thường đã vượt 90\% giá trị cuối. Kết quả ở Bảng~\ref{tab:domain}.
+
+\begin{table}[t]
+\centering
+\caption{GA thuần và Hybrid với cùng tham số di truyền (quần thể 80, tối đa 250 thế hệ, lai $0{,}8$, đột biến $0{,}1$), 30 bộ mỗi cỡ. Fitness ghi trung bình $\pm$ độ lệch chuẩn.}
+\label{tab:domain}
+\footnotesize
+\setlength{\tabcolsep}{2.2pt}
+\begin{tabular}{llcrrrrr}
+\toprule
+Cỡ & & Fitness & \shortstack{Khớp\\KN (\%)} & \shortstack{$\sigma$\\(giờ)} & \shortstack{Quá\\tải} & \shortstack{Hội tụ\\90\%} & \shortstack{Thế hệ\\dừng} \\
+\midrule
+\multirow{2}{*}{Nhỏ} & GA     & \textbf{0,823}$\pm$0,019 & 87,5 & \textbf{3,5} & \textbf{0,00} & 24,0 & 103,8 \\
+                     & Hybrid & 0,808$\pm$0,037 & \textbf{94,3} & 11,4 & 0,30 & \textbf{4,5} & \textbf{55,9} \\
+\midrule
+\multirow{2}{*}{Vừa} & GA     & 0,695$\pm$0,018 & 60,9 & 36,1 & 1,77 & 93,5 & \textbf{180,9} \\
+                     & Hybrid & \textbf{0,810}$\pm$0,012 & \textbf{91,7} & \textbf{29,5} & \textbf{1,30} & \textbf{78,2} & 188,8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Miền sau khi lọc giữ lại trung bình 35,5\% số cặp công việc--nhân sự ở cỡ nhỏ và 29,2\% ở cỡ vừa; không công việc nào phải mở lại miền. Ở cỡ vừa, Hybrid có độ thích nghi cao hơn GA trên \emph{cả} 30/30 bộ, với độ khớp kỹ năng 91,7\% so với 60,9\%, đồng thời cân tải tốt hơn và ít người quá tải hơn. Không gian $20^{100}$ phương án quá lớn để GA tự loại các cặp thiếu kỹ năng trong 250 thế hệ; pha lọc làm hộ việc đó.
+
+Ở cỡ nhỏ thì ngược lại: Hybrid hội tụ sớm hơn hẳn (thế hệ 4,5 so với 24,0) và dừng ở thế hệ 55,9 thay vì 103,8, nhưng độ thích nghi trung bình \emph{thấp hơn} (0,808 so với 0,823) và chỉ cao hơn GA ở 12/30 bộ. Với 5 nhân sự, GA thuần đủ sức tìm phương án đánh đổi một ít độ khớp kỹ năng lấy tải rất cân ($\sigma=3{,}5$ giờ); miền đã lọc cấm đúng những phương án đánh đổi đó, khiến quần thể hội tụ sớm về vùng có tải kém cân hơn. Nói cách khác, ngưỡng $\theta$ là một ràng buộc \emph{cứng} mà hàm mục tiêu~\eqref{eq:fitness} không đòi hỏi: khi bài toán đủ nhỏ để tìm kiếm tự do, ràng buộc này làm mất phần tối ưu. Lợi ích của pha lọc vì vậy tăng theo kích thước bài toán.
+
+\subsection{Tác dụng của thứ tự ứng viên trong CSP}
+
+Trước khi có~\eqref{eq:order}, bộ giải chỉ xếp ứng viên theo chỗ trống còn lại (heuristic LCV). Bảng~\ref{tab:order} so hai cách xếp trên cùng dữ liệu; vì CSP tất định nên mỗi bộ chỉ chạy một lần, và trung bình lấy trên các bộ mà \emph{cả hai} bản cùng giải được. Ngưỡng $\theta=0$ bỏ hẳn bộ lọc kỹ năng, nên chỉ còn thứ tự quyết định người được chọn; đó là nơi thấy rõ nhất tác dụng của thành phần kỹ năng trong~\eqref{eq:order}.
+
+\begin{table}[t]
+\centering
+\caption{CSP với thứ tự ứng viên chỉ theo chỗ trống (trước) và theo~\eqref{eq:order} (sau). Trung bình trên các bộ cả hai cùng giải được (11, 15, 25 và 29 bộ theo thứ tự các dòng); cột cuối là số bộ giải được trên 30.}
+\label{tab:order}
+\setlength{\tabcolsep}{2.6pt}
+\begin{tabular}{lrrrr}
+\toprule
+Cỡ, $\theta$ & Khớp KN (\%) & CS & Fitness & Giải được \\
+\midrule
+Vừa, $0{,}5$ & 85 $\rightarrow$ \textbf{94} & 60,6 $\rightarrow$ \textbf{33,8} & 0,796 $\rightarrow$ \textbf{0,820} & 15 $\rightarrow$ \textbf{18} \\
+Nhỏ, $0{,}5$ & 92 $\rightarrow$ \textbf{95} & 3,9 $\rightarrow$ \textbf{2,9} & 0,793 $\rightarrow$ \textbf{0,796} & 15 $\rightarrow$ 15 \\
+Vừa, $0$ & 30 $\rightarrow$ \textbf{93} & 60,6 $\rightarrow$ \textbf{34,4} & 0,604 $\rightarrow$ \textbf{0,820} & 25 $\rightarrow$ \textbf{30} \\
+Nhỏ, $0$ & 38 $\rightarrow$ \textbf{87} & 4,3 $\rightarrow$ \textbf{3,4} & 0,619 $\rightarrow$ \textbf{0,784} & 29 $\rightarrow$ \textbf{30} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Thứ tự mới cải thiện độ khớp kỹ năng, số lần chuyển ngữ cảnh và độ thích nghi ở mọi ô. Cái giá là tải kém cân hơn: $\sigma$ tăng từ 0,8 đến 3,2 giờ, hệ quả trực tiếp của việc chỗ trống không còn là tiêu chí duy nhất. Ở $\theta=0{,}5$, bộ lọc H2 đã loại phần lớn người khớp kém, nên tác dụng chủ yếu là gom việc cùng dự án: số lần chuyển ngữ cảnh ở cỡ vừa giảm gần một nửa.
+
+\subsection{Thảo luận và hạn chế}
+
+\textit{Dữ liệu sinh.} Mọi kết quả đều đo trên dữ liệu sinh. Bộ sinh gắn kỹ năng theo vai trò để gần với thực tế hơn, nhưng chưa có đánh giá trên dữ liệu phân công thật của doanh nghiệp, và bộ sinh không tạo quan hệ phụ thuộc nên H4 chưa được kiểm chứng ở quy mô lớn.
+
+\textit{Thời gian chạy.} Ở cỡ vừa, GA và Hybrid cần khoảng 5--7 giây trên máy thử nghiệm, chấp nhận được cho việc lập kế hoạch định kỳ nhưng chưa đủ nhanh cho tương tác tức thời. Cỡ lớn (500 công việc, 60 nhân sự) chưa được đánh giá có hệ thống.
+
+\textit{Hàm mục tiêu.} Thành phần cân tải $f_W$ vẫn đo trên tổng giờ cả kỳ, trong khi ràng buộc năng lực đo theo tuần; hai thước đo có thể kéo lời giải theo hai hướng khác nhau. Bộ trọng số $w$ được chọn bằng tay; chưa có phân tích độ nhạy.
+
+\textit{So sánh.} Trong Bảng~\ref{tab:main}, Hybrid và GA dùng xác suất lai và đột biến khác nhau, nên chênh lệch giữa hai cột không chỉ do miền; Bảng~\ref{tab:domain} được thêm vào để bù cho điểm này. Ba bảng dùng ba chuỗi dữ liệu sinh với hạt giống khác nhau, nên số bộ CSP giải được không trùng nhau giữa Bảng~\ref{tab:main} và Bảng~\ref{tab:order}. Trung bình của CSP lấy trên tập bộ giải được, nên thiên về các bộ dễ.
+
+%=====================================================================
+\section{Kết luận}
+\label{sec:conclusion}
+
+Bài báo đã trình bày một cách tiếp cận lai hai pha cho bài toán phân bổ nhân sự đa dự án: pha thỏa mãn ràng buộc lọc miền khả thi và giải thích lý do vô nghiệm, pha giải thuật di truyền tối ưu đa mục tiêu trong các miền đó. Hai chi tiết mô hình hóa tỏ ra quan trọng trong thực tế: đo năng lực theo tải từng tuần thay vì tổng giờ, và phát biểu ràng buộc phụ thuộc trên biến phân công thay vì trên ngày tháng. Thực nghiệm cho thấy cách tiếp cận lai vượt cách gán tham lam ở cả hai cỡ, giảm mạnh tình trạng quá tải so với cách phân công theo kinh nghiệm, và vượt giải thuật di truyền thuần trên toàn bộ các bộ dữ liệu cỡ vừa. Ở cỡ nhỏ, pha lọc chỉ giúp hội tụ nhanh hơn và làm mất một phần độ thích nghi, nên nó phù hợp nhất với bài toán cỡ vừa trở lên. Phương pháp đã được tích hợp vào một hệ thống quản lý dự án có cơ chế xem trước, áp dụng và hoàn tác.
+
+Các hướng phát triển gồm: đánh giá trên dữ liệu thật của doanh nghiệp; nới ngưỡng $\theta$ theo kích thước bài toán, hoặc chỉ dùng miền để khởi tạo quần thể mà vẫn cho đột biến ra ngoài miền; thay hàm mục tiêu tổng có trọng số bằng tối ưu đa mục tiêu Pareto như NSGA-II~\cite{deb2002} để người quản lý tự chọn điểm cân bằng; đưa toán tử sửa chữa theo năng lực tuần vào GA; và bổ sung bộ lọc ``đôi một khác nhau''~\cite{regin1994} nếu dữ liệu thật xuất hiện các nhóm công việc phụ thuộc chồng lịch từ ba việc trở lên.
+
+%=====================================================================
+\begin{thebibliography}{00}
+\bibitem{ross1975} G. T. Ross and R. M. Soland, ``A branch and bound algorithm for the generalized assignment problem,'' \textit{Math. Program.}, vol. 8, no. 1, pp. 91--103, 1975.
+\bibitem{hartmann2010} S. Hartmann and D. Briskorn, ``A survey of variants and extensions of the resource-constrained project scheduling problem,'' \textit{Eur. J. Oper. Res.}, vol. 207, no. 1, pp. 1--14, 2010.
+\bibitem{holland1975} J. H. Holland, \textit{Adaptation in Natural and Artificial Systems}. Ann Arbor, MI, USA: Univ. Michigan Press, 1975.
+\bibitem{goldberg1989} D. E. Goldberg, \textit{Genetic Algorithms in Search, Optimization, and Machine Learning}. Reading, MA, USA: Addison-Wesley, 1989.
+\bibitem{chu1997} P. C. Chu and J. E. Beasley, ``A genetic algorithm for the generalised assignment problem,'' \textit{Comput. Oper. Res.}, vol. 24, no. 1, pp. 17--23, 1997.
+\bibitem{kolisch2006} R. Kolisch and S. Hartmann, ``Experimental investigation of heuristics for resource-constrained project scheduling: An update,'' \textit{Eur. J. Oper. Res.}, vol. 174, no. 1, pp. 23--37, 2006.
+\bibitem{russell2020} S. Russell and P. Norvig, \textit{Artificial Intelligence: A Modern Approach}, 4th ed. Hoboken, NJ, USA: Pearson, 2020.
+\bibitem{rossi2006} F. Rossi, P. van Beek, and T. Walsh, Eds., \textit{Handbook of Constraint Programming}. Amsterdam, The Netherlands: Elsevier, 2006.
+\bibitem{talbi2002} E.-G. Talbi, ``A taxonomy of hybrid metaheuristics,'' \textit{J. Heuristics}, vol. 8, no. 5, pp. 541--564, 2002.
+\bibitem{mackworth1977} A. K. Mackworth, ``Consistency in networks of relations,'' \textit{Artif. Intell.}, vol. 8, no. 1, pp. 99--118, 1977.
+\bibitem{haralick1980} R. M. Haralick and G. L. Elliott, ``Increasing tree search efficiency for constraint satisfaction problems,'' \textit{Artif. Intell.}, vol. 14, no. 3, pp. 263--313, 1980.
+\bibitem{regin1994} J.-C. Régin, ``A filtering algorithm for constraints of difference in CSPs,'' in \textit{Proc. 12th Nat. Conf. Artif. Intell. (AAAI)}, Seattle, WA, USA, 1994, pp. 362--367.
+\bibitem{blum2003} C. Blum and A. Roli, ``Metaheuristics in combinatorial optimization: Overview and conceptual comparison,'' \textit{ACM Comput. Surv.}, vol. 35, no. 3, pp. 268--308, 2003.
+\bibitem{blum2011} C. Blum, J. Puchinger, G. R. Raidl, and A. Roli, ``Hybrid metaheuristics in combinatorial optimization: A survey,'' \textit{Appl. Soft Comput.}, vol. 11, no. 6, pp. 4135--4151, 2011.
+\bibitem{deb2002} K. Deb, A. Pratap, S. Agarwal, and T. Meyarivan, ``A fast and elitist multiobjective genetic algorithm: NSGA-II,'' \textit{IEEE Trans. Evol. Comput.}, vol. 6, no. 2, pp. 182--197, 2002.
+\end{thebibliography}
+
+\end{document}
