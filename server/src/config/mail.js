@@ -123,6 +123,13 @@ function getTransporter(env = process.env) {
       port: config.port,
       secure: config.secure,
       auth: config.auth,
+      family: 4, // Bắt buộc dùng IPv4 để tránh treo kết nối IPv6 trên Render / Docker cloud
+      connectionTimeout: 8000, // 8 giây timeout kết nối
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
+      tls: {
+        rejectUnauthorized: false,
+      },
     });
     lastTransporterKey = currentKey;
   }
