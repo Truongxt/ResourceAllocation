@@ -7,6 +7,7 @@
  */
 
 const path = require('path');
+const dns = require('dns');
 const dotenv = require('dotenv');
 const nodemailer = require('nodemailer');
 const { isRelaxedEnv } = require('./env');
@@ -123,7 +124,10 @@ function getTransporter(env = process.env) {
       port: config.port,
       secure: config.secure,
       auth: config.auth,
-      family: 4, // Bắt buộc dùng IPv4 để tránh treo kết nối IPv6 trên Render / Docker cloud
+      lookup: (hostname, options, callback) => {
+        // Luôn ép dns.lookup trả về IPv4 (family: 4) để triệt tiêu hoàn toàn lỗi ENETUNREACH IPv6 trên Render
+        dns.lookup(hostname, { family: 4 }, callback);
+      },
       connectionTimeout: 8000, // 8 giây timeout kết nối
       greetingTimeout: 8000,
       socketTimeout: 10000,

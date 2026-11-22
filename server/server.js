@@ -1,3 +1,9 @@
+const dns = require('dns');
+// Ưu tiên phân giải IPv4 trước để tránh lỗi ENETUNREACH trên Render/Docker không có định tuyến IPv6
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const http = require('http');
 const path = require('path');
 const dotenv = require('dotenv');
