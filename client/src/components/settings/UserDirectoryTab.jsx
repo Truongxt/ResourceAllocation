@@ -349,7 +349,8 @@ export default function UserDirectoryTab({ currentUser }) {
       if (emailStatus?.sent) {
         message.success(`Đã tạo tài khoản cho ${values.name} và gửi thông tin đăng nhập đến ${values.email}!`, 6);
       } else {
-        message.success(res.message || `Đã tạo tài khoản thành công cho ${values.name}! Mật khẩu: ${values.password}`, 6);
+        const reason = emailStatus?.reason ? ` (Chưa gửi được email: ${emailStatus.reason})` : '';
+        message.warning(`Đã tạo tài khoản cho ${values.name}.${reason} Mật khẩu tạm: ${values.password || '123456'}`, 8);
       }
       setCreateModalOpen(false);
       createForm.resetFields();

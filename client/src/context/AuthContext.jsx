@@ -22,12 +22,30 @@ export function AuthProvider({ children }) {
   // không cần: không có cookie thì lời gọi này trả 401 và coi như chưa đăng nhập.
   useEffect(() => {
     const initAuth = async () => {
+      // 1. Nếu có token đã lưu (trong memory hoặc localStorage), gọi /auth/me để phục hồi phiên ngay
+      const savedToken = getToken();
+      if (savedToken) {
+        try {
+          const res = await authService.getMe();
+          const me = res.data?.user || res.data || res.user;
+          if (me && me._id) {
+            setUser(me);
+            setLoading(false);
+            return;
+          }
+        } catch {
+          // Token hết hạn -> tiếp tục thử qua refresh
+        }
+      }
+
+      // 2. Thử khôi phục qua cookie refresh nếu có
       try {
         const response = await authService.refresh();
         setToken(response.data.token);
         setUser(response.data.user);
       } catch {
         clearToken();
+        setUser(null);
       } finally {
         setLoading(false);
       }

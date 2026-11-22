@@ -13,7 +13,42 @@ const { isRelaxedEnv } = require('./env');
 
 function cleanEnvVal(val) {
   if (!val) return '';
-  return String(val).trim().replace(/^["']|["']$/g, '');
+  let str = String(val).trim();
+  while ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+    str = str.slice(1, -1).trim();
+  }
+  return str;
+}
+
+function formatMailFrom(fromStr) {
+  if (!fromStr) return '';
+  const str = cleanEnvVal(fromStr);
+
+  // Trích xuất email trong cặp ngoặc <...> nếu có (vd: "OptiWork" <truongdeptrai784@gmail.com>)
+  const bracketMatch = str.match(/<([^>]+)>/);
+  if (bracketMatch) {
+    const email = bracketMatch[1].trim();
+    const rawName = str.substring(0, bracketMatch.index).trim().replace(/^["']|["']$/g, '').trim();
+    return rawName ? `"${rawName}" <${email}>` : email;
+  }
+
+  // Nếu không có ngoặc nhưng có email (vd: "OptiWork" truongdeptrai784@gmail.com hoặc truongdeptrai784@gmail.com)
+  if (str.includes('@')) {
+    const parts = str.split(/\s+/);
+    const emailPart = parts.find((p) => p.includes('@'));
+    const namePart = parts
+      .filter((p) => p !== emailPart)
+      .join(' ')
+      .trim()
+      .replace(/^["']|["']$/g, '')
+      .trim();
+    if (namePart) {
+      return `"${namePart}" <${emailPart}>`;
+    }
+    return emailPart;
+  }
+
+  return str;
 }
 
 /**
@@ -54,7 +89,9 @@ function readMailConfig(env = process.env) {
   }
 
   const user = cleanEnvVal(env.SMTP_USER);
-  const pass = cleanEnvVal(env.SMTP_PASS);
+  const pass = cleanEnvVal(env.SMTP_PASS).replace(/\s+/g, '');
+
+  const formattedFrom = formatMailFrom(from);
 
   return {
     enabled: true,
@@ -63,7 +100,7 @@ function readMailConfig(env = process.env) {
     // Cổng 465 là SMTPS (TLS ngay từ đầu); các cổng khác dùng STARTTLS.
     secure: String(env.SMTP_SECURE || '').toLowerCase() === 'true' || port === 465,
     auth: user ? { user, pass } : undefined,
-    from,
+    from: formattedFrom,
   };
 }
 
@@ -93,4 +130,4 @@ function getTransporter(env = process.env) {
   return cachedTransporter;
 }
 
-module.exports = { readMailConfig, getTransporter };
+module.exports = { readMailConfig, getTransporter, formatMailFrom, cleanEnvVal };

@@ -547,6 +547,7 @@ const createUser = async (req, res, next) => {
         },
         plainPassword,
         companyName: userCompany,
+        clientUrl: req.headers.origin || process.env.CLIENT_URL,
       });
     } catch (mailErr) {
       console.error('Lỗi khi gửi email thông tin tài khoản:', mailErr.message);
@@ -699,6 +700,7 @@ const adminResetPassword = async (req, res, next) => {
         },
         plainPassword: newPassword,
         companyName: req.user.companyName || user.companyName,
+        clientUrl: req.headers.origin || process.env.CLIENT_URL,
       });
     } catch (mailErr) {
       console.error('Lỗi khi gửi email đặt lại mật khẩu:', mailErr.message);
