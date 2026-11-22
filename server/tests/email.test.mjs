@@ -73,6 +73,19 @@ S('Cổng và TLS');
 }
 
 // ══════════════════════════════════════════════
+S('HTTP Email Providers (Resend / Brevo cho Render Free)');
+{
+  ok(readMailConfig({ RESEND_API_KEY: 're_123' }).provider === 'resend',
+    'Nhận diện RESEND_API_KEY');
+  ok(readMailConfig({ RESEND_API_KEY: 're_123' }).enabled === true,
+    'RESEND_API_KEY kích hoạt gửi mail mà không cần SMTP_HOST');
+  ok(readMailConfig({ BREVO_API_KEY: 'xkeysib-123' }).provider === 'brevo',
+    'Nhận diện BREVO_API_KEY');
+  ok(readMailConfig({ BREVO_API_KEY: 'xkeysib-123' }).enabled === true,
+    'BREVO_API_KEY kích hoạt gửi mail mà không cần SMTP_HOST');
+}
+
+// ══════════════════════════════════════════════
 S('Chuẩn hóa MAIL_FROM và mật khẩu SMTP');
 {
   ok(formatMailFrom('"OptiWork" <truong@gmail.com>') === '"OptiWork" <truong@gmail.com>',

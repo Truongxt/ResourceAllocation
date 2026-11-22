@@ -78,6 +78,29 @@ function readMailConfig(env = process.env) {
     return { enabled: false, reason: 'EMAIL_ENABLED=false' };
   }
 
+  // Hỗ trợ HTTP Email Providers (Resend / Brevo) — gửi qua HTTPS Port 443 không bao giờ bị chặn trên Render Free
+  const resendApiKey = cleanEnvVal(env.RESEND_API_KEY);
+  const brevoApiKey = cleanEnvVal(env.BREVO_API_KEY);
+  const rawFrom = cleanEnvVal(env.MAIL_FROM);
+
+  if (resendApiKey) {
+    return {
+      enabled: true,
+      provider: 'resend',
+      apiKey: resendApiKey,
+      from: formatMailFrom(rawFrom || 'OptiWork <onboarding@resend.dev>'),
+    };
+  }
+
+  if (brevoApiKey) {
+    return {
+      enabled: true,
+      provider: 'brevo',
+      apiKey: brevoApiKey,
+      from: formatMailFrom(rawFrom || 'OptiWork <truongdeptrai784@gmail.com>'),
+    };
+  }
+
   const host = cleanEnvVal(env.SMTP_HOST);
   const from = cleanEnvVal(env.MAIL_FROM);
 
@@ -96,6 +119,7 @@ function readMailConfig(env = process.env) {
 
   return {
     enabled: true,
+    provider: 'smtp',
     host,
     port,
     // Cổng 465 là SMTPS (TLS ngay từ đầu); các cổng khác dùng STARTTLS.
@@ -111,7 +135,7 @@ let lastTransporterKey = null;
 /** Transporter dùng chung, tự động tái tạo khi cấu hình SMTP thay đổi. Trả null khi email đang tắt. */
 function getTransporter(env = process.env) {
   const config = readMailConfig(env);
-  if (!config.enabled) {
+  if (!config.enabled || config.provider !== 'smtp') {
     cachedTransporter = null;
     lastTransporterKey = null;
     return null;
