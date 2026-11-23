@@ -183,7 +183,7 @@ export default function ProjectDetail() {
 
   const loadStaff = useCallback(async () => {
     try {
-      const res = await resourceService.getAll({ status: 'available' });
+      const res = await resourceService.getAll({ isActive: true });
       setStaff(res.data.data.resources || []);
     } catch {
       /* ignore */
@@ -1431,6 +1431,20 @@ export default function ProjectDetail() {
                     <Divider style={{ margin: 0 }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
+                        <Text strong style={{ display: 'block' }}>Cho phép Người theo dõi quản lý Checklist</Text>
+                        <Text type="secondary" style={{ fontSize: 13 }}>
+                          Người theo dõi có quyền thêm mới, tích hoàn thành hoặc xóa các mục trong checklist
+                        </Text>
+                      </div>
+                      <Switch
+                        checked={project.permissions?.allowFollowerManageChecklist ?? false}
+                        disabled={!canManageThisProject}
+                        onChange={(checked) => handleTogglePermission('allowFollowerManageChecklist', checked)}
+                      />
+                    </div>
+                    <Divider style={{ margin: 0 }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
                         <Text strong style={{ display: 'block' }}>Cho phép Người theo dõi bình luận & trao đổi</Text>
                         <Text type="secondary" style={{ fontSize: 13 }}>
                           Người theo dõi có quyền gửi nhận xét, phản hồi và tệp đính kèm trong công việc
@@ -1452,6 +1466,20 @@ export default function ProjectDetail() {
                   size="small"
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '8px 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <Text strong style={{ display: 'block' }}>Cho phép Thành viên xem toàn bộ công việc trong dự án</Text>
+                        <Text type="secondary" style={{ fontSize: 13 }}>
+                          Nếu tắt, thành viên chỉ nhìn thấy các công việc được giao cho mình, do mình tạo hoặc đang theo dõi
+                        </Text>
+                      </div>
+                      <Switch
+                        checked={project.permissions?.allowMembersViewAllTasks ?? true}
+                        disabled={!canManageThisProject}
+                        onChange={(checked) => handleTogglePermission('allowMembersViewAllTasks', checked)}
+                      />
+                    </div>
+                    <Divider style={{ margin: 0 }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <Text strong style={{ display: 'block' }}>Cho phép Thành viên tạo công việc mới</Text>

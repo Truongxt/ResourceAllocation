@@ -137,7 +137,7 @@ const getDashboardOverview = async (req, res, next) => {
         .select('name code status progress endDate')
         .lean(),
       Task.aggregate([
-        { $match: taskMatch },
+        { $match: { ...taskMatch, parentTask: { $in: [null, undefined] } } },
         { $group: {
           _id: '$project',
           total: { $sum: 1 },

@@ -129,7 +129,8 @@ const register = async (req, res, next) => {
     } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const normalizedEmail = String(email || '').toLowerCase().trim();
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -353,10 +354,10 @@ const updateProfile = async (req, res, next) => {
     }).populate('manager', 'name email avatar jobTitle');
 
     // Đồng bộ chức danh và phòng ban sang Resource nếu có
-    if (jobTitle || department) {
+    if (jobTitle !== undefined || department !== undefined) {
       const resUpdate = {};
-      if (jobTitle) resUpdate.position = jobTitle;
-      if (department) resUpdate.department = department;
+      if (jobTitle !== undefined) resUpdate.position = jobTitle;
+      if (department !== undefined) resUpdate.department = department;
       await Resource.findOneAndUpdate({ user: req.user._id }, resUpdate);
     }
 
@@ -477,7 +478,8 @@ const createUser = async (req, res, next) => {
     const { name, email, password, role, department, position, phone, jobTitle, manager } = req.body;
     const userCompany = req.user.companyName || 'Công ty Công nghệ RAO';
 
-    const existingUser = await User.findOne({ email });
+    const normalizedEmail = String(email || '').toLowerCase().trim();
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -994,12 +996,12 @@ const updateUserOwnerStatus = async (req, res, next) => {
     }
 
     // Bảo vệ không cho phép hủy quyền Owner cuối cùng trong tổ chức/công ty đó
-    if (!isOwner && req.user._id.toString() === req.params.id) {
+    if (!isOwner && targetUser.isOwner) {
       const otherOwner = await User.findOne({
-        _id: { $ne: req.params.id },
-        companyName: req.user.companyName || 'Công ty Công nghệ RAO',
+        _id: { $ne: targetUser._id },
+        companyName: targetUser.companyName || 'Công ty Công nghệ RAO',
         isOwner: true,
-        isActive: true,
+        isActive: { $ne: false },
       });
       if (!otherOwner) {
         return res.status(400).json({
@@ -1397,7 +1399,8 @@ const createGuest = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Vui lòng điền đủ họ tên, email và mật khẩu' });
     }
 
-    const existingUser = await User.findOne({ email });
+    const normalizedEmail = String(email || '').toLowerCase().trim();
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'Email đã được sử dụng' });
     }

@@ -178,7 +178,8 @@ const getProjectById = async (req, res, next) => {
       .populate('department', 'name code color')
       .populate({
         path: 'tasks',
-        select: 'title description status priority startDate endDate progress estimatedHours actualHours assignee createdBy followers deadlineHistory deadlineReason taskGroup project',
+        match: { parentTask: { $in: [null, undefined] } },
+        select: 'title description status priority startDate endDate progress estimatedHours actualHours assignee createdBy followers reviewers dependencies customValues deadlineHistory deadlineReason taskGroup project parentTask',
         populate: [
           { path: 'assignee', select: 'name email position department avatar' },
           { path: 'createdBy', select: 'name email avatar' },
@@ -198,6 +199,23 @@ const getProjectById = async (req, res, next) => {
       return res.status(403).json({
         success: false,
         message: 'Không có quyền truy cập dự án của công ty khác',
+      });
+    }
+
+    // Thực thi quyền allowMembersViewAllTasks khi thành viên thường xem chi tiết dự án
+    if (
+      req.user &&
+      !canManageProject(req.user, project) &&
+      String(project.createdBy) !== String(req.user._id) &&
+      project.permissions?.allowMembersViewAllTasks === false &&
+      Array.isArray(project.tasks)
+    ) {
+      const uid = String(req.user._id);
+      project.tasks = project.tasks.filter((t) => {
+        const assigneeId = String(t.assignee?._id || t.assignee || '');
+        const creatorId = String(t.createdBy?._id || t.createdBy || '');
+        const followerIds = (t.followers || []).map((f) => String(f?._id || f));
+        return assigneeId === uid || creatorId === uid || followerIds.includes(uid);
       });
     }
 
@@ -570,7 +588,15 @@ const quickEditProject = async (req, res, next) => {
     }
     if (status !== undefined) project.status = status;
     if (priority !== undefined) project.priority = priority;
-    if (manager !== undefined && (isAdmin || isOwner)) project.manager = manager;
+    if (manager !== undefined && (isAdmin || isOwner)) {
+      project.manager = manager;
+      if (
+        manager &&
+        !(project.members || []).some((m) => (m.user?._id || m.user)?.toString() === manager.toString())
+      ) {
+        project.members.unshift({ user: manager, role: 'lead', allocation: 100 });
+      }
+    }
 
     await project.save();
 
@@ -784,6 +810,13 @@ const removeProjectMember = async (req, res, next) => {
       });
     }
     if (!ensureManagesProject(req, res, project)) return;
+
+    if (project.manager && project.manager.toString() === req.params.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể xóa Quản lý dự án (PM) khỏi danh sách thành viên. Hãy chuyển quyền Quản lý dự án cho người khác trước.',
+      });
+    }
 
     project.members = project.members.filter((member) => member.user.toString() !== req.params.userId);
     await project.save();
@@ -1288,9 +1321,25 @@ const bulkReassignProjects = async (req, res, next) => {
     }
 
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (toUserId) {
+      const recipientError = await usersError(toUserId, userCompany);
+      if (recipientError) {
+        return res.status(400).json({ success: false, message: recipientError });
+      }
+      const recipient = await User.findById(toUserId).select('isActive');
+      if (recipient && recipient.isActive === false) {
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể bàn giao vai trò dự án cho tài khoản đã bị vô hiệu hóa',
+        });
+      }
+    }
+
+    const isAdmin = req.user.role === 'admin' || Boolean(req.user.isOwner);
     const query = {
       _id: { $in: projectIds },
       companyName: userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
+      ...(isAdmin ? {} : { manager: req.user._id }),
     };
 
     const projects = await Project.find(query);

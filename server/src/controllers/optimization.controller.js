@@ -156,22 +156,33 @@ const loadOptimizationData = async (projectId, user) => {
   }
 
   // Flatten resource data for algorithm
-  const flatResources = resources.map((r) => ({
-    _id: r._id,
-    userId: r.user?._id,
-    userName: r.user?.name || r.position,
-    position: r.position,
-    department: r.department,
-    // Kỹ năng mới do nhân viên tự khai chưa có quản lý duyệt không đi vào bộ tối ưu.
-    skills: (r.skills || []).filter((skill) => skill.evaluationStatus === 'approved' || skill.managerLevel),
-    maxCapacity: r.maxCapacity ?? 40,
-    fte: r.fte ?? 1,
-    hourlyRate: r.hourlyRate || 0,
-    availability: r.availability || 'available',
-    unavailablePeriods: r.unavailablePeriods || [],
-    currentWorkload: r.currentWorkload || 0,
-    committedTasks: committedByUser.get(String(r.user?._id)) || [],
-  }));
+  const flatResources = resources.map((r) => {
+    const capacity = (r.maxCapacity ?? 40) * (r.fte ?? 1);
+    // Nếu nhân sự bị đánh dấu 'unavailable' chỉ vì tải hiện tại vượt định mức (currentWorkload > 0),
+    // thì khi chạy tối ưu lại (các việc cần tối ưu đã tách khỏi committedTasks), họ vẫn được tham gia
+    // phân bổ theo phần công suất còn trống sau khi trừ committedTasks và lịch nghỉ phép.
+    const effectiveAvailability =
+      r.availability === 'unavailable' && (r.currentWorkload || 0) > 0 && capacity > 0
+        ? 'available'
+        : (r.availability || 'available');
+
+    return {
+      _id: r._id,
+      userId: r.user?._id,
+      userName: r.user?.name || r.position,
+      position: r.position,
+      department: r.department,
+      // Kỹ năng mới do nhân viên tự khai chưa có quản lý duyệt không đi vào bộ tối ưu.
+      skills: (r.skills || []).filter((skill) => skill.evaluationStatus === 'approved' || skill.managerLevel),
+      maxCapacity: r.maxCapacity ?? 40,
+      fte: r.fte ?? 1,
+      hourlyRate: r.hourlyRate || 0,
+      availability: effectiveAvailability,
+      unavailablePeriods: r.unavailablePeriods || [],
+      currentWorkload: r.currentWorkload || 0,
+      committedTasks: committedByUser.get(String(r.user?._id)) || [],
+    };
+  });
 
   return { tasks, resources: flatResources };
 };
@@ -919,8 +930,11 @@ const rollbackResult = async (req, res, next) => {
 
     for (const item of result.previousAssignments) {
       if (item.task) {
-        const currentTask = await Task.findById(item.task).select('assignee');
-        if (currentTask?.assignee) {
+        const currentTask = await Task.findById(item.task).select('assignee status');
+        if (!currentTask || ['done', 'failed'].includes(currentTask.status)) {
+          continue;
+        }
+        if (currentTask.assignee) {
           affectedUserIds.add(currentTask.assignee.toString());
         }
         if (item.previousAssignee) {

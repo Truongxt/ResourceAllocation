@@ -84,12 +84,19 @@ async function loadOptimizationPreview(result) {
   const Resource = require('../models/Resource');
   const company = result.companyName || 'Công ty Công nghệ RAO';
   const companyName = company === 'Công ty Công nghệ RAO' ? { $in: [company, null] } : company;
-  const [tasks, resources] = await Promise.all([
+  const [tasks, rawResources] = await Promise.all([
     Task.find({ companyName, $or: [{ status: { $in: ACTIVE } }, { _id: { $in: result.assignments.map((a) => a.task).filter(Boolean) } }] })
       .select('title assignee status estimatedHours startDate endDate requiredSkills difficultyLevel project dependencies').populate('assignee', 'name').lean(),
-    Resource.find({ companyName }).select('user position isActive maxCapacity fte unavailablePeriods skills availability hourlyRate')
+    Resource.find({ companyName }).select('user position isActive maxCapacity fte unavailablePeriods skills availability currentWorkload hourlyRate')
       .populate('user', 'name isActive').lean(),
   ]);
+  const resources = rawResources.map((r) => {
+    const capacity = (r.maxCapacity ?? 40) * (r.fte ?? 1);
+    if (r.availability === 'unavailable' && (r.currentWorkload || 0) > 0 && capacity > 0) {
+      return { ...r, availability: 'available' };
+    }
+    return r;
+  });
   return buildOptimizationPreview(result, tasks, resources);
 }
 
