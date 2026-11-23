@@ -29,6 +29,7 @@ const {
   emptyMetrics,
   weeklyDemandOf,
   projectOf,
+  lockedAssigneeIndex,
 } = require('../scoring');
 
 /**
@@ -236,6 +237,10 @@ class CSPSolver {
   // ──────────────────────────────────────────────
   _buildDomains(tasks, resources) {
     return tasks.map((task) => {
+      // Công việc đã ở trạng thái 'review' (người làm đã nộp kết quả, chờ duyệt) thì giữ nguyên người làm
+      const lockedIdx = lockedAssigneeIndex(task, resources);
+      if (lockedIdx >= 0) return [lockedIdx];
+
       const feasible = [];
       for (let r = 0; r < resources.length; r++) {
         if (this._checkSkillConstraint(resources[r], task) &&

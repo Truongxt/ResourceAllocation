@@ -27,7 +27,6 @@ const projectSchema = new mongoose.Schema(
     },
     code: {
       type: String,
-      unique: true,
       sparse: true,
       uppercase: true,
       trim: true,
@@ -173,6 +172,7 @@ const projectSchema = new mongoose.Schema(
       allowCreatorDeleteTask: { type: Boolean, default: false },
       allowAssigneeDeleteTask: { type: Boolean, default: false },
       allowFollowerMarkDone: { type: Boolean, default: false },
+      allowFollowerManageChecklist: { type: Boolean, default: false },
       allowMembersViewAllTasks: { type: Boolean, default: true },
       allowGuestCreateTask: { type: Boolean, default: false },
     },
@@ -214,6 +214,10 @@ projectSchema.index({ status: 1 });
 projectSchema.index({ manager: 1 });
 projectSchema.index({ department: 1 });
 projectSchema.index({ companyName: 1 });
+projectSchema.index(
+  { code: 1, companyName: 1 },
+  { unique: true, partialFilterExpression: { code: { $type: 'string' } } }
+);
 projectSchema.index({ startDate: 1, endDate: 1 });
 
 module.exports = mongoose.model('Project', projectSchema);

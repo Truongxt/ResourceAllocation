@@ -3,14 +3,17 @@ const Project = require('../models/Project');
 const { toSearchRegex } = require('../utils/escapeRegex');
 const Task = require('../models/Task');
 const TaskGroup = require('../models/TaskGroup');
+const RecurringTask = require('../models/RecurringTask');
 const User = require('../models/User');
 const CompanySetting = require('../models/CompanySetting');
 const { logActivity } = require('../services/activityLog.service');
+const { syncResourceWorkload } = require('../services/workload.service');
 const { stripProtected, usersError, departmentError } = require('../services/companyRefs.service');
 const { archiveBlocker, cloneProject } = require('../services/projectLifecycle.service');
 const { removeAttachments } = require('../services/attachment.service');
 const { normalizeFieldDefinitions } = require('../services/customFields.service');
 const { canManageProject, MANAGE_DENIED } = require('../services/projectAccess');
+const { recalculateProjectProgress } = require('./task/shared');
 
 /** Quản lý, thành viên và phòng ban gửi lên phải cùng công ty với dự án. */
 const projectRefsError = async ({ manager, members, department }, company) => {
@@ -41,7 +44,7 @@ const buildProjectQuery = async (query, user) => {
       { 'members.user': user._id },
       { createdBy: user._id },
       { _id: { $in: projectIdsFromTasks } },
-      { projectType: 'internal' },
+      ...(user.isGuest ? [] : [{ projectType: 'internal' }]),
     ];
   }
 
@@ -88,25 +91,6 @@ const buildProjectQuery = async (query, user) => {
   return filter;
 };
 
-const recalculateProjectProgress = async (projectId) => {
-  const tasks = await Task.find({ project: projectId }).select('progress status');
-
-  if (!tasks.length) {
-    await Project.findByIdAndUpdate(projectId, { progress: 0 });
-    return 0;
-  }
-
-  const progress =
-    tasks.reduce((sum, task) => {
-      if (task.status === 'done') return sum + 100;
-      return sum + (task.progress || 0);
-    }, 0) / tasks.length;
-
-  const roundedProgress = Math.round(progress);
-  await Project.findByIdAndUpdate(projectId, { progress: roundedProgress });
-  return roundedProgress;
-};
-
 const getProjects = async (req, res, next) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -128,7 +112,7 @@ const getProjects = async (req, res, next) => {
 
     const projectIds = projects.map((project) => project._id);
     const taskStats = await Task.aggregate([
-      { $match: { project: { $in: projectIds } } },
+      { $match: { project: { $in: projectIds }, parentTask: { $in: [null, undefined] } } },
       {
         $group: {
           _id: '$project',
@@ -350,7 +334,18 @@ const createProject = async (req, res, next) => {
       template: req.body.template || null,
     };
     // Phòng ban vận hành không có hạn: ngày kết thúc gửi kèm (form cũ, import) bị bỏ.
-    if (projectData.kind === 'team') delete projectData.endDate;
+    if (projectData.kind === 'team') {
+      delete projectData.endDate;
+    } else if (
+      projectData.startDate &&
+      projectData.endDate &&
+      new Date(projectData.endDate) < new Date(projectData.startDate)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày kết thúc dự án không được nhỏ hơn ngày bắt đầu',
+      });
+    }
 
     const project = await Project.create(projectData);
 
@@ -485,11 +480,21 @@ const updateProject = async (req, res, next) => {
       // Gỡ hẳn chứ không gán null: client gọi `dayjs(null)` sẽ ra Invalid Date.
       delete updateData.endDate;
       updateData.$unset = { endDate: 1 };
-    } else if (!(updateData.startDate || project.startDate) || !(updateData.endDate || project.endDate)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Dự án có thời hạn cần ngày bắt đầu và ngày kết thúc',
-      });
+    } else {
+      const effectiveStart = updateData.startDate || project.startDate;
+      const effectiveEnd = updateData.endDate || project.endDate;
+      if (!effectiveStart || !effectiveEnd) {
+        return res.status(400).json({
+          success: false,
+          message: 'Dự án có thời hạn cần ngày bắt đầu và ngày kết thúc',
+        });
+      }
+      if (new Date(effectiveEnd) < new Date(effectiveStart)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ngày kết thúc dự án không được nhỏ hơn ngày bắt đầu',
+        });
+      }
     }
 
     const refError = await projectRefsError(
@@ -621,14 +626,26 @@ const deleteProject = async (req, res, next) => {
       });
     }
 
+    let affectedAssignees = [];
     if (req.query.force === 'true') {
       // Tệp đính kèm trước, khi còn biết việc nào thuộc dự án — xóa việc rồi thì tệp thành mồ côi.
-      const taskIds = await Task.find({ project: req.params.id }).distinct('_id');
+      const projectTasks = await Task.find({ project: req.params.id }).select('_id assignee');
+      const taskIds = projectTasks.map((t) => t._id);
+      affectedAssignees = [...new Set(projectTasks.map((t) => t.assignee).filter(Boolean).map(String))];
       await removeAttachments({ task: { $in: taskIds } });
       await Task.deleteMany({ project: req.params.id });
     }
 
-    await project.deleteOne();
+    // Dọn luôn các nhóm công việc và cấu hình lặp lại của dự án bị xóa
+    await Promise.all([
+      TaskGroup.deleteMany({ project: req.params.id }),
+      RecurringTask.deleteMany({ project: req.params.id }),
+      project.deleteOne(),
+    ]);
+
+    if (affectedAssignees.length > 0) {
+      await syncResourceWorkload(affectedAssignees);
+    }
 
     logActivity({
       req,

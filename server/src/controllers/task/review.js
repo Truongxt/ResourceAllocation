@@ -14,6 +14,7 @@ const {
   recalculateParentTaskProgress,
   recalculateProjectProgress,
   canApproveReview,
+  checkPredecessorsForCompletion,
 } = require('./shared');
 
 /**
@@ -34,10 +35,24 @@ const completeTask = async (req, res, next) => {
     if (task.status === 'done') {
       return res.status(400).json({ success: false, message: 'Công việc đã hoàn thành' });
     }
+    if (task.status === 'review') {
+      return res.status(400).json({ success: false, message: 'Công việc đang ở trạng thái Chờ đánh giá' });
+    }
+
+    const predErr = await checkPredecessorsForCompletion(task);
+    if (predErr) {
+      return res.status(400).json({ success: false, message: predErr });
+    }
 
     const project = await Project.findById(task.project);
     const now = new Date();
     const updateData = { completedAt: now };
+
+    if (task.status === 'failed') {
+      updateData.failureReason = '';
+      updateData.failedAt = null;
+      updateData.failedBy = null;
+    }
 
     if (project?.reviewConfig?.enabled) {
       updateData.status = 'review';

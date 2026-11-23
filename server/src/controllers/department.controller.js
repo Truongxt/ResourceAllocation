@@ -2,6 +2,7 @@ const Department = require('../models/Department');
 const { toSearchRegex } = require('../utils/escapeRegex');
 const Resource = require('../models/Resource');
 const Project = require('../models/Project');
+const User = require('../models/User');
 const CompanySetting = require('../models/CompanySetting');
 const { logActivity } = require('../services/activityLog.service');
 const { stripProtected, usersError } = require('../services/companyRefs.service');
@@ -227,10 +228,27 @@ const updateDepartment = async (req, res, next) => {
         });
       }
 
+      const oldName = department.name;
       const updatedDepartment = await Department.findByIdAndUpdate(req.params.id, req.body, {
         new: true,
         runValidators: true,
       }).populate('managers', 'name email avatar jobTitle department');
+
+      // Đồng bộ tên phòng ban mới sang các bản ghi User và Resource đang giữ tên cũ
+      if (updatedDepartment && updatedDepartment.name && updatedDepartment.name !== oldName) {
+        const companyScope =
+          userCompany === DEFAULT_COMPANY ? { $in: [userCompany, null, undefined] } : userCompany;
+        await Promise.all([
+          Resource.updateMany(
+            { companyName: companyScope, department: oldName },
+            { $set: { department: updatedDepartment.name } }
+          ),
+          User.updateMany(
+            { companyName: companyScope, department: oldName },
+            { $set: { department: updatedDepartment.name } }
+          ),
+        ]);
+      }
 
       await logActivity({
         req,

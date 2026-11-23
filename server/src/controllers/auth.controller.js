@@ -166,7 +166,7 @@ const register = async (req, res, next) => {
         companyName: finalCompanyName,
       }).select('name');
       const departmentName = defaultDept?.name || 'Ban Giám Đốc';
-      const employeeId = await generateEmployeeId();
+      const employeeId = await generateEmployeeId(finalCompanyName);
 
       await Resource.create({
         user: user._id,
@@ -509,7 +509,7 @@ const createUser = async (req, res, next) => {
     });
 
     try {
-      const employeeId = await generateEmployeeId();
+      const employeeId = await generateEmployeeId(userCompany);
       await Resource.create({
         user: user._id,
         employeeId,
@@ -614,11 +614,25 @@ const updateUserRole = async (req, res, next) => {
       });
     }
 
-    targetUser.role = role;
-    // Nếu bị hạ từ Admin xuống PM hoặc Member thì tự động gỡ cờ isOwner
+    // Nếu bị hạ từ Admin xuống PM hoặc Member, kiểm tra không để công ty mất Owner cuối cùng
     if (role !== 'admin' && targetUser.isOwner) {
+      const userCompany = targetUser.companyName || 'Công ty Công nghệ RAO';
+      const otherOwner = await User.exists({
+        _id: { $ne: targetUser._id },
+        companyName: userCompany,
+        isOwner: true,
+        isActive: { $ne: false },
+      });
+      if (!otherOwner) {
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể hạ vai trò của Quản trị cấp cao (Owner) cuối cùng trong công ty',
+        });
+      }
       targetUser.isOwner = false;
     }
+
+    targetUser.role = role;
     await targetUser.save();
 
     res.json({ success: true, data: { user: targetUser }, message: 'Cập nhật vai trò thành công' });
@@ -644,8 +658,41 @@ const updateUserStatus = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Bạn không có quyền thao tác trên tài khoản của công ty khác' });
     }
 
+    if (!isActive && String(req.user._id) === String(targetUser._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bạn không thể tự vô hiệu hóa tài khoản của chính mình',
+      });
+    }
+
+    if (targetUser.isOwner && !req.user.isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ Quản trị cấp cao (Owner) mới có quyền thay đổi trạng thái tài khoản của Quản trị cấp cao',
+      });
+    }
+
+    if (!isActive && targetUser.isOwner) {
+      const userCompany = targetUser.companyName || 'Công ty Công nghệ RAO';
+      const otherOwner = await User.exists({
+        _id: { $ne: targetUser._id },
+        companyName: userCompany,
+        isOwner: true,
+        isActive: { $ne: false },
+      });
+      if (!otherOwner) {
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể vô hiệu hóa Quản trị cấp cao (Owner) cuối cùng trong công ty',
+        });
+      }
+    }
+
     targetUser.isActive = Boolean(isActive);
     await targetUser.save();
+
+    // Đồng bộ trạng thái hoạt động sang hồ sơ Resource để bộ giải tối ưu và trang nhân sự nhận biết ngay
+    await Resource.updateOne({ user: targetUser._id }, { $set: { isActive: Boolean(isActive) } });
 
     // Nếu vô hiệu hóa, thu hồi toàn bộ token phiên đăng nhập và cắt kênh realtime
     if (!isActive) {

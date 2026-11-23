@@ -17,6 +17,8 @@ const {
   computeFitness,
   computeMetrics,
   emptyMetrics,
+  isResourceAvailableForTask,
+  lockedAssigneeIndex,
 } = require('../scoring');
 
 /**
@@ -72,8 +74,17 @@ class GeneticAlgorithm {
     const numTasks = tasks.length;
     const numResources = resources.length;
 
-    const domainReport = this._resolveDomains(domains, numTasks, numResources);
+    const domainReport = this._resolveDomains(domains, numTasks, numResources, tasks, resources);
     this._domains = domainReport.domains;
+    this._fallbackDomains = tasks.map((task) => {
+      const lockedIdx = lockedAssigneeIndex(task, resources);
+      if (lockedIdx >= 0) return [lockedIdx];
+      const avail = [];
+      for (let r = 0; r < numResources; r++) {
+        if (isResourceAvailableForTask(resources[r], task)) avail.push(r);
+      }
+      return avail.length > 0 ? avail : null;
+    });
 
     // Precompute skill match matrix: skillMatrix[t][r] = match score 0..1
     const skillMatrix = buildSkillMatrix(tasks, resources);
@@ -240,7 +251,7 @@ class GeneticAlgorithm {
 
   /** Một resource index ngẫu nhiên hợp lệ cho task `t`. */
   _randomResourceFor(t, numResources) {
-    const domain = this._domains?.[t];
+    const domain = this._domains?.[t] || this._fallbackDomains?.[t];
     if (domain?.length) return domain[Math.floor(Math.random() * domain.length)];
     return Math.floor(Math.random() * numResources);
   }

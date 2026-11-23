@@ -70,13 +70,13 @@ const getResources = async (req, res, next) => {
     if (req.query.availability) filter.availability = req.query.availability;
     if (req.query.isActive !== undefined) filter.isActive = req.query.isActive === 'true';
 
-    // Skill search: ?skill=React&skillLevel=3
+    // Skill search: ?skill=React&skillLevel=3 (dùng $elemMatch để khớp tên và level trên CÙNG một kỹ năng)
     if (req.query.skill) {
-      const skillFilter = { 'skills.name': toSearchRegex(req.query.skill) };
+      const elemMatch = { name: toSearchRegex(req.query.skill) };
       if (req.query.skillLevel) {
-        skillFilter['skills.level'] = { $gte: parseInt(req.query.skillLevel, 10) };
+        elemMatch.level = { $gte: parseInt(req.query.skillLevel, 10) };
       }
-      Object.assign(filter, skillFilter);
+      filter.skills = { $elemMatch: elemMatch };
     }
 
     if (req.query.search) {
@@ -245,7 +245,7 @@ const createResource = async (req, res, next) => {
     delete resourceData.evaluationVersion;
     delete resourceData.skillEvaluationHistory;
     delete resourceData.employeeId;
-    resourceData.employeeId = await generateEmployeeId();
+    resourceData.employeeId = await generateEmployeeId(userCompany);
     const resource = await Resource.create({
       ...resourceData,
       user: linkedUserId,
@@ -364,9 +364,12 @@ const deleteResource = async (req, res, next) => {
 
     const deletedName = resource.employeeId || resource.position;
 
-    // Hủy phân công ở các task đang được gán cho nhân sự này để tránh dữ liệu mồ côi
+    // Chỉ hủy phân công ở các task ĐANG MỞ để không xóa mất lịch sử người làm trên các việc đã đóng (done/failed)
     if (resource.user) {
-      await Task.updateMany({ assignee: resource.user }, { assignee: null });
+      await Task.updateMany(
+        { assignee: resource.user, status: { $nin: ['done', 'failed'] } },
+        { assignee: null }
+      );
     }
 
     await resource.deleteOne();
@@ -562,17 +565,31 @@ const addMyLeave = async (req, res, next) => {
       });
     }
 
+    const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
     let resource = await Resource.findOne({ user: req.user._id });
     if (!resource) {
+      const employeeId = await generateEmployeeId(userCompany);
       resource = await Resource.create({
         user: req.user._id,
-        position: req.user.role === 'project_manager' ? 'Project Manager' : 'Developer',
-        department: 'Kỹ thuật',
+        employeeId,
+        position: req.user.jobTitle || (req.user.role === 'project_manager' ? 'Project Manager' : 'Developer'),
+        department: req.user.department || 'Kỹ thuật',
+        companyName: userCompany,
         maxCapacity: 40,
         fte: 1.0,
         currentWorkload: 0,
         availability: 'available',
         createdBy: req.user._id,
+      });
+    }
+
+    const hasOverlap = (resource.unavailablePeriods || []).some(
+      (p) => p.startDate && p.endDate && start <= new Date(p.endDate) && end >= new Date(p.startDate)
+    );
+    if (hasOverlap) {
+      return res.status(400).json({
+        success: false,
+        message: 'Khoảng thời gian nghỉ phép bị trùng hoặc giao với lịch nghỉ đã đăng ký',
       });
     }
 

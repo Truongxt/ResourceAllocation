@@ -26,11 +26,19 @@ const EMPLOYEE_ID_LENGTH = 4;
  * Sinh mã nhân sự tiếp theo trong hệ thống.
  * @returns {Promise<string>} Mã nhân sự mới, ví dụ: 'NV0005'
  */
-const generateEmployeeId = async () => {
-  // Tìm mã nhân sự cao nhất hiện có khớp với tiền tố NV
-  const latest = await Resource.findOne({
+const generateEmployeeId = async (companyName = null) => {
+  const filter = {
     employeeId: new RegExp(`^${EMPLOYEE_ID_PREFIX}\\d+$`),
-  })
+  };
+  if (companyName) {
+    filter.companyName =
+      companyName === 'Công ty Công nghệ RAO'
+        ? { $in: [companyName, null, undefined] }
+        : companyName;
+  }
+
+  // Tìm mã nhân sự cao nhất hiện có khớp với tiền tố NV trong phạm vi công ty
+  const latest = await Resource.findOne(filter)
     .sort({ employeeId: -1 })
     .select('employeeId');
 
