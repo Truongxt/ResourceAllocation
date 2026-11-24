@@ -1,8 +1,11 @@
 const XLSX = require('xlsx');
 const Task = require('../models/Task');
 const TaskGroup = require('../models/TaskGroup');
+const Project = require('../models/Project');
 const User = require('../models/User');
 const { mergeCustomValues } = require('./customFields.service');
+const { syncResourceWorkload } = require('./workload.service');
+const { recalculateProjectProgress } = require('../controllers/task/shared');
 
 // Tám cột cố định của mẫu. Cột thứ 9 trở đi là trường tùy chỉnh của dự án, khớp theo tiêu đề.
 const FIXED_COLUMNS = 8;
@@ -216,8 +219,8 @@ async function importTasksFromExcel({ buffer, projectId, companyName, createdBy,
   }
   const customValues = customValuesOfRows(parsedItems, customFields);
 
-  // 1. Tải danh sách user trong công ty để map email/username
-  const users = await User.find({ companyName }).select('_id email name');
+  // 1. Tải danh sách user đang hoạt động trong công ty để map email/username
+  const users = await User.find({ companyName, isActive: { $ne: false } }).select('_id email name');
   const userMap = new Map();
   users.forEach((u) => {
     userMap.set(u.email.toLowerCase(), u._id);
@@ -244,6 +247,8 @@ async function importTasksFromExcel({ buffer, projectId, companyName, createdBy,
   // 3. Tiến hành tạo Task và Subtask
   const createdTasksMap = new Map(); // Map parentTitle -> taskId
   const createdTasks = [];
+  const assignedUserIds = new Set();
+  let lastRootTaskId = null;
 
   for (const [index, item] of parsedItems.entries()) {
     const assigneeId = !withoutPeople && item.assigneeEmail ? userMap.get(item.assigneeEmail.toLowerCase()) || null : null;
@@ -251,15 +256,19 @@ async function importTasksFromExcel({ buffer, projectId, companyName, createdBy,
       ? item.followersRaw
           .split(/[,;]/)
           .map((f) => userMap.get(f.trim().toLowerCase()))
-          .filter(Boolean)
+          .filter((fId) => fId && (!assigneeId || String(fId) !== String(assigneeId)))
       : [];
 
     const groupId = groupMap.get(item.groupName) || null;
     let parentTaskId = null;
 
-    if (item.isSubtask && item.parentTitle) {
-      parentTaskId = createdTasksMap.get(item.parentTitle) || null;
+    if (item.isSubtask) {
+      parentTaskId = lastRootTaskId || (item.parentTitle ? createdTasksMap.get(item.parentTitle) || null : null);
     }
+
+    const startDate = item.startDate || new Date();
+    const rawEndDate = item.endDate || new Date(startDate.getTime() + 7 * 24 * 3600 * 1000);
+    const endDate = rawEndDate < startDate ? new Date(startDate.getTime() + 24 * 3600 * 1000) : rawEndDate;
 
     const newTask = await Task.create({
       title: item.title,
@@ -270,8 +279,8 @@ async function importTasksFromExcel({ buffer, projectId, companyName, createdBy,
       assignee: assigneeId,
       followers: followerIds,
       priority: item.priority,
-      startDate: item.startDate || new Date(),
-      endDate: item.endDate || new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      startDate,
+      endDate,
       estimatedHours: item.estimatedHours,
       customValues: customValues[index],
       status: 'todo',
@@ -280,11 +289,38 @@ async function importTasksFromExcel({ buffer, projectId, companyName, createdBy,
       createdBy,
     });
 
+    if (assigneeId) {
+      assignedUserIds.add(String(assigneeId));
+    }
+
     if (!item.isSubtask) {
+      lastRootTaskId = newTask._id;
       createdTasksMap.set(item.title, newTask._id);
     }
     createdTasks.push(newTask);
   }
+
+  // 4. Tự động thêm người được gán việc vào thành viên dự án, tính lại tiến độ dự án và tải công việc
+  if (assignedUserIds.size > 0 && !withoutPeople) {
+    const project = await Project.findById(projectId);
+    if (project && !project.isTemplate) {
+      let membersChanged = false;
+      for (const uId of assignedUserIds) {
+        const isMember = (project.members || []).some(
+          (m) => m.user && m.user.toString() === uId
+        );
+        if (!isMember) {
+          project.members.push({ user: uId, role: 'developer', allocation: 100 });
+          membersChanged = true;
+        }
+      }
+      if (membersChanged) {
+        await project.save();
+      }
+    }
+    await syncResourceWorkload([...assignedUserIds]);
+  }
+  await recalculateProjectProgress(projectId);
 
   return {
     totalImported: createdTasks.length,

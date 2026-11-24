@@ -69,12 +69,15 @@ const taskGroupError = async (groupId, projectId) => {
   return null;
 };
 
-/** Việc cha phải thuộc đúng dự án `projectId`. */
+/** Việc cha phải thuộc đúng dự án `projectId` và không phải là một việc con (tối đa 1 cấp việc con). */
 const parentTaskError = async (parentId, projectId) => {
   if (!parentId) return null;
   if (!mongoose.Types.ObjectId.isValid(idOf(parentId))) return 'Id công việc cha không hợp lệ';
-  const parent = await Task.findById(idOf(parentId)).select('project');
+  const parent = await Task.findById(idOf(parentId)).select('project parentTask');
   if (!parent || idOf(parent.project) !== idOf(projectId)) return 'Công việc cha không thuộc dự án này';
+  if (parent.parentTask) {
+    return 'Hệ thống chỉ hỗ trợ tối đa 1 cấp công việc con (không tạo việc con của việc con)';
+  }
   return null;
 };
 

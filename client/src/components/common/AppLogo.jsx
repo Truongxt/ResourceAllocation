@@ -1,5 +1,5 @@
 /** Shared brand mark; colors follow the active application theme. */
-export default function AppLogo({ size = 'md', showText = true, subtitle = 'Resource Allocation', style, className = '' }) {
+export default function AppLogo({ size = 'md', showText = true, subtitle = 'Smart Work Platform', style, className = '' }) {
   const pixelSize = typeof size === 'number' ? size : size === 'sm' ? 28 : size === 'lg' ? 44 : 36;
   return <div className={'app-brand-logo ' + className} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, ...style }}>
     <div style={{ width: pixelSize, height: pixelSize, minWidth: pixelSize, borderRadius: 6, background: 'var(--brand-primary)', display: 'grid', placeItems: 'center' }}>
@@ -10,7 +10,7 @@ export default function AppLogo({ size = 'md', showText = true, subtitle = 'Reso
       </svg>
     </div>
     {showText && <div style={{ minWidth: 0, lineHeight: 1.3 }}>
-      <span style={{ fontSize: pixelSize >= 36 ? 16 : 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-.02em' }}>RAO Studio</span>
+      <span style={{ fontSize: pixelSize >= 36 ? 16 : 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-.02em' }}>OptiWork</span>
       {subtitle && <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{subtitle}</div>}
     </div>}
   </div>;

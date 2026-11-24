@@ -30,6 +30,39 @@ const capacityOf = (resource) => (resource.maxCapacity ?? 40) * (resource.fte ??
 const effortOf = (task) => task.estimatedHours || 1;
 
 /**
+ * Kiểm tra nhân sự có rảnh trong khoảng thời gian của task không (H3).
+ * Dùng chung cho CSP, GA và Greedy để không thuật toán nào giao việc cho người đang nghỉ phép.
+ */
+function isResourceAvailableForTask(resource, task) {
+  if (!resource || resource.availability === 'unavailable') return false;
+  if (!task || !task.startDate || !task.endDate) return true;
+
+  const taskStart = new Date(task.startDate);
+  const taskEnd = new Date(task.endDate);
+  if (Number.isNaN(taskStart.getTime()) || Number.isNaN(taskEnd.getTime())) return true;
+
+  for (const period of resource.unavailablePeriods || []) {
+    const periodStart = new Date(period.startDate);
+    const periodEnd = new Date(period.endDate);
+    if (Number.isNaN(periodStart.getTime()) || Number.isNaN(periodEnd.getTime())) continue;
+    if (taskStart <= periodEnd && taskEnd >= periodStart) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Nếu công việc đang ở trạng thái 'review' (người thực hiện đã làm xong, đang chờ duyệt)
+ * và người đó nằm trong danh sách nhân sự, trả về chỉ số của họ để giữ nguyên người làm.
+ */
+function lockedAssigneeIndex(task, resources) {
+  if (!task || task.status !== 'review' || !task.assignee) return -1;
+  const assigneeId = String(task.assignee?._id || task.assignee);
+  return resources.findIndex((r) => String(r.userId || r.user?._id || r.user || r._id) === assigneeId);
+}
+
+/**
  * Độ khớp kỹ năng giữa task và resource, thang 0..1.
  *
  *   Σ (weight × min(resource_level, required_level)) / Σ (weight × required_level)
@@ -51,7 +84,16 @@ function computeSkillMatch(task, resource) {
     const resSkill = (resource.skills || []).find(
       (s) => s.name.toLowerCase() === req.name.toLowerCase()
     );
-    const resLevel = resSkill ? resSkill.level : 0;
+    // Kỹ năng mới tự đánh giá chưa từng được Quản lý phê duyệt (evaluationStatus !== 'approved'
+    // và chưa có managerLevel) thì chưa tính vào mức năng lực chính thức khi tối ưu hóa.
+    const isUnapprovedNewSkill =
+      resSkill &&
+      resSkill.evaluationStatus &&
+      resSkill.evaluationStatus !== 'approved' &&
+      resSkill.managerLevel == null;
+    const resLevel = resSkill
+      ? (isUnapprovedNewSkill ? 0 : (resSkill.managerLevel ?? resSkill.level ?? 0))
+      : 0;
     totalMatch += weight * Math.min(resLevel, req.level);
   }
 
@@ -142,13 +184,13 @@ function computePeakLoads(solution, tasks, numResources, resources = []) {
  */
 function computeFitness(solution, tasks, resources, skillMatrix, maxCost, weights = DEFAULT_WEIGHTS) {
   const numResources = resources.length;
-  const workloads = computeWorkloads(solution, tasks, numResources);
+  const peakLoads = computePeakLoads(solution, tasks, numResources, resources);
 
-  // 1. Cân bằng tải: 1 - độ lệch chuẩn đã chuẩn hóa
-  const avgWorkload = workloads.reduce((s, w) => s + w, 0) / numResources;
-  const variance = workloads.reduce((s, w) => s + (w - avgWorkload) ** 2, 0) / numResources;
+  // 1. Cân bằng tải theo tải tuần cao điểm (đã tính cả committedTasks ở dự án khác)
+  const avgWorkload = peakLoads.reduce((s, w) => s + w, 0) / numResources;
+  const variance = peakLoads.reduce((s, w) => s + (w - avgWorkload) ** 2, 0) / numResources;
   const stdDev = Math.sqrt(variance);
-  const maxWorkload = Math.max(...workloads, 1);
+  const maxWorkload = Math.max(...peakLoads, 1);
   const fWorkload = Math.max(0, 1 - stdDev / maxWorkload);
 
   // 2. Độ khớp kỹ năng trung bình
@@ -165,13 +207,18 @@ function computeFitness(solution, tasks, resources, skillMatrix, maxCost, weight
   }
   const fCost = maxCost > 0 ? Math.max(0, 1 - totalCost / maxCost) : 1;
 
-  // 4. Phạt quá tải — so tải tuần cao điểm với năng lực TUẦN, cùng đơn vị
-  const peakLoads = computePeakLoads(solution, tasks, numResources, resources);
-  let overallocated = 0;
+  // 4. Phạt quá tải & vi phạm lịch nghỉ phép — so tải tuần cao điểm với năng lực TUẦN
+  const violatedResources = new Set();
   for (let r = 0; r < numResources; r++) {
-    if (peakLoads[r] > capacityOf(resources[r])) overallocated++;
+    if (peakLoads[r] > capacityOf(resources[r])) violatedResources.add(r);
   }
-  const fOveralloc = 1 - overallocated / numResources;
+  for (let t = 0; t < solution.length; t++) {
+    const r = solution[t];
+    if (r !== undefined && r !== null && !isResourceAvailableForTask(resources[r], tasks[t])) {
+      violatedResources.add(r);
+    }
+  }
+  const fOveralloc = 1 - violatedResources.size / numResources;
 
   const fitness =
     weights.workloadBalance * fWorkload +
@@ -272,6 +319,8 @@ module.exports = {
   DEFAULT_WEIGHTS,
   capacityOf,
   effortOf,
+  isResourceAvailableForTask,
+  lockedAssigneeIndex,
   computeSkillMatch,
   buildSkillMatrix,
   computeMaxCost,

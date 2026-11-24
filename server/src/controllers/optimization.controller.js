@@ -49,7 +49,11 @@ const denyResult = (req, res, result) => {
  * Helper: Load tasks & resources for optimization
  */
 const loadOptimizationData = async (projectId, user) => {
-  const taskFilter = { status: { $in: ['todo', 'in_progress', 'review'] } };
+  // Chỉ lấy công việc cấp gốc (parentTask: null) để tránh tính trùng (double-counting) giờ của việc cha và việc con
+  const taskFilter = {
+    status: { $in: ['todo', 'in_progress', 'review'] },
+    parentTask: { $in: [null, undefined] },
+  };
   let resourceFilter = { isActive: true };
 
   const userCompany = (user && user.companyName) || 'Công ty Công nghệ RAO';
@@ -110,12 +114,15 @@ const loadOptimizationData = async (projectId, user) => {
     }
   }
 
-  const [tasks, resources] = await Promise.all([
-    Task.find(taskFilter).select('title estimatedHours requiredSkills startDate endDate project status dependencies'),
+  const [tasks, rawResources] = await Promise.all([
+    Task.find(taskFilter).select('title estimatedHours requiredSkills startDate endDate project status dependencies assignee'),
     Resource.find(resourceFilter)
-      .populate('user', 'name email')
+      .populate('user', 'name email isActive')
       .select('user position department skills maxCapacity fte hourlyRate availability unavailablePeriods currentWorkload'),
   ]);
+
+  // Loại bỏ nhân sự có tài khoản User đã bị vô hiệu hóa (User.isActive === false)
+  const resources = rawResources.filter((r) => !r.user || r.user.isActive !== false);
 
   // Giờ công mà mỗi nhân sự ĐÃ cam kết ở những việc **không thuộc lần chạy này**
   // — điển hình là việc của dự án khác mà họ cũng đang tham gia.
@@ -127,10 +134,11 @@ const loadOptimizationData = async (projectId, user) => {
   const optimizedIds = tasks.map((t) => t._id);
   const memberUserIds = resources.map((r) => r.user?._id).filter(Boolean);
   const committedByUser = new Map();
-  if (memberUserIds.length > 0) {
+    if ( memberUserIds.length > 0) {
     const committedTasks = await Task.find({
       assignee: { $in: memberUserIds },
       status: { $in: ['todo', 'in_progress', 'review'] },
+      parentTask: { $in: [null, undefined] },
       _id: { $nin: optimizedIds },
     }).select('assignee estimatedHours startDate endDate project');
 
@@ -148,22 +156,33 @@ const loadOptimizationData = async (projectId, user) => {
   }
 
   // Flatten resource data for algorithm
-  const flatResources = resources.map((r) => ({
-    _id: r._id,
-    userId: r.user?._id,
-    userName: r.user?.name || r.position,
-    position: r.position,
-    department: r.department,
-    // Kỹ năng mới do nhân viên tự khai chưa có quản lý duyệt không đi vào bộ tối ưu.
-    skills: (r.skills || []).filter((skill) => skill.evaluationStatus === 'approved' || skill.managerLevel),
-    maxCapacity: r.maxCapacity ?? 40,
-    fte: r.fte ?? 1,
-    hourlyRate: r.hourlyRate || 0,
-    availability: r.availability || 'available',
-    unavailablePeriods: r.unavailablePeriods || [],
-    currentWorkload: r.currentWorkload || 0,
-    committedTasks: committedByUser.get(String(r.user?._id)) || [],
-  }));
+  const flatResources = resources.map((r) => {
+    const capacity = (r.maxCapacity ?? 40) * (r.fte ?? 1);
+    // Nếu nhân sự bị đánh dấu 'unavailable' chỉ vì tải hiện tại vượt định mức (currentWorkload > 0),
+    // thì khi chạy tối ưu lại (các việc cần tối ưu đã tách khỏi committedTasks), họ vẫn được tham gia
+    // phân bổ theo phần công suất còn trống sau khi trừ committedTasks và lịch nghỉ phép.
+    const effectiveAvailability =
+      r.availability === 'unavailable' && (r.currentWorkload || 0) > 0 && capacity > 0
+        ? 'available'
+        : (r.availability || 'available');
+
+    return {
+      _id: r._id,
+      userId: r.user?._id,
+      userName: r.user?.name || r.position,
+      position: r.position,
+      department: r.department,
+      // Kỹ năng mới do nhân viên tự khai chưa có quản lý duyệt không đi vào bộ tối ưu.
+      skills: (r.skills || []).filter((skill) => skill.evaluationStatus === 'approved' || skill.managerLevel),
+      maxCapacity: r.maxCapacity ?? 40,
+      fte: r.fte ?? 1,
+      hourlyRate: r.hourlyRate || 0,
+      availability: effectiveAvailability,
+      unavailablePeriods: r.unavailablePeriods || [],
+      currentWorkload: r.currentWorkload || 0,
+      committedTasks: committedByUser.get(String(r.user?._id)) || [],
+    };
+  });
 
   return { tasks, resources: flatResources };
 };
@@ -793,7 +812,7 @@ const applyResult = async (req, res, next) => {
             assignment.task,
             { assignee: resource.user },
             { new: true }
-          ).select('title');
+          ).select('title project');
           appliedCount++;
 
           if (resource.user) {
@@ -801,6 +820,14 @@ const applyResult = async (req, res, next) => {
             const key = resource.user.toString();
             if (!tasksByAssignee.has(key)) tasksByAssignee.set(key, []);
             tasksByAssignee.get(key).push(task?.title || assignment.taskTitle);
+
+            // Tự động thêm nhân sự được phân công vào danh sách thành viên dự án nếu chưa có
+            if (task?.project) {
+              await Project.updateOne(
+                { _id: task.project, 'members.user': { $ne: resource.user } },
+                { $push: { members: { user: resource.user, role: 'developer', allocation: 100 } } }
+              );
+            }
           }
         }
       }
@@ -903,8 +930,11 @@ const rollbackResult = async (req, res, next) => {
 
     for (const item of result.previousAssignments) {
       if (item.task) {
-        const currentTask = await Task.findById(item.task).select('assignee');
-        if (currentTask?.assignee) {
+        const currentTask = await Task.findById(item.task).select('assignee status');
+        if (!currentTask || ['done', 'failed'].includes(currentTask.status)) {
+          continue;
+        }
+        if (currentTask.assignee) {
           affectedUserIds.add(currentTask.assignee.toString());
         }
         if (item.previousAssignee) {

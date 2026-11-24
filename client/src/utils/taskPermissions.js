@@ -99,8 +99,8 @@ export function getTaskPermissions(task, project, user) {
   // 9. Di chuyển công việc (Creator, Assignee, PM, Owner)
   const canMove = isOwner || isPM || isCreator || isAssignee;
 
-  // 10. Tạo công việc con
-  const canAddSubtask = isOwner || isPM || isCreator || isAssignee || isFollower;
+  // 10. Tạo công việc con (chỉ cho phép trên công việc gốc — tối đa 1 cấp việc con)
+  const canAddSubtask = !isSubtask && (isOwner || isPM || isCreator || isAssignee || isFollower);
 
   // 11. Thêm người theo dõi
   const canAddFollower = isOwner || isPM || isCreator || isAssignee;

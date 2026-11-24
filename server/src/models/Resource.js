@@ -9,7 +9,6 @@ const resourceSchema = new mongoose.Schema(
     },
     employeeId: {
       type: String,
-      unique: true,
       sparse: true,
       trim: true,
     },
@@ -180,5 +179,9 @@ resourceSchema.index({ 'skills.name': 1, 'skills.level': 1 });
 resourceSchema.index({ availability: 1 });
 resourceSchema.index({ department: 1 });
 resourceSchema.index({ companyName: 1 });
+resourceSchema.index(
+  { employeeId: 1, companyName: 1 },
+  { unique: true, partialFilterExpression: { employeeId: { $type: 'string' } } }
+);
 
 module.exports = mongoose.model('Resource', resourceSchema);

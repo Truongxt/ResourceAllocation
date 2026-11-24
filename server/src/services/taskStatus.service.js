@@ -98,6 +98,17 @@ function statusChangeFields({ task, nextStatus, failureReason, userId, now = new
     fields.failedBy = null;
   }
 
+  // Mở lại công việc đã hoàn thành: xóa mốc hoàn thành và kết quả duyệt cũ để
+  // thống kê đúng/trễ hạn không đọc nhầm mốc của vòng trước.
+  if (task.status === 'done' && nextStatus !== 'done') {
+    fields.completedAt = null;
+    if (nextStatus !== 'review') {
+      fields.reviewDecision = 'pending';
+      fields.reviewedAt = null;
+      fields.reviewedBy = null;
+    }
+  }
+
   return fields;
 }
 

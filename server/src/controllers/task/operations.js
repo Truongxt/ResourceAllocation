@@ -29,6 +29,7 @@ const {
   recalculateProjectProgress,
   notifyDeadlineChanged,
   validateDependencies,
+  checkPredecessorsForCompletion,
 } = require('./shared');
 
 /**
@@ -93,10 +94,18 @@ const reportTaskResult = async (req, res, next) => {
     }
 
     if (markAsDone) {
+      const predErr = await checkPredecessorsForCompletion(task);
+      if (predErr) {
+        return res.status(400).json({ success: false, message: predErr });
+      }
+      if (task.status === 'failed') {
+        task.failureReason = '';
+        task.failedAt = null;
+        task.failedBy = null;
+      }
       // Dự án bật đánh giá thì nộp báo cáo cũng chỉ đưa việc tới cửa người đánh
       // giá. Để nguyên nhánh cũ là mở một đường vòng: ai nộp báo cáo cũng tự tuyên
       // bố việc mình xong, và bước duyệt thành hình thức.
-      const project = await Project.findById(task.project);
       if (project?.reviewConfig?.enabled) {
         task.status = 'review';
         task.completedAt = new Date();
@@ -224,17 +233,20 @@ const duplicateTask = async (req, res, next) => {
     });
 
     // Nhân bản cả subtasks con nếu được bật (keepSubtasks)
+    const duplicatedAssignees = [duplicated.assignee].filter(Boolean);
     if (keepSubtasks) {
       const subtasks = await Task.find({ parentTask: original._id });
       if (subtasks && subtasks.length > 0) {
         for (const sub of subtasks) {
+          const subAssignee = intoTemplate || !keepAssignee ? null : sub.assignee;
+          if (subAssignee) duplicatedAssignees.push(subAssignee);
           await Task.create({
             title: `${sub.title} (Bản sao)`,
             description: sub.description,
             project: targetProject,
             taskGroup: targetGroup || null,
             parentTask: duplicated._id,
-            assignee: intoTemplate || !keepAssignee ? null : sub.assignee,
+            assignee: subAssignee,
             followers: intoTemplate || !keepFollowers ? [] : (sub.followers || []),
             priority: sub.priority,
             status: 'todo',
@@ -268,8 +280,8 @@ const duplicateTask = async (req, res, next) => {
     await recalculateProjectProgress(targetProject);
 
     // Đồng bộ tải nếu có gán nhân sự
-    if (duplicated.assignee) {
-      await syncResourceWorkload(duplicated.assignee);
+    if (duplicatedAssignees.length > 0) {
+      await syncResourceWorkload(duplicatedAssignees);
     }
 
     logActivity({
@@ -382,6 +394,21 @@ const demoteToSubtask = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Công việc cha phải thuộc cùng một dự án' });
     }
 
+    // Giới hạn tối đa 1 cấp việc con (2 tầng: Công việc cha -> Công việc con)
+    if (targetParent.parentTask) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hệ thống chỉ hỗ trợ tối đa 1 cấp công việc con (không chọn việc con làm việc cha)',
+      });
+    }
+    const hasOwnSubtasks = await Task.exists({ parentTask: task._id });
+    if (hasOwnSubtasks) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể hạ cấp công việc đang chứa công việc con',
+      });
+    }
+
     // Tránh vòng lặp
     if (String(targetParent.parentTask) === String(task._id)) {
       return res.status(400).json({ success: false, message: 'Không thể tạo quan hệ cha con vòng tròn' });
@@ -439,12 +466,17 @@ const moveTask = async (req, res, next) => {
     }
 
     const { targetProjectId, targetTaskGroupId } = req.body;
+    const oldProjectId = task.project;
+    let movedToNewProject = false;
+    let targetProjectDoc = null;
 
     if (targetProjectId && String(targetProjectId) !== String(task.project)) {
       const targetProject = await Project.findById(targetProjectId);
       if (!targetProject) {
         return res.status(404).json({ success: false, message: 'Không tìm thấy dự án đích' });
       }
+      targetProjectDoc = targetProject;
+      movedToNewProject = true;
 
       // `canMoveTask` và `router.param('id')` chỉ soi công việc NGUỒN; dự án đích đi
       // trong body nên phải tự kiểm. Chuyển việc vào dự án cũng là thêm việc vào đó,
@@ -527,11 +559,40 @@ const moveTask = async (req, res, next) => {
 
     await task.save();
 
-    // Đồng bộ chuyển project cho subtasks
-    if (targetProjectId) {
+    // Đồng bộ chuyển project cho subtasks và cập nhật tiến độ + thành viên dự án
+    if (movedToNewProject) {
+      const subtasks = await Task.find({ parentTask: task._id }).select('assignee');
       await Task.updateMany(
         { parentTask: task._id },
-        { project: targetProjectId, taskGroup: targetTaskGroupId || null }
+        {
+          $set: { project: targetProjectId, taskGroup: targetTaskGroupId || null },
+          $unset: { customValues: '' },
+        }
+      );
+
+      if (targetProjectDoc && !targetProjectDoc.isTemplate) {
+        const assigneesToAdd = [task.assignee, ...subtasks.map((s) => s.assignee)].filter(Boolean);
+        let membersChanged = false;
+        for (const uId of assigneesToAdd) {
+          const isMember = (targetProjectDoc.members || []).some(
+            (m) => m.user && m.user.toString() === uId.toString()
+          );
+          if (!isMember) {
+            targetProjectDoc.members.push({ user: uId, role: 'developer', allocation: 100 });
+            membersChanged = true;
+          }
+        }
+        if (membersChanged) {
+          await targetProjectDoc.save();
+        }
+      }
+
+      await recalculateProjectProgress(oldProjectId);
+      await recalculateProjectProgress(targetProjectId);
+    } else if (targetTaskGroupId !== undefined) {
+      await Task.updateMany(
+        { parentTask: task._id },
+        { taskGroup: targetTaskGroupId || null }
       );
     }
 
@@ -566,6 +627,12 @@ const updateDeadline = async (req, res, next) => {
     const reason = req.body.reason;
     if (!newEndDate) {
       return res.status(400).json({ success: false, message: 'Thời hạn mới là bắt buộc' });
+    }
+    if (task.startDate && new Date(newEndDate) < new Date(task.startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời hạn mới không được nhỏ hơn ngày bắt đầu công việc',
+      });
     }
 
     task.deadlineHistory = task.deadlineHistory || [];

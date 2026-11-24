@@ -5,7 +5,9 @@ import notificationService from '../services/notificationService';
 
 const SocketContext = createContext(null);
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
 
 export function SocketProvider({ children }) {
   const { user, getToken } = useAuth();

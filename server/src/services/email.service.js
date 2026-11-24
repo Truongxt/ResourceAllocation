@@ -238,9 +238,6 @@ async function sendNotificationEmail(notification, env = process.env) {
     const config = readMailConfig(env);
     if (!config.enabled) return { sent: false, reason: config.reason };
 
-    const transporter = getTransporter(env);
-    if (!transporter) return { sent: false, reason: 'chưa dựng được transporter' };
-
     const recipient = await User.findById(notification.recipient)
       .select('name email emailPreferences companyName')
       .lean();
@@ -257,8 +254,7 @@ async function sendNotificationEmail(notification, env = process.env) {
       companyName: recipient.companyName,
     });
 
-    await transporter.sendMail({ from: config.from, ...message });
-    return { sent: true };
+    return await sendRawEmail({ from: config.from, ...message }, env);
   } catch (error) {
     console.error('Gửi email thất bại:', error.message);
     return { sent: false, reason: error.message };
@@ -271,10 +267,96 @@ async function sendNotificationEmail(notification, env = process.env) {
 function logMailStatus(env = process.env) {
   const config = readMailConfig(env);
   if (config.enabled) {
-    console.log(`Email: BẬT — gửi qua ${config.host}:${config.port}, from ${config.from}`);
+    if (config.provider === 'resend') {
+      console.log(`Email: BẬT — gửi qua Resend HTTPS API (cổng 443), from ${config.from}`);
+    } else if (config.provider === 'brevo') {
+      console.log(`Email: BẬT — gửi qua Brevo HTTPS API (cổng 443), from ${config.from}`);
+    } else {
+      console.log(`Email: BẬT — gửi qua SMTP ${config.host}:${config.port}, from ${config.from}`);
+    }
   } else {
     console.log(`Email: TẮT (${config.reason}). Thông báo chỉ hiện trong ứng dụng.`);
   }
+}
+
+/**
+ * Bộ phát email thống nhất: Tự động gửi qua HTTPS API (Resend/Brevo) nếu có API Key,
+ * hoặc qua SMTP (Nodemailer) nếu cấu hình SMTP.
+ */
+async function sendRawEmail({ from, to, subject, text, html }, env = process.env) {
+  const config = readMailConfig(env);
+  if (!config.enabled) {
+    return { sent: false, simulated: true, reason: config.reason };
+  }
+
+  const effectiveFrom = from || config.from;
+
+  // 1. Resend API (HTTPS port 443 — Render không bao giờ chặn)
+  if (config.provider === 'resend') {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: effectiveFrom,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        text,
+        html,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || `Lỗi Resend API (${res.status})`);
+    }
+    return { sent: true, messageId: data.id };
+  }
+
+  // 2. Brevo API (HTTPS port 443 — Render không bao giờ chặn, hỗ trợ email người gửi tùy chỉnh)
+  if (config.provider === 'brevo') {
+    const match = effectiveFrom.match(/^(?:"?([^"]*)"?\s)?<?([^>]+)>?$/);
+    const senderName = match && match[1] ? match[1].trim() : 'OptiWork';
+    const senderEmail = match && match[2] ? match[2].trim() : effectiveFrom;
+
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': config.apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { name: senderName, email: senderEmail },
+        to: Array.isArray(to) ? to.map((e) => ({ email: e })) : [{ email: to }],
+        subject,
+        textContent: text,
+        htmlContent: html,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || `Lỗi Brevo API (${res.status})`);
+    }
+    return { sent: true, messageId: data.messageId };
+  }
+
+  // 3. SMTP truyền thống
+  const transporter = getTransporter(env);
+  if (!transporter) {
+    return { sent: false, reason: 'Chưa khởi tạo được mail transporter' };
+  }
+
+  const info = await transporter.sendMail({
+    from: effectiveFrom,
+    to,
+    subject,
+    text,
+    html,
+  });
+
+  return { sent: true, messageId: info.messageId };
 }
 
 /**
@@ -435,21 +517,18 @@ async function sendUserWelcomeEmail(params, env = process.env) {
       return { sent: false, simulated: true, reason: config.reason, preview: { email: user.email, plainPassword } };
     }
 
-    const transporter = getTransporter(env);
-    if (!transporter) {
-      return { sent: false, reason: 'Chưa khởi tạo được mail transporter' };
-    }
-
-    const info = await transporter.sendMail({
+    const result = await sendRawEmail({
       from: config.from,
       to: mailMessage.to,
       subject: mailMessage.subject,
       text: mailMessage.text,
       html: mailMessage.html,
-    });
+    }, env);
 
-    console.log(`✅ Đã gửi email thông tin tài khoản thành công tới ${user.email}: messageId=${info.messageId}`);
-    return { sent: true, messageId: info.messageId };
+    if (result.sent) {
+      console.log(`✅ Đã gửi email thông tin tài khoản thành công tới ${user.email}: messageId=${result.messageId}`);
+    }
+    return result;
   } catch (error) {
     console.error(`❌ Lỗi gửi email tới ${params?.user?.email}:`, error.message);
     return { sent: false, reason: error.message };
@@ -586,6 +665,13 @@ function buildDailyDigestEmail({ user, summary, clientUrl, companyName }) {
   return { to: user.email, subject, text, html };
 }
 
+const sampleNotification = {
+  type: 'task_assigned',
+  title: 'Kiểm tra kết nối Email từ hệ thống',
+  message: 'Đây là email thử nghiệm xác nhận cấu hình gửi thư thông báo đã hoạt động ổn định.',
+  link: '/settings',
+};
+
 /**
  * Gửi email thử nghiệm (Test Email) để kiểm tra cấu hình SMTP.
  */
@@ -600,25 +686,12 @@ async function sendTestNotificationEmail({ recipient, clientUrl, companyName }, 
       return { sent: false, simulated: true, reason: config.reason };
     }
 
-    const transporter = getTransporter(env);
-    if (!transporter) {
-      return { sent: false, reason: 'Chưa khởi tạo được mail transporter' };
-    }
-
-    const sampleNotification = {
-      type: 'task_assigned',
-      title: 'Kiểm tra cấu hình Email hệ thống',
-      message: 'Chúc mừng! Máy chủ gửi thư SMTP của bạn đã được kết nối và hoạt động chính xác.',
-      link: '/settings?tab=notifications',
-    };
-
     const message = buildNotificationEmail(sampleNotification, recipient, {
       clientUrl: clientUrl || env.CLIENT_URL,
       companyName,
     });
 
-    const info = await transporter.sendMail({ from: config.from, ...message });
-    return { sent: true, messageId: info.messageId };
+    return await sendRawEmail({ from: config.from, ...message }, env);
   } catch (error) {
     console.error('Gửi email thử nghiệm thất bại:', error.message);
     return { sent: false, reason: error.message };
@@ -634,11 +707,7 @@ async function sendAllDailyDigests(now = new Date(), env = process.env) {
     return { sent: 0, reason: config.reason, skipped: true };
   }
 
-  const transporter = getTransporter(env);
-  if (!transporter) {
-    return { sent: 0, reason: 'chưa dựng được transporter', skipped: true };
-  }
-
+  const Project = require('../models/Project');
   const users = await User.find({
     isActive: true,
     'emailPreferences.daily_digest': true,
@@ -650,22 +719,44 @@ async function sendAllDailyDigests(now = new Date(), env = process.env) {
 
   for (const user of users) {
     try {
+      const userCompany = user.companyName || 'Công ty Công nghệ RAO';
+      const [inactiveIds, reviewableProjectIds] = await Promise.all([
+        Project.find({
+          companyName: userCompany,
+          $or: [{ isTemplate: true }, { isArchived: true }],
+        }).distinct('_id'),
+        Project.find({
+          companyName: userCompany,
+          isTemplate: { $ne: true },
+          isArchived: { $ne: true },
+          $or: [{ manager: user._id }, { 'reviewConfig.reviewers': user._id }],
+        }).distinct('_id'),
+      ]);
+      const activeProjectFilter = inactiveIds.length ? { project: { $nin: inactiveIds } } : {};
+
       const [dueToday, overdue, pendingReviews] = await Promise.all([
         Task.find({
           assignee: user._id,
           status: { $nin: ['done', 'failed'] },
           endDate: { $gte: startOfDay, $lte: endOfDay },
+          ...activeProjectFilter,
         }).select('title endDate project').populate('project', 'name').limit(10),
 
         Task.find({
           assignee: user._id,
           status: { $nin: ['done', 'failed'] },
           endDate: { $lt: startOfDay },
+          ...activeProjectFilter,
         }).select('title endDate project').populate('project', 'name').limit(10),
 
         Task.find({
-          reviewers: user._id,
           status: 'review',
+          assignee: { $ne: user._id },
+          ...activeProjectFilter,
+          $or: [
+            { project: { $in: reviewableProjectIds } },
+            { createdBy: user._id },
+          ],
         }).select('title project').populate('project', 'name').limit(10),
       ]);
 
@@ -682,8 +773,8 @@ async function sendAllDailyDigests(now = new Date(), env = process.env) {
         companyName: user.companyName,
       });
 
-      await transporter.sendMail({ from: config.from, ...mail });
-      sentCount++;
+      const result = await sendRawEmail({ from: config.from, ...mail }, env);
+      if (result.sent) sentCount++;
     } catch (err) {
       console.error(`Lỗi gửi daily digest cho ${user.email}:`, err.message);
     }

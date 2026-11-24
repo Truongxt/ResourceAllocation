@@ -92,8 +92,8 @@
     "hoursNote": "Estimated hours are the total for tasks in scope, not weekly load or actual hours worked."
   },
   "common": {
-    "appName": "RAO",
-    "appFullName": "Resource Allocation Optimization",
+    "appName": "OptiWork",
+    "appFullName": "OptiWork - Smart Work & Resource Optimization",
     "save": "Save",
     "cancel": "Cancel",
     "close": "Close",
@@ -268,13 +268,13 @@
       "confirmReq": "Please confirm your password",
       "confirmMismatch": "Passwords do not match",
       "termsReq": "Please accept the terms of use",
-      "terms": "I agree to be contacted, to receive solution advice, and to the RAO platform terms of use.",
+      "terms": "I agree to be contacted, to receive solution advice, and to the OptiWork platform terms of use.",
       "options": {
         "products": [
-          "RAO Work+: AI staffing & work management",
-          "RAO Schedule+: Multi-view task calendar (day/week/month)",
-          "RAO Optimize+: Dual CSP & genetic algorithm optimization",
-          "RAO Analytics+: Workload, FTE & budget analytics"
+          "OptiWork Work+: AI staffing & work management",
+          "OptiWork Schedule+: Multi-view task calendar (day/week/month)",
+          "OptiWork Optimize+: Dual CSP & genetic algorithm optimization",
+          "OptiWork Analytics+: Workload, FTE & budget analytics"
         ],
         "jobTitles": [
           "CEO / Founder / Chairperson",

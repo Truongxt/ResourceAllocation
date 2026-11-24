@@ -37,8 +37,11 @@ const { inactiveProjectIds } = require('./projectLifecycle.service');
  *   - isGlobalAdmin: Boolean cờ admin
  */
 const getUserAnalyticsScope = async (user) => {
-  const isGlobalAdmin = user && user.role === 'admin';
+  const isGlobalAdmin = Boolean(user && (user.role === 'admin' || user.isOwner));
   const userCompany = user?.companyName || 'Công ty Công nghệ RAO';
+  const companyScope = userCompany === 'Công ty Công nghệ RAO'
+    ? { $in: [userCompany, null, undefined] }
+    : userCompany;
   // Mẫu nằm ngoài mọi số liệu. Dự án lưu trữ thì KHÔNG loại: việc đã đóng của nó là
   // lịch sử, ẩn đi thì báo cáo kỳ trước tự đổi số.
   const templateIds = await inactiveProjectIds(userCompany, { includeArchived: false });
@@ -50,7 +53,7 @@ const getUserAnalyticsScope = async (user) => {
       projectMatch: { companyName: userCompany, isTemplate: { $ne: true } },
       taskMatch: { companyName: userCompany, ...notTemplate },
       resourceMatch: { isActive: true, companyName: userCompany },
-      recentOptimizationFilter: { status: 'completed' },
+      recentOptimizationFilter: { status: 'completed', companyName: companyScope },
       isGlobalAdmin: true,
       userProjectIds: null,
     };
@@ -111,9 +114,10 @@ const getUserAnalyticsScope = async (user) => {
     ],
   };
 
-  // Chỉ lấy các đợt tối ưu hóa của chính user hoặc cho dự án của user
+  // Chỉ lấy các đợt tối ưu hóa của chính user hoặc cho dự án của user trong cùng công ty
   const recentOptimizationFilter = {
     status: 'completed',
+    companyName: companyScope,
     $or: [
       { runBy: user._id },
       { projectFilter: { $in: userProjectIds } },

@@ -1,0 +1,76 @@
+name: Deploy Frontend to x10hosting (FTP)
+
+on:
+  push:
+    branches:
+      - main
+      - uat
+    paths:
+      - 'client/**'
+      - '.github/workflows/deploy-frontend-ftp.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'client/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd client
+          npm ci || npm install
+
+      - name: Determine Environment Settings
+        id: env-settings
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/uat" ]; then
+            echo "target_dir=./domains/uat.optiwork.x10.mx/public_html/" >> $GITHUB_OUTPUT
+            echo "api_url=${{ secrets.UAT_API_URL || 'https://optiwork-api-uat.onrender.com/api' }}" >> $GITHUB_OUTPUT
+            echo "socket_url=${{ secrets.UAT_SOCKET_URL || 'https://optiwork-api-uat.onrender.com' }}" >> $GITHUB_OUTPUT
+            echo "Target: UAT Environment"
+          else
+            echo "target_dir=./domains/optiwork.x10.mx/public_html/" >> $GITHUB_OUTPUT
+            echo "api_url=https://optiwork-api.onrender.com/api" >> $GITHUB_OUTPUT
+            echo "socket_url=https://optiwork-api.onrender.com" >> $GITHUB_OUTPUT
+            echo "Target: Production Environment"
+          fi
+
+      - name: Build Frontend
+        env:
+          VITE_API_URL: ${{ steps.env-settings.outputs.api_url }}
+          VITE_SOCKET_URL: ${{ steps.env-settings.outputs.socket_url }}
+        run: |
+          cd client
+          npm run build
+
+      - name: Generate .htaccess for SPA routing
+        run: |
+          cat << 'EOF' > client/dist/.htaccess
+          <IfModule mod_rewrite.c>
+            RewriteEngine On
+            RewriteBase /
+            RewriteRule ^index\.html$ - [L]
+            RewriteCond %{REQUEST_FILENAME} !-f
+            RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteRule . /index.html [L]
+          </IfModule>
+          EOF
+
+      - name: Sync files to x10hosting via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./client/dist/
+          server-dir: ${{ steps.env-settings.outputs.target_dir }}
+          dangerous-clean-slate: false

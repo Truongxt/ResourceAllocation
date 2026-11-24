@@ -18,14 +18,36 @@
 
 let accessToken = null;
 
-export const getToken = () => accessToken;
+export const getToken = () => {
+  if (accessToken) return accessToken;
+  try {
+    accessToken = localStorage.getItem('optiwork_access_token') || null;
+  } catch {
+    /* ignore */
+  }
+  return accessToken;
+};
 
 export const setToken = (token) => {
   accessToken = token || null;
+  try {
+    if (token) {
+      localStorage.setItem('optiwork_access_token', token);
+    } else {
+      localStorage.removeItem('optiwork_access_token');
+    }
+  } catch {
+    /* ignore */
+  }
 };
 
 export const clearToken = () => {
   accessToken = null;
+  try {
+    localStorage.removeItem('optiwork_access_token');
+  } catch {
+    /* ignore */
+  }
 };
 
 export default { getToken, setToken, clearToken };

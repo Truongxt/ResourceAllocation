@@ -217,6 +217,55 @@ const canApproveReview = (task, project, user) => {
   return resolveReviewers(task, project).includes(user._id.toString());
 };
 
+/**
+ * Kiểm tra các công việc tiền nhiệm trước khi cho phép hoàn thành công việc hiện tại.
+ * - finish_to_start / finish_to_finish: tiền nhiệm phải ở trạng thái 'done'.
+ * - start_to_start / start_to_finish: tiền nhiệm phải đã bắt đầu (khác 'todo').
+ *
+ * @param {Object} task - Công việc cần kiểm tra (có trường dependencies)
+ * @param {Array} [overrideDependencies] - Danh sách dependencies mới nếu đang cập nhật trong cùng request
+ * @returns {Promise<string|null>} Thông báo lỗi tiếng Việt hoặc null nếu hợp lệ
+ */
+const checkPredecessorsForCompletion = async (task, overrideDependencies) => {
+  const rawDeps = overrideDependencies !== undefined ? overrideDependencies : task?.dependencies;
+  if (!Array.isArray(rawDeps) || rawDeps.length === 0) return null;
+
+  const depEntries = rawDeps
+    .map((dep) => {
+      if (!dep) return null;
+      const id = dep.task?._id || dep.task || dep.taskId || dep;
+      const type = dep.type || 'finish_to_start';
+      return id ? { id: String(id), type } : null;
+    })
+    .filter(Boolean);
+
+  if (!depEntries.length) return null;
+
+  const predecessors = await Task.find({
+    _id: { $in: depEntries.map((d) => d.id) },
+  }).select('title status');
+
+  const predMap = new Map(predecessors.map((p) => [String(p._id), p]));
+
+  for (const dep of depEntries) {
+    const pred = predMap.get(dep.id);
+    if (!pred) continue;
+
+    if (dep.type === 'start_to_start' || dep.type === 'start_to_finish') {
+      if (pred.status === 'todo') {
+        return `Không thể hoàn thành khi công việc tiền nhiệm "${pred.title}" chưa bắt đầu thực hiện`;
+      }
+    } else {
+      // finish_to_start, finish_to_finish
+      if (pred.status !== 'done') {
+        return `Không thể hoàn thành khi công việc tiền nhiệm "${pred.title}" chưa hoàn thành`;
+      }
+    }
+  }
+
+  return null;
+};
+
 module.exports = {
   STATUS_TRAIL_FIELDS,
   companyProjectScope,
@@ -227,4 +276,5 @@ module.exports = {
   belongsToCompany,
   validateDependencies,
   canApproveReview,
+  checkPredecessorsForCompletion,
 };

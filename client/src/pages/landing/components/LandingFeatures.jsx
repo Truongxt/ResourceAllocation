@@ -134,7 +134,7 @@ export default function LandingFeatures({ activeTab, setActiveTab }) {
                     Sơ đồ Gantt Tương tác & Nhận diện Đường găng CPM
                   </Title>
                   <Paragraph className="tab-content-desc">
-                    Khác với Jira bản gốc (phải mua thêm plugin đắt tiền), RAO Studio tích hợp sẵn công cụ Gantt chuyên nghiệp với khả năng tính toán đường tới hạn (Critical Path Method).
+                    Khác với Jira bản gốc (phải mua thêm plugin đắt tiền), OptiWork tích hợp sẵn công cụ Gantt chuyên nghiệp với khả năng tính toán đường tới hạn (Critical Path Method).
                   </Paragraph>
                   <ul className="tab-checklist">
                     <li>

@@ -7,13 +7,49 @@
  */
 
 const path = require('path');
+const dns = require('dns');
 const dotenv = require('dotenv');
 const nodemailer = require('nodemailer');
 const { isRelaxedEnv } = require('./env');
 
 function cleanEnvVal(val) {
   if (!val) return '';
-  return String(val).trim().replace(/^["']|["']$/g, '');
+  let str = String(val).trim();
+  while ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+    str = str.slice(1, -1).trim();
+  }
+  return str;
+}
+
+function formatMailFrom(fromStr) {
+  if (!fromStr) return '';
+  const str = cleanEnvVal(fromStr);
+
+  // Trích xuất email trong cặp ngoặc <...> nếu có (vd: "OptiWork" <truongdeptrai784@gmail.com>)
+  const bracketMatch = str.match(/<([^>]+)>/);
+  if (bracketMatch) {
+    const email = bracketMatch[1].trim();
+    const rawName = str.substring(0, bracketMatch.index).trim().replace(/^["']|["']$/g, '').trim();
+    return rawName ? `"${rawName}" <${email}>` : email;
+  }
+
+  // Nếu không có ngoặc nhưng có email (vd: "OptiWork" truongdeptrai784@gmail.com hoặc truongdeptrai784@gmail.com)
+  if (str.includes('@')) {
+    const parts = str.split(/\s+/);
+    const emailPart = parts.find((p) => p.includes('@'));
+    const namePart = parts
+      .filter((p) => p !== emailPart)
+      .join(' ')
+      .trim()
+      .replace(/^["']|["']$/g, '')
+      .trim();
+    if (namePart) {
+      return `"${namePart}" <${emailPart}>`;
+    }
+    return emailPart;
+  }
+
+  return str;
 }
 
 /**
@@ -42,6 +78,29 @@ function readMailConfig(env = process.env) {
     return { enabled: false, reason: 'EMAIL_ENABLED=false' };
   }
 
+  // Hỗ trợ HTTP Email Providers (Resend / Brevo) — gửi qua HTTPS Port 443 không bao giờ bị chặn trên Render Free
+  const resendApiKey = cleanEnvVal(env.RESEND_API_KEY);
+  const brevoApiKey = cleanEnvVal(env.BREVO_API_KEY);
+  const rawFrom = cleanEnvVal(env.MAIL_FROM);
+
+  if (resendApiKey) {
+    return {
+      enabled: true,
+      provider: 'resend',
+      apiKey: resendApiKey,
+      from: formatMailFrom(rawFrom || 'OptiWork <onboarding@resend.dev>'),
+    };
+  }
+
+  if (brevoApiKey) {
+    return {
+      enabled: true,
+      provider: 'brevo',
+      apiKey: brevoApiKey,
+      from: formatMailFrom(rawFrom || 'OptiWork <truongdeptrai784@gmail.com>'),
+    };
+  }
+
   const host = cleanEnvVal(env.SMTP_HOST);
   const from = cleanEnvVal(env.MAIL_FROM);
 
@@ -54,16 +113,19 @@ function readMailConfig(env = process.env) {
   }
 
   const user = cleanEnvVal(env.SMTP_USER);
-  const pass = cleanEnvVal(env.SMTP_PASS);
+  const pass = cleanEnvVal(env.SMTP_PASS).replace(/\s+/g, '');
+
+  const formattedFrom = formatMailFrom(from);
 
   return {
     enabled: true,
+    provider: 'smtp',
     host,
     port,
     // Cổng 465 là SMTPS (TLS ngay từ đầu); các cổng khác dùng STARTTLS.
     secure: String(env.SMTP_SECURE || '').toLowerCase() === 'true' || port === 465,
     auth: user ? { user, pass } : undefined,
-    from,
+    from: formattedFrom,
   };
 }
 
@@ -73,7 +135,7 @@ let lastTransporterKey = null;
 /** Transporter dùng chung, tự động tái tạo khi cấu hình SMTP thay đổi. Trả null khi email đang tắt. */
 function getTransporter(env = process.env) {
   const config = readMailConfig(env);
-  if (!config.enabled) {
+  if (!config.enabled || config.provider !== 'smtp') {
     cachedTransporter = null;
     lastTransporterKey = null;
     return null;
@@ -86,6 +148,16 @@ function getTransporter(env = process.env) {
       port: config.port,
       secure: config.secure,
       auth: config.auth,
+      lookup: (hostname, options, callback) => {
+        // Luôn ép dns.lookup trả về IPv4 (family: 4) để triệt tiêu hoàn toàn lỗi ENETUNREACH IPv6 trên Render
+        dns.lookup(hostname, { family: 4 }, callback);
+      },
+      connectionTimeout: 8000, // 8 giây timeout kết nối
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
+      tls: {
+        rejectUnauthorized: false,
+      },
     });
     lastTransporterKey = currentKey;
   }
@@ -93,4 +165,4 @@ function getTransporter(env = process.env) {
   return cachedTransporter;
 }
 
-module.exports = { readMailConfig, getTransporter };
+module.exports = { readMailConfig, getTransporter, formatMailFrom, cleanEnvVal };

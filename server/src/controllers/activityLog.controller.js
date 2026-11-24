@@ -33,7 +33,7 @@ const getActivityLogs = async (req, res, next) => {
     // đọc được vết hoạt động của mọi công ty.
     const filter = companyFilter(req.user);
 
-    if (req.user && req.user.role !== 'admin') {
+    if (req.user && req.user.role !== 'admin' && !req.user.isOwner) {
       filter.user = req.user._id;
     } else if (req.query.user) {
       filter.user = req.query.user;
@@ -56,11 +56,19 @@ const getActivityLogs = async (req, res, next) => {
       ];
     }
 
-    if (req.query.startDate && req.query.endDate) {
-      filter.createdAt = {
-        $gte: new Date(req.query.startDate),
-        $lte: new Date(req.query.endDate),
-      };
+    if (req.query.startDate || req.query.endDate) {
+      filter.createdAt = {};
+      if (req.query.startDate) {
+        filter.createdAt.$gte = new Date(req.query.startDate);
+      }
+      if (req.query.endDate) {
+        const rawEnd = String(req.query.endDate).trim();
+        const end = new Date(rawEnd);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(rawEnd) && !Number.isNaN(end.getTime())) {
+          end.setUTCHours(23, 59, 59, 999);
+        }
+        filter.createdAt.$lte = end;
+      }
     }
 
     const [logs, total] = await Promise.all([
@@ -102,7 +110,7 @@ const getActivityStats = async (req, res, next) => {
     // hiện thẳng tên người của công ty khác.
     const match = companyFilter(req.user);
 
-    if (req.user && req.user.role !== 'admin') {
+    if (req.user && req.user.role !== 'admin' && !req.user.isOwner) {
       match.user = req.user._id;
     }
 

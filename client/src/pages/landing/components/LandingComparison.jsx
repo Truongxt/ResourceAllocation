@@ -45,7 +45,7 @@ export default function LandingComparison() {
                   <th className="col-rao">
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <ThunderboltOutlined style={{ color: 'var(--brand-primary)' }} />
-                      RAO Studio (Hệ thống này)
+                      OptiWork (Hệ thống này)
                     </span>
                   </th>
                   <th className="col-jira">Jira Software Cloud (Bản gốc)</th>
@@ -194,7 +194,7 @@ export default function LandingComparison() {
                     <MobileOutlined style={{ fontSize: 24, color: '#06b6d4' }} />
                   </div>
                   <div className="platform-text">
-                    <strong>Ứng dụng Di động RAO Mobile</strong>
+                    <strong>Ứng dụng Di động OptiWork Mobile</strong>
                     <span>React Native, Expo SDK 54, điều hướng Native Stack & Bottom Tabs.</span>
                   </div>
                 </div>
@@ -206,7 +206,7 @@ export default function LandingComparison() {
                 <div className="mobile-screen-inner">
                   <div className="mobile-notch" />
                   <div className="mobile-app-header">
-                    <span className="app-title">RAO Mobile</span>
+                    <span className="app-title">OptiWork Mobile</span>
                     <span className="app-badge">SDK 54</span>
                   </div>
                   <div className="mobile-kpi-grid">

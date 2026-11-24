@@ -30,6 +30,7 @@ const {
   notifyDeadlineChanged,
   validateDependencies,
   canApproveReview,
+  checkPredecessorsForCompletion,
 } = require('./shared');
 
 /**
@@ -63,22 +64,46 @@ const getTasks = async (req, res, next) => {
       const subIds = subordinates.map((s) => s._id);
       filter.$and.push({ assignee: { $in: subIds } });
     } else if (!(req.user.role === 'admin' || req.user.isOwner)) {
+      const accessOr = [
+        { manager: req.user._id },
+        { 'members.user': req.user._id },
+        { createdBy: req.user._id },
+      ];
+      // Khách bên ngoài (Guest) chỉ xem được dự án được mời trực tiếp, không tự động mở dự án nội bộ
+      if (!req.user.isGuest) {
+        accessOr.push({ projectType: 'internal' });
+      }
       const accessibleProjects = await Project.find({
         _id: { $in: companyProjectIds },
-        $or: [
-          { manager: req.user._id },
-          { 'members.user': req.user._id },
-          { createdBy: req.user._id },
-          { projectType: 'internal' },
-        ],
-      }).select('_id');
-      const projectIds = accessibleProjects.map((p) => p._id);
+        $or: accessOr,
+      }).select('_id manager createdBy permissions');
 
-      filter.$and.push({ $or: [
-        { project: { $in: projectIds } },
+      const userIdStr = String(req.user._id);
+      const fullViewProjectIds = [];
+      const restrictedProjectIds = [];
+      for (const p of accessibleProjects) {
+        const isProjManagerOrCreator =
+          String(p.manager) === userIdStr || String(p.createdBy) === userIdStr;
+        if (isProjManagerOrCreator || p.permissions?.allowMembersViewAllTasks !== false) {
+          fullViewProjectIds.push(p._id);
+        } else {
+          restrictedProjectIds.push(p._id);
+        }
+      }
+
+      const taskVisibilityOr = [
+        { project: { $in: fullViewProjectIds } },
         { assignee: req.user._id },
         { createdBy: req.user._id },
-      ] });
+      ];
+      if (restrictedProjectIds.length > 0) {
+        taskVisibilityOr.push({
+          project: { $in: restrictedProjectIds },
+          followers: req.user._id,
+        });
+      }
+
+      filter.$and.push({ $or: taskVisibilityOr });
     }
 
     // Lọc theo date
@@ -284,6 +309,13 @@ const createTask = async (req, res, next) => {
     const placement = placementError(project, { assignee: req.body.assignee });
     if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
 
+    if (req.body.startDate && req.body.endDate && new Date(req.body.endDate) < new Date(req.body.startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày kết thúc (hạn chót) không được nhỏ hơn ngày bắt đầu',
+      });
+    }
+
     // assignee/followers/reviewers phải cùng công ty, taskGroup/parentTask phải cùng dự án
     const refError = await taskRefsError(req.body, { projectId: project._id, company: companyOf(project) });
     if (refError) {
@@ -486,6 +518,14 @@ const updateTask = async (req, res, next) => {
 
     // Không cho đổi công ty qua body, và mọi tham chiếu mới phải cùng công ty/dự án
     stripProtected(req.body);
+    const nextStart = req.body.startDate !== undefined ? req.body.startDate : task.startDate;
+    const nextEnd = req.body.endDate !== undefined ? req.body.endDate : task.endDate;
+    if (nextStart && nextEnd && new Date(nextEnd) < new Date(nextStart)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày kết thúc (hạn chót) không được nhỏ hơn ngày bắt đầu',
+      });
+    }
     const refError = await taskRefsError(req.body, { projectId: task.project, company: companyOf(project) });
     if (refError) {
       return res.status(400).json({ success: false, message: refError });
@@ -526,6 +566,12 @@ const updateTask = async (req, res, next) => {
       });
       if (!check.valid) {
         return res.status(400).json({ success: false, message: check.message });
+      }
+      if (req.body.status === 'done') {
+        const predErr = await checkPredecessorsForCompletion(task, req.body.dependencies);
+        if (predErr) {
+          return res.status(400).json({ success: false, message: predErr });
+        }
       }
       Object.assign(req.body, statusChangeFields({ task, nextStatus: req.body.status, failureReason, userId: req.user._id }));
     }
@@ -689,6 +735,13 @@ const updateTaskStatus = async (req, res, next) => {
       return res.status(400).json({ success: false, message: check.message });
     }
 
+    if (status === 'done') {
+      const predErr = await checkPredecessorsForCompletion(task);
+      if (predErr) {
+        return res.status(400).json({ success: false, message: predErr });
+      }
+    }
+
     const updateData = statusChangeFields({ task, nextStatus: status, failureReason, userId: req.user._id });
 
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, updateData, {
@@ -773,17 +826,27 @@ const deleteTask = async (req, res, next) => {
 
     const projectId = task.project;
 
-    // Remove this task from other tasks' dependencies
+    // Tìm các việc con để dọn dẹp phụ thuộc, tệp đính kèm và đồng bộ tải nhân sự
+    const subtasks = await Task.find({ parentTask: task._id }).select('_id assignee');
+    const allDeletedTaskIds = [task._id, ...subtasks.map((s) => s._id)];
+    const affectedAssignees = [
+      task.assignee,
+      ...subtasks.map((s) => s.assignee),
+    ].filter(Boolean);
+
+    // Remove this task and its subtasks from other tasks' dependencies
     await Task.updateMany(
-      { 'dependencies.task': task._id },
-      { $pull: { dependencies: { task: task._id } } }
+      { 'dependencies.task': { $in: allDeletedTaskIds } },
+      { $pull: { dependencies: { task: { $in: allDeletedTaskIds } } } }
     );
 
     await task.deleteOne();
-    await removeAttachments({ task: task._id });
+    await removeAttachments({ task: { $in: allDeletedTaskIds } });
 
     // Xóa cascade các việc con thuộc việc bị xóa
-    await Task.deleteMany({ parentTask: task._id });
+    if (subtasks.length > 0) {
+      await Task.deleteMany({ parentTask: task._id });
+    }
 
     // Recalculate parent and project progress
     if (task.parentTask) {
@@ -791,9 +854,9 @@ const deleteTask = async (req, res, next) => {
     }
     await recalculateProjectProgress(projectId);
 
-    // Đồng bộ lại tải công việc khi task bị xóa
-    if (task.assignee) {
-      await syncResourceWorkload(task.assignee);
+    // Đồng bộ lại tải công việc khi task và subtasks bị xóa
+    if (affectedAssignees.length > 0) {
+      await syncResourceWorkload(affectedAssignees);
     }
 
     logActivity({

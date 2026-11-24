@@ -1,6 +1,8 @@
 const RecurringTask = require('../models/RecurringTask');
 const Task = require('../models/Task');
 const Project = require('../models/Project');
+const { syncResourceWorkload } = require('./workload.service');
+const { recalculateProjectProgress } = require('../controllers/task/shared');
 
 /**
  * Tính toán thời điểm sinh tiếp theo dựa trên cấu hình chu kỳ
@@ -123,6 +125,17 @@ async function generatePendingRecurringTasks() {
       generatedTasks.push(done.task);
       if (!done.nextDate || done.nextDate > now) break;
       current = done.nextDate;
+    }
+  }
+
+  if (generatedTasks.length > 0) {
+    const affectedProjects = [...new Set(generatedTasks.map((t) => String(t.project)).filter(Boolean))];
+    for (const pId of affectedProjects) {
+      await recalculateProjectProgress(pId);
+    }
+    const affectedAssignees = [...new Set(generatedTasks.map((t) => t.assignee).filter(Boolean).map(String))];
+    if (affectedAssignees.length > 0) {
+      await syncResourceWorkload(affectedAssignees);
     }
   }
 

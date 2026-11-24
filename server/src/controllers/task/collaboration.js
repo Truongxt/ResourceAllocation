@@ -9,6 +9,7 @@ const Task = require('../../models/Task');
 const Project = require('../../models/Project');
 const User = require('../../models/User');
 const { sendNotification } = require('../../services/socket.service');
+const { syncResourceWorkload } = require('../../services/workload.service');
 const { placementError } = require('../../services/projectLifecycle.service');
 const { companyOf, usersError } = require('../../services/companyRefs.service');
 const {
@@ -346,6 +347,12 @@ const createSubtask = async (req, res, next) => {
     if (!parent) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy công việc cha' });
     }
+    if (parent.parentTask) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hệ thống chỉ hỗ trợ tối đa 1 cấp công việc con (không tạo việc con của việc con)',
+      });
+    }
 
     const {
       title,
@@ -366,11 +373,19 @@ const createSubtask = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Tiêu đề việc con là bắt buộc' });
     }
 
+    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày kết thúc (hạn chót) không được nhỏ hơn ngày bắt đầu',
+      });
+    }
+
     const refError = await usersError([assignee, ...(Array.isArray(followers) ? followers : [])], companyOf(req.user));
     if (refError) {
       return res.status(400).json({ success: false, message: refError });
     }
-    const placement = placementError(await Project.findById(parent.project).select('isArchived isTemplate'), { assignee });
+    const project = await Project.findById(parent.project).select('name isArchived isTemplate members');
+    const placement = placementError(project, { assignee });
     if (placement) return res.status(placement.status).json({ success: false, message: placement.message });
 
     const subtask = await Task.create({
@@ -393,13 +408,42 @@ const createSubtask = async (req, res, next) => {
       createdBy: req.user._id,
     });
 
+    if (subtask.assignee && project) {
+      const isMember = (project.members || []).some(
+        (m) => m.user && m.user.toString() === subtask.assignee.toString()
+      );
+      if (!isMember) {
+        project.members.push({ user: subtask.assignee, role: 'developer', allocation: 100 });
+        await project.save();
+      }
+      await syncResourceWorkload(subtask.assignee);
+    }
+
     const populated = await Task.findById(subtask._id)
       .populate('assignee', 'name email avatar')
       .populate('followers', 'name email avatar')
       .populate('taskGroup', 'name color');
 
-    // Thông báo cho người phụ trách task cha nếu người tạo là người khác
-    if (parent.assignee && parent.assignee.toString() !== req.user._id.toString()) {
+    // Thông báo cho người được giao việc con
+    if (subtask.assignee && subtask.assignee.toString() !== req.user._id.toString()) {
+      sendNotification({
+        recipient: subtask.assignee,
+        actor: req.user._id,
+        type: 'task_assigned',
+        title: 'Công việc con mới được phân công',
+        message: `Bạn đã được gán công việc con "${populated.title}" trong "${parent.title}"`,
+        entityType: 'task',
+        entityId: subtask._id,
+        link: '/tasks',
+      });
+    }
+
+    // Thông báo cho người phụ trách task cha nếu người tạo là người khác và khác người nhận việc con
+    if (
+      parent.assignee &&
+      parent.assignee.toString() !== req.user._id.toString() &&
+      (!subtask.assignee || parent.assignee.toString() !== subtask.assignee.toString())
+    ) {
       sendNotification({
         recipient: parent.assignee,
         actor: req.user._id,

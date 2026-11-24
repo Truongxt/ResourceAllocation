@@ -11,7 +11,7 @@ import { createRequire } from 'module';
 import { ok, section as S, summary } from './helpers.mjs';
 
 const require = createRequire(import.meta.url);
-const { readMailConfig } = require('../src/config/mail');
+const { readMailConfig, formatMailFrom, cleanEnvVal } = require('../src/config/mail');
 const {
   buildNotificationEmail,
   buildUserWelcomeEmail,
@@ -70,6 +70,36 @@ S('Cổng và TLS');
 
   ok(readMailConfig({ ...fullEnv, SMTP_USER: 'u', SMTP_PASS: 'p' }).auth?.user === 'u',
     'Có SMTP_USER thì kèm auth');
+}
+
+// ══════════════════════════════════════════════
+S('HTTP Email Providers (Resend / Brevo cho Render Free)');
+{
+  ok(readMailConfig({ RESEND_API_KEY: 're_123' }).provider === 'resend',
+    'Nhận diện RESEND_API_KEY');
+  ok(readMailConfig({ RESEND_API_KEY: 're_123' }).enabled === true,
+    'RESEND_API_KEY kích hoạt gửi mail mà không cần SMTP_HOST');
+  ok(readMailConfig({ BREVO_API_KEY: 'xkeysib-123' }).provider === 'brevo',
+    'Nhận diện BREVO_API_KEY');
+  ok(readMailConfig({ BREVO_API_KEY: 'xkeysib-123' }).enabled === true,
+    'BREVO_API_KEY kích hoạt gửi mail mà không cần SMTP_HOST');
+}
+
+// ══════════════════════════════════════════════
+S('Chuẩn hóa MAIL_FROM và mật khẩu SMTP');
+{
+  ok(formatMailFrom('"OptiWork" <truong@gmail.com>') === '"OptiWork" <truong@gmail.com>',
+    'Giữ nguyên định dạng RFC 5322 chuẩn');
+  ok(formatMailFrom('"OptiWork" truong@gmail.com') === '"OptiWork" <truong@gmail.com>',
+    'Tự bọc ngoặc <...> cho email nếu thiếu');
+  ok(formatMailFrom('truong@gmail.com') === 'truong@gmail.com',
+    'Chỉ có email trần → giữ nguyên');
+  ok(formatMailFrom('\'"OptiWork" <truong@gmail.com>\'') === '"OptiWork" <truong@gmail.com>',
+    'Gỡ bỏ dấu nháy lồng nhau do Render UI');
+  ok(formatMailFrom('OptiWork truong@gmail.com') === '"OptiWork" <truong@gmail.com>',
+    'Tên không có nháy kép → tự động đóng nháy kép');
+  ok(readMailConfig({ ...fullEnv, SMTP_USER: 'u', SMTP_PASS: 'rhar bevv ncbo iaaf' }).auth?.pass === 'rharbevvncboiaaf',
+    'Tự động loại bỏ dấu cách trong Google App Password');
 }
 
 // ══════════════════════════════════════════════

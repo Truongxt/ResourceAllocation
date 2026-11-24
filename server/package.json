@@ -1,7 +1,7 @@
 {
-  "name": "resource-allocation-server",
+  "name": "optiwork-server",
   "version": "1.0.0",
-  "description": "Backend API for Resource Allocation Optimization",
+  "description": "Backend API for OptiWork Platform",
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",

@@ -1,6 +1,7 @@
 const TaskGroup = require('../models/TaskGroup');
 const Project = require('../models/Project');
 const Task = require('../models/Task');
+const RecurringTask = require('../models/RecurringTask');
 const { canManageProject, MANAGE_DENIED } = require('../services/projectAccess');
 
 /**
@@ -41,12 +42,18 @@ const getGroupsByProject = async (req, res, next) => {
     let ungroupedTotal = 0;
     let ungroupedDone = 0;
     let ungroupedInProgress = 0;
+    let ungroupedProgressSum = 0;
 
     for (const task of rootTasks) {
       if (!task.taskGroup) {
         ungroupedTotal++;
-        if (task.status === 'done') ungroupedDone++;
-        else if (task.status === 'in_progress' || task.status === 'review') ungroupedInProgress++;
+        if (task.status === 'done') {
+          ungroupedDone++;
+          ungroupedProgressSum += 100;
+        } else {
+          if (task.status === 'in_progress' || task.status === 'review') ungroupedInProgress++;
+          ungroupedProgressSum += (task.progress || 0);
+        }
       } else {
         const gid = String(task.taskGroup);
         if (!groupMap[gid]) {
@@ -79,7 +86,7 @@ const getGroupsByProject = async (req, res, next) => {
       totalTasks: ungroupedTotal,
       completedTasks: ungroupedDone,
       inProgressTasks: ungroupedInProgress,
-      progress: ungroupedTotal > 0 ? Math.round((ungroupedDone / ungroupedTotal) * 100) : 0,
+      progress: ungroupedTotal > 0 ? Math.round(ungroupedProgressSum / ungroupedTotal) : 0,
     };
 
     res.json({
@@ -179,9 +186,11 @@ const deleteGroup = async (req, res, next) => {
     }
     await group.deleteOne();
 
-    // Gỡ liên kết task khỏi nhóm đã xóa
-    const Task = require('../models/Task');
-    await Task.updateMany({ taskGroup: req.params.id }, { $set: { taskGroup: null } });
+    // Gỡ liên kết task và cấu hình việc lặp khỏi nhóm đã xóa
+    await Promise.all([
+      Task.updateMany({ taskGroup: req.params.id }, { $set: { taskGroup: null } }),
+      RecurringTask.updateMany({ taskGroup: req.params.id }, { $set: { taskGroup: null } }),
+    ]);
 
     res.json({ success: true, message: 'Đã xóa nhóm công việc' });
   } catch (error) {

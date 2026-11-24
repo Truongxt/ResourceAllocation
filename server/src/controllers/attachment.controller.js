@@ -37,7 +37,10 @@ const toClient = (doc) => {
   return json;
 };
 
-const findTask = (id) => Task.findById(id).select('title project').populate('project', 'name manager companyName');
+const findTask = (id) =>
+  Task.findById(id)
+    .select('title project createdBy assignee followers')
+    .populate('project', 'name manager members companyName');
 
 /**
  * @desc    Danh sách tệp của một công việc, mới nhất trước
@@ -66,6 +69,28 @@ const uploadAttachment = async (req, res, next) => {
   try {
     const task = await findTask(req.params.id);
     if (!task) return res.status(404).json({ success: false, message: 'Không tìm thấy công việc' });
+
+    const me = String(req.user._id);
+    const project = task.project;
+    const managerId = project?.manager?._id || project?.manager;
+    const isAdmin = req.user.role === 'admin' || Boolean(req.user.isOwner);
+    const isProjectManager = Boolean(managerId && String(managerId) === me);
+    const isCreator = Boolean(task.createdBy && String(task.createdBy) === me);
+    const isAssignee = Boolean(task.assignee && String(task.assignee) === me);
+    const isFollower = (task.followers || []).some((f) => String(f) === me);
+    const memberEntry = (project?.members || []).find(
+      (m) => String(m.user?._id || m.user) === me
+    );
+    const isGuest = memberEntry?.role === 'guest';
+    const isProjectMember = Boolean(memberEntry && !isGuest);
+
+    if (!isAdmin && !isProjectManager && !isCreator && !isAssignee && !isProjectMember && !(isFollower && !isGuest)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền tải tệp đính kèm lên công việc này',
+      });
+    }
+
     if (!req.file) return res.status(400).json({ success: false, message: 'Chưa chọn tệp' });
 
     const originalName = decodeFileName(req.file.originalname).slice(0, 255);

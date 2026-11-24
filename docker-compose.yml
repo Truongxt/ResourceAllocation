@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6-jammy
+    container_name: rao_mongodb
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: resource_allocation
+    networks:
+      - rao_network
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: rao_server
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    env_file:
+      - .env
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/resource_allocation
+      - TRUST_PROXY=1
+    ports:
+      - "5000:5000"
+    networks:
+      - rao_network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: rao_client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+    networks:
+      - rao_network
+
+networks:
+  rao_network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+    driver: local

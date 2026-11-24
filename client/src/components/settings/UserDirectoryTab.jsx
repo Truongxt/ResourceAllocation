@@ -76,6 +76,7 @@ export default function UserDirectoryTab({ currentUser }) {
 
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
   const [resetPasswordUser, setResetPasswordUser] = useState(null);
   const [editManagerUser, setEditManagerUser] = useState(null);
   const [emailModalUser, setEmailModalUser] = useState(null);
@@ -343,19 +344,23 @@ export default function UserDirectoryTab({ currentUser }) {
 
   // 8. Tạo tài khoản mới
   const handleCreateUser = async (values) => {
+    setCreatingUser(true);
     try {
       const res = await authService.createUser(values);
       const emailStatus = res.data?.emailStatus;
       if (emailStatus?.sent) {
         message.success(`Đã tạo tài khoản cho ${values.name} và gửi thông tin đăng nhập đến ${values.email}!`, 6);
       } else {
-        message.success(res.message || `Đã tạo tài khoản thành công cho ${values.name}! Mật khẩu: ${values.password}`, 6);
+        const reason = emailStatus?.reason ? ` (Chưa gửi được email: ${emailStatus.reason})` : '';
+        message.warning(`Đã tạo tài khoản cho ${values.name}.${reason} Mật khẩu tạm: ${values.password || '123456'}`, 8);
       }
       setCreateModalOpen(false);
       createForm.resetFields();
       loadUsers();
     } catch (err) {
       message.error(err.response?.data?.message || 'Lỗi khi tạo tài khoản');
+    } finally {
+      setCreatingUser(false);
     }
   };
 
@@ -1057,7 +1062,9 @@ export default function UserDirectoryTab({ currentUser }) {
       <Modal
         title="Thêm Tài Khoản Nhân Sự Mới"
         open={createModalOpen}
-        onCancel={() => setCreateModalOpen(false)}
+        onCancel={() => !creatingUser && setCreateModalOpen(false)}
+        closable={!creatingUser}
+        maskClosable={!creatingUser}
         footer={null}
         width={560}
       >
@@ -1165,9 +1172,15 @@ export default function UserDirectoryTab({ currentUser }) {
           </Row>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
-            <Button onClick={() => setCreateModalOpen(false)}>Hủy</Button>
-            <Button type="primary" htmlType="submit" style={{ background: '#10b981', borderColor: '#10b981' }}>
-              Tạo tài khoản
+            <Button onClick={() => setCreateModalOpen(false)} disabled={creatingUser}>Hủy</Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={creatingUser}
+              disabled={creatingUser}
+              style={{ background: '#10b981', borderColor: '#10b981' }}
+            >
+              {creatingUser ? 'Đang tạo & gửi email...' : 'Tạo tài khoản'}
             </Button>
           </div>
         </Form>

@@ -6,8 +6,10 @@ const {
   getPreviewDates,
 } = require('../services/recurringTask.service');
 const { logActivity } = require('../services/activityLog.service');
+const { syncResourceWorkload } = require('../services/workload.service');
 const { ARCHIVED_MESSAGE } = require('../services/projectLifecycle.service');
 const { canManageProject, MANAGE_DENIED } = require('../services/projectAccess');
+const { recalculateProjectProgress } = require('./task/shared');
 
 /** Việc lặp lại sinh việc vào dự án: chỉ Admin/Owner hoặc PM của dự án đó cấu hình được. */
 const managesProjectId = async (user, projectId) => {
@@ -145,6 +147,13 @@ const createRecurringTask = async (req, res, next) => {
       endDate: endDate || null,
     };
 
+    if (config.endDate && new Date(config.endDate) < new Date(config.startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày kết thúc chu kỳ lặp không được nhỏ hơn ngày bắt đầu',
+      });
+    }
+
     const nextRun = calculateNextRunDate(config, new Date(config.startDate));
 
     const item = await RecurringTask.create({
@@ -215,10 +224,18 @@ const updateRecurringTask = async (req, res, next) => {
 
     // Kiểm theo giá trị SAU khi sửa: đổi riêng nhóm việc cũng phải khớp dự án hiện có
     stripProtected(req.body);
+    const nextStart = req.body.startDate !== undefined ? req.body.startDate : item.startDate;
+    const nextEnd = req.body.endDate !== undefined ? req.body.endDate : item.endDate;
+    if (nextStart && nextEnd && new Date(nextEnd) < new Date(nextStart)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày kết thúc chu kỳ lặp không được nhỏ hơn ngày bắt đầu',
+      });
+    }
     const refError = await recurringRefsError(
       {
         project: req.body.project || item.project,
-        taskGroup: req.body.taskGroup !== undefined ? req.body.taskGroup : null,
+        taskGroup: req.body.taskGroup !== undefined ? req.body.taskGroup : item.taskGroup,
         assignee: req.body.assignee,
         followers: req.body.followers,
       },
@@ -317,7 +334,7 @@ const triggerRunNow = async (req, res, next) => {
       return res.status(403).json({ success: false, message: MANAGE_DENIED });
     }
 
-    const target = await Project.findById(item.project).select('isArchived isTemplate');
+    const target = await Project.findById(item.project).select('isArchived isTemplate members');
     if (target?.isArchived || target?.isTemplate) {
       return res.status(409).json({ success: false, message: target.isArchived ? ARCHIVED_MESSAGE : 'Dự án mẫu không chạy việc lặp lại' });
     }
@@ -349,14 +366,18 @@ const triggerRunNow = async (req, res, next) => {
       recurringTaskId: item._id,
     });
 
+    const assigneesToSync = [item.assignee].filter(Boolean);
+
     if (item.subtasks && item.subtasks.length > 0) {
       for (const sub of item.subtasks) {
+        const subAssignee = sub.assignee || item.assignee;
+        if (subAssignee) assigneesToSync.push(subAssignee);
         await Task.create({
           title: sub.title,
           project: item.project,
           taskGroup: item.taskGroup,
           parentTask: newTask._id,
-          assignee: sub.assignee || item.assignee,
+          assignee: subAssignee,
           priority: item.priority,
           estimatedHours: sub.estimatedHours || 2,
           startDate: now,
@@ -370,9 +391,30 @@ const triggerRunNow = async (req, res, next) => {
       }
     }
 
+    if (target && assigneesToSync.length > 0) {
+      let membersChanged = false;
+      for (const uId of assigneesToSync) {
+        const isMember = (target.members || []).some(
+          (m) => m.user && m.user.toString() === uId.toString()
+        );
+        if (!isMember) {
+          target.members.push({ user: uId, role: 'developer', allocation: 100 });
+          membersChanged = true;
+        }
+      }
+      if (membersChanged) {
+        await target.save();
+      }
+    }
+
     item.lastGeneratedAt = now;
     item.nextRunDate = calculateNextRunDate(item, now);
     await item.save();
+
+    await recalculateProjectProgress(item.project);
+    if (assigneesToSync.length > 0) {
+      await syncResourceWorkload(assigneesToSync);
+    }
 
     res.status(201).json({
       success: true,

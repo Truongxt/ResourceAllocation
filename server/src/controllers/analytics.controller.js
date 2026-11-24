@@ -137,7 +137,7 @@ const getDashboardOverview = async (req, res, next) => {
         .select('name code status progress endDate')
         .lean(),
       Task.aggregate([
-        { $match: taskMatch },
+        { $match: { ...taskMatch, parentTask: { $in: [null, undefined] } } },
         { $group: {
           _id: '$project',
           total: { $sum: 1 },
@@ -518,7 +518,10 @@ const getWorkloadTrend = async (req, res, next) => {
 
     // Phạm vi của người gọi luôn áp dụng; `projectId` chỉ thu hẹp thêm. Trước đây có
     // `projectId` là bỏ hẳn phạm vi, nên đọc được giờ công của dự án công ty khác.
-    const taskFilter = { ...taskMatch };
+    const taskFilter = {
+      ...taskMatch,
+      status: { $in: ['todo', 'in_progress', 'review'] },
+    };
     if (projectId) {
       taskFilter.project = projectId;
     }
@@ -584,17 +587,25 @@ const getOptimizationComparison = async (req, res, next) => {
       .populate('user', 'name')
       .select('user position maxCapacity fte currentWorkload');
 
-    // Tải hiện tại tính từ task đang mở (giống /analytics/utilization) thay vì đọc
-    // currentWorkload — field đó chỉ được làm mới khi admin gọi recalculate-workload
-    // nên thường đã cũ, khiến cột "Trước" không so sánh được với cột "Sau".
-    const openTasks = await Task.aggregate([
-      { $match: { status: { $in: ['todo', 'in_progress', 'review'] }, companyName: userCompany } },
-      { $group: { _id: '$assignee', totalHours: { $sum: '$estimatedHours' } } },
-    ]);
-    const hoursByUser = {};
+    // Tải hiện tại tính theo TUẦN CAO ĐIỂM của các việc đang mở (cùng đơn vị giờ/tuần với
+    // capacity và afterWorkload của thuật toán) thay vì cộng dồn tổng giờ tích lũy mọi thời điểm.
+    const openTasks = await Task.find({
+      status: { $in: ['todo', 'in_progress', 'review'] },
+      parentTask: { $in: [null, undefined] },
+      companyName: userCompany,
+    }).select('assignee estimatedHours startDate endDate');
+    const tasksByUser = new Map();
     openTasks.forEach((t) => {
-      if (t._id) hoursByUser[t._id.toString()] = t.totalHours || 0;
+      if (!t.assignee) return;
+      const uid = t.assignee.toString();
+      if (!tasksByUser.has(uid)) tasksByUser.set(uid, []);
+      tasksByUser.get(uid).push(t);
     });
+    const hoursByUser = {};
+    for (const [uid, userTasks] of tasksByUser.entries()) {
+      const { peakWeekHours, unscheduledHours } = weeklyLoadOf(userTasks);
+      hoursByUser[uid] = Math.max(peakWeekHours, unscheduledHours);
+    }
 
     // Ghép "sau tối ưu" theo resource ID, không ghép theo tên (tên có thể trùng)
     const afterByResource = {};

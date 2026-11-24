@@ -160,7 +160,7 @@ export default function LandingFooter({
 
           <div className="footer-bottom-row">
             <span className="footer-copy">
-              © 2026 RAO Studio. Đồ án Tốt nghiệp Chuyên ngành CNTT. All rights reserved.
+              © 2026 OptiWork. All rights reserved.
             </span>
             <div className="footer-bottom-links">
               <span>Bảo mật dữ liệu</span>

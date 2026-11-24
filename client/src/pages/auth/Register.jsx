@@ -67,7 +67,7 @@ export default function Register() {
         <Link to="/home" className="auth-brand"><AppLogo size={36} subtitle="" /></Link>
         <div><h1>{t('workspace.authHeadline')}</h1><p>{t('workspace.authHint')}</p>
         <ul><li>{t('nav.projects')}</li><li>{t('nav.tasks')}</li><li>{t('nav.resources')}</li></ul></div>
-        <span className="auth-context-footer">Resource Allocation</span>
+        <span className="auth-context-footer">OptiWork Platform</span>
       </aside>
       <section className="auth-form-area">
         <div className="base-auth-card">

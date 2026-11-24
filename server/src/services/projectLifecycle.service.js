@@ -77,10 +77,20 @@ const cloneProject = async (source, { name, code, startDate, asTemplate = false,
   const shiftMs = startDate && source.startDate ? new Date(startDate).getTime() - source.startDate.getTime() : 0;
   const shift = (d) => (d ? new Date(new Date(d).getTime() + shiftMs) : d);
   const peopleless = asTemplate || source.isTemplate;
+  const normalizedCode = code ? String(code).trim().toUpperCase() : undefined;
+
+  let clonedMembers = [];
+  if (!asTemplate) {
+    if (source.isTemplate) {
+      clonedMembers = [{ user: user._id, role: 'lead', allocation: 100 }];
+    } else {
+      clonedMembers = source.members.map((m) => ({ user: m.user, role: m.role, allocation: m.allocation }));
+    }
+  }
 
   const project = await Project.create({
     name,
-    code: code || undefined,
+    code: normalizedCode || undefined,
     description: source.description,
     priority: source.priority,
     kind: source.kind,
@@ -94,7 +104,7 @@ const cloneProject = async (source, { name, code, startDate, asTemplate = false,
     status: 'planning',
     progress: 0,
     manager: peopleless ? user._id : source.manager,
-    members: peopleless ? [] : source.members.map((m) => ({ user: m.user, role: m.role, allocation: m.allocation })),
+    members: clonedMembers,
     permissions: source.permissions,
     failureConfig: source.failureConfig,
     reviewConfig: { ...(source.reviewConfig?.toObject?.() || source.reviewConfig || {}), reviewers: peopleless ? [] : source.reviewConfig?.reviewers || [] },

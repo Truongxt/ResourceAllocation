@@ -24,7 +24,7 @@ export default function LandingHero({ isAuthenticated, navigate, scrollToSection
       <div className="product-intro-copy">
         <h1>Điều phối nguồn lực.<br />Chính xác từng dự án.</h1>
         <p>
-          Tự động cân bằng tải công việc theo thời gian thực. Phát hiện người quá tải, 
+          Tự động cân bằng tải công việc theo thời gian thực. Phát hiện người quá tải,
           khớp đúng kỹ năng và xem trước phương án phân công trước khi áp dụng.
         </p>
         <div className="product-intro-actions">

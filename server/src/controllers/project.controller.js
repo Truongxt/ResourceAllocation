@@ -3,14 +3,17 @@ const Project = require('../models/Project');
 const { toSearchRegex } = require('../utils/escapeRegex');
 const Task = require('../models/Task');
 const TaskGroup = require('../models/TaskGroup');
+const RecurringTask = require('../models/RecurringTask');
 const User = require('../models/User');
 const CompanySetting = require('../models/CompanySetting');
 const { logActivity } = require('../services/activityLog.service');
+const { syncResourceWorkload } = require('../services/workload.service');
 const { stripProtected, usersError, departmentError } = require('../services/companyRefs.service');
 const { archiveBlocker, cloneProject } = require('../services/projectLifecycle.service');
 const { removeAttachments } = require('../services/attachment.service');
 const { normalizeFieldDefinitions } = require('../services/customFields.service');
 const { canManageProject, MANAGE_DENIED } = require('../services/projectAccess');
+const { recalculateProjectProgress } = require('./task/shared');
 
 /** Quản lý, thành viên và phòng ban gửi lên phải cùng công ty với dự án. */
 const projectRefsError = async ({ manager, members, department }, company) => {
@@ -41,7 +44,7 @@ const buildProjectQuery = async (query, user) => {
       { 'members.user': user._id },
       { createdBy: user._id },
       { _id: { $in: projectIdsFromTasks } },
-      { projectType: 'internal' },
+      ...(user.isGuest ? [] : [{ projectType: 'internal' }]),
     ];
   }
 
@@ -88,25 +91,6 @@ const buildProjectQuery = async (query, user) => {
   return filter;
 };
 
-const recalculateProjectProgress = async (projectId) => {
-  const tasks = await Task.find({ project: projectId }).select('progress status');
-
-  if (!tasks.length) {
-    await Project.findByIdAndUpdate(projectId, { progress: 0 });
-    return 0;
-  }
-
-  const progress =
-    tasks.reduce((sum, task) => {
-      if (task.status === 'done') return sum + 100;
-      return sum + (task.progress || 0);
-    }, 0) / tasks.length;
-
-  const roundedProgress = Math.round(progress);
-  await Project.findByIdAndUpdate(projectId, { progress: roundedProgress });
-  return roundedProgress;
-};
-
 const getProjects = async (req, res, next) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -128,7 +112,7 @@ const getProjects = async (req, res, next) => {
 
     const projectIds = projects.map((project) => project._id);
     const taskStats = await Task.aggregate([
-      { $match: { project: { $in: projectIds } } },
+      { $match: { project: { $in: projectIds }, parentTask: { $in: [null, undefined] } } },
       {
         $group: {
           _id: '$project',
@@ -194,7 +178,8 @@ const getProjectById = async (req, res, next) => {
       .populate('department', 'name code color')
       .populate({
         path: 'tasks',
-        select: 'title description status priority startDate endDate progress estimatedHours actualHours assignee createdBy followers deadlineHistory deadlineReason taskGroup project',
+        match: { parentTask: { $in: [null, undefined] } },
+        select: 'title description status priority startDate endDate progress estimatedHours actualHours assignee createdBy followers reviewers dependencies customValues deadlineHistory deadlineReason taskGroup project parentTask',
         populate: [
           { path: 'assignee', select: 'name email position department avatar' },
           { path: 'createdBy', select: 'name email avatar' },
@@ -214,6 +199,23 @@ const getProjectById = async (req, res, next) => {
       return res.status(403).json({
         success: false,
         message: 'Không có quyền truy cập dự án của công ty khác',
+      });
+    }
+
+    // Thực thi quyền allowMembersViewAllTasks khi thành viên thường xem chi tiết dự án
+    if (
+      req.user &&
+      !canManageProject(req.user, project) &&
+      String(project.createdBy) !== String(req.user._id) &&
+      project.permissions?.allowMembersViewAllTasks === false &&
+      Array.isArray(project.tasks)
+    ) {
+      const uid = String(req.user._id);
+      project.tasks = project.tasks.filter((t) => {
+        const assigneeId = String(t.assignee?._id || t.assignee || '');
+        const creatorId = String(t.createdBy?._id || t.createdBy || '');
+        const followerIds = (t.followers || []).map((f) => String(f?._id || f));
+        return assigneeId === uid || creatorId === uid || followerIds.includes(uid);
       });
     }
 
@@ -350,7 +352,18 @@ const createProject = async (req, res, next) => {
       template: req.body.template || null,
     };
     // Phòng ban vận hành không có hạn: ngày kết thúc gửi kèm (form cũ, import) bị bỏ.
-    if (projectData.kind === 'team') delete projectData.endDate;
+    if (projectData.kind === 'team') {
+      delete projectData.endDate;
+    } else if (
+      projectData.startDate &&
+      projectData.endDate &&
+      new Date(projectData.endDate) < new Date(projectData.startDate)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày kết thúc dự án không được nhỏ hơn ngày bắt đầu',
+      });
+    }
 
     const project = await Project.create(projectData);
 
@@ -485,11 +498,21 @@ const updateProject = async (req, res, next) => {
       // Gỡ hẳn chứ không gán null: client gọi `dayjs(null)` sẽ ra Invalid Date.
       delete updateData.endDate;
       updateData.$unset = { endDate: 1 };
-    } else if (!(updateData.startDate || project.startDate) || !(updateData.endDate || project.endDate)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Dự án có thời hạn cần ngày bắt đầu và ngày kết thúc',
-      });
+    } else {
+      const effectiveStart = updateData.startDate || project.startDate;
+      const effectiveEnd = updateData.endDate || project.endDate;
+      if (!effectiveStart || !effectiveEnd) {
+        return res.status(400).json({
+          success: false,
+          message: 'Dự án có thời hạn cần ngày bắt đầu và ngày kết thúc',
+        });
+      }
+      if (new Date(effectiveEnd) < new Date(effectiveStart)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ngày kết thúc dự án không được nhỏ hơn ngày bắt đầu',
+        });
+      }
     }
 
     const refError = await projectRefsError(
@@ -565,7 +588,15 @@ const quickEditProject = async (req, res, next) => {
     }
     if (status !== undefined) project.status = status;
     if (priority !== undefined) project.priority = priority;
-    if (manager !== undefined && (isAdmin || isOwner)) project.manager = manager;
+    if (manager !== undefined && (isAdmin || isOwner)) {
+      project.manager = manager;
+      if (
+        manager &&
+        !(project.members || []).some((m) => (m.user?._id || m.user)?.toString() === manager.toString())
+      ) {
+        project.members.unshift({ user: manager, role: 'lead', allocation: 100 });
+      }
+    }
 
     await project.save();
 
@@ -621,14 +652,26 @@ const deleteProject = async (req, res, next) => {
       });
     }
 
+    let affectedAssignees = [];
     if (req.query.force === 'true') {
       // Tệp đính kèm trước, khi còn biết việc nào thuộc dự án — xóa việc rồi thì tệp thành mồ côi.
-      const taskIds = await Task.find({ project: req.params.id }).distinct('_id');
+      const projectTasks = await Task.find({ project: req.params.id }).select('_id assignee');
+      const taskIds = projectTasks.map((t) => t._id);
+      affectedAssignees = [...new Set(projectTasks.map((t) => t.assignee).filter(Boolean).map(String))];
       await removeAttachments({ task: { $in: taskIds } });
       await Task.deleteMany({ project: req.params.id });
     }
 
-    await project.deleteOne();
+    // Dọn luôn các nhóm công việc và cấu hình lặp lại của dự án bị xóa
+    await Promise.all([
+      TaskGroup.deleteMany({ project: req.params.id }),
+      RecurringTask.deleteMany({ project: req.params.id }),
+      project.deleteOne(),
+    ]);
+
+    if (affectedAssignees.length > 0) {
+      await syncResourceWorkload(affectedAssignees);
+    }
 
     logActivity({
       req,
@@ -767,6 +810,13 @@ const removeProjectMember = async (req, res, next) => {
       });
     }
     if (!ensureManagesProject(req, res, project)) return;
+
+    if (project.manager && project.manager.toString() === req.params.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể xóa Quản lý dự án (PM) khỏi danh sách thành viên. Hãy chuyển quyền Quản lý dự án cho người khác trước.',
+      });
+    }
 
     project.members = project.members.filter((member) => member.user.toString() !== req.params.userId);
     await project.save();
@@ -1023,9 +1073,17 @@ const duplicateProject = async (req, res, next) => {
     if (startDate && Number.isNaN(new Date(startDate).getTime())) {
       return res.status(400).json({ success: false, message: 'Ngày bắt đầu không hợp lệ' });
     }
+    const normalizedCode = code ? String(code).trim().toUpperCase() : undefined;
+    if (normalizedCode) {
+      const targetCompany = source.companyName || (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+      const existingCode = await Project.findOne({ code: normalizedCode, companyName: targetCompany }).select('_id');
+      if (existingCode) {
+        return res.status(400).json({ success: false, message: 'Mã dự án đã tồn tại trong công ty' });
+      }
+    }
 
     const { project, groupCount, taskCount } = await cloneProject(source, {
-      name, code, startDate, asTemplate: req.body.asTemplate === true, user: req.user,
+      name, code: normalizedCode, startDate, asTemplate: req.body.asTemplate === true, user: req.user,
     });
     const populated = await Project.findById(project._id)
       .populate('manager', 'name email avatar')
@@ -1271,9 +1329,25 @@ const bulkReassignProjects = async (req, res, next) => {
     }
 
     const userCompany = (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+    if (toUserId) {
+      const recipientError = await usersError(toUserId, userCompany);
+      if (recipientError) {
+        return res.status(400).json({ success: false, message: recipientError });
+      }
+      const recipient = await User.findById(toUserId).select('isActive');
+      if (recipient && recipient.isActive === false) {
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể bàn giao vai trò dự án cho tài khoản đã bị vô hiệu hóa',
+        });
+      }
+    }
+
+    const isAdmin = req.user.role === 'admin' || Boolean(req.user.isOwner);
     const query = {
       _id: { $in: projectIds },
       companyName: userCompany === 'Công ty Công nghệ RAO' ? { $in: [userCompany, null, undefined] } : userCompany,
+      ...(isAdmin ? {} : { manager: req.user._id }),
     };
 
     const projects = await Project.find(query);

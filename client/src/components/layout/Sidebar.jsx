@@ -171,7 +171,7 @@ export default function Sidebar({ collapsed, onToggle, mobile = false, onNavigat
             size={collapsed ? 34 : 36}
             showText={!collapsed}
             isDark={isDark}
-            subtitle="Resource Allocation AI"
+            subtitle="Smart Work Platform"
           />
         </button>
 

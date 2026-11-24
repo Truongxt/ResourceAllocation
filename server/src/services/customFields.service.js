@@ -156,9 +156,11 @@ function mergeCustomValues(definitions = [], input, current = {}, { requireAll =
     ? definitions.filter((f) => (target === 'result' ? f.target === 'result' : f.target !== 'result'))
     : definitions;
   const fields = new Map(targetDefs.map((f) => [f.key, plain(f)]));
+  const allDefinedKeys = new Set(definitions.map((f) => f.key));
   const values = { ...(current instanceof Map ? Object.fromEntries(current) : current || {}) };
-  // Giá trị của trường đã bị xóa khỏi dự án không được sống lại qua một lần ghi.
-  Object.keys(values).forEach((key) => { if (!fields.has(key)) delete values[key]; });
+  // Giá trị của trường đã bị xóa khỏi dự án không được sống lại qua một lần ghi,
+  // nhưng phải giữ nguyên giá trị của các trường thuộc target khác ('task' vs 'result').
+  Object.keys(values).forEach((key) => { if (!allDefinedKeys.has(key)) delete values[key]; });
 
   for (const [key, raw] of Object.entries(input || {})) {
     if (!isValidKey(key) || !fields.has(key)) return { error: `Trường "${key}" không thuộc dự án này` };

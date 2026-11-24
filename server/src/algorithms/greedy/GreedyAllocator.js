@@ -3,6 +3,9 @@ const {
   computeMaxCost,
   computeFitness,
   computeMetrics,
+  weeklyDemandOf,
+  isResourceAvailableForTask,
+  lockedAssigneeIndex,
 } = require('../scoring');
 
 /**
@@ -42,8 +45,37 @@ class GreedyAllocator {
     const skillMatrix = buildSkillMatrix(tasks, resources);
     const maxCost = computeMaxCost(tasks, resources);
 
-    // Track dynamic workload during greedy assignment
-    const currentWorkloads = new Array(numResources).fill(0);
+    // Theo dõi sổ tải theo tuần (khởi tạo từ committedTasks của dự án khác nếu có)
+    const resourceLoads = resources.map((r) => {
+      const weeks = new Map();
+      let unscheduled = 0;
+      for (const committed of r.committedTasks || []) {
+        const d = weeklyDemandOf(committed);
+        for (const [w, hrs] of d.weeks) {
+          weeks.set(w, (weeks.get(w) || 0) + hrs);
+        }
+        unscheduled += d.unscheduledHours;
+      }
+      return { weeks, unscheduled };
+    });
+    const peakAfterAdding = (load, demand) => {
+      let peak = load.unscheduled + demand.unscheduledHours;
+      for (const [w, hrs] of load.weeks) {
+        if (hrs > peak) peak = hrs;
+      }
+      for (const [w, hrs] of demand.weeks) {
+        const total = (load.weeks.get(w) || 0) + hrs;
+        if (total > peak) peak = total;
+      }
+      return peak;
+    };
+    const applyLoad = (load, demand) => {
+      for (const [w, hrs] of demand.weeks) {
+        load.weeks.set(w, (load.weeks.get(w) || 0) + hrs);
+      }
+      load.unscheduled += demand.unscheduledHours;
+    };
+
     const solution = new Array(numTasks).fill(0);
 
     // Index tasks and sort by estimated hours descending (hardest tasks first)
@@ -52,7 +84,14 @@ class GreedyAllocator {
 
     for (const tIndex of sortedTaskIndices) {
       const task = tasks[tIndex];
-      const effort = task.estimatedHours || 1;
+      const demand = weeklyDemandOf(task);
+      const lockedIdx = lockedAssigneeIndex(task, resources);
+
+      if (lockedIdx >= 0) {
+        solution[tIndex] = lockedIdx;
+        applyLoad(resourceLoads[lockedIdx], demand);
+        continue;
+      }
 
       let bestResourceIndex = 0;
       let bestScore = -Infinity;
@@ -61,13 +100,18 @@ class GreedyAllocator {
         const resource = resources[rIndex];
         const capacity = (resource.maxCapacity ?? 40) * (resource.fte ?? 1);
         const skillMatch = skillMatrix[tIndex][rIndex];
+        const available = isResourceAvailableForTask(resource, task);
 
-        // Capacity utilization factor: prefer resources with available headroom
-        const loadRatio = currentWorkloads[rIndex] / (capacity || 1);
+        // Capacity utilization factor theo tải tuần cao điểm thay vì cộng dồn toàn bộ dự án
+        const currentPeak = peakAfterAdding(resourceLoads[rIndex], { weeks: new Map(), unscheduledHours: 0 });
+        const projectedPeak = peakAfterAdding(resourceLoads[rIndex], demand);
+        const loadRatio = currentPeak / (capacity || 1);
         const headroomScore = Math.max(0, 1 - loadRatio);
+        const overloadPenalty = projectedPeak > capacity ? 0.5 : 0;
+        const unavailablePenalty = available ? 0 : 1.0;
 
-        // Greedy composite score: prioritize high skill match and balanced workload
-        const score = skillMatch * 0.6 + headroomScore * 0.4;
+        // Greedy composite score: prioritize high skill match, availability and balanced weekly workload
+        const score = skillMatch * 0.6 + headroomScore * 0.4 - overloadPenalty - unavailablePenalty;
 
         if (score > bestScore) {
           bestScore = score;
@@ -76,7 +120,7 @@ class GreedyAllocator {
       }
 
       solution[tIndex] = bestResourceIndex;
-      currentWorkloads[bestResourceIndex] += effort;
+      applyLoad(resourceLoads[bestResourceIndex], demand);
     }
 
     const endTime = process.hrtime.bigint();

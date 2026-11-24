@@ -153,10 +153,31 @@ const bulkReassign = async (req, res, next) => {
     if (actionType === 'replace_creator') {
       await Task.updateMany({ _id: { $in: movedIds } }, { createdBy: toUserId });
     } else if (actionType === 'add_follower') {
-      await Task.updateMany({ _id: { $in: movedIds } }, { $addToSet: { followers: toUserId } });
+      // Không thêm người thực hiện (assignee) vào danh sách theo dõi của chính công việc đó
+      await Task.updateMany(
+        { _id: { $in: movedIds }, assignee: { $ne: toUserId } },
+        { $addToSet: { followers: toUserId } }
+      );
     } else {
       // Mặc định: thay thế người nhận việc (assignee)
       await Task.updateMany({ _id: { $in: movedIds } }, { assignee: toUserId });
+
+      // Tự động thêm người nhận bàn giao vào danh sách thành viên của các dự án liên quan
+      const affectedProjectIds = [...new Set(tasks.map((t) => String(t.project)).filter(Boolean))];
+      if (affectedProjectIds.length > 0) {
+        const affectedProjects = await Project.find({ _id: { $in: affectedProjectIds } });
+        for (const proj of affectedProjects) {
+          if (proj.isTemplate) continue;
+          const isMember = (proj.members || []).some(
+            (m) => m.user && m.user.toString() === toUserId.toString()
+          );
+          if (!isMember) {
+            proj.members.push({ user: toUserId, role: 'developer', allocation: 100 });
+            await proj.save();
+          }
+        }
+      }
+
       await syncResourceWorkload([fromUserId, toUserId]);
     }
 

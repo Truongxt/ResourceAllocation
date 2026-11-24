@@ -98,7 +98,7 @@ export default function Login() {
             <li>{t('nav.resources')}</li>
           </ul>
         </div>
-        <span className="auth-context-footer">Resource Allocation</span>
+        <span className="auth-context-footer">OptiWork Platform</span>
       </aside>
 
       <section className="auth-form-area">
