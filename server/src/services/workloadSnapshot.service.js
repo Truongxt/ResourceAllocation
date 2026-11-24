@@ -8,6 +8,7 @@
 
 const Resource = require('../models/Resource');
 const Task = require('../models/Task');
+const Project = require('../models/Project');
 const WorkloadSnapshot = require('../models/WorkloadSnapshot');
 const { weeklyLoadOf } = require('../analytics/workloadTrend');
 
@@ -21,10 +22,17 @@ const round1 = (n) => Math.round(n * 10) / 10;
 
 async function takeWorkloadSnapshots(now = new Date()) {
   const date = dayKey(now);
-  const resources = await Resource.find({ isActive: true }).select('user companyName maxCapacity fte').lean();
+  const [resources, inactiveIds] = await Promise.all([
+    Resource.find({ isActive: true }).select('user companyName maxCapacity fte').lean(),
+    Project.find({ $or: [{ isTemplate: true }, { isArchived: true }] }).distinct('_id'),
+  ]);
   const userIds = resources.map((r) => r.user).filter(Boolean);
 
-  const tasks = await Task.find({ assignee: { $in: userIds }, status: { $in: OPEN_STATUSES } })
+  const tasks = await Task.find({
+    assignee: { $in: userIds },
+    status: { $in: OPEN_STATUSES },
+    ...(inactiveIds.length ? { project: { $nin: inactiveIds } } : {}),
+  })
     .select('assignee estimatedHours startDate endDate')
     .lean();
   const tasksByUser = new Map();
@@ -37,7 +45,7 @@ async function takeWorkloadSnapshots(now = new Date()) {
   const ops = resources.map((r) => {
     const own = tasksByUser.get(String(r.user)) || [];
     const { peakWeekHours, unscheduledHours } = weeklyLoadOf(own);
-    const capacity = (r.maxCapacity || 40) * (r.fte || 1);
+    const capacity = (r.maxCapacity ?? 40) * (r.fte ?? 1);
     return {
       updateOne: {
         filter: { resource: r._id, date },

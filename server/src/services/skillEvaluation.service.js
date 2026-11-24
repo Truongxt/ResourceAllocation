@@ -5,28 +5,60 @@ const { sendNotification } = require('./socket.service');
 
 // Never includes the reviewer's own profile: a two-way evaluation needs a second person.
 async function reviewScope(user) {
+  if (!user || (!user.isOwner && !['admin', 'project_manager'].includes(user.role))) {
+    return { _id: null };
+  }
   const companyName = user.companyName || 'Công ty Công nghệ RAO';
   const notSelf = { user: { $ne: user._id } };
-  if (user.role === 'admin') return { companyName, isActive: true, ...notSelf };
-  const reports = await User.find({ companyName, manager: user._id }).select('_id').lean();
-  const projects = await Project.find({ companyName, $or: [{ manager: user._id }, { createdBy: user._id }] }).select('members').lean();
-  const users = [...reports.map((report) => report._id), ...projects.flatMap((project) => (project.members || []).map((member) => member.user))].filter(Boolean);
-  return { companyName, isActive: true, ...notSelf, $or: [{ user: { $in: users } }, { createdBy: user._id }] };
+  if (user.role === 'admin' || user.isOwner) return { companyName, isActive: true, ...notSelf };
+  const [reports, projects, admins] = await Promise.all([
+    User.find({ companyName, manager: user._id }).select('_id').lean(),
+    Project.find({ companyName, $or: [{ manager: user._id }, { createdBy: user._id }] }).select('members').lean(),
+    User.find({ companyName, $or: [{ role: 'admin' }, { isOwner: true }] }).select('_id').lean(),
+  ]);
+  const adminIds = new Set(admins.map((a) => String(a._id)));
+  const users = [
+    ...reports.map((report) => report._id),
+    ...projects.flatMap((project) => (project.members || []).map((member) => member.user)),
+  ].filter((id) => id && !adminIds.has(String(id)));
+  return {
+    companyName,
+    isActive: true,
+    ...notSelf,
+    $and: [
+      { user: { $nin: [...adminIds] } },
+      { $or: [{ user: { $in: users } }, { createdBy: user._id }] },
+    ],
+  };
 }
+
+const isValidSkillLevel = (lvl) => Number.isInteger(lvl) && lvl >= 1 && lvl <= 4;
 
 // Keep the official level intact until a manager explicitly approves a new one.
 function applyEvaluation(resource, input, actor, action, now = new Date()) {
+  if (!Array.isArray(input) || input.length === 0) {
+    throw new Error('Danh sách kỹ năng đánh giá không được để trống');
+  }
   const skills = resource.skills.map((skill) => skill.toObject ? skill.toObject() : { ...skill });
   const changes = [];
   for (const value of input) {
-    const name = value.name.trim();
+    const name = String(value?.name || '').trim();
+    if (!name) throw new Error('Tên kỹ năng không được để trống');
     let skill = skills.find((entry) => entry.name.trim().toLowerCase() === name.toLowerCase());
     if (!skill && action === 'returned') throw new Error('Không thể trả lại kỹ năng chưa được gửi');
     const previousLevel = skill ? (skill.managerLevel ?? (skill.evaluationStatus === 'approved' ? skill.level : null)) : null;
     if (!skill) { skill = { name, level: 1, selfLevel: value.selfLevel ?? value.managerLevel ?? value.level ?? 1, yearsOfExperience: Number(value.yearsOfExperience || 0), evaluationStatus: 'draft' }; skills.push(skill); }
     if (action === 'submitted') {
-      skill.selfLevel = Number(value.selfLevel);
-      skill.yearsOfExperience = Number(value.yearsOfExperience || 0);
+      const nextSelfLevel = Number(value.selfLevel);
+      if (!isValidSkillLevel(nextSelfLevel)) {
+        throw new Error(`Mức tự đánh giá của kỹ năng "${name}" phải là số nguyên từ 1 đến 4`);
+      }
+      const nextYears = Number(value.yearsOfExperience ?? 0);
+      if (!Number.isFinite(nextYears) || nextYears < 0) {
+        throw new Error(`Số năm kinh nghiệm của kỹ năng "${name}" không hợp lệ`);
+      }
+      skill.selfLevel = nextSelfLevel;
+      skill.yearsOfExperience = nextYears;
       skill.evidence = String(value.evidence || '').trim();
       skill.submittedAt = now;
       // Previously imported/approved skills also have an official level.
@@ -38,7 +70,11 @@ function applyEvaluation(resource, input, actor, action, now = new Date()) {
       skill.evaluatedAt = now;
       skill.evaluatedBy = actor._id;
       if (action === 'approved') {
-        skill.level = Number(value.managerLevel ?? value.level);
+        const nextApprovedLevel = Number(value.managerLevel ?? value.level);
+        if (!isValidSkillLevel(nextApprovedLevel)) {
+          throw new Error(`Mức duyệt của kỹ năng "${name}" phải là số nguyên từ 1 đến 4`);
+        }
+        skill.level = nextApprovedLevel;
         skill.managerLevel = skill.level;
         skill.evaluationStatus = 'approved';
       } else {

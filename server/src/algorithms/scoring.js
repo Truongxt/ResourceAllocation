@@ -84,7 +84,16 @@ function computeSkillMatch(task, resource) {
     const resSkill = (resource.skills || []).find(
       (s) => s.name.toLowerCase() === req.name.toLowerCase()
     );
-    const resLevel = resSkill ? resSkill.level : 0;
+    // Kỹ năng mới tự đánh giá chưa từng được Quản lý phê duyệt (evaluationStatus !== 'approved'
+    // và chưa có managerLevel) thì chưa tính vào mức năng lực chính thức khi tối ưu hóa.
+    const isUnapprovedNewSkill =
+      resSkill &&
+      resSkill.evaluationStatus &&
+      resSkill.evaluationStatus !== 'approved' &&
+      resSkill.managerLevel == null;
+    const resLevel = resSkill
+      ? (isUnapprovedNewSkill ? 0 : (resSkill.managerLevel ?? resSkill.level ?? 0))
+      : 0;
     totalMatch += weight * Math.min(resLevel, req.level);
   }
 

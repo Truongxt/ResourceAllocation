@@ -665,6 +665,13 @@ function buildDailyDigestEmail({ user, summary, clientUrl, companyName }) {
   return { to: user.email, subject, text, html };
 }
 
+const sampleNotification = {
+  type: 'task_assigned',
+  title: 'Kiểm tra kết nối Email từ hệ thống',
+  message: 'Đây là email thử nghiệm xác nhận cấu hình gửi thư thông báo đã hoạt động ổn định.',
+  link: '/settings',
+};
+
 /**
  * Gửi email thử nghiệm (Test Email) để kiểm tra cấu hình SMTP.
  */
@@ -700,6 +707,7 @@ async function sendAllDailyDigests(now = new Date(), env = process.env) {
     return { sent: 0, reason: config.reason, skipped: true };
   }
 
+  const Project = require('../models/Project');
   const users = await User.find({
     isActive: true,
     'emailPreferences.daily_digest': true,
@@ -711,22 +719,44 @@ async function sendAllDailyDigests(now = new Date(), env = process.env) {
 
   for (const user of users) {
     try {
+      const userCompany = user.companyName || 'Công ty Công nghệ RAO';
+      const [inactiveIds, reviewableProjectIds] = await Promise.all([
+        Project.find({
+          companyName: userCompany,
+          $or: [{ isTemplate: true }, { isArchived: true }],
+        }).distinct('_id'),
+        Project.find({
+          companyName: userCompany,
+          isTemplate: { $ne: true },
+          isArchived: { $ne: true },
+          $or: [{ manager: user._id }, { 'reviewConfig.reviewers': user._id }],
+        }).distinct('_id'),
+      ]);
+      const activeProjectFilter = inactiveIds.length ? { project: { $nin: inactiveIds } } : {};
+
       const [dueToday, overdue, pendingReviews] = await Promise.all([
         Task.find({
           assignee: user._id,
           status: { $nin: ['done', 'failed'] },
           endDate: { $gte: startOfDay, $lte: endOfDay },
+          ...activeProjectFilter,
         }).select('title endDate project').populate('project', 'name').limit(10),
 
         Task.find({
           assignee: user._id,
           status: { $nin: ['done', 'failed'] },
           endDate: { $lt: startOfDay },
+          ...activeProjectFilter,
         }).select('title endDate project').populate('project', 'name').limit(10),
 
         Task.find({
-          reviewers: user._id,
           status: 'review',
+          assignee: { $ne: user._id },
+          ...activeProjectFilter,
+          $or: [
+            { project: { $in: reviewableProjectIds } },
+            { createdBy: user._id },
+          ],
         }).select('title project').populate('project', 'name').limit(10),
       ]);
 

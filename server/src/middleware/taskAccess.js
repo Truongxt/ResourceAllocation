@@ -660,13 +660,23 @@ const canCreateSubtask = () => async (req, res, next) => {
     }
 
     const ctx = await getTaskUserContext(req.params.id, req.user);
-    const { task, isProjectManager, isCreator, isAssignee, isFollower, isProjectMember } = ctx;
+    const { task, project, isProjectManager, isCreator, isAssignee, isFollower, isProjectMember } = ctx;
 
     if (!task) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy công việc cha' });
     }
 
-    if (isProjectManager || isCreator || isAssignee || isFollower || isProjectMember) {
+    if (isProjectManager || isCreator || isAssignee) {
+      return next();
+    }
+
+    if (isFollower || isProjectMember) {
+      if (project) {
+        const denied = createDeniedReason(req.user, project);
+        if (denied) {
+          return res.status(403).json({ success: false, message: denied });
+        }
+      }
       return next();
     }
 

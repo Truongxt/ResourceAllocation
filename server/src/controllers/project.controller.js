@@ -1073,9 +1073,17 @@ const duplicateProject = async (req, res, next) => {
     if (startDate && Number.isNaN(new Date(startDate).getTime())) {
       return res.status(400).json({ success: false, message: 'Ngày bắt đầu không hợp lệ' });
     }
+    const normalizedCode = code ? String(code).trim().toUpperCase() : undefined;
+    if (normalizedCode) {
+      const targetCompany = source.companyName || (req.user && req.user.companyName) || 'Công ty Công nghệ RAO';
+      const existingCode = await Project.findOne({ code: normalizedCode, companyName: targetCompany }).select('_id');
+      if (existingCode) {
+        return res.status(400).json({ success: false, message: 'Mã dự án đã tồn tại trong công ty' });
+      }
+    }
 
     const { project, groupCount, taskCount } = await cloneProject(source, {
-      name, code, startDate, asTemplate: req.body.asTemplate === true, user: req.user,
+      name, code: normalizedCode, startDate, asTemplate: req.body.asTemplate === true, user: req.user,
     });
     const populated = await Project.findById(project._id)
       .populate('manager', 'name email avatar')

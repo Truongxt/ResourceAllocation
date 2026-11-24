@@ -1,6 +1,7 @@
 const Resource = require('../models/Resource');
 const Task = require('../models/Task');
 const { weeklyLoadOf } = require('../analytics/workloadTrend');
+const { inactiveProjectIds } = require('./projectLifecycle.service');
 
 /**
  * Đồng bộ khối lượng công việc (currentWorkload) và trạng thái sẵn sàng (availability)
@@ -39,13 +40,25 @@ const syncResourceWorkload = async (userIds = null) => {
     const resources = await Resource.find(resourceFilter);
     if (!resources.length) return 0;
 
+    const inactiveByCompany = new Map();
+    const getInactiveIds = async (companyName) => {
+      const company = companyName || 'Công ty Công nghệ RAO';
+      if (!inactiveByCompany.has(company)) {
+        inactiveByCompany.set(company, await inactiveProjectIds(company));
+      }
+      return inactiveByCompany.get(company);
+    };
+
     for (const resource of resources) {
       if (!resource.user) continue;
 
-      // Lấy tất cả task đang hoạt động (chưa hoàn thành) của nhân sự
+      const excludedProjects = await getInactiveIds(resource.companyName);
+
+      // Lấy tất cả task đang hoạt động (chưa hoàn thành) của nhân sự, không tính dự án mẫu/lưu trữ
       const activeTasks = await Task.find({
         assignee: resource.user,
         status: { $in: ['todo', 'in_progress', 'review'] },
+        ...(excludedProjects.length ? { project: { $nin: excludedProjects } } : {}),
       }).select('estimatedHours startDate endDate');
 
       const { peakWeekHours, unscheduledHours } = weeklyLoadOf(activeTasks);
