@@ -137,28 +137,28 @@ export default function TaskTableView({
               )}
 
               {checklistTotal > 0 && (
-                <span style={{ fontSize: 10, color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                   <CheckSquareOutlined style={{ fontSize: 10 }} />
                   {checklistDone}/{checklistTotal}
                 </span>
               )}
 
               {commentsCount > 0 && (
-                <span style={{ fontSize: 10, color: '#3b82f6', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                   <MessageOutlined style={{ fontSize: 10 }} />
                   {commentsCount}
                 </span>
               )}
 
               {subtasksCount > 0 && (
-                <span style={{ fontSize: 10, color: '#0284c7', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                   <ApartmentOutlined style={{ fontSize: 10 }} />
                   {subtasksCount}
                 </span>
               )}
 
               {followersCount > 0 && (
-                <span style={{ fontSize: 10, color: '#ca8a04', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                   <EyeOutlined style={{ fontSize: 10 }} />
                   {followersCount}
                 </span>
@@ -234,7 +234,15 @@ export default function TaskTableView({
       render: (assignee) =>
         assignee ? (
           <Space size={8}>
-            <Avatar size={24} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
+            <Avatar
+              size={24}
+              icon={<UserOutlined />}
+              style={{
+                backgroundColor: 'var(--surface-sunken)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            />
             <Text style={{ fontSize: 13, fontWeight: 500 }}>{assignee.name}</Text>
           </Space>
         ) : (

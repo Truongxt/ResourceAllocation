@@ -137,20 +137,20 @@ export default function TaskKanbanView({
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'flex-start',
-                          marginBottom: 8,
+                          marginBottom: 6,
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                           {task.project && (
                             <span
                               style={{
-                                fontSize: 10,
-                                fontWeight: 700,
+                                fontSize: 10.5,
+                                fontWeight: 600,
                                 padding: '1px 6px',
                                 borderRadius: 4,
-                                background: 'rgba(99, 102, 241, 0.12)',
-                                color: '#0284c7',
-                                border: '1px solid rgba(99, 102, 241, 0.25)',
+                                background: 'var(--surface-sunken)',
+                                color: 'var(--text-secondary)',
+                                border: '1px solid var(--border-subtle)',
                               }}
                             >
                               {task.project.code || task.project.name}
@@ -159,25 +159,31 @@ export default function TaskKanbanView({
                           {task.taskGroup && (
                             <span
                               style={{
-                                fontSize: 10,
-                                fontWeight: 600,
+                                fontSize: 10.5,
+                                fontWeight: 500,
                                 padding: '1px 6px',
                                 borderRadius: 4,
-                                background: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
-                                color: task.taskGroup.color || '#3b82f6',
-                                border: `1px solid ${task.taskGroup.color ? task.taskGroup.color + '40' : 'rgba(59, 130, 246, 0.25)'}`,
+                                background: 'var(--surface-sunken)',
+                                color: 'var(--text-tertiary)',
+                                border: '1px solid var(--border-subtle)',
                               }}
                             >
                               <FolderOutlined style={{ marginRight: 3, fontSize: 9 }} />
                               {task.taskGroup.name}
                             </span>
                           )}
-                          <Tag
-                            color={priorityOpt?.color || 'default'}
-                            style={{ borderRadius: 6, margin: 0, fontSize: 10 }}
-                          >
-                            {priorityLabel(task.priority)}
-                          </Tag>
+                          {(task.priority === 'high' || task.priority === 'critical') ? (
+                            <Tag
+                              color={priorityOpt?.color || 'default'}
+                              style={{ borderRadius: 4, margin: 0, fontSize: 10 }}
+                            >
+                              {priorityLabel(task.priority)}
+                            </Tag>
+                          ) : (
+                            <span style={{ fontSize: 10.5, color: 'var(--text-tertiary)' }}>
+                              · {priorityLabel(task.priority)}
+                            </span>
+                          )}
                         </div>
 
                         <Space size={2}>
@@ -186,7 +192,7 @@ export default function TaskKanbanView({
                               <Button
                                 type="text"
                                 size="small"
-                                icon={<CopyOutlined style={{ fontSize: 12, color: '#0284c7' }} />}
+                                icon={<CopyOutlined style={{ fontSize: 12, color: 'var(--text-tertiary)' }} />}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onDuplicate && onDuplicate(task);
@@ -198,7 +204,7 @@ export default function TaskKanbanView({
                             <Button
                               type="text"
                               size="small"
-                              icon={<EditOutlined style={{ fontSize: 12 }} />}
+                              icon={<EditOutlined style={{ fontSize: 12, color: 'var(--text-tertiary)' }} />}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onOpenEdit(task);
@@ -213,9 +219,9 @@ export default function TaskKanbanView({
                         <Text
                           strong
                           style={{
-                            fontSize: 13,
-                            color: isDark ? '#f8fafc' : '#0f172a',
-                            lineHeight: 1.35,
+                            fontSize: 13.5,
+                            color: 'var(--text-primary)',
+                            lineHeight: 1.4,
                             display: 'block',
                           }}
                         >
@@ -229,27 +235,20 @@ export default function TaskKanbanView({
                           <Progress
                             percent={task.progress || 0}
                             size="small"
-                            strokeColor="#0284c7"
-                            railColor={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}
+                            strokeColor={task.progress === 100 ? 'var(--status-success)' : 'var(--brand-primary)'}
+                            railColor="var(--surface-sunken)"
                           />
                         </div>
                       )}
 
                       {/* Base Wework metadata indicators (Checklist, Bình luận, Người theo dõi, Subtasks) */}
                       {hasWeworkMeta && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap', color: 'var(--text-tertiary)', fontSize: 11 }}>
                           {checklistTotal > 0 && (
                             <span
                               style={{
-                                fontSize: 10,
                                 fontWeight: 600,
-                                padding: '1px 5px',
-                                borderRadius: 4,
-                                background: checklistDone === checklistTotal
-                                  ? (isDark ? 'rgba(16, 185, 129, 0.2)' : '#ecfdf5')
-                                  : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#f8fafc'),
-                                color: checklistDone === checklistTotal ? '#10b981' : (isDark ? '#94a3b8' : '#64748b'),
-                                border: `1px solid ${checklistDone === checklistTotal ? 'rgba(16, 185, 129, 0.3)' : (isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0')}`,
+                                color: checklistDone === checklistTotal ? 'var(--status-success)' : 'var(--text-tertiary)',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 3,
@@ -261,100 +260,35 @@ export default function TaskKanbanView({
                           )}
 
                           {commentsCount > 0 && (
-                            <span
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                padding: '1px 5px',
-                                borderRadius: 4,
-                                background: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
-                                color: '#3b82f6',
-                                border: '1px solid rgba(59, 130, 246, 0.25)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                              }}
-                            >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                               <MessageOutlined style={{ fontSize: 10 }} />
                               {commentsCount}
                             </span>
                           )}
 
                           {subtasksCount > 0 && (
-                            <span
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                padding: '1px 5px',
-                                borderRadius: 4,
-                                background: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f5f3ff',
-                                color: '#0284c7',
-                                border: '1px solid rgba(168, 85, 247, 0.25)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                              }}
-                            >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                               <ApartmentOutlined style={{ fontSize: 10 }} />
                               {subtasksCount}
                             </span>
                           )}
 
                           {followersCount > 0 && (
-                            <span
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                padding: '1px 5px',
-                                borderRadius: 4,
-                                background: isDark ? 'rgba(234, 179, 8, 0.15)' : '#fefce8',
-                                color: '#ca8a04',
-                                border: '1px solid rgba(234, 179, 8, 0.25)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                              }}
-                            >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                               <EyeOutlined style={{ fontSize: 10 }} />
                               {followersCount}
                             </span>
                           )}
 
                           {hasResult && (
-                            <span
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                padding: '1px 5px',
-                                borderRadius: 4,
-                                background: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ecfdf5',
-                                color: '#10b981',
-                                border: '1px solid rgba(16, 185, 129, 0.3)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                              }}
-                            >
+                            <span style={{ color: 'var(--status-success)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                               <FileDoneOutlined style={{ fontSize: 10 }} />
                               Kết quả
                             </span>
                           )}
 
                           {task.recurringTaskId && (
-                            <span
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                padding: '1px 5px',
-                                borderRadius: 4,
-                                background: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f5f3ff',
-                                color: '#0284c7',
-                                border: '1px solid rgba(168, 85, 247, 0.25)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                              }}
-                            >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                               <SyncOutlined style={{ fontSize: 9 }} />
                               Định kỳ
                             </span>
@@ -364,24 +298,25 @@ export default function TaskKanbanView({
 
                       {/* Huy hiệu kỹ năng yêu cầu */}
                       {(task.requiredSkills || []).length > 0 && (
-                        <div style={{ marginBottom: 10, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        <div style={{ marginBottom: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                           {task.requiredSkills.slice(0, 2).map((s, idx) => (
                             <span
                               key={idx}
                               style={{
                                 fontSize: 10,
-                                fontWeight: 600,
-                                padding: '1px 5px',
+                                fontWeight: 500,
+                                padding: '1px 6px',
                                 borderRadius: 4,
-                                background: 'rgba(6, 182, 212, 0.1)',
-                                color: '#22d3ee',
+                                background: 'var(--surface-sunken)',
+                                color: 'var(--text-secondary)',
+                                border: '1px solid var(--border-subtle)',
                               }}
                             >
                               {s.name}
                             </span>
                           ))}
                           {task.requiredSkills.length > 2 && (
-                            <span style={{ fontSize: 10, color: '#94a3b8' }}>
+                            <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
                               +{task.requiredSkills.length - 2}
                             </span>
                           )}
@@ -397,7 +332,7 @@ export default function TaskKanbanView({
                             justifyContent: 'space-between',
                             fontSize: 11,
                             marginBottom: 8,
-                            color: isOverdue ? '#ef4444' : (isDark ? '#94a3b8' : '#64748b'),
+                            color: isOverdue ? 'var(--status-danger)' : 'var(--text-tertiary)',
                             fontWeight: isOverdue ? 600 : 400,
                           }}
                         >
@@ -408,11 +343,11 @@ export default function TaskKanbanView({
                           {isOverdue && (
                             <span
                               style={{
-                                fontSize: 9,
+                                fontSize: 9.5,
                                 padding: '0 5px',
                                 borderRadius: 3,
-                                background: 'rgba(239, 68, 68, 0.15)',
-                                color: '#ef4444',
+                                background: 'var(--status-danger-bg)',
+                                color: 'var(--status-danger)',
                                 fontWeight: 700,
                               }}
                             >
@@ -429,18 +364,25 @@ export default function TaskKanbanView({
                           justifyContent: 'space-between',
                           alignItems: 'center',
                           paddingTop: 8,
-                          borderTop: isDark
-                            ? '1px solid rgba(255, 255, 255, 0.06)'
-                            : '1px solid #f1f5f9',
+                          borderTop: '1px solid var(--border-subtle)',
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Avatar size={20} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
+                          <Avatar
+                            size={20}
+                            icon={<UserOutlined />}
+                            style={{
+                              backgroundColor: 'var(--surface-sunken)',
+                              color: 'var(--text-primary)',
+                              border: '1px solid var(--border-subtle)',
+                              fontSize: 11,
+                            }}
+                          />
                           <Text type="secondary" style={{ fontSize: 12 }}>
                             {task.assignee?.name || t('common.unassigned') || 'Chưa gán'}
                           </Text>
                         </div>
-                        <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                        <span className="tabular-nums" style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 500 }}>
                           <ClockCircleOutlined style={{ marginRight: 3 }} />
                           {task.estimatedHours || 0}h
                         </span>

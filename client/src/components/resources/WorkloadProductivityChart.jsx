@@ -1,404 +1,352 @@
-import WorkloadBreakdown from './WorkloadBreakdown';
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Card,
-  Row,
-  Col,
-  Tag,
   Button,
-  Radio,
-  Space,
+  Tag,
   Typography,
+  Space,
   Tooltip,
-  Input,
-  Badge,
-  Empty,
-  Alert,
-  Skeleton,
   Avatar,
+  Empty,
+  Spin,
+  Segmented,
+  Input,
+  Alert,
 } from 'antd';
 import {
   TeamOutlined,
   ApartmentOutlined,
-  WarningOutlined,
-  CheckCircleOutlined,
-  InfoCircleOutlined,
   SwapOutlined,
   SearchOutlined,
-  ThunderboltOutlined,
+  InfoCircleOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
+import WorkloadBreakdown from './WorkloadBreakdown';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
+
+/**
+ * Bảng màu kỷ luật cho thanh tải công việc:
+ * - Quá tải (>100%): Đỏ cảnh báo (#dc2626)
+ * - Tiệm cận định mức (86% - 100%): Cam hổ phách (#d97706)
+ * - Tải cân bằng (60% - 85%): Xanh lá (#059669)
+ * - Còn nhiều công suất (<60%): Xanh lam trầm (#2563eb) — tránh tô màu cam cảnh báo khắp màn hình khi nhân sự đang rảnh
+ */
+function resolveBarColor(item) {
+  const rate = item?.utilizationRate || 0;
+  if (item?.statusCode === 'red' || rate > 100) return '#dc2626';
+  if (item?.statusCode === 'green' || (rate >= 60 && rate <= 85)) return '#059669';
+  if (rate > 85) return '#d97706';
+  return '#2563eb';
+}
 
 export default function WorkloadProductivityChart({
   productivityData,
-  loading = false,
-  error = false,
+  loading,
+  error,
   onReassign,
   onRefresh,
 }) {
-  const { t } = useTranslation();
   const [viewMode, setViewMode] = useState('personnel'); // 'personnel' | 'department'
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'red' | 'yellow' | 'green'
+  const [searchText, setSearchText] = useState('');
   const [selection, setSelection] = useState(null);
-  useEffect(() => { setSelection(null); }, [productivityData]);
-  const [search, setSearch] = useState('');
 
-  const personnel = productivityData?.personnel || [];
-  const departments = productivityData?.departments || [];
   const summary = productivityData?.summary || {
-    totalPersonnel: personnel.length,
-    totalDepartments: departments.length,
-    greenCount: personnel.filter((p) => p.statusCode === 'green').length,
-    yellowCount: personnel.filter((p) => p.statusCode === 'yellow').length,
-    redCount: personnel.filter((p) => p.statusCode === 'red').length,
+    totalPersonnel: 0,
+    totalDepartments: 0,
+    redCount: 0,
+    yellowCount: 0,
+    greenCount: 0,
     avgUtilization: 0,
   };
+  const period = productivityData?.period;
 
-  const filterItems = viewMode === 'department' ? departments : personnel;
-  const counts = code => filterItems.filter(item => item.statusCode === code).length;
+  const personnel = useMemo(() => productivityData?.personnel || [], [productivityData]);
+  const departments = useMemo(() => productivityData?.departments || [], [productivityData]);
 
-  // Filter personnel list
   const filteredPersonnel = useMemo(() => {
     return personnel.filter((p) => {
       const matchStatus = statusFilter === 'all' || p.statusCode === statusFilter;
+      const q = searchText.trim().toLowerCase();
       const matchSearch =
-        !search.trim() ||
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        (p.department && p.department.toLowerCase().includes(search.toLowerCase())) ||
-        (p.position && p.position.toLowerCase().includes(search.toLowerCase()));
+        !q ||
+        p.name?.toLowerCase().includes(q) ||
+        p.position?.toLowerCase().includes(q) ||
+        p.department?.toLowerCase().includes(q) ||
+        p.employeeId?.toLowerCase().includes(q);
       return matchStatus && matchSearch;
-    }).sort((a, b) => ({ red: 0, yellow: 1, green: 2 }[a.statusCode] - { red: 0, yellow: 1, green: 2 }[b.statusCode]) || b.utilizationRate - a.utilizationRate);
-  }, [personnel, statusFilter, search]);
+    });
+  }, [personnel, statusFilter, searchText]);
 
-  // Filter department list
   const filteredDepartments = useMemo(() => {
     return departments.filter((d) => {
       const matchStatus = statusFilter === 'all' || d.statusCode === statusFilter;
-      const matchSearch = !search.trim() || d.name.toLowerCase().includes(search.toLowerCase());
+      const q = searchText.trim().toLowerCase();
+      const matchSearch = !q || d.name?.toLowerCase().includes(q);
       return matchStatus && matchSearch;
     });
-  }, [departments, statusFilter, search]);
+  }, [departments, statusFilter, searchText]);
 
-  if (loading && !productivityData) return <Skeleton active paragraph={{ rows: 6 }} />;
-  if (error && !productivityData) return <Alert type="error" showIcon title="Không tải được dữ liệu tải và kết quả công việc" action={<Button onClick={onRefresh}>Thử lại</Button>} />;
+  if (loading && !productivityData) {
+    return (
+      <div style={{ textAlign: 'center', padding: '56px 0' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <Alert
+        type="error"
+        showIcon
+        title="Không tải được dữ liệu năng suất và cân bằng tải"
+        action={onRefresh && <Button onClick={onRefresh}>Thử lại</Button>}
+      />
+    );
+  }
 
   return (
-    <div style={{ marginTop: 12 }}>
-      <WorkloadBreakdown selection={selection} period={productivityData?.period} onClose={() => setSelection(null)} />
-      <Paragraph type="secondary">Tải việc đang mở trong kỳ {productivityData?.period?.from} → {productivityData?.period?.to}, tính cả kỳ đã chọn. Bấm số giờ để xem phép tính. Việc đã hoàn thành không còn được cộng vào tải; giờ thực tế được ghi riêng trong từng công việc.</Paragraph>
-      {/* 1. Header & Summary KPI Strip */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-        <Col xs={24} sm={12} md={6}>
-          <Card
-            styles={{ body: { padding: '16px 20px' } }}
-            style={{
-              borderRadius: 12,
-              borderLeft: '4px solid #0284c7',
-              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.08)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <Text type="secondary" style={{ fontSize: 13, fontWeight: 500 }}>
-                  Tổng quy mô nguồn lực
-                </Text>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#1e293b', marginTop: 4 }}>
-                  {summary.totalPersonnel}{' '}
-                  <span style={{ fontSize: 13, fontWeight: 400, color: '#64748b' }}>
-                    nhân sự / {summary.totalDepartments} phòng
-                  </span>
-                </div>
-              </div>
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 10,
-                  background: 'rgba(99, 102, 241, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <TeamOutlined style={{ fontSize: 22, color: '#0284c7' }} />
-              </div>
-            </div>
-          </Card>
-        </Col>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* 1. HƯỚNG DẪN ĐỌC & ĐIỀU PHỐI TẢI (Criterion 2: Đẩy nội dung hướng dẫn rõ ràng) */}
+      <div className="workspace-guide-banner">
+        <div className="workspace-guide-content">
+          <div className="workspace-guide-header">
+            <span className="workspace-guide-badge">Hướng dẫn điều phối</span>
+            <span className="workspace-guide-title">
+              {period
+                ? `Kỳ tính tải đang chọn: ${period.from} → ${period.to}`
+                : 'Quy tắc tính tải & cân bằng công suất đội ngũ'}
+            </span>
+          </div>
+          <ul className="workspace-guide-steps">
+            <li>
+              <span className="workspace-guide-step-num">1</span>
+              <span>
+                <strong>Phạm vi giờ tải:</strong> Chỉ cộng giờ kế hoạch của việc đang mở trong kỳ (trừ lịch nghỉ & nhân hệ số FTE); việc đã hoàn thành không còn chiếm tải.
+              </span>
+            </li>
+            <li>
+              <span className="workspace-guide-step-num">2</span>
+              <span>
+                <strong>Xem công thức chi tiết:</strong> Bấm vào liên kết <strong>Số giờ / Định mức · Chi tiết</strong> trên từng dòng để mở bảng giải trình từng công việc.
+              </span>
+            </li>
+            <li>
+              <span className="workspace-guide-step-num">3</span>
+              <span>
+                <strong>San tải tức thời:</strong> Nhân sự vượt vạch chuẩn <strong>100%</strong> sẽ hiển thị cảnh báo đỏ — bấm <strong>San tải việc / Chuyển việc</strong> để bàn giao bớt.
+              </span>
+            </li>
+          </ul>
+        </div>
+      </div>
 
-        <Col xs={24} sm={12} md={6}>
-          <Card
-            styles={{ body: { padding: '16px 20px' } }}
-            style={{
-              borderRadius: 12,
-              borderLeft: '4px solid #ef4444',
-              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.08)',
-              background: summary.redCount > 0 ? '#fef2f2' : undefined,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <Text type="secondary" style={{ fontSize: 13, fontWeight: 500, color: '#991b1b' }}>
-                  Quá tải (Cần san tải)
-                </Text>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#ef4444', marginTop: 4 }}>
-                  {summary.redCount}{' '}
-                  <span style={{ fontSize: 13, fontWeight: 400, color: '#b91c1c' }}>
-                    nhân sự (&gt;100% tải)
-                  </span>
-                </div>
-              </div>
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 10,
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <WarningOutlined style={{ fontSize: 22, color: '#ef4444' }} />
-              </div>
-            </div>
-          </Card>
-        </Col>
+      {/* 2. DẢI CHỈ SỐ TỔNG HỢP (Unified Ledger Strip — Không dùng 4 thẻ cầu vồng lòe loẹt) */}
+      <section className="metric-strip" aria-label="Tổng hợp trạng thái tải nguồn lực">
+        <div className="metric-cell">
+          <span>Tổng quy mô nguồn lực</span>
+          <div>
+            <strong>{summary.totalPersonnel}</strong>
+            <small style={{ marginLeft: 6, fontSize: 12, color: 'var(--text-tertiary)' }}>
+              nhân sự / {summary.totalDepartments} phòng
+            </small>
+          </div>
+        </div>
 
-        <Col xs={24} sm={12} md={6}>
-          <Card
-            styles={{ body: { padding: '16px 20px' } }}
-            style={{
-              borderRadius: 12,
-              borderLeft: '4px solid #10b981',
-              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.08)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <Text type="secondary" style={{ fontSize: 13, fontWeight: 500, color: '#065f46' }}>
-                  Tải cân bằng
-                </Text>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#10b981', marginTop: 4 }}>
-                  {summary.greenCount}{' '}
-                  <span style={{ fontSize: 13, fontWeight: 400, color: '#047857' }}>
-                    nhân sự (60% - 85% tải)
-                  </span>
-                </div>
-              </div>
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 10,
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <CheckCircleOutlined style={{ fontSize: 22, color: '#10b981' }} />
-              </div>
-            </div>
-          </Card>
-        </Col>
+        <div className={summary.redCount > 0 ? 'metric-cell metric-cell-danger' : 'metric-cell'}>
+          <span>Quá tải (Cần san tải)</span>
+          <div>
+            <strong>{summary.redCount}</strong>
+            <small style={{ marginLeft: 6, fontSize: 12, color: summary.redCount > 0 ? 'var(--status-danger)' : 'var(--text-tertiary)' }}>
+              nhân sự (&gt;100% tải)
+            </small>
+          </div>
+        </div>
 
-        <Col xs={24} sm={12} md={6}>
-          <Card
-            styles={{ body: { padding: '16px 20px' } }}
-            style={{
-              borderRadius: 12,
-              borderLeft: '4px solid #f59e0b',
-              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.08)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <Text type="secondary" style={{ fontSize: 13, fontWeight: 500, color: '#92400e' }}>
-                  Cần chú ý
-                </Text>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#f59e0b', marginTop: 4 }}>
-                  {summary.yellowCount}{' '}
-                  <span style={{ fontSize: 13, fontWeight: 400, color: '#b45309' }}>
-                    nhân sự (&lt;60% hoặc &gt;85%)
-                  </span>
-                </div>
-              </div>
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 10,
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <ThunderboltOutlined style={{ fontSize: 22, color: '#f59e0b' }} />
-              </div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
+        <div className="metric-cell">
+          <span>Tải cân bằng</span>
+          <div>
+            <strong>{summary.greenCount}</strong>
+            <small style={{ marginLeft: 6, fontSize: 12, color: 'var(--text-tertiary)' }}>
+              nhân sự (60% – 85% tải)
+            </small>
+          </div>
+        </div>
 
-      {/* 2. Controls & Filter Bar */}
-      <Card
-        styles={{ body: { padding: '14px 20px' } }}
-        style={{
-          borderRadius: 12,
-          marginBottom: 16,
-          boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-        }}
-      >
+        <div className="metric-cell">
+          <span>Cần chú ý / Còn công suất</span>
+          <div>
+            <strong>{summary.yellowCount}</strong>
+            <small style={{ marginLeft: 6, fontSize: 12, color: 'var(--text-tertiary)' }}>
+              nhân sự (&lt;60% hoặc 86–100%)
+            </small>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. THANH CÔNG CỤ CHUYỂN CHẾ ĐỘ XEM & LỌC TRẠNG THÁI */}
+      <div className="work-toolbar" style={{ marginBottom: 0 }}>
         <div
           style={{
             display: 'flex',
-            flexWrap: 'wrap',
             justifyContent: 'space-between',
             alignItems: 'center',
+            flexWrap: 'wrap',
             gap: 12,
           }}
         >
-          {/* Switch View Mode */}
-          <Radio.Group
-            value={viewMode}
-            onChange={(e) => setViewMode(e.target.value)}
-            buttonStyle="solid"
-          >
-            <Radio.Button value="personnel">
-              <TeamOutlined /> Theo Nhân sự ({personnel.length})
-            </Radio.Button>
-            <Radio.Button value="department">
-              <ApartmentOutlined /> Theo Phòng ban ({departments.length})
-            </Radio.Button>
-          </Radio.Group>
-
-          {/* Status Color Filters */}
-          <Space wrap size={8}>
-            <Text type="secondary" style={{ fontSize: 13, marginRight: 4 }}>
-              Lọc trạng thái:
-            </Text>
-            <Tag.CheckableTag
-              checked={statusFilter === 'all'}
-              onChange={() => setStatusFilter('all')}
-              style={{ borderRadius: 14, padding: '2px 12px' }}
-            >
-              Tất cả
-            </Tag.CheckableTag>
-            <Tag.CheckableTag
-              checked={statusFilter === 'red'}
-              onChange={() => setStatusFilter('red')}
-              style={{
-                borderRadius: 14,
-                padding: '2px 12px',
-                background: statusFilter === 'red' ? '#ef4444' : undefined,
-                color: statusFilter === 'red' ? '#fff' : '#ef4444',
-                borderColor: '#ef4444',
-              }}
-            >
-              Quá tải ({counts('red')})
-            </Tag.CheckableTag>
-            <Tag.CheckableTag
-              checked={statusFilter === 'yellow'}
-              onChange={() => setStatusFilter('yellow')}
-              style={{
-                borderRadius: 14,
-                padding: '2px 12px',
-                background: statusFilter === 'yellow' ? '#f59e0b' : undefined,
-                color: statusFilter === 'yellow' ? '#fff' : '#d97706',
-                borderColor: '#f59e0b',
-              }}
-            >
-              Cần chú ý ({counts('yellow')})
-            </Tag.CheckableTag>
-            <Tag.CheckableTag
-              checked={statusFilter === 'green'}
-              onChange={() => setStatusFilter('green')}
-              style={{
-                borderRadius: 14,
-                padding: '2px 12px',
-                background: statusFilter === 'green' ? '#10b981' : undefined,
-                color: statusFilter === 'green' ? '#fff' : '#059669',
-                borderColor: '#10b981',
-              }}
-            >
-              Tải cân bằng ({counts('green')})
-            </Tag.CheckableTag>
+          <Space wrap size={12}>
+            <Segmented
+              value={viewMode}
+              onChange={setViewMode}
+              options={[
+                {
+                  label: (
+                    <Space size={6}>
+                      <TeamOutlined />
+                      <span>Theo Nhân sự ({personnel.length})</span>
+                    </Space>
+                  ),
+                  value: 'personnel',
+                },
+                {
+                  label: (
+                    <Space size={6}>
+                      <ApartmentOutlined />
+                      <span>Theo Phòng ban ({departments.length})</span>
+                    </Space>
+                  ),
+                  value: 'department',
+                },
+              ]}
+            />
           </Space>
 
-          {/* Search Box */}
+          <Space wrap size={8} align="center">
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+              Lọc trạng thái:
+            </Text>
+            {[
+              { key: 'all', label: 'Tất cả', dot: null },
+              { key: 'red', label: `Quá tải (${summary.redCount})`, dot: '#dc2626' },
+              { key: 'yellow', label: `Cần chú ý (${summary.yellowCount})`, dot: '#d97706' },
+              { key: 'green', label: `Tải cân bằng (${summary.greenCount})`, dot: '#059669' },
+            ].map((item) => {
+              const active = statusFilter === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setStatusFilter(item.key)}
+                  aria-pressed={active}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 11px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: active ? 600 : 500,
+                    cursor: 'pointer',
+                    border: active ? '1px solid var(--brand-primary)' : '1px solid var(--border-subtle)',
+                    background: active ? 'var(--brand-primary)' : 'var(--surface-card)',
+                    color: active ? '#ffffff' : 'var(--text-secondary)',
+                    transition: 'all 140ms var(--ease-out)',
+                  }}
+                >
+                  {item.dot && (
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: active ? '#ffffff' : item.dot,
+                      }}
+                    />
+                  )}
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </Space>
+
           <Input
-            prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
-            placeholder={viewMode === 'personnel' ? 'Tìm nhân viên, vị trí, phòng...' : 'Tìm phòng ban...'}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ width: 220, borderRadius: 8 }}
+            prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
+            placeholder="Tìm nhân viên, vị trí, phòng ban..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
             allowClear
+            style={{ width: 230 }}
           />
         </div>
-      </Card>
+      </div>
 
-      {/* 3. Visual Bar Chart Section */}
+      {/* 4. BẢNG GIẢI TRÌNH PHÉP TÍNH GIỜ KHI BẤM CHI TIẾT */}
+      <WorkloadBreakdown selection={selection} period={period} onClose={() => setSelection(null)} />
+
+      {/* 5. DANH SÁCH TRỌNG TÂM: BIỂU ĐỒ TẢI THEO NHÂN SỰ / PHÒNG BAN */}
       <Card
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 16, fontWeight: 700 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 15, fontWeight: 600 }}>
               {viewMode === 'personnel'
                 ? 'Tải việc đang mở theo Nhân sự'
                 : 'Tải việc đang mở theo Phòng ban'}
             </span>
-            <Tooltip title="Vạch chuẩn 100% biểu thị công suất khả dụng trong kỳ đã chọn, sau khi áp dụng FTE và trừ lịch nghỉ. Cột vượt quá vạch này sẽ chuyển sang màu đỏ báo động quá tải. Bấm nút 'San tải việc' để điều chuyển công việc tức thời.">
-              <InfoCircleOutlined style={{ color: '#0284c7', cursor: 'pointer' }} />
+            <Tooltip title="Vạch chuẩn 100% biểu thị định mức công suất khả dụng trong kỳ (sau khi nhân FTE và trừ ngày nghỉ). Thanh vượt qua vạch 100% là quá tải.">
+              <InfoCircleOutlined style={{ color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 13 }} />
             </Tooltip>
           </div>
         }
         extra={
-          <Space size={16}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: '#10b981' }} />
-              <Text type="secondary"><span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#10b981', marginRight: 6 }} />Tải cân bằng (60% - 85%)</Text>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: '#f59e0b' }} />
-              <Text type="secondary"><span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', marginRight: 6 }} />Chú ý (&lt;60% hoặc &gt;85%)</Text>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: '#ef4444' }} />
-              <Text type="secondary"><span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#ef4444', marginRight: 6 }} />Quá tải (&gt;100%)</Text>
-            </div>
+          <Space size={16} wrap>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: '#2563eb' }} />
+              Còn công suất (&lt;60%)
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: '#059669' }} />
+              Tải cân bằng (60% – 85%)
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: '#d97706' }} />
+              Tiệm cận (86% – 100%)
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: '#dc2626' }} />
+              Quá tải (&gt;100%)
+            </span>
           </Space>
         }
-        styles={{ body: { padding: '20px 24px' } }}
-        style={{ borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}
+        styles={{ body: { padding: '16px 20px' } }}
       >
         {viewMode === 'personnel' ? (
-          // ================= PERSONNEL BAR CHARTS =================
           <div>
             {filteredPersonnel.length === 0 ? (
               <Empty description="Không có nhân sự nào khớp bộ lọc" />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {filteredPersonnel.map((person) => {
                   const utilPercent = person.utilizationRate || 0;
                   const barFillPercent = Math.min(100, (utilPercent / 130) * 100);
                   const isRed = person.statusCode === 'red';
+                  const barColor = resolveBarColor(person);
+                  const metaParts = [person.employeeId, person.position, person.department].filter(Boolean);
 
                   return (
                     <div
                       key={person._id}
                       style={{
-                        padding: '14px 18px',
-                        borderRadius: 10,
-                        border: isRed ? '1.5px solid #fecaca' : '1px solid #e2e8f0',
-                        background: isRed ? '#fff5f5' : '#ffffff',
-                        transition: 'border-color 160ms var(--ease-out), background-color 160ms var(--ease-out)',
+                        padding: '12px 16px',
+                        borderRadius: 8,
+                        border: isRed ? '1px solid #fca5a5' : '1px solid var(--border-subtle)',
+                        borderLeft: isRed ? '3px solid #dc2626' : '1px solid var(--border-subtle)',
+                        background: isRed ? 'var(--status-danger-bg)' : 'var(--surface-card)',
+                        transition: 'border-color 140ms var(--ease-out)',
                       }}
                     >
-                      {/* Top Info Row */}
+                      {/* Hàng 1: Định danh nhân sự (Trái) & Số giờ + Thao tác điều phối (Phải) */}
                       <div
                         style={{
                           display: 'flex',
@@ -409,59 +357,61 @@ export default function WorkloadProductivityChart({
                           gap: 8,
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                           <Avatar
                             src={person.avatar}
                             icon={<UserOutlined />}
+                            size={32}
                             style={{
-                              backgroundColor: isRed ? '#ef4444' : '#0284c7',
+                              backgroundColor: isRed ? '#fee2e2' : 'var(--surface-sunken)',
+                              color: isRed ? '#dc2626' : 'var(--text-primary)',
+                              border: '1px solid var(--border-subtle)',
                               fontWeight: 600,
+                              fontSize: 13,
+                              flexShrink: 0,
                             }}
                           >
                             {person.name?.charAt(0)?.toUpperCase()}
                           </Avatar>
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                              <Text strong style={{ fontSize: 14 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                              <Text strong style={{ fontSize: 14, color: 'var(--text-primary)' }}>
                                 {person.name}
                               </Text>
-                              <Tag color="blue" style={{ fontSize: 11, borderRadius: 4 }}>
-                                {person.employeeId}
-                              </Tag>
-                              <Tag color="purple" style={{ fontSize: 11, borderRadius: 4 }}>
-                                {person.position}
-                              </Tag>
-                              <Tag style={{ fontSize: 11, borderRadius: 4 }}>
-                                {person.department}
-                              </Tag>
+                              {metaParts.length > 0 && (
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  {metaParts.join(' · ')}
+                                </Text>
+                              )}
                             </div>
                           </div>
                         </div>
 
-                        {/* Quick Action Button for Overloaded Personnel */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                          <Button type="link" onClick={() => setSelection({ name: person.name, people: [person] })}>{person.workload}h / {person.capacity}h · Chi tiết</Button>
-                          <Tooltip title={`Tải: ${person.workload}h / Định mức: ${person.capacity}h trong kỳ`}>
-                            <Tag
-                              color={person.color}
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 700,
-                                padding: '3px 10px',
-                                borderRadius: 12,
-                              }}
-                            >
-                              {person.noCapacity ? 'Không có công suất' : `${person.utilizationRate}% Tải trong kỳ`}
-                            </Tag>
-                          </Tooltip>
+                          <Button
+                            type="link"
+                            size="small"
+                            style={{ padding: '0 4px', fontWeight: 600 }}
+                            onClick={() => setSelection({ name: person.name, people: [person] })}
+                          >
+                            {person.workload}h / {person.capacity}h · Chi tiết
+                          </Button>
 
-                          <Tooltip title="Tỷ lệ công việc hoàn thành đúng hạn; chưa có việc hoàn thành thì chưa đủ dữ liệu đánh giá kết quả">
-                            <Tag color="cyan" style={{ fontSize: 12, borderRadius: 12 }}>
-                              Đúng hạn (lịch sử): {person.productivityScore === null ? 'Chưa đủ dữ liệu' : `${person.productivityScore}%`}
-                            </Tag>
-                          </Tooltip>
+                          <span
+                            className="tabular-nums"
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              padding: '2px 8px',
+                              borderRadius: 5,
+                              background: isRed ? '#fee2e2' : 'var(--surface-sunken)',
+                              color: isRed ? '#dc2626' : 'var(--text-primary)',
+                              border: '1px solid var(--border-subtle)',
+                            }}
+                          >
+                            {person.noCapacity ? 'Không có công suất' : `${person.utilizationRate}% tải`}
+                          </span>
 
-                          {/* San tải việc button */}
                           {isRed ? (
                             <Button
                               type="primary"
@@ -469,11 +419,6 @@ export default function WorkloadProductivityChart({
                               size="small"
                               icon={<SwapOutlined />}
                               onClick={() => onReassign && onReassign(person)}
-                              style={{
-                                borderRadius: 6,
-                                fontWeight: 600,
-                                boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
-                              }}
                             >
                               San tải việc
                             </Button>
@@ -482,7 +427,6 @@ export default function WorkloadProductivityChart({
                               size="small"
                               icon={<SwapOutlined />}
                               onClick={() => onReassign && onReassign(person)}
-                              style={{ borderRadius: 6, fontSize: 12 }}
                             >
                               Chuyển việc
                             </Button>
@@ -490,17 +434,26 @@ export default function WorkloadProductivityChart({
                         </div>
                       </div>
 
-                      {/* Bar Visualization Container */}
-                      <div style={{ position: 'relative', height: 26, background: '#f1f5f9', borderRadius: 6, overflow: 'hidden' }}>
-                        {/* 100% capacity guideline */}
+                      {/* Hàng 2: Thanh công suất trực quan (Trọng tâm thị giác) */}
+                      <div
+                        style={{
+                          position: 'relative',
+                          height: 16,
+                          background: 'var(--surface-sunken)',
+                          borderRadius: 4,
+                          overflow: 'hidden',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        {/* Vạch định mức 100% */}
                         <div
                           style={{
                             position: 'absolute',
                             left: `${(100 / 130) * 100}%`,
                             top: 0,
                             bottom: 0,
-                            width: 2,
-                            background: '#475569',
+                            width: 1.5,
+                            background: 'var(--text-secondary)',
                             zIndex: 3,
                           }}
                         />
@@ -508,66 +461,71 @@ export default function WorkloadProductivityChart({
                           style={{
                             position: 'absolute',
                             left: `${(100 / 130) * 100}%`,
-                            top: -1,
+                            top: 1,
                             fontSize: 9,
                             fontWeight: 700,
-                            color: '#475569',
+                            color: 'var(--text-secondary)',
                             zIndex: 4,
-                            transform: 'translateX(-50%)',
+                            transform: 'translateX(-115%)',
                           }}
                         >
                           100%
                         </div>
 
-                        {/* Filled Workload Bar */}
                         <div
                           style={{
                             width: `${barFillPercent}%`,
                             height: '100%',
-                            background: person.color || '#0284c7',
-                            boxSizing: 'border-box',
-                            borderRadius: '6px 0 0 6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'flex-end',
-                            paddingRight: barFillPercent > 18 ? 8 : 0,
-                            transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                            background: barColor,
+                            transition: 'width 0.4s var(--ease-out)',
                           }}
-                        >
-                          {barFillPercent > 18 && (
-                            <span style={{ color: '#ffffff', fontSize: 11, fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
-                              {person.workload}h
-                            </span>
-                          )}
-                        </div>
+                        />
                       </div>
 
-                      {person.workload === 0 && person.doneTasks > 0 && <Paragraph type="secondary" style={{ margin: '8px 0 0', fontSize: 12 }}>0h là không có giờ kế hoạch của việc đang mở trong kỳ. Kết quả đã hoàn thành vẫn được ghi nhận bên dưới.</Paragraph>}
-                      {/* Bottom Metrics Details */}
+                      {person.workload === 0 && person.doneTasks > 0 && (
+                        <Paragraph type="secondary" style={{ margin: '6px 0 0', fontSize: 12 }}>
+                          0h là không có giờ kế hoạch của việc đang mở trong kỳ. Kết quả đã hoàn thành vẫn được ghi nhận bên dưới.
+                        </Paragraph>
+                      )}
+
+                      {/* Hàng 3: Thông tin phụ trợ đặt gọn bằng chữ trung tính */}
                       <div
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
                           marginTop: 6,
-                          fontSize: 11.5,
-                          color: '#64748b',
+                          fontSize: 12,
+                          color: 'var(--text-tertiary)',
+                          flexWrap: 'wrap',
+                          gap: 8,
                         }}
                       >
                         <Space size={14} wrap>
                           <span>
-                            Việc đang mở: <strong>{person.activeTasks} việc</strong>
+                            Việc đang mở: <strong style={{ color: 'var(--text-secondary)' }}>{person.activeTasks} việc</strong>
                           </span>
                           <span>
-                            Kết quả: <strong>{person.doneTasks}/{person.totalTasks} việc đã hoàn thành</strong>
+                            Đã hoàn thành: <strong style={{ color: 'var(--text-secondary)' }}>{person.doneTasks}/{person.totalTasks} việc</strong>
+                          </span>
+                          <span>
+                            Đúng hạn (lịch sử):{' '}
+                            <strong style={{ color: 'var(--text-secondary)' }}>
+                              {person.productivityScore === null ? 'Chưa đủ dữ liệu' : `${person.productivityScore}%`}
+                            </strong>
                           </span>
                           {person.unscheduledWorkload > 0 && (
-                            <span style={{ color: '#d97706' }}>
+                            <span style={{ color: 'var(--status-warning)', fontWeight: 500 }}>
                               {person.unscheduledWorkload}h chưa xếp lịch
                             </span>
                           )}
                         </Space>
-                        <span style={{ fontWeight: 600, color: person.color }}>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: isRed ? 'var(--status-danger)' : 'var(--text-secondary)',
+                          }}
+                        >
                           {person.statusLabel}
                         </span>
                       </div>
@@ -578,99 +536,117 @@ export default function WorkloadProductivityChart({
             )}
           </div>
         ) : (
-          // ================= DEPARTMENT BAR CHARTS =================
           <div>
             {filteredDepartments.length === 0 ? (
               <Empty description="Không có phòng ban nào khớp bộ lọc" />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {filteredDepartments.map((dept) => {
                   const utilPercent = dept.utilizationRate || 0;
                   const barFillPercent = Math.min(100, (utilPercent / 130) * 100);
                   const isRed = dept.statusCode === 'red';
+                  const barColor = resolveBarColor(dept);
 
                   return (
                     <div
                       key={dept.name}
                       style={{
-                        padding: '16px 20px',
-                        borderRadius: 12,
-                        border: isRed ? '1.5px solid #fecaca' : '1px solid #e2e8f0',
-                        background: isRed ? '#fff5f5' : '#ffffff',
+                        padding: '14px 18px',
+                        borderRadius: 8,
+                        border: isRed ? '1px solid #fca5a5' : '1px solid var(--border-subtle)',
+                        borderLeft: isRed ? '3px solid #dc2626' : '1px solid var(--border-subtle)',
+                        background: isRed ? 'var(--status-danger-bg)' : 'var(--surface-card)',
                       }}
                     >
-                      {/* Dept Top Row */}
                       <div
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
-                          marginBottom: 10,
+                          marginBottom: 8,
                           flexWrap: 'wrap',
                           gap: 8,
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div
                             style={{
-                              width: 38,
-                              height: 38,
-                              borderRadius: 8,
-                              background: isRed ? '#fee2e2' : '#e0e7ff',
+                              width: 34,
+                              height: 34,
+                              borderRadius: 7,
+                              background: 'var(--surface-sunken)',
+                              border: '1px solid var(--border-subtle)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                             }}
                           >
-                            <ApartmentOutlined style={{ fontSize: 20, color: isRed ? '#ef4444' : '#4338ca' }} />
+                            <ApartmentOutlined style={{ fontSize: 16, color: isRed ? '#dc2626' : 'var(--text-primary)' }} />
                           </div>
                           <div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
                               {dept.name}
                             </div>
                             <Text type="secondary" style={{ fontSize: 12 }}>
-                              Quy mô: {dept.personnelCount} nhân sự • {dept.totalActiveTasks} task đang làm
+                              Quy mô: {dept.personnelCount} nhân sự · {dept.totalActiveTasks || 0} việc đang mở
                             </Text>
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                          <Button type="link" onClick={() => setSelection({ name: dept.name, people: personnel.filter(person => person.department === dept.name) })}>{dept.totalWorkload}h / {dept.totalCapacity}h · Chi tiết</Button>
-                          <Tag
-                            color={dept.color}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <Button
+                            type="link"
+                            size="small"
+                            style={{ padding: '0 4px', fontWeight: 600 }}
+                            onClick={() =>
+                              setSelection({
+                                name: dept.name,
+                                people: personnel.filter((person) => person.department === dept.name),
+                              })
+                            }
+                          >
+                            {dept.totalWorkload}h / {dept.totalCapacity}h · Chi tiết
+                          </Button>
+                          <span
+                            className="tabular-nums"
                             style={{
-                              fontSize: 13,
-                              fontWeight: 700,
-                              padding: '4px 12px',
-                              borderRadius: 12,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              padding: '2px 8px',
+                              borderRadius: 5,
+                              background: isRed ? '#fee2e2' : 'var(--surface-sunken)',
+                              color: isRed ? '#dc2626' : 'var(--text-primary)',
+                              border: '1px solid var(--border-subtle)',
                             }}
                           >
-                            {dept.totalCapacity === 0 ? 'Không có công suất' : `${dept.utilizationRate}% Tải phòng`}
-                          </Tag>
-
-                          <Tag color="cyan" style={{ fontSize: 12, borderRadius: 12 }}>
-                            Đúng hạn TB (lịch sử): {dept.avgProductivity === null ? 'Chưa đủ dữ liệu' : `${dept.avgProductivity}%`}
-                          </Tag>
-
+                            {dept.totalCapacity === 0 ? 'Không có công suất' : `${dept.utilizationRate}% tải phòng`}
+                          </span>
                           {isRed && (
-                            <Tag color="error" style={{ borderRadius: 6, fontWeight: 600 }}>
-                              {dept.overloadedCount} nhân viên quá tải
+                            <Tag color="error" style={{ margin: 0 }}>
+                              {dept.overloadedCount} nhân sự quá tải
                             </Tag>
                           )}
                         </div>
                       </div>
 
-                      {/* Bar Visualization Container */}
-                      <div style={{ position: 'relative', height: 28, background: '#f1f5f9', borderRadius: 6, overflow: 'hidden' }}>
-                        {/* 100% capacity guideline */}
+                      <div
+                        style={{
+                          position: 'relative',
+                          height: 16,
+                          background: 'var(--surface-sunken)',
+                          borderRadius: 4,
+                          overflow: 'hidden',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
                         <div
                           style={{
                             position: 'absolute',
                             left: `${(100 / 130) * 100}%`,
                             top: 0,
                             bottom: 0,
-                            width: 2,
-                            background: '#475569',
+                            width: 1.5,
+                            background: 'var(--text-secondary)',
                             zIndex: 3,
                           }}
                         />
@@ -678,77 +654,73 @@ export default function WorkloadProductivityChart({
                           style={{
                             position: 'absolute',
                             left: `${(100 / 130) * 100}%`,
-                            top: -1,
+                            top: 1,
                             fontSize: 9,
                             fontWeight: 700,
-                            color: '#475569',
+                            color: 'var(--text-secondary)',
                             zIndex: 4,
-                            transform: 'translateX(-50%)',
+                            transform: 'translateX(-115%)',
                           }}
                         >
                           100%
                         </div>
-
-                        {/* Filled Workload Bar */}
                         <div
                           style={{
                             width: `${barFillPercent}%`,
                             height: '100%',
-                            background: dept.color || '#0284c7',
-                            boxSizing: 'border-box',
-                            borderRadius: '6px 0 0 6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'flex-end',
-                            paddingRight: barFillPercent > 18 ? 10 : 0,
-                            transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                            background: barColor,
+                            transition: 'width 0.4s var(--ease-out)',
                           }}
-                        >
-                          {barFillPercent > 18 && (
-                            <span style={{ color: '#ffffff', fontSize: 12, fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
-                              {dept.totalWorkload}h / {dept.totalCapacity}h
-                            </span>
-                          )}
-                        </div>
+                        />
                       </div>
 
-                      {/* Member Avatars & Status Breakdown */}
                       <div
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
-                          marginTop: 10,
+                          marginTop: 8,
                           fontSize: 12,
-                          color: '#64748b',
+                          color: 'var(--text-tertiary)',
                           flexWrap: 'wrap',
                           gap: 8,
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <Text type="secondary">Nhân sự:</Text>
-                          <Avatar.Group maxCount={5} size="small">
-                            {dept.members.map((m) => (
-                              <Tooltip key={m._id} title={`${m.name} (${m.utilizationRate}% tải - ${m.statusLabel})`}>
-                                <Avatar
-                                  src={m.avatar}
-                                  style={{
-                                    backgroundColor: m.color,
-                                    border: m.statusCode === 'red' ? '2px solid #ef4444' : undefined,
-                                  }}
-                                >
-                                  {m.name?.charAt(0)}
-                                </Avatar>
-                              </Tooltip>
-                            ))}
-                          </Avatar.Group>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <span>
+                            Đúng hạn TB (lịch sử):{' '}
+                            <strong style={{ color: 'var(--text-secondary)' }}>
+                              {dept.avgProductivity === null ? 'Chưa đủ dữ liệu' : `${dept.avgProductivity}%`}
+                            </strong>
+                          </span>
+                          {dept.members?.length > 0 && (
+                            <Avatar.Group max={{ count: 5 }} size="small">
+                              {dept.members.map((m) => (
+                                <Tooltip key={m._id} title={`${m.name} (${m.utilizationRate}% tải)`}>
+                                  <Avatar
+                                    src={m.avatar}
+                                    style={{
+                                      backgroundColor: 'var(--surface-sunken)',
+                                      color: 'var(--text-primary)',
+                                      border: m.statusCode === 'red' ? '1.5px solid #dc2626' : '1px solid var(--border-subtle)',
+                                      fontSize: 11,
+                                    }}
+                                  >
+                                    {m.name?.charAt(0)}
+                                  </Avatar>
+                                </Tooltip>
+                              ))}
+                            </Avatar.Group>
+                          )}
                         </div>
 
-                        <div style={{ display: 'flex', gap: 12, fontWeight: 600 }}>
-                          <span style={{ color: '#10b981' }}>● {dept.optimalCount} Cân bằng</span>
-                          <span style={{ color: '#f59e0b' }}>● {dept.underloadedCount} Còn công suất</span>
-                          <span style={{ color: '#f59e0b' }}>{dept.nearCapacityCount || 0} Tiệm cận tối đa</span>
-                          <span style={{ color: '#ef4444' }}>● {dept.overloadedCount} Quá tải</span>
+                        <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
+                          <span>Cân bằng: <strong style={{ color: 'var(--text-secondary)' }}>{dept.optimalCount || 0}</strong></span>
+                          <span>Còn công suất: <strong style={{ color: 'var(--text-secondary)' }}>{dept.underloadedCount || 0}</strong></span>
+                          <span>Tiệm cận: <strong style={{ color: 'var(--text-secondary)' }}>{dept.nearCapacityCount || 0}</strong></span>
+                          <span style={{ color: dept.overloadedCount > 0 ? 'var(--status-danger)' : undefined }}>
+                            Quá tải: <strong>{dept.overloadedCount || 0}</strong>
+                          </span>
                         </div>
                       </div>
                     </div>

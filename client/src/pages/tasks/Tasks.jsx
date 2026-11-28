@@ -614,7 +614,7 @@ export default function Tasks() {
           {/* Base Wework: Hàng đợi đánh giá kết quả */}
           {pendingReviewCount > 0 && (
             <Button
-              icon={<CheckCircleOutlined style={{ color: '#10b981' }} />}
+              icon={<CheckCircleOutlined />}
               onClick={() => setReviewQueueOpen(true)}
             >
               Chờ tôi duyệt
@@ -624,7 +624,7 @@ export default function Tasks() {
 
           {/* Base Wework: Nút Nhắc việc (Reminders) */}
           <Button
-            icon={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
+            icon={<ClockCircleOutlined />}
             onClick={() => setRemindersOpen(true)}
           >
             Nhắc việc
@@ -644,7 +644,7 @@ export default function Tasks() {
       </div>
 
       {/* Base Wework: Không gian "Công việc của tôi" - Tabs phân loại vai trò */}
-      <div className="saas-card" style={{ padding: '0 16px', marginBottom: 16 }}>
+      <div className="saas-card" style={{ padding: '0 16px', marginBottom: 12 }}>
         <Tabs
           activeKey={scope}
           onChange={setScope}
@@ -662,7 +662,7 @@ export default function Tasks() {
               key: 'my_tasks',
               label: (
                 <span style={{ fontWeight: 600 }}>
-                  <UserOutlined style={{ marginRight: 6, color: '#3b82f6' }} />
+                  <UserOutlined style={{ marginRight: 6 }} />
                   Việc tôi làm
                 </span>
               ),
@@ -671,7 +671,7 @@ export default function Tasks() {
               key: 'assigned_by_me',
               label: (
                 <span style={{ fontWeight: 600 }}>
-                  <SendOutlined style={{ marginRight: 6, color: '#f59e0b' }} />
+                  <SendOutlined style={{ marginRight: 6 }} />
                   Việc tôi giao
                 </span>
               ),
@@ -680,7 +680,7 @@ export default function Tasks() {
               key: 'following',
               label: (
                 <span style={{ fontWeight: 600 }}>
-                  <EyeOutlined style={{ marginRight: 6, color: '#0284c7' }} />
+                  <EyeOutlined style={{ marginRight: 6 }} />
                   Việc tôi theo dõi
                 </span>
               ),
@@ -691,7 +691,7 @@ export default function Tasks() {
                   key: 'subordinates',
                   label: (
                     <span style={{ fontWeight: 600 }}>
-                      <TeamOutlined style={{ marginRight: 6, color: '#10b981' }} />
+                      <TeamOutlined style={{ marginRight: 6 }} />
                       Nhân viên trực tiếp
                     </span>
                   ),
@@ -700,6 +700,30 @@ export default function Tasks() {
               : []),
           ]}
         />
+      </div>
+
+      {/* Hướng dẫn thao tác nhanh trên bảng Công việc */}
+      <div className="workspace-guide-banner">
+        <div className="workspace-guide-content">
+          <div className="workspace-guide-header">
+            <span className="workspace-guide-badge">Hướng dẫn thao tác</span>
+            <span className="workspace-guide-title">Điều phối, cập nhật tiến độ và nghiệm thu kết quả công việc</span>
+          </div>
+          <ul className="workspace-guide-steps">
+            <li>
+              <span className="workspace-guide-step-num">1</span>
+              <span><strong>Kéo thả Kanban:</strong> Kéo thẻ giữa các cột để chuyển trạng thái tức thời; hệ thống tự động đồng bộ lại giờ tải của nhân sự.</span>
+            </li>
+            <li>
+              <span className="workspace-guide-step-num">2</span>
+              <span><strong>Chi tiết &amp; Nghiệm thu:</strong> Bấm vào <strong>Tiêu đề công việc</strong> để mở ngăn chi tiết (Checklist, Subtasks, Bình luận, Đính kèm và Báo cáo kết quả).</span>
+            </li>
+            <li>
+              <span className="workspace-guide-step-num">3</span>
+              <span><strong>Kỹ năng cho AI/OR:</strong> Khai báo <strong>Kỹ năng yêu cầu</strong> trong biểu mẫu công việc để giải thuật CSP/GA tự động gợi ý đúng người.</span>
+            </li>
+          </ul>
+        </div>
       </div>
 
       {/* Base Wework: Thanh lọc thời gian nhanh (Time filter tags) */}

@@ -136,6 +136,28 @@ export default function Dashboard() {
         </div>
       ) : data ? (
         <div className="dashboard-body-container">
+          <div className="workspace-guide-banner">
+            <div className="workspace-guide-content">
+              <div className="workspace-guide-header">
+                <span className="workspace-guide-badge">Hướng dẫn điều hành</span>
+                <span className="workspace-guide-title">Quy trình rà soát tiến độ và xử lý điểm nghẽn nguồn lực hàng ngày</span>
+              </div>
+              <ul className="workspace-guide-steps">
+                <li>
+                  <span className="workspace-guide-step-num">1</span>
+                  <span><strong>Rà soát cảnh báo:</strong> Kiểm tra khối <strong>Cần xử lý</strong> để phát hiện sớm công việc trễ hạn, bị chặn hoặc nhân sự vượt 100% định mức.</span>
+                </li>
+                <li>
+                  <span className="workspace-guide-step-num">2</span>
+                  <span><strong>Xử lý trực tiếp:</strong> Bấm vào từng dòng cảnh báo hoặc tên dự án để mở thẳng danh sách đã áp sẵn bộ lọc tương ứng.</span>
+                </li>
+                <li>
+                  <span className="workspace-guide-step-num">3</span>
+                  <span><strong>Tối ưu phân bổ:</strong> Khi có nhiều việc chưa giao hoặc lệch tải giữa các phòng ban, bấm <strong>Lập phương án phân bổ</strong> ở góc phải.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
           {isManager && <ManagementOverview projects={data.projectProgress || []} productivity={productivity} loading={productivityLoading} error={productivityError} />}
           {/* 1. HÀNG 4 THẺ KPI BENTO */}
           <DashboardKpiCards

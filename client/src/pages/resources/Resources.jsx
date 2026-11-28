@@ -737,7 +737,29 @@ export default function Resources() {
         { label: t('workspace.capacityUsed'), value: stats.avgUtil + '%' },
         { label: t('resources.overloaded'), value: stats.overloaded, danger: stats.overloaded > 0 },
       ]} />
-      <ResourcesOverview resources={visibleResources} loading={loading} error={loadError} />
+      <div className="workspace-guide-banner">
+        <div className="workspace-guide-content">
+          <div className="workspace-guide-header">
+            <span className="workspace-guide-badge">Hướng dẫn vận hành</span>
+            <span className="workspace-guide-title">Quản lý hồ sơ năng lực, định mức giờ và lịch nghỉ nhân sự</span>
+          </div>
+          <ul className="workspace-guide-steps">
+            <li>
+              <span className="workspace-guide-step-num">1</span>
+              <span><strong>Định mức &amp; Lịch nghỉ:</strong> Cập nhật hệ số FTE, giờ tối đa/tuần và biểu tượng <strong>Lịch nghỉ</strong> để hệ thống trừ ngày vắng khi tính tải.</span>
+            </li>
+            <li>
+              <span className="workspace-guide-step-num">2</span>
+              <span><strong>Thẩm định kỹ năng:</strong> Bấm <strong>Đánh giá kỹ năng</strong> để phê duyệt hồ sơ tự đánh giá trước khi chạy giải thuật phân bổ CSP/GA.</span>
+            </li>
+            <li>
+              <span className="workspace-guide-step-num">3</span>
+              <span><strong>Lọc điều phối:</strong> Dùng bộ lọc nhanh bên phải để tách riêng nhóm <strong>Đang quá tải</strong> hoặc <strong>Còn khả năng nhận việc</strong>.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <ResourcesOverview resources={visibleResources} loading={loading} error={loadError} initialExpanded={false} />
       <div className="section-heading resource-view-heading">
         <div><h2>{t('workspace.teamCapacity')}</h2><p>{t('workspace.resourceScope')}</p></div>
         <Space wrap className="resource-quick-filters">

@@ -183,7 +183,7 @@ export default function Reports() {
       title: t('reports.columns.department'),
       dataIndex: 'department',
       key: 'department',
-      render: (dept) => (dept ? <Tag color="blue">{dept}</Tag> : '—'),
+      render: (dept) => (dept ? <Text>{dept}</Text> : '—'),
     },
     {
       title: 'Capacity / Workload',
@@ -225,7 +225,7 @@ export default function Reports() {
       title: t('reports.columns.taskCount'),
       dataIndex: 'taskCount',
       key: 'taskCount',
-      render: (count) => <Tag color="purple">{count || 0} tasks</Tag>,
+      render: (count) => <span className="tabular-nums" style={{ fontWeight: 600 }}>{count || 0} việc</span>,
     },
   ];
 
@@ -302,10 +302,33 @@ export default function Reports() {
           ]} />
         )}
 
+        <div className="workspace-guide-banner">
+          <div className="workspace-guide-content">
+            <div className="workspace-guide-header">
+              <span className="workspace-guide-badge">Hướng dẫn phân tích</span>
+              <span className="workspace-guide-title">Đọc báo cáo công suất, xu hướng tải theo thời gian và xuất hồ sơ điều hành</span>
+            </div>
+            <ul className="workspace-guide-steps">
+              <li>
+                <span className="workspace-guide-step-num">1</span>
+                <span><strong>Đánh giá rủi ro quá tải:</strong> Tab <strong>Hiệu suất sử dụng</strong> phân loại mức nguy cơ quá tải (Thấp / Trung bình / Cao) dựa trên tỷ lệ giờ việc đang mở.</span>
+              </li>
+              <li>
+                <span className="workspace-guide-step-num">2</span>
+                <span><strong>Xu hướng &amp; Dải nhiệt:</strong> Chuyển sang tab <strong>Xu hướng tải</strong> để đối chiếu dải nhiệt theo từng tuần/ngày và phát hiện ngày nghỉ vẫn bị giao việc.</span>
+              </li>
+              <li>
+                <span className="workspace-guide-step-num">3</span>
+                <span><strong>Xuất báo cáo:</strong> Bấm <strong>Xuất CSV</strong> để lấy dữ liệu thô hoặc <strong>Báo Cáo Tổng Hợp (In/PDF)</strong> để in biểu mẫu báo cáo chuẩn A4.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
-          type="card"
+          type="line"
           items={[
             {
               key: 'utilization',

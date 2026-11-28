@@ -312,15 +312,37 @@ export default function BenchmarkStudio() {
   return (
     <div className="benchmark-container">
       {/* Page Header */}
-      <div className="benchmark-header">
+      <div className="page-heading benchmark-header">
         <div>
-          <Title level={2} className="benchmark-title">
-            <ExperimentOutlined style={{ marginRight: 10, color: 'var(--brand-primary, #0284c7)' }} />
-            Experimental Benchmark Studio
+          <Title level={3} className="benchmark-title">
+            Benchmark Studio — Thực nghiệm &amp; Đối chứng Giải thuật
           </Title>
           <Paragraph className="benchmark-subtitle">
-            Phòng thí nghiệm thực nghiệm khoa học: Đánh giá & So sánh đối chứng 4 giải thuật phân bổ nguồn lực (Greedy Baseline vs CSP Solver vs Genetic Algorithm vs Hybrid CSP→GA)
+            Đánh giá định lượng 4 giải thuật phân bổ nguồn lực: Greedy Baseline, CSP Solver, Genetic Algorithm (GA) và Hybrid (CSP → GA)
           </Paragraph>
+        </div>
+      </div>
+
+      <div className="workspace-guide-banner">
+        <div className="workspace-guide-content">
+          <div className="workspace-guide-header">
+            <span className="workspace-guide-badge">Hướng dẫn thực nghiệm</span>
+            <span className="workspace-guide-title">Quy trình chạy kiểm chứng khoa học và trích xuất bảng số liệu báo cáo</span>
+          </div>
+          <ul className="workspace-guide-steps">
+            <li>
+              <span className="workspace-guide-step-num">1</span>
+              <span><strong>Chọn quy mô dữ liệu:</strong> Chọn tập dữ liệu chuẩn (Nhỏ / Vừa / Lớn) hoặc <strong>Dữ liệu Thực tế (Live DB)</strong> để kiểm tra trên bài toán hiện hành.</span>
+            </li>
+            <li>
+              <span className="workspace-guide-step-num">2</span>
+              <span><strong>Đối chiếu chỉ số:</strong> Bấm <strong>Chạy Thực Nghiệm</strong> để đo đồng thời Thời gian chạy (ms), Điểm Fitness, Độ khớp kỹ năng (%), Độ lệch chuẩn tải (StdDev) và Vi phạm ràng buộc.</span>
+            </li>
+            <li>
+              <span className="workspace-guide-step-num">3</span>
+              <span><strong>Trích xuất học thuật:</strong> Sao chép trực tiếp bảng <strong>LaTeX Table</strong> hoặc tải <strong>File CSV</strong> để đưa vào báo cáo luận văn.</span>
+            </li>
+          </ul>
         </div>
       </div>
 

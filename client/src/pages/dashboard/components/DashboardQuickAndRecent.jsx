@@ -33,14 +33,8 @@ function getInitials(name) {
   return name.slice(0, 2).toUpperCase();
 }
 
-function getAvatarColor(name) {
-  if (!name) return '#94a3b8';
-  const colors = ['#2563eb', '#059669', '#d97706', '#0284c7', '#dc2626', '#475569', '#0d9488'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
+function getAvatarColor() {
+  return 'var(--surface-sunken)';
 }
 
 export default function DashboardQuickAndRecent({
@@ -201,12 +195,14 @@ export default function DashboardQuickAndRecent({
               return (
                 <div key={taskItem._id} className="recent-task-row">
                   <Avatar
-                    size={32}
+                    size={30}
                     style={{
                       backgroundColor: getAvatarColor(assigneeName),
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-subtle)',
                       flexShrink: 0,
                       fontWeight: 600,
-                      fontSize: 12,
+                      fontSize: 11.5,
                     }}
                   >
                     {assigneeName ? getInitials(assigneeName) : <UserOutlined />}

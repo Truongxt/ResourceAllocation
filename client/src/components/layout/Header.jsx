@@ -66,10 +66,10 @@ function Deferred({ open, children }) {
 }
 
 function getNotifIcon(type) {
-  if (type?.includes('task')) return <FileTextOutlined style={{ color: '#3b82f6', fontSize: 16 }} />;
-  if (type?.includes('optimization')) return <ThunderboltOutlined style={{ color: '#f59e0b', fontSize: 16 }} />;
-  if (type?.includes('project')) return <ProjectOutlined style={{ color: '#10b981', fontSize: 16 }} />;
-  return <BellOutlined style={{ color: '#94a3b8', fontSize: 16 }} />;
+  if (type?.includes('task')) return <FileTextOutlined style={{ color: 'var(--brand-primary)', fontSize: 15 }} />;
+  if (type?.includes('optimization')) return <ThunderboltOutlined style={{ color: 'var(--brand-primary)', fontSize: 15 }} />;
+  if (type?.includes('project')) return <ProjectOutlined style={{ color: 'var(--brand-primary)', fontSize: 15 }} />;
+  return <BellOutlined style={{ color: 'var(--text-tertiary)', fontSize: 15 }} />;
 }
 
 export default function Header({ collapsed, isMobile = false, menuOpen = false, onOpenMenu }) {
@@ -370,7 +370,7 @@ export default function Header({ collapsed, isMobile = false, menuOpen = false, 
               items: [
                 {
                   key: 'task',
-                  icon: <FileTextOutlined style={{ color: '#0284c7' }} />,
+                  icon: <FileTextOutlined style={{ color: 'var(--text-secondary)' }} />,
                   label: t('header.quickTask', { defaultValue: '+ Công việc mới (Task)' }),
                   onClick: () => {
                     setQuickCreateType('task');
@@ -379,7 +379,7 @@ export default function Header({ collapsed, isMobile = false, menuOpen = false, 
                 },
                 {
                   key: 'project',
-                  icon: <ProjectOutlined style={{ color: '#06b6d4' }} />,
+                  icon: <ProjectOutlined style={{ color: 'var(--text-secondary)' }} />,
                   label: t('header.quickProject', { defaultValue: '+ Dự án mới (Project)' }),
                   onClick: () => {
                     setQuickCreateType('project');
@@ -390,7 +390,7 @@ export default function Header({ collapsed, isMobile = false, menuOpen = false, 
                   ? [
                       {
                         key: 'resource',
-                        icon: <TeamOutlined style={{ color: '#0284c7' }} />,
+                        icon: <TeamOutlined style={{ color: 'var(--text-secondary)' }} />,
                         label: t('header.quickResource', { defaultValue: '+ Nhân sự mới (Resource)' }),
                         onClick: () => {
                           setQuickCreateType('resource');

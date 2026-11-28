@@ -419,75 +419,52 @@ export default function Projects() {
       title: t('common.project') || 'Dự án',
       dataIndex: 'name',
       key: 'name',
-      // Không đặt width thì cột này co giãn theo chỗ còn thừa, và `ellipsis` của
-      // phần mô tả bên dưới không có mốc để cắt.
-      width: 280,
+      width: 260,
       render: (text, record) => (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span
               style={{
                 display: 'inline-block',
-                width: 10,
-                height: 10,
+                width: 8,
+                height: 8,
                 borderRadius: '50%',
-                backgroundColor: record.color || '#0284c7',
-                boxShadow: `0 0 6px ${(record.color || '#0284c7')}60`,
+                backgroundColor: record.color || 'var(--brand-primary)',
+                flexShrink: 0,
               }}
-              title={`Màu nhận diện: ${record.color || '#0284c7'}`}
+              title={`Màu nhận diện: ${record.color || '#1d4ed8'}`}
             />
             <Button
               type="link"
-              style={{ padding: 0, height: 'auto', fontSize: 14, fontWeight: 700, color: isDark ? '#a5b4fc' : '#0284c7' }}
+              style={{ padding: 0, height: 'auto', fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}
               onClick={() => navigate(`/projects/${record._id}`)}
             >
               {text}
             </Button>
-            {record.projectType === 'client' ? (
-              <Tag color="orange" style={{ borderRadius: 10, fontSize: 10, fontWeight: 600, margin: 0 }}>
-                <GlobalOutlined style={{ marginRight: 3 }} /> Khách hàng
-              </Tag>
-            ) : (
-              <Tag color="blue" style={{ borderRadius: 10, fontSize: 10, fontWeight: 600, margin: 0 }}>
-                <TeamOutlined style={{ marginRight: 3 }} /> Nội bộ
-              </Tag>
-            )}
-            {record.kind === 'team' && (
-              <Tag color="purple" style={{ borderRadius: 10, fontSize: 10, fontWeight: 600, margin: 0 }}>
-                <SyncOutlined style={{ marginRight: 3 }} /> Vận hành
-              </Tag>
-            )}
             {record.code && (
               <span
                 style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  padding: '1px 6px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: '0 6px',
                   borderRadius: 4,
                   background: 'var(--surface-sunken)',
-                  color: '#0284c7',
+                  color: 'var(--text-secondary)',
                   border: '1px solid var(--border-subtle)',
                 }}
               >
                 {record.code}
               </span>
             )}
-            {record.department && (
-              <Tag
-                style={{
-                  borderRadius: 10,
-                  border: 'none',
-                  backgroundColor: `${record.department.color || '#0284c7'}20`,
-                  color: record.department.color || '#0284c7',
-                  fontWeight: 600,
-                  fontSize: 11,
-                  margin: 0,
-                }}
-              >
-                <ApartmentOutlined style={{ marginRight: 4 }} />
-                {record.department.name}
-              </Tag>
-            )}
+            <span
+              style={{
+                fontSize: 11,
+                color: 'var(--text-tertiary)',
+              }}
+            >
+              · {record.projectType === 'client' ? 'Khách hàng' : 'Nội bộ'}
+              {record.kind === 'team' ? ' · Vận hành' : ''}
+            </span>
           </div>
           {record.description && (
             <Paragraph type="secondary" ellipsis={{ rows: 1 }} style={{ fontSize: 12, margin: '2px 0 0' }}>
@@ -501,14 +478,24 @@ export default function Projects() {
       title: 'Quản trị (PM)',
       dataIndex: 'manager',
       key: 'manager',
-      width: 170,
+      width: 150,
       render: (pm) =>
         pm ? (
-          <Space size={6}>
-            <Avatar size={22} src={pm.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
+          <Space size={8}>
+            <Avatar
+              size={24}
+              src={pm.avatar}
+              icon={<UserOutlined />}
+              style={{
+                backgroundColor: 'var(--surface-sunken)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-subtle)',
+                fontSize: 11,
+              }}
+            />
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.2 }}>{pm.name || pm.email}</div>
-              <div style={{ fontSize: 10, color: '#94a3b8' }}>{pm.jobTitle || pm.role}</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2 }}>{pm.name || pm.email}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{pm.jobTitle || pm.role}</div>
             </div>
           </Space>
         ) : (
@@ -519,14 +506,22 @@ export default function Projects() {
       title: 'Thành viên',
       dataIndex: 'members',
       key: 'members',
-      width: 130,
+      width: 110,
       render: (members = []) => {
         if (!members || members.length === 0) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
         return (
           <Avatar.Group max={{ count: 3 }} size="small">
             {members.map((m, idx) => (
               <Tooltip title={m.user?.name || m.user?.email || 'Thành viên'} key={m.user?._id || idx}>
-                <Avatar src={m.user?.avatar} icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
+                <Avatar
+                  src={m.user?.avatar}
+                  icon={<UserOutlined />}
+                  style={{
+                    backgroundColor: 'var(--surface-sunken)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                />
               </Tooltip>
             ))}
           </Avatar.Group>
@@ -537,21 +532,22 @@ export default function Projects() {
       title: 'Phân nhóm Department',
       dataIndex: 'department',
       key: 'department',
-      width: 170,
+      width: 150,
       render: (dept) =>
         dept ? (
-          <Tag
+          <span
             style={{
-              borderRadius: 10,
-              border: 'none',
-              backgroundColor: `${dept.color || '#0284c7'}20`,
-              color: dept.color || '#0284c7',
-              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              fontSize: 12,
+              fontWeight: 500,
+              color: 'var(--text-secondary)',
             }}
           >
-            <ApartmentOutlined style={{ marginRight: 4 }} />
+            <ApartmentOutlined style={{ color: 'var(--text-tertiary)' }} />
             {dept.name}
-          </Tag>
+          </span>
         ) : (
           <Text type="secondary" style={{ fontSize: 12 }}>— Chưa phân nhóm —</Text>
         ),
@@ -560,40 +556,48 @@ export default function Projects() {
       title: t('common.status') || 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
-      width: 130,
+      width: 125,
       render: (status) => {
         const option = PROJECT_STATUSES.find((o) => o.value === status);
-        return <Tag color={option?.color || 'default'} style={{ borderRadius: 10 }}>{projectStatusLabel(status)}</Tag>;
+        return <Tag color={option?.color || 'default'} style={{ margin: 0 }}>{projectStatusLabel(status)}</Tag>;
       },
     },
     {
       title: t('common.priority') || 'Độ ưu tiên',
       dataIndex: 'priority',
       key: 'priority',
-      width: 110,
+      width: 105,
       render: (priority) => {
+        const isHigh = priority === 'high' || priority === 'critical';
         const option = PRIORITY_OPTIONS.find((o) => o.value === priority);
-        return <Tag color={option?.color || 'default'} style={{ borderRadius: 10 }}>{priorityLabel(priority)}</Tag>;
+        return (
+          <Tag color={isHigh ? option?.color : 'default'} style={{ margin: 0 }}>
+            {priorityLabel(priority)}
+          </Tag>
+        );
       },
     },
     {
       title: t('gantt.progress') || 'Tiến độ',
       dataIndex: 'progress',
       key: 'progress',
-      width: 150,
+      width: 135,
       render: (progress = 0) => (
-        <Progress percent={progress} size="small" status={progress === 100 ? 'success' : 'active'} strokeColor="#0284c7" />
+        <Progress
+          percent={progress}
+          size="small"
+          status={progress === 100 ? 'success' : 'normal'}
+          strokeColor={progress === 100 ? 'var(--status-success)' : 'var(--brand-primary)'}
+        />
       ),
     },
     {
       title: t('projects.budget') || 'Ngân sách',
       dataIndex: 'budget',
       key: 'budget',
-      // Đo thực tế: "200.000.000 ₫" cần 100px chữ + 32px padding ô = 132px. Để 130px
-      // thì thiếu đúng 2px và ký hiệu ₫ rớt xuống dòng. 160px đủ chỗ cho cả số hàng tỷ.
-      width: 160,
+      width: 135,
       render: (budget) => (
-        <Text strong className="tabular-nums" style={{ whiteSpace: 'nowrap' }}>
+        <Text strong className="tabular-nums" style={{ whiteSpace: 'nowrap', fontSize: 12.5 }}>
           {formatCurrency(budget)}
         </Text>
       ),
@@ -601,8 +605,7 @@ export default function Projects() {
     {
       title: t('gantt.period') || 'Thời gian',
       key: 'dates',
-      // Khoảng ngày đầy đủ "23/09/2026 → 23/10/2026" cần 155px chữ + 32px padding.
-      width: 190,
+      width: 175,
       render: (_, record) => (
         <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }} className="tabular-nums">
           {record.kind === 'team' ? (
@@ -620,7 +623,7 @@ export default function Projects() {
     {
       title: t('common.actions') || 'Thao tác',
       key: 'actions',
-      width: 120,
+      width: 115,
       align: 'right',
       render: (_, record) => renderProjectActions(record),
     },
@@ -888,7 +891,30 @@ export default function Projects() {
             { label: t('enums.projectStatus.in_progress'), value: projectStats.active },
             { label: t('enums.projectStatus.completed'), value: projectStats.completed },
           ]} />
+          <div className="workspace-guide-banner">
+            <div className="workspace-guide-content">
+              <div className="workspace-guide-header">
+                <span className="workspace-guide-badge">Hướng dẫn quản lý</span>
+                <span className="workspace-guide-title">Tổ chức danh mục Dự án, Nhóm vận hành và Phòng ban</span>
+              </div>
+              <ul className="workspace-guide-steps">
+                <li>
+                  <span className="workspace-guide-step-num">1</span>
+                  <span><strong>Cấu hình chuyên sâu:</strong> Bấm trực tiếp vào <strong>Tên dự án</strong> để mở không gian chi tiết, thiết lập thành viên, nhóm công việc (WBS) và trường tùy chỉnh.</span>
+                </li>
+                <li>
+                  <span className="workspace-guide-step-num">2</span>
+                  <span><strong>Vòng đời &amp; Mẫu:</strong> Dùng bộ chuyển đổi <strong>Đang chạy / Lưu trữ / Mẫu</strong> ở góc phải để tái sử dụng cấu trúc dự án chuẩn.</span>
+                </li>
+                <li>
+                  <span className="workspace-guide-step-num">3</span>
+                  <span><strong>Báo cáo phân bổ:</strong> Bấm <strong>Mở tổng quan</strong> bên dưới khi cần xem biểu đồ tỷ trọng trạng thái và 5 dự án có tiến độ thấp nhất.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
           <ProjectsOverview projects={projects} total={projectTotal} loading={loading} error={overviewError}
+            initialExpanded={false}
             onProject={(id) => navigate(`/projects/${id}`)} />
           {/* Toolbar / Filters */}
           <div className="work-toolbar">
@@ -1174,15 +1200,7 @@ export default function Projects() {
                 dataSource={projects}
                 rowKey="_id"
                 loading={loading}
-                // Mười cột cộng lại đã 1610px. Thiếu `scroll.x`, antd bóp chúng
-                // xuống vừa khung hình: tên người thành ba dòng, số tiền vỡ làm ba
-                // khúc, hàng cao gấp đôi. Cho cuộn ngang thì mỗi cột giữ đúng bề
-                // rộng đã khai.
-                scroll={{ x: 1610 }}
-                // Thiếu dòng này thì bảng chạy `table-layout: auto`, và `width` khai ở
-                // mỗi cột chỉ còn là gợi ý — trình duyệt chia lại theo nội dung. Đo được:
-                // cột Dự án (mô tả dài) nuốt 651px trong khi cột PM bị ép còn 102px,
-                // khiến "Lê Minh Tiến" xuống ba dòng và ô ngân sách vỡ làm ba khúc.
+                scroll={{ x: 1320 }}
                 tableLayout="fixed"
                 pagination={{
                   pageSize: 10,

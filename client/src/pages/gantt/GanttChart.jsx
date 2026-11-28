@@ -511,7 +511,7 @@ export default function GanttChart() {
   return (
     <div className="gantt-page" style={{ maxWidth: 1400 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div className="page-heading">
         <div>
           <Title level={3} style={{ marginBottom: 4 }}>{t('gantt.title')}</Title>
           <Text type="secondary">{t('gantt.subtitle')}</Text>
@@ -526,6 +526,30 @@ export default function GanttChart() {
             {t('gantt.print')}
           </Button>
         </Space>
+      </div>
+
+      {/* Hướng dẫn sử dụng biểu đồ Gantt */}
+      <div className="workspace-guide-banner">
+        <div className="workspace-guide-content">
+          <div className="workspace-guide-header">
+            <span className="workspace-guide-badge">Hướng dẫn tiến độ</span>
+            <span className="workspace-guide-title">Đọc đường găng (Critical Path), quan hệ phụ thuộc và kéo thả lịch trình</span>
+          </div>
+          <ul className="workspace-guide-steps">
+            <li>
+              <span className="workspace-guide-step-num">1</span>
+              <span><strong>Điều chỉnh lịch trực tiếp:</strong> Kéo thân thanh để dời ngày hoặc kéo 2 mép đầu/cuối của thanh công việc để thay đổi thời lượng thực hiện.</span>
+            </li>
+            <li>
+              <span className="workspace-guide-step-num">2</span>
+              <span><strong>Phân tích Đường găng:</strong> Tích chọn <strong>Đường găng (Critical Path)</strong> để làm nổi bật chuỗi công việc dài nhất quyết định ngày kết thúc dự án.</span>
+            </li>
+            <li>
+              <span className="workspace-guide-step-num">3</span>
+              <span><strong>Phát hiện xung đột:</strong> Mũi tên phụ thuộc chuyển sang nét đứt màu đỏ khi công việc kế tiếp được xếp lịch bắt đầu trước khi việc tiền nhiệm hoàn tất.</span>
+            </li>
+          </ul>
+        </div>
       </div>
 
       {/* Toolbar */}
