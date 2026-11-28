@@ -5,13 +5,13 @@ import { ConfigProvider, theme as antdTheme } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import enUS from 'antd/locale/en_US';
 import { useTranslation } from 'react-i18next';
+import './i18n';
+import './styles/index.css';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { darkTheme, lightTheme } from './styles/antdTheme';
-import './i18n';
-import './styles/index.css';
 
 // Locale của Ant Design phải đi kèm ngôn ngữ ứng dụng, nếu không thì nút "OK/Cancel"
 // của DatePicker, chữ "Không có dữ liệu" của Table và tên tháng vẫn ở ngôn ngữ cũ.
